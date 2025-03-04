@@ -1,0 +1,12 @@
+{{define "header"}}<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TCHR7RGE46"></script>
+    <script>window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-TCHR7RGE46');</script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="name" content="{{.title}}" />
+    <title>{{.title}}</title>
+    <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
+    <script src="/static/js/{{.pageName}}.js" type="application/javascript"></script>
+</head>{{end}}

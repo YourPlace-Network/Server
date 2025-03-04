@@ -1,0 +1,47 @@
+@use "sass:map";
+@use "../global";
+
+.profileCard {
+  width: 100%;
+  min-height: 100px;
+  padding: .3em 0 .3em .5em;
+}
+
+.profileCard:hover {
+  cursor: pointer;
+}
+
+.profileCardAvatar {
+  position: relative;
+  padding: 0;
+  margin: 0 .5em 0 .1em;
+  width: 4em;
+  height: 4em;
+  float: left;
+  object-fit: cover;
+}
+
+.profileCardIdentity {
+  float: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.profileCardName {
+  font-weight: bold;
+  color: map.get(global.$colors, "text");
+}
+
+.profileCardAddress {
+  font-size: .7em;
+  color: map.get(global.$colors, "text");
+  opacity: 0.8;
+}
+
+.profileCardDescription {
+  text-align: justify;
+  padding: 5px;
+  margin-top: 1.7em;
+  clear: both;
+}

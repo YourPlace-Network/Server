@@ -1,0 +1,23 @@
+<Configuration>
+    <MappedFolders>
+        <MappedFolder>
+            <HostFolder>C:\Users\Nops\AppData\Local\YourPlace</HostFolder>
+            <SandboxFolder>C:\Users\WDAGUtilityAccount\AppData\Local\YourPlace</SandboxFolder>
+            <ReadOnly>true</ReadOnly>
+            <AllowParentPaths>false</AllowParentPaths>
+        </MappedFolder>
+        <MappedFolder>
+            <HostFolder>C:\Users\Nops\YourPlace</HostFolder>
+            <SandboxFolder>C:\Users\WDAGUtilityAccount\YourPlace</SandboxFolder>
+            <ReadOnly>false</ReadOnly>
+            <AllowParentPaths>false</AllowParentPaths>
+        </MappedFolder>
+    </MappedFolders>
+    <LogonCommand>
+        <Command>C:\Users\WDAGUtilityAccount\AppData\Local\YourPlace\YourPlace.exe</Command>
+    </LogonCommand>
+    <Networking>Enable</Networking>
+    <ProtectedClient>Enable</ProtectedClient>
+    <PrinterRedirection>Disable</PrinterRedirection>
+    <ClipboardRedirection>Disable</ClipboardRedirection>
+</Configuration>

@@ -1,0 +1,34 @@
+#include <tunables/global>
+
+
+# sudo apparmor_parser -r /etc/apparmor.d/usr.local.your_binary
+# aa-status
+# sudo aa-enforce /path/to/your/binary
+
+
+/path/to/your/binary {
+	#include <abstractions/base>
+
+	# Allow execution
+	/path/to/your/binary rix,
+
+	# Allow access to certain folders
+	/some/folder/** rw,
+	/another/folder/** rw,
+
+	# Networking permissions
+	network inet tcp,
+	network inet6 tcp,
+
+	# Allow binding to certain ports (e.g., 8080, 8081)
+	capability net_bind_service,
+
+	# Additional capabilities for network requests
+	capability net_raw,
+
+	# Include any other abstractions/libraries that the binary might require
+	#include <abstractions/nameservice>
+
+	# Log any violations
+	audit deny /**,
+}

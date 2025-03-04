@@ -1,0 +1,1 @@
+Invoke-RestMethod -Method POST -Uri "http://localhost:42424/settings/indexer/stop"

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.yourplace.uninstall</string>
+    <key>KeepAlive</key>
+    <dict>
+      <key>PathState</key>
+      <dict>
+          <key>/Applications/YourPlace.app</key>
+          <false/>
+      </dict>
+    </dict>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/Application\ Support/YourPlace/uninstall.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

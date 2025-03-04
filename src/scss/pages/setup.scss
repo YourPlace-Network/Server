@@ -1,0 +1,91 @@
+@use "sass:map";
+@use "../global.scss";
+
+h1 {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+.img-store,
+.img-store:hover {
+  height: 40px;
+  width: 120px;
+  cursor: pointer;
+}
+.img-store {
+  margin-bottom: 5px;
+  margin-right: 5px;
+}
+.check {
+  position: relative;
+  margin-left: 30px;
+  margin-bottom: 5px;
+  transform: rotate(45deg);
+  height: 25px;
+  width: 15px;
+  border-bottom: 7px solid map.get(global.$colors, "success");
+  border-right: 7px solid map.get(global.$colors, "success");
+  display: none;
+}
+#indexerConfirmBtn:hover,
+#directoryConfirmBtn:hover,
+#connectWalletBtn:hover,
+#gatewayConfirmBtn:hover, {
+  transition: transform .1s;
+  transform: scale(1.1);
+  color: white;
+}
+#walletConnectHelper {
+  padding-left: 5px;
+  color: map.get(global.$colors, "failure");
+  font-weight: bold;
+  display: none;
+}
+#address {
+  margin-left: 20px;
+}
+#installSpinner {
+  display: none;
+  margin-left: 10px;
+}
+.imgWalletLogo {
+  height: 30px;
+  width: 30px;
+  margin-right: 10px;
+  margin-top: 5px;
+  float: left;
+}
+#cbWalletSetup p {
+  float: left;
+  margin-right: 15px;
+  margin-top: 5px;
+}
+#arrowLeft {
+  width: 0;
+  height: 0;
+  border-top: 15px solid transparent;
+  border-bottom: 15px solid transparent;
+  border-right: 25px solid map.get(global.$colors, "success");
+  position: relative;
+  display: none;
+  animation: bobbing 1s ease-in-out infinite;
+  padding-left: 7.3em;
+  margin-top: 1.3em;
+}
+#startInstallBtn {
+  position: absolute;
+  z-index: 10;
+}
+@keyframes bobbing {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-10px);
+  }
+}
+#ageWarning {
+  font-size: .7em;
+  margin: 0;
+  position: relative;
+  top: -1em;
+}

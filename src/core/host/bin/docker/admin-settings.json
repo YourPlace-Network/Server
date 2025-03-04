@@ -1,0 +1,121 @@
+{
+  "configurationFileVersion": 2,
+  "exposeDockerAPIOnTCP2375": {
+    "locked": true,
+    "value": true
+  },
+  "proxy": {
+    "locked": true,
+    "mode": "system",
+    "http": "",
+    "https": "",
+    "exclude": [],
+    "windowsDockerdPort": 65000
+  },
+  "containersProxy": {
+    "locked": true,
+    "mode": "manual",
+    "http": "",
+    "https": "",
+    "exclude": [],
+    "pac":"",
+    "transparentPorts": ""
+  },
+  "enhancedContainerIsolation": {
+    "locked": true,
+    "value": true,
+    "dockerSocketMount": {
+      "imageList": {
+        "images": [
+          "docker.io/localstack/localstack:*",
+          "docker.io/testcontainers/ryuk:*"
+        ]
+      },
+      "commandList": {
+        "type": "deny",
+        "commands": ["push"]
+      }
+    }
+  },
+  "linuxVM": {
+    "wslEngineEnabled": {
+      "locked": false,
+      "value": false
+    },
+    "dockerDaemonOptions": {
+      "locked": false,
+      "value":"{\"debug\": false}"
+    },
+    "vpnkitCIDR": {
+      "locked": false,
+      "value":"192.168.65.0/24"
+    }
+  },
+  "kubernetes": {
+    "locked": false,
+    "enabled": false,
+    "showSystemContainers": false,
+    "imagesRepository": ""
+  },
+  "windowsContainers": {
+    "dockerDaemonOptions": {
+      "locked": false,
+      "value":"{\"debug\": false}"
+    }
+  },
+  "disableUpdate": {
+    "locked": false,
+    "value": false
+  },
+  "analyticsEnabled": {
+    "locked": false,
+    "value": false
+  },
+  "extensionsEnabled": {
+    "locked": true,
+    "value": false
+  },
+  "scout": {
+    "locked": false,
+    "sbomIndexing": true,
+    "useBackgroundIndexing": true
+  },
+  "allowExperimentalFeatures": {
+    "locked": false,
+    "value": false
+  },
+  "allowBetaFeatures": {
+    "locked": false,
+    "value": false
+  },
+  "blockDockerLoad": {
+    "locked": false,
+    "value": true
+  },
+  "filesharingAllowedDirectories": [
+    {
+      "path": "$HOME",
+      "sharedByDefault": false
+    },
+    {
+      "path":"$TMP",
+      "sharedByDefault": false
+    }
+  ],
+  "useVirtualizationFrameworkVirtioFS": {
+    "locked": true,
+    "value": true
+  },
+  "useVirtualizationFrameworkRosetta": {
+    "locked": true,
+    "value": true
+  },
+  "useGrpcfuse": {
+    "locked": true,
+    "value": true
+  },
+  "displayedOnboarding": {
+    "locked": true,
+    "value": false
+  }
+}

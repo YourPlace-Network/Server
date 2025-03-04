@@ -1,0 +1,159 @@
+@use "sass:map";
+
+$colors: (
+        "primary": #525252,
+        "secondary": #414141,
+        "tertiary": #313131,
+        "quaternary": #3A7FD1,
+        "light": #D3D3D3,
+        "dark": #313131,
+        "success": #3E8D63,
+        "info": #D3D3D3,
+        "warning": #FFFF00,
+        "danger": #FF0000,
+        "text": #D3D3D3,
+        "link": #3A7FD1,
+);
+
+/* Bootstrap Global Colors */
+$body-bg: map.get($colors, "tertiary");
+$body-color: map.get($colors, "text");
+$primary: map.get($colors, "primary");
+$secondary: map.get($colors, "secondary");
+$light: map.get($colors, "light");
+$dark: map.get($colors, "dark");
+$success: map.get($colors, "success");
+$link-color: map.get($colors, "link");
+
+/* Boostrap Component Colors */
+$modal-content-bg: map.get($colors, "tertiary");
+$component-active-color: map.get($colors, "text");
+$component-active-bg: map.get($colors, "quaternary");
+$form-check-input-border: 1px solid map.get($colors, "text");
+$form-switch-color: map.get($colors, "text");
+$accordion-bg: map.get($colors, "tertiary");
+$accordion-button-active-bg: map.get($colors, "primary");
+$accordion-button-active-color: map.get($colors, "text");
+$accordion-button-focus-box-shadow: none;
+$accordion-border-width: 0px;
+$tooltip-color: map.get($colors, "text");
+$btn-border-width: 0px;
+
+@import "~bootstrap/scss/bootstrap";
+@import "~bootstrap-icons/font/bootstrap-icons.css";
+
+$theme-colors: map-merge($theme-colors, $colors);
+
+/* Mixin and Pure CSS Styling */
+html {
+    scrollbar-gutter: stable;
+}
+body {
+  padding-right: 0 !important;
+  overflow-y: scroll;
+}
+.btn {
+  color: map.get($colors, "text");
+  @include button-variant(
+                  map.get($colors, "quaternary"),
+                  map.get($colors, "quaternary"));
+}
+textarea {
+  outline: none;
+}
+.cursorPointer:hover {
+  cursor: pointer;
+}
+.shrink {
+  transform: scale(0.8);
+}
+.grow {
+  transition: all .2s ease-in-out;
+}
+.grow:hover {
+  transform: scale(1.1);
+}
+.centered {
+  margin: auto;
+  text-align: center;
+  left: 50%;
+  right: 50%;
+}
+.flex {
+  display: flex;
+}
+.top-right {
+  position: fixed;
+  right: 0;
+  top: 0;
+}
+.top-left {
+  position: fixed;
+  left: 0;
+  top: 0;
+}
+a {
+  color: map.get($colors, "link");
+  text-decoration: none;
+}
+a:hover,
+a:visited,
+a:active {
+  color: map.get($colors, "text");
+  text-decoration: none;
+}
+.rotate-img {
+  animation: rotate 2s linear infinite;
+}
+#tooltip {
+  /* Float on top of the UI */
+  position: absolute;
+  /* Avoid layout interference */
+  width: max-content;
+  top: 0;
+  left: 0;
+}
+.clickable {
+  display: inline-block;
+  transition: transform 0.1s ease;
+  cursor: pointer;
+}
+.clickable:active {
+  transform: scale(0.9);
+}
+.clickable:after {
+  content: '';
+  display: block;
+  transform: scale(1);
+  transition: transform 0.1s ease;
+}
+.hidden {
+  display: none;
+}
+.disabled-link {
+  pointer-events: none;
+  cursor: not-allowed;
+  //opacity: 0.6;
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@keyframes flashFade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.flashFade {
+  animation: flashFade 2s ease-in-out forwards;
+  display: block;
+}
+.shaded {
+  background-color: map-get($colors, "secondary");
+}

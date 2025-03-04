@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.yourplace.helper</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Applications/YourPlace.app/Contents/MacOS/YourPlaceHelper</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+      <key>ThrottleInterval</key>
+      <integer>240</integer>
+      <key>Crashed</key>
+      <true/>
+    </dict>
+    <key>UserName</key>
+    <string>root</string>
+    <key>WorkingDirectory</key>
+    <string>/tmp</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>HOME</key>
+      <string>/Applications/YourPlace.app/</string>
+    </dict>
+</dict>
+</plist>

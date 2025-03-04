@@ -1,0 +1,32 @@
+@use "../global.scss";
+
+#logoDiv {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+#bannerImg {
+  position: relative;
+  max-width: 80%;
+  min-width: 50%;
+  width: 500px;
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+@media (max-width: 600px) {
+  #bannerImg {
+    margin-right: 80px;
+    padding-top: 20px;
+    padding-bottom: 30px;
+  }
+}
+h1 {
+  text-align: center;
+}
+#returnTextDiv {
+  text-align: center;
+}
+#notFoundImg {
+  height: 200px;
+  margin-left: calc(50% - 100px);
+}

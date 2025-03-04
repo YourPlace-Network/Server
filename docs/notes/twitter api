@@ -1,0 +1,14 @@
+https://github.com/elizaOS/agent-twitter-client
+
+1. Create Twitter Developer Account - https://developer.twitter.com/en/portal/dashboard
+2. Create Twitter "Project"
+3. Add "YourPlace" as an App under the Project
+4. Navigate to "Keys and Tokens" and generate the following:
+    - API Key
+    - API Secret Key
+    - Access Token
+    - Access Token Secret
+5. Add Access Token & it's secret to the user environment variables
+    * X_Access_Token
+    * X_Access_Token_Secret
+6. Authenticate using https://github.com/dghubble/oauth1

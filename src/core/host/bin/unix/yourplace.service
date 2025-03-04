@@ -1,0 +1,11 @@
+[Unit]
+Description=YourPlace
+
+[Service]
+ExecStart=/opt/YourPlace/YourPlace config.yaml
+WorkingDirectory=/opt/YourPlace
+StandardOutput=append:/var/log/yourplace.log
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

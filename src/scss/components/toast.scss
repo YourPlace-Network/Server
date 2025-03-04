@@ -1,0 +1,23 @@
+@use "../global";
+
+.toast-container {
+  z-index: 100;
+}
+.toastLink, .toastLink:visited {
+  text-decoration: underline;
+  color: map-get(global.$colors, "link");
+}
+.toast {
+  .btn-close {
+    background: none;
+    opacity: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    .bi-x {
+      font-size: 1.5em;
+      color: map-get(global.$colors, "text");
+    }
+  }
+}

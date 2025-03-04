@@ -1,0 +1,15 @@
+	powershell.exe Remove-Item $(EXECUTABLE).exe -Force -Recurse -ErrorAction SilentlyContinue
+
+
+
+build:
+ifeq ($(OS), Windows_NT)
+	go build main.go
+else
+	OS := $(shell uname)
+	ifeq ($(OS), Darwin)
+		GOOS=darwin GOARCH=amd64 go build main.go
+	else
+		GOOS=linux GOARCH=amd64 go build main.go
+	endif
+endif

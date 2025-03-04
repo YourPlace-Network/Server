@@ -1,0 +1,16 @@
+(version 1)
+;; Disallow everything by default
+(deny default)
+
+;; https://www.karltarvas.com/macos-app-sandboxing-via-sandbox-exec.html
+;;
+;; This system profile grants access to a number of things, such as:
+;;
+;;  - locale info
+;;  - system libraries (/System/Library, /usr/lib, etc)
+;;  - access to to basic tools (/etc, /dev/urandom, etc)
+;;  - Apple services (com.apple.system, com.apple.dyld, etc)
+;;
+;; and more, see bsd.sb and system.sb in the corresponding directory.
+;;
+(import "/System/Library/Sandbox/Profiles/bsd.sb")

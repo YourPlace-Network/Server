@@ -1,0 +1,256 @@
+package network
+
+import (
+	_core "YourPlace/src/core"
+	"YourPlace/src/core/host"
+	"context"
+	"encoding/json"
+	ipfsfiles "github.com/ipfs/boxo/files"
+	ipfspath "github.com/ipfs/boxo/path"
+	ipfscid "github.com/ipfs/go-cid"
+	krpc "github.com/ipfs/kubo/client/rpc"
+	kcoreifaceoptions "github.com/ipfs/kubo/core/coreiface/options"
+	ma "github.com/multiformats/go-multiaddr"
+	"net"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// https://developers.cloudflare.com/distributed-web/ipfs-gateway
+// var cloudflareIPFS = "https://cloudflare-ipfs.com/ipfs/%s" //CID (doesn't work with video)
+// var ipfsio = "https://ipfs.io/ipfs/%s?filename=%s"         //CID & URL encoded name
+// https://github.com/ipfs/kubo/tree/master/docs/examples/kubo-as-a-library
+// https://github.com/empirefox/hybrid/blob/2c2a55d1c0d3a235dc7c5eea9ef430af253172e7/pkg/ipfs/migrate-directly.go
+// https://github.com/zhangzhao2/idena-go/blob/151a8b1fa742d6aba28cbcd5301bece16f786ab3/ipfs/migration.go
+
+type IPFS struct {
+	rpcNode     *krpc.HttpApi
+	contentPath string
+	port        uint64
+}
+
+func (node *IPFS) Init(port uint64) {
+	node.port = port
+	UpdateIPFSConfig(port)
+	if !host.RunIPFS() {
+		_core.LogError("Could not run IPFS daemon")
+	}
+	maddr, err := ma.NewMultiaddr(strings.TrimSpace("/ip4/127.0.0.1/tcp/" + strconv.FormatUint(port, 10)))
+	if err != nil {
+		_core.LogError("Could not create IPFS multiaddress: " + err.Error())
+		return
+	}
+	_node, err := krpc.NewApi(maddr)
+	if err != nil {
+		_core.LogError("Could not create IPFS RPC API node: " + err.Error())
+		return
+	}
+	node.rpcNode = _node
+}
+func (node *IPFS) IPFSNodeAlive() bool {
+	maxAttempts := 30
+	sleepTime := 1 * time.Second
+	attemptCount := 1
+	connected := false
+	for attemptCount < (maxAttempts+1) && !connected {
+		addr := "127.0.0.1:" + strconv.FormatUint(node.port, 10)
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			attemptCount = attemptCount + 1
+			time.Sleep(sleepTime)
+			continue
+		}
+		err = conn.Close()
+		if err != nil {
+			_core.LogError("Could not close IPFS node connection: " + err.Error())
+			return false
+		}
+		connected = true
+		break
+	}
+	if connected {
+		return true
+	} else {
+		_core.LogError("Could not connect to IPFS node after " + strconv.Itoa(maxAttempts) + " tries")
+		return false
+	}
+}
+func (node *IPFS) IPFSAddFile(path string) (string, error) { // Adds & pins file or directory to IPFS
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	st, err := os.Stat(path)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not get file stats for IPFS upload: " + err.Error())
+	}
+	_node, err := ipfsfiles.NewSerialFile(path, false, st)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not create serial file for IPFS upload: " + err.Error())
+	}
+	addOptions := []kcoreifaceoptions.UnixfsAddOption{
+		kcoreifaceoptions.Unixfs.Pin(true),
+	}
+	ipfsPath, err := node.rpcNode.Unixfs().Add(ctx, _node, addOptions...)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not add file to IPFS: " + err.Error())
+	}
+	cid := ipfsPath.RootCid().String()
+	return cid, nil
+
+	/*stats, err := os.Stat(path)
+	if err != nil {
+		_core.LogError("Could not get file stats: " + err.Error())
+		return "", err
+	}
+	serialFile, err := files.NewSerialFile(path, false, stats)
+	if err != nil {
+		_core.LogError("Could not create serial file: " + err.Error())
+		return "", err
+	}
+	resolved, err := node.rpcNode.Unixfs().Add(context.Background(), serialFile)
+	if err != nil {
+		_core.LogError("Could not add file to IPFS: " + err.Error())
+		return "", err
+	}
+	trimmedCID := strings.TrimPrefix(resolved.String(), "/ipfs/")
+	pathIPFS, err := _path.NewPath(resolved.String())
+	if err != nil {
+		_core.LogError("Could not get path from CID: " + err.Error())
+		return "", err
+	}
+	err = node.rpcNode.Pin().Add(context.Background(), pathIPFS)
+	if err != nil {
+		_core.LogError("Could not pin IPFS file: " + err.Error())
+	}
+	_, err = node.rpcNode.Unixfs().Ls(context.Background(), pathIPFS)
+	if err != nil {
+		_core.LogError("Could add file to IPFS instance: " + err.Error())
+	}
+	// I don't know what the RPC call is, so just using HTTP instead - https://docs.ipfs.tech/reference/kubo/rpc/#api-v0-files-cp
+	_, err = HttpPost("http://127.0.0.1:" + strconv.Itoa(int(node.port)) + "/api/v0/files/cp?arg=/ipfs/" + trimmedCID + "&arg=/" + trimmedCID)
+	if err != nil {
+		if !strings.Contains(err.Error(), "directory already has entry by that name") {
+			_core.LogError("Could not add file to IPFS instance 2: " + err.Error())
+		}
+	}
+	return trimmedCID, nil*/
+}
+func (node *IPFS) IPFSDownloadFile(cid string, path string) error { // Downloads a file or directory from IPFS to local file system
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	exists := host.DoesExist(path)
+	if exists {
+		return _core.LogErrorReturn("File already exists, can't download IPFS file")
+	}
+	_cid, err := ipfscid.Decode(cid)
+	if err != nil {
+		return _core.LogErrorReturn("Could not decode CID for file download: " + err.Error())
+	}
+	_path := ipfspath.FromCid(_cid)
+	_node, err := node.rpcNode.Unixfs().Get(ctx, _path)
+	if err != nil {
+		return _core.LogErrorReturn("Could not get file from IPFS: " + err.Error())
+	}
+	if err = ipfsfiles.WriteTo(_node, path); err != nil {
+		return _core.LogErrorReturn("Could not write file to local file system: " + err.Error())
+	}
+	return nil
+
+	/*resolvedPath, err := _path.NewPath(cid)
+	if err != nil {
+		_core.LogError("Could not get path from CID: " + err.Error())
+		return err
+	}
+	file, err := node.rpcNode.Unixfs().Get(context.Background(), resolvedPath)
+	if err != nil {
+		_core.LogError("Could not get file from IPFS: " + err.Error())
+		return err
+	}
+	return files.WriteTo(file, path)*/
+}
+func (node *IPFS) IPNSResolveName(ipnsName string) (string, error) {
+	ctx := context.Background()
+	resolved, err := node.rpcNode.Name().Resolve(ctx, ipnsName)
+	if err != nil {
+		return "", err
+	}
+	return resolved.String(), nil
+}
+func (node *IPFS) IPNSCreateName(cid string) (string, error) {
+	ctx := context.Background()
+	c, err := ipfscid.Decode(cid)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not decode CID: " + err.Error())
+	}
+	published, err := node.rpcNode.Name().Publish(ctx, ipfspath.FromCid(c))
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not publish IPNS name: " + err.Error())
+	}
+	return published.String(), nil
+}
+func (node *IPFS) IPNSSearchName(name string) ([]string, error) {
+	ctx := context.Background()
+	resolved, err := node.rpcNode.Name().Search(ctx, name)
+	if err != nil {
+		return []string{}, err
+	}
+	resolvedArray := make([]string, 0)
+	for result := range resolved {
+		resolvedArray = append(resolvedArray, result.Path.String())
+	}
+	if len(resolvedArray) == 0 {
+		return []string{}, _core.LogErrorReturn("Could not find any IPNS names")
+	} else {
+		return resolvedArray, nil
+	}
+}
+func UpdateIPFSConfig(port uint64) {
+	path := host.GetDataDir() + ".ipfs" + host.PathSeparator + "config"
+	jsonData, err := os.ReadFile(path)
+	if err != nil {
+		_core.LogError("Could not read IPFS config file: " + err.Error())
+		return
+	}
+	var parsedData interface{}
+	if err = json.Unmarshal(jsonData, &parsedData); err != nil {
+		_core.LogError("Could not unmarshal IPFS config file: " + err.Error())
+		return
+	}
+	if rootMap, ok := parsedData.(map[string]interface{}); ok {
+		if apiKey, _ := rootMap["API"].(map[string]interface{}); ok {
+			apiKey["HTTPHeaders"].(map[string]interface{})["Access-Control-Allow-Origin"] = []string{"*"}
+			apiKey["HTTPHeaders"].(map[string]interface{})["Access-Control-Allow-Methods"] = []string{"PUT", "POST", "GET", "HEAD", "OPTIONS"}
+			apiKey["HTTPHeaders"].(map[string]interface{})["Access-Control-Allow-Methods"] = []string{"PUT", "POST", "GET"}
+			apiKey["HTTPHeaders"].(map[string]interface{})["Cross-Origin-Resource-Policy"] = []string{"cross-origin"}
+			apiKey["HTTPHeaders"].(map[string]interface{})["Cross-Origin-Embedder-Policy"] = []string{"credentialless"}
+		}
+		if addressesKey, _ := rootMap["Addresses"].(map[string]interface{}); ok {
+			addressesKey["API"] = "/ip4/127.0.0.1/tcp/" + strconv.Itoa(int(port))
+			addressesKey["Gateway"] = "/ip4/127.0.0.1/tcp/" + strconv.Itoa(int(port+1))
+		}
+		if gatewayKey, _ := rootMap["Gateway"].(map[string]interface{}); ok {
+			gatewayKey["HTTPHeaders"].(map[string]interface{})["Access-Control-Allow-Origin"] = []string{"*"}
+			gatewayKey["HTTPHeaders"].(map[string]interface{})["Access-Control-Allow-Methods"] = []string{"PUT", "POST", "GET", "HEAD", "OPTIONS"}
+			gatewayKey["HTTPHeaders"].(map[string]interface{})["Cross-Origin-Resource-Policy"] = []string{"cross-origin"}
+			gatewayKey["HTTPHeaders"].(map[string]interface{})["Cross-Origin-Embedder-Policy"] = []string{"credentialless"}
+			localhostGateway := make(map[string]interface{})
+			localhostGateway["Paths"] = []string{"/ipfs", "/ipns"}
+			localhostGateway["UseSubdomains"] = true
+			publicGateways := make(map[string]interface{})
+			publicGateways["localhost"] = localhostGateway
+			gatewayKey["PublicGateways"] = publicGateways
+		}
+		if swarmKey, _ := rootMap["Swarm"].(map[string]interface{}); ok {
+			swarmKey["DisableNatPortMap"] = false
+		}
+	}
+	modifiedJSON, err := json.MarshalIndent(parsedData, "", "\t")
+	if err != nil {
+		_core.LogError("Could not marshall IPFS config data: " + err.Error())
+		return
+	}
+	if err = os.WriteFile(path, modifiedJSON, 0644); err != nil {
+		_core.LogError("Could not write to IPFS config file: " + err.Error())
+	}
+}

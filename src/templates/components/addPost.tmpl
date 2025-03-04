@@ -1,0 +1,33 @@
+{{define "addPost"}}<div class="modal" id="addPostModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body">
+                <textarea id="addPostText" placeholder=" Tell the World! 🌎"></textarea>
+
+                <div id="addPostLinkPreview"></div>
+
+                <div id="addPostControls">
+                    <div class="form-check form-switch" id="savedPostCheckboxDiv" data-bs-toggle="tooltip" title="Save this post to the blockchain forever">
+                        <input class="form-check-input" type="checkbox" role="switch" id="savedPostCheckbox" checked disabled>
+                        <label class="form-check-label" for="savedPostCheckbox" id="savedPostCheckboxLabel">Save Post</label>
+                    </div>
+
+                    <!--<button type="button" class="btn btn-primary" id="btnUploadFile" data-bs-toggle="tooltip" title="Attach a file to the post - Coming Soon" disabled>
+                        <i class="bi bi-cloud-upload" id="uploadFileBtnImg"></i>Upload File</button>
+                    <input type="file" name="file" id="file" hidden>-->
+
+                    <div id="spiceometerDiv">
+                        <p id="spiceometerText"></p>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" id="submitPostButton">Post</button>
+                </div>
+                <div id="postAttachDiv"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<button type="button" class="btn btn-primary grow" id="addPostButton" data-bs-toggle="tooltip" title="Add a Post" data-bs-placement="left">
+    <div class="addPostPlus horizontal"></div>
+    <div class="addPostPlus vertical"></div>
+</button>{{end}}

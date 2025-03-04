@@ -1,0 +1,2 @@
+1. Create proper logger
+    Find instances of, log.* fmt.* and other "print" and "fatal" and "panic" errors

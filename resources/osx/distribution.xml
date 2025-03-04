@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <title>YourPlace</title>
+    <organization>com.yourplace</organization>
+    <domains enable_localSystem="true"/>
+    <options customize="never" require-scripts="false"/>
+    <background file="yourplace.png" alignment="bottomleft" mime-type="image/png"/>
+    <background-darkAqua file="yourplace.png" alignment="bottomleft" mime-type="image/png"/>
+    <pkg-ref id="com.yourplace.server"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.yourplace.server"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.yourplace.server" visible="false">
+        <pkg-ref id="com.yourplace.server"/>
+    </choice>
+    <pkg-ref id="com.yourplace.server" version="${VERSION}" onConclusion="none">component.pkg</pkg-ref>
+</installer-gui-script>

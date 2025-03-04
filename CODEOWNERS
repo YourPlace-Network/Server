@@ -1,0 +1,9 @@
+* @nops
+
+# Order is important. The last matching pattern has the most precedence.
+# So if a pull request only touches javascript files, only these owners
+# will be requested to review.
+# *.ts    @ts-owner @github/ts-owner
+
+# You can also use email addresses if you prefer.
+# docs/*  docs@example.com

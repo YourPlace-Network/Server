@@ -1,0 +1,8 @@
+tldr: when a profile is in private mode, all content is published encrypted to users on the allow list
+
+this uses Algorand's private/public keys to encrypt a symmetric "message key" between two users
+this message key is known by both parties, and each can use it to encrypt/decrypt posts to the other
+
+for group messaging, multiple recipient message keys can be specified when the post is encrypted
+
+since we use Algorand's key pairs, YourPlace never has access to private key material

@@ -1,0 +1,18 @@
+@use "sass:map";
+@use "../global";
+
+.scrollTop {
+  position: fixed;
+  left: 1em;
+  bottom: .2em;
+  border-right: 20px solid map-get(global.$colors, "quaternary");
+  border-bottom: 20px solid map-get(global.$colors, "quaternary");
+  width: 3em;
+  height: 3em;
+  transform: rotate(-135deg);
+  transition: all .2s ease-in-out;
+}
+.scrollTop:hover {
+  transform: rotate(-135deg) scale(1.1);
+  cursor: pointer;
+}

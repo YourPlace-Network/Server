@@ -1,0 +1,53 @@
+{{define "modalProfileEdit"}}<div class="modal" id="modalProfileEdit" style="display:none;" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Profile</h5>
+            </div>
+            <div class="modal-body" id="modalProfileEditBody">
+                <div id="editAvatar">
+                    <label class="editLabel btn" for="inputAvatar">Upload Avatar</label>
+                    <input type="file" class="form-control" id="inputAvatar" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"/>
+                    <img id="avatarPreview" class="previewImg" src="/static/image/avatar.png" alt="avatar preview" crossorigin="anonymous" referrerpolicy="no-referrer">
+                </div>
+                <div id="editBanner">
+                    <label class="editLabel btn" for="inputBanner">Upload Banner</label>
+                    <input type="file" class="form-control" id="inputBanner" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"/>
+                    <img id="bannerPreview" class="previewImg" src="/static/image/banner.jpg" alt="banner preview" crossorigin="anonymous" referrerpolicy="no-referrer">
+                </div>
+
+                <label class="editLabel" for="inputUsername">username</label><br>
+                <div class="input-group mb-3 edit-profile-single-line-input">
+                    <input type="text" class="form-control editInput" id="inputUsername" placeholder="Change Username" maxlength="100">
+                    <button id="btnUsernameSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button"><i class="bi bi-save"></i></button>
+                </div>
+
+                <label class="editLabel" for="inputDescription">description</label>
+                <div class="position-relative" id="inputDescriptionDiv">
+                    <textarea class="form-control editInput" id="inputDescription" placeholder="Add Description" maxlength="200"></textarea>
+                    <button id="btnDescriptionSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button"><i class="bi bi-save"></i></button>
+                </div>
+
+                <label class="editLabel" for="inputLocation">location</label>
+                <div class="input-group mb-3 edit-profile-single-line-input">
+                    <input type="text" class="form-control editInput" id="inputLocation" placeholder="Add Location" maxlength="50">
+                    <button id="btnLocationSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button"><i class="bi bi-save"></i></button>
+                </div>
+
+                <label class="editLabel" for="inputWebsite">website</label>
+                <div class="input-group mb-3 edit-profile-single-line-input">
+                    <input type="url" class="form-control editInput" id="inputWebsite" placeholder="Add Website" maxlength="100">
+                    <button id="btnWebsiteSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button"><i class="bi bi-save"></i></button>
+                </div>
+
+                <label class="editLabel" for="inputBirthday">birthday</label><br>
+                <div class="input-group mb-3 edit-profile-single-line-input">
+                    <input type="text" class="form-control" id="inputBirthday" placeholder="Add Birthday 🎂">
+                    <input type="hidden" id="birthDateEpoch">
+                    <button id="btnBirthdaySave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button"><i class="bi bi-save"></i></button>
+                </div>
+                <p id="ageWarning">(Must be over 13 years old)</p>
+            </div>
+        </div>
+    </div>
+</div>{{end}}

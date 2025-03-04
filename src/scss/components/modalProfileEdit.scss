@@ -1,0 +1,37 @@
+@use "../global";
+
+.edit-profile-single-line-input {
+  height: 30px;
+}
+.edit-profile-save-btn {
+  height: 2.31em;
+}
+#btnDescriptionSave {
+  position: relative;
+  margin-top: -5.8em;
+  margin-left: calc(100% - 2.5em);
+  height: 4em;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+#inputDescription {
+  height: 4em;
+  resize: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overflow-y: scroll;
+  box-sizing: border-box;
+  padding-right: 3em;
+}
+.editInput {
+  margin-bottom: 0;
+}
+#inputBirthday {
+  z-index: 10000;
+}
+#ageWarning {
+  font-size: .7em;
+}
+#inputDescriptionDiv {
+  height: 4.5em;
+}

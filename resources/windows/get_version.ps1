@@ -1,0 +1,1 @@
+(Select-String -Path main.go -Pattern 'version\s*=\s*"([^"]+)"').Matches.Groups[1].Value

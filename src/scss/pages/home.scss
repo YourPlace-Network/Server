@@ -1,0 +1,41 @@
+@use "sass:map";
+@use "../global.scss";
+
+#logoDiv {
+  width: 100%;
+  display: inline-block;
+  justify-content: center;
+  text-align: center;
+}
+#bannerImg {
+  display: inline;
+  position: relative;
+  max-width: 80%;
+  min-width: 50%;
+  width: 500px;
+  padding-top: 30px;
+  padding-bottom: 10px;
+}
+#searchDiv {
+  width: 100%;
+  padding-top: 20px;
+}
+#searchInput {
+  padding: 12px;
+  width: 100%;
+}
+#resultsDiv {
+  width: 100%;
+}
+@media (max-width: 600px) {
+  #bannerImg {
+    margin-right: 80px;
+    padding-top: 20px;
+    padding-bottom: 30px;
+  }
+}
+#subtitleText {
+  font-size: 2em;
+  font-weight: bold;
+  color: map.get(global.$colors, "quaternary");
+}

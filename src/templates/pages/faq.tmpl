@@ -1,0 +1,208 @@
+{{template "header" .}}
+<body class="body">
+{{template "htmlMenu" .}}
+    <div class="container-fluid vh-100">
+        <div class="row" id="row1">
+            <div class="col-sm-1"></div>
+            <div class="col-sm-10">
+                <div class="accordion" id="accordionFAQ">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingUncensorable">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUncensorable" aria-expanded="false" aria-controls="collapseUncensorable">
+                                😶 How Is YourPlace Uncensorable?
+                            </button>
+                        </h2>
+                        <div id="collapseUncensorable" class="accordion-collapse collapse" aria-labelledby="headingUncensorable" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>YourPlace stores user content on decentralized networks that nobody controls.</strong> The YourPlace protocol and reference implementation code is <a href="https://github.com/YourPlace-Network" target="_blank" rel="noopener noreferrer"><u>open-sourced</u></a>, which means that anyone can participate in a modern social media network without needing a central authority. By giving agency back to the user, YourPlace more accurately reflects how humans interact in the real world, without the need for central content moderators or servers. By running a YourPlace server linked to your own blockchain nodes, you create your own entry point into the most open and censorship-resistant social media network ever created.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingWork">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWork" aria-expanded="false" aria-controls="collapseWork">
+                                🛠️ How Does YourPlace Work?
+                            </button>
+                        </h2>
+                        <div id="collapseWork" class="accordion-collapse collapse" aria-labelledby="headingWork" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>YourPlace is open-source software that uses blockchain and IPFS to search for and store social media content.</strong> It leverages open and permission-less networks to replace traditional centralized social media models. See the <a href="https://whitepaper.yourplace.network" target="_blank" rel="noopener noreferrer"><u>YourPlace white paper</u></a> for a more detailed technical explanation of how YourPlace works
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingUploads">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUploads" aria-expanded="false" aria-controls="collapseUploads">
+                                📁 How Do You Enable File Uploads?
+                            </button>
+                        </h2>
+                        <div id="collapseUploads" class="accordion-collapse collapse" aria-labelledby="headingUploads" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>Download and run the <a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer"><u>YourPlace Server</u></a> to enable file uploading and sharing.</strong> The YourPlace protocol is distributed, which means that you need to serve your own files on the IPFS network. This is similar to using a BitTorrent client to share files. The YourPlace Server comes with this functionality built-in, and is the easiest way to get started with YourPlace.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-controls="collapseTwo">
+                                🚔 How Does YourPlace Deal With Illegal Content?
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>YourPlace Inc. is technically unable to censor content network-wide, but gateways may curate content they link to.</strong> By storing user content on the blockchain and IPFS, nobody can take that content down and gives YourPlace its censorship-resistance nature. However, YourPlace gateways act as the on-ramp to the network and may choose to display posts / accounts as their own content policy dictates. YourPlace Inc. runs the default <a href="https://yourplace.network" target="_blank" rel="noopener noreferrer"><u>yourplace.network</u></a> gateway and will comply with US laws regarding illegal content. We partner with Cloudflare Inc. to implement the IWF Hash List to combat abuse imagery on the official gateway.
+                                YourPlace Inc. implements our own content moderation policies on our gateway to curate a healthy community. All of this is analogous to how the email protocol operates today.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingThree">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-controls="collapseThree">
+                                🤫 Isn't Blocking Someone Censorship?
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>No. Free-speech means you're free to speak, but nobody is obligated to listen.</strong> YourPlace comes with strong controls to allow users and gateways to block other users, posts, hashtags and strings. This means that the user has the ultimate responsibility on what content they consume or block. In real life, if someone is bothering you, the peaceful thing to do is walk away. You can do this in YourPlace by blocking the user or subscribing to dynamic block lists that include them. YourPlace gives everyone the tools they need to protect themselves. Reasonable people would not consider "walking away" to be censoring the other person.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingFour">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-controls="collapseFour">
+                                👮 What Is The Relationship With Law Enforcement?
+                            </button>
+                        </h2>
+                        <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>YourPlace Inc. has very little information about users, past what is available on the public blockchain.</strong> Client IP addresses and gateway metadata would be the only information that could be requested, that doesn't also exist on the blockchain or IPFS. YourPlace Inc. will comply with all lawful requests relevant to our home jurisdictions. The YourPlace protocol is based on public source code and data stores, which means investigations require no assistance from YourPlace Inc. Governments may regulate gateways that run on their national networks, but cannot influence the whole protocol - which holds with YourPlace's philosophy of "you own your own domain."
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingSecure">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSecure" aria-controls="collapseSecure">
+                                🔒 Is YourPlace Secure?
+                            </button>
+                        </h2>
+                        <div id="collapseSecure" class="accordion-collapse collapse" aria-labelledby="headingSecure" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>YourPlace is built by professional security engineers using industry best practices.</strong> Nothing is 100% "secure," but it was made to withstand technical and logical attacks on free speech. We protect you by leveraging hardened software stacks to prevent exploitation and distributed networks to frustrate layer-3 censorship. We regularly undergo penetration tests and threat modeling of our internal and open-source applications to keep ahead of emerging threats. If you do find a security problem, please be responsible and email <a href="mailto:security@yourplace.network"><u>Security</u></a> to report it. Full Disclosure: we do not have a bug bounty program at this time.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingAnonymous">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAnonymous" aria-controls="collapseAnonymous">
+                                🥷 Is YourPlace Anonymous?
+                            </button>
+                        </h2>
+                        <div id="collapseAnonymous" class="accordion-collapse collapse" aria-labelledby="headingAnonymous" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>YourPlace is considered pseudo-anonymous, but does not hide network traffic by default.</strong> The YourPlace Server uses TCP/IP and HTTP to communicate with third party services over the regular internet. This means that, much like BitTorrent clients, ISPs and Law Enforcement can discover servers by the connections it makes. It is possible to run a YourPlace server behind a hidden service or VPN with some work, but such a configuration would not be supported and key functionality may not work.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingSlow">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSlow" aria-controls="collapseSlow">
+                                🦥 Why Do Some Images And Files Load Slowly?
+                            </button>
+                        </h2>
+                        <div id="collapseSlow" class="accordion-collapse collapse" aria-labelledby="headingSlow" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>Less popular files are stored on fewer peers in the IPFS network, and thus takes longer to find and download.</strong> Some content may be cached by centralized services to increase the responsiveness of YourPlace, but fully decentralized content may be slower to load. Running a YourPlace server ensures your files are pinned and seeded to the IPFS network so that they are never garbage collected. A single user may run multiple YourPlace servers to further accelerate their content.
+                                Content that is never accessed will eventually be garbage collected from IPFS. The most popular content on IPFS may never be removed because many peers keep a copy.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingUnsavedPosts">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUnsavedPosts" aria-controls="collapseUnsavedPosts">
+                                ✏️ Why If I Want To Edit / Delete My Post?
+                            </button>
+                        </h2>
+                        <div id="collapseUnsavedPosts" class="accordion-collapse collapse" aria-labelledby="headingUnsavedPosts" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>Running a <a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer"><u>YourPlace Server</u></a> allows creation of editable and deletable posts that aren't saved to the blockchain.</strong> YourPlace distinguishes between posts <u>saved</u> to the blockchain, and <u>unsaved</u> posts which only live on the YourPlace Server. Unsaved posts may be edited, deleted or faked by the YourPlace Server owner at any time. This means that saved posts are verifiable by the blockchain, but less flexible because they cannot be edited or deleted. For example: a saved post cannot lie about the number of likes it got, but an unsaved post may lie and say they have more likes.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingCost">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCost" aria-controls="collapseCost">
+                                💰 Does YourPlace Cost Anything?
+                            </button>
+                        </h2>
+                        <div id="collapseCost" class="accordion-collapse collapse" aria-labelledby="headingCost" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>The only cost to YourPlace is running a server and any blockchain transaction fees.</strong> Tranditional social media platforms host your content and create revenue off of views and clicks. YourPlace Inc. doesn't host your content, so the cost of publishing falls on the user. We leverage open blockchains and file distribution networks to reduce costs to a minimum, allowing anyone to become their own content publisher. Running a YourPlace Server is possible on a standard home broadband connection and with commodity hardware.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingCredits">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCredits" aria-controls="collapseCredits">
+                                💻 What Software Is Used?
+                            </button>
+                        </h2>
+                        <div id="collapseCredits" class="accordion-collapse collapse" aria-labelledby="headingCredits" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                YourPlace uses numerous open-source projects to function. Here are some of the most important ones:
+                                <div class="container">
+                                    <div class="row">
+                                        <div class="col-sm">
+                                            <ul class="list-group fossList">
+                                                <li class="list-group-item">Bootstrap - <a href="https://getbootstrap.com/" target="_blank" rel="noopener noreferrer">getbootstrap.com</a></li>
+                                                <li class="list-group-item">Sass Language - <a href="https://sass-lang.com/" target="_blank" rel="noopener noreferrer">sass-lang.com</a></li>
+                                                <li class="list-group-item">IPFS - <a href="https://ipfs.tech" target="_blank" rel="noopener noreferrer">ipfs.tech</a></li>
+                                                <li class="list-group-item">IP2Location - <a href="https://lite.ip2location.com" target="_blank" rel="noopener noreferrer">lite.ip2location.com</a></li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-sm">
+                                            <ul class="list-group fossList">
+                                                <li class="list-group-item">Go Language - <a href="https://go.dev/" target="_blank" rel="noopener noreferrer">go.dev</a></li>
+                                                <li class="list-group-item">TypeScript Language - <a href="https://www.typescriptlang.org/" target="_blank" rel="noopener noreferrer">typescriptlang.org</a></li>
+                                                <li class="list-group-item">Webpack - <a href="https://webpack.js.org/" target="_blank" rel="noopener noreferrer">webpack.js.org</a></li>
+                                                <li class="list-group-item">Gin Web Framework - <a href="https://gin-gonic.com/" target="_blank" rel="noopener noreferrer">gin-gonic.com</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingCreator">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCreator" aria-controls="collapseCreator">
+                                👋 Who Made YourPlace?
+                            </button>
+                        </h2>
+                        <div id="collapseCreator" class="accordion-collapse collapse" aria-labelledby="headingCreator" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>YourPlace was created by <a href="https://www.linkedin.com/in/0x9090/" target="_blank" rel="noopener noreferrer"><u>Nops</u></a>, a professional security engineer with a lifetime of engineering, cryptography and software security experience.</strong> Nops believes in fundamental human rights such as free speech and the right to self-sovereignty. He created YourPlace to challenge the censorship status-quo and give responsibility and content ownership back to the user.
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="col-sm-1"></div>
+        </div>
+    </div>
+    <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
+    <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">
+</body>
+</html>

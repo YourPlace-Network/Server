@@ -1,0 +1,142 @@
+@use "sass:map";
+@use "../global.scss";
+
+#settingsAccordion {
+  padding-top: 1em;
+}
+.container {
+  padding: 15px 0 0 0;
+}
+.accordion, .accordion-item {
+  width: 100%;
+}
+.accordion-button.button, {
+  background-color: map.get(global.$colors, "secondary");
+  color: map.get(global.$colors, "text");
+}
+.accordion-body, .accordion-collapse {
+  width: 100%;
+}
+.redLight {
+  background-color: hsla(0, 50%, 50%, 1);
+}
+.yellowLight {
+  background-color: hsla(45, 50%, 50%, 1);
+}
+.greenLight {
+  background-color: hsla(125, 70%, 45%, 1);
+}
+#ollamaCheckDiv {
+  float: left;
+  padding-top: 1.5em;
+}
+#ollamaModelDiv {
+  float: left;
+  padding-left: 2em;
+  padding-top: 1.5em;
+}
+#ollamaTrafficLight,
+#ollamaModelTrafficLight {
+  height: 1em;
+  width: 1em;
+  border-radius: 50%;
+  position: relative;
+  left: 2.5em;
+}
+#yourplaceTrafficLight,
+#ipfsTrafficLight {
+  height: 1.5em;
+  width: 1.5em;
+  background-color: hsla(0, 50%, 50%, 1);
+  border-radius: 50%;
+  display: inline-block;
+  cursor: pointer;
+  position: relative;
+  top: .4em;
+}
+#connectivityStatusLabel {
+  padding: 0 0 0 10px;
+  margin: 0 0 0 0;
+  display: inline-block;
+  position: relative;
+  height: 25px;
+}
+#retestPortsBtn {
+  position: relative;
+  float: right;
+}
+#networkingDescription {
+  position: relative;
+  margin-top: 10px;
+}
+#defaultUploadDirectoryBtn {
+  position: relative;
+  float: left;
+  margin: 0 0 10px 0;
+  width: 100px
+}
+#saveUploadDirectoryBtn {
+  position: relative;
+  float: left;
+  margin: 0 0 10px 10px;
+  width: 100px;
+}
+#savedUploadDirectorySuccess {
+  display: none;
+  position: relative;
+  float: left;
+  margin: 6px 0 10px 10px;
+  font-weight: bold;
+}
+#savedBaseURLSuccess {
+  display: none;
+  position: relative;
+  float: left;
+  margin: 6px 0 10px 10px;
+  font-weight: bold;
+}
+#baseThrottleNumber {
+  display: inline;
+}
+#aiRow {
+  margin-top: 75px;
+}
+#aiModelDropdown {
+  margin-top: 20px;
+}
+#blockchainGlobalSettingsDiv {
+  padding-bottom: 1em;
+}
+#baseFullNodeDataDirectoryDiv {
+  display: none;
+}
+#baseFullNodeDataDirectoryDiv {
+  padding-top: 10px;
+  padding-left: 45px;
+}
+#baseFullNodeInputDiv, #baseUrlInputDiv {
+  padding-bottom: 10px;
+}
+.rangeTooltip {
+  display: none;
+  position: absolute;
+  background-color: #000;
+  color: #fff;
+  padding: 5px;
+  border-radius: 4px;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1000;
+}
+.throttle-tooltip-arrow {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #000;
+  transform: rotate(45deg);
+  bottom: -4px;
+  left: calc(50% - 4px);
+}
+#postHistoryDays {
+  max-width: 110px;
+}

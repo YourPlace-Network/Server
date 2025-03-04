@@ -1,0 +1,26 @@
+{{template "header" .}}
+<body class="body">
+{{template "htmlMenu" .}}
+    <div class="container-fluid vh-100">
+        <div class="row" id="row1">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8" id="centerColumn">
+                <button class="btn btn-primary grow centered" id="emergencyBtn">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </button>
+                <button class="btn btn-primary grow centered" id="pauseBtn">
+                    <i class="bi bi-pause-circle-fill" id="pauseBtnImg"></i>
+                </button>
+                <button class="btn btn-primary grow centered" id="refreshBtn">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <div id="tip" class="centered"></div>
+            </div>
+            <div class="col-sm-2">
+                {{template "modalDialog" .}}
+            </div>
+        </div>
+    </div>
+    <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">
+</body>
+</html>

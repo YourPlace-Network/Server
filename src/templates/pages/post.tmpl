@@ -1,0 +1,19 @@
+{{template "header" .}}
+<body class="body">
+    <div class="container-fluid vh-100">
+        <div class="row" id="row1">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8"></div>
+        </div>
+
+        <div class="row" id="row2">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8">
+                {{template "addPost" .}}
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/post.js" type="application/javascript"></script>
+</body>
+</html>

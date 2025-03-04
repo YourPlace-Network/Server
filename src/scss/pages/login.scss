@@ -1,0 +1,17 @@
+@use "../global.scss";
+
+#logo {
+    width: 100%;
+    max-width: 300px;
+}
+#logoDiv {
+    padding-top: 20px;
+    padding-bottom: 10px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#loginModal{
+    margin-top: 50px;
+}

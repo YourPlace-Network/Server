@@ -1,0 +1,56 @@
+name: Windows
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23.6'
+
+    - name: Choco Install
+      uses: ConorMacBride/install-package@v1
+      with:
+        choco: make
+
+    - name: Make Clean
+      run: make clean
+      continue-on-error: true
+
+    - name: Make Install
+      run: make install
+
+    - name: Make Build
+      run: make build
+
+    - name: Configure AWS Credentials
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.S3_UPLOAD_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.S3_UPLOAD_SECRET }}
+        aws configure set default.region us-east-1
+        aws configure set default.s3.endpoint_url https://nyc3.digitaloceanspaces.com
+        aws configure set default.s3.addressing_style path
+
+    - name: Upload to DigitalOcean
+      run: |
+        $files = Get-ChildItem target\YourPlace*.exe
+        foreach ($file in $files) {
+          aws s3 cp $file.FullName s3://yourplace-downloads/windows/ --acl public-read --endpoint=https://nyc3.digitaloceanspaces.com
+        }

@@ -1,0 +1,20 @@
+{{template "header" .}}
+<body class="body">
+    <div class="container-fluid vh-100">
+        <div class="row" id="row1">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8">
+                <div id="logoDiv">
+                    <img src="/static/image/yourplace-banner-title.svg" alt="YourPlace logo image" id="logo">
+                </div>
+                {{template "modalLogin" .}}
+            </div>
+            <div class="col-sm-2">
+                {{template "modalDialog" .}}
+            </div>
+        </div>
+    </div>
+    <!-- Injected Variables -->
+    <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
+</body>
+</html>

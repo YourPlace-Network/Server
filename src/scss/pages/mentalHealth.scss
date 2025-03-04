@@ -1,0 +1,37 @@
+@use "sass:map";
+@use "../global.scss";
+
+#tip {
+  padding-top: 10%;
+  color: map.get(global.$colors, "text");
+  font-size: 30px;
+  text-align: center;
+  width: 100%;
+}
+#centerColumn {
+  padding-top: 15%;
+}
+#refreshBtn {
+  width: 50px;
+  height: 50px;
+}
+#emergencyBtn {
+  width: 50px;
+  height: 50px;
+  margin-left: calc(50% - 80px);
+}
+#pauseBtn {
+  width: 50px;
+  height: 50px;
+}
+.obviousLink {
+  color: #545eff;
+  text-decoration: underline;
+  font-weight: bold;
+  cursor: pointer;
+}
+.obviousLink:hover {
+  color: red;
+  cursor: pointer;
+  font-weight: bold;
+}

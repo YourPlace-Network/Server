@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    {{template "header" .}}
+    <link href="/static/css/wallet.css" rel="stylesheet" />
+</head>
+<body class="body">
+    <div class="container-fluid vh-100">
+        <div class="row" id="rowOne">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8 centerColumn">
+               <div class="row inputs">
+                   <button type="button" class="btn btn-primary" id="connectWalletBtn">
+                       <img id="algoImg" src="/static/image/algo-small.png"/>Connect Algo Wallet
+                   </button>
+               </div>
+
+               <div class="row inputs">
+                   <form class="form-inline" action="#">
+                       <div class="form-group mb-2">
+                           <label for="indexerURL" class="sr-only">Indexer URL</label>
+                           <input type="text" class="form-control" id="indexerURL" placeholder="yourplace.network">
+                       </div>
+                       <button type="submit" class="btn btn-primary mb-2" id="enrollBtn">Enroll</button>
+                   </form>
+               </div>
+
+               <div class="row inputs">
+                   <p>Algo Network = <span id="algoNetwork" class="info">{{ .network }}</span></p>
+                   <p>Algod Status = <span id="algoStatus" class="info">{{ .status }}</span></p>
+                   <p>Logged In = <span id="loggedIn" class="info"></span></p>
+               </div>
+               <div clas="col-sm-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/wallet.js" type="application/javascript"></script>
+</body>
+</html>

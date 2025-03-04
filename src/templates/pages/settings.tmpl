@@ -1,0 +1,297 @@
+{{template "header" .}}
+<body class="body">
+{{template "htmlMenu" .}}
+{{template "modalDialog" .}}
+{{template "toast" .}}
+    <div class="container-fluid vh-100">
+        <!--<div class="row">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8 centerColumn">
+                <div class="accordion accordion-flush" id="demoAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
+                                <b>Demo</b>
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#demoAccordion">
+                            <div class="accordion-body">
+                                <p>body div</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-2"></div>
+        </div>-->
+
+        <!-- Content -->
+        <div class="row">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8 centerColumn">
+                <div class="accordion accordion-flush" id="settingsAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingOne">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                <b>Content</b>
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#settingsAccordion">
+                            <div class="accordion-body">
+                                <label for="uploadDirectory" class="form-label">Upload Directory</label>
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" id="uploadDirectory">
+                                </div>
+                                <div>
+                                    <button class="btn btn-primary" id="defaultUploadDirectoryBtn">Default</button>
+                                    <button class="btn btn-primary" id="saveUploadDirectoryBtn">Save</button>
+                                    <div id="savedUploadDirectorySuccess">Success</div>
+                                </div>
+
+                                <!-- Artificial Intelligence -->
+                                <div class="row" id="aiRow">
+                                    <div class="col-sm-12 centerColumn">
+                                        <div class="accordion accordion-flush" id="aiAccordion">
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingAi">
+                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAi" aria-expanded="false" aria-controls="collapseAi">
+                                                        <b>Artificial Intelligence</b>
+                                                    </button>
+                                                </h2>
+                                                <div id="collapseAi" class="accordion-collapse collapse" aria-labelledby="headingAi" data-bs-parent="#aiAccordion">
+                                                    <div class="accordion-body">
+                                                        <div class="form-check form-switch">
+                                                            <input class="form-check-input" type="checkbox" id="spiceometerCheck">
+                                                            <label class="form-check-label" for="spiceometerCheck">Spice-o-Meter 🌶️ Rate the spiciness of your post</label>
+                                                        </div>
+                                                        <div id="ollamaCheckDiv">
+                                                            <div id="ollamaTrafficLight" class="redLight"></div><div id="OllamaStatusLabel"> Ollama Status</div>
+                                                        </div>
+                                                        <div id="ollamaModelDiv">
+                                                            <div id="ollamaModelTrafficLight" class="redLight"></div><div id="ollamaModelLabel"> llama3.2:3b</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-2"></div>
+        </div>
+
+        <!-- Privacy -->
+        <div class="row">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8 centerColumn">
+                <div class="accordion accordion-flush" id="privacyAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
+                                <b>Privacy</b>
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#privacyAccordion">
+                            <div class="accordion-body">
+                                <div class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="right" title="Coming Soon!">
+                                    <input class="form-check-input" type="checkbox" id="privateProfileCheck" disabled>
+                                    <label class="form-check-label" for="privateProfileCheck">Private Profile</label>
+                                </div>
+                                <div class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="right" title="Coming Soon!">
+                                    <input class="form-check-input" type="checkbox" id="defaultSavedPostsCheck" checked disabled>
+                                    <label class="form-check-label" for="defaultSavedPostsCheck">Default To Saved Posts</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-2"></div>
+        </div>
+
+        <!-- Networking -->
+        <div class="row">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8 centerColumn">
+                <div class="accordion accordion-flush" id="networkingAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingThree">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="true" aria-controls="collapseThree">
+                                <b>Networking</b>
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#networkingAccordion">
+                            <div class="accordion-body">
+                                <p>Certain network ports must be open on your router for YourPlace to fully function</p>
+                                <div id="yourplaceTrafficLight"></div><div id="connectivityStatusLabel"> = YourPlace Port (42424)</div><br>
+                                <div id="ipfsTrafficLight"></div><div id="connectivityStatusLabel"> = IPFS Port (4001)</div>
+                                <button class="btn btn-primary" id="retestPortsBtn">Retest Ports</button><br>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-2"></div>
+        </div>
+
+        <!-- Blockchain -->
+        <div class="row">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8 centerColumn">
+                <div class="accordion accordion-flush" id="blockchainAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingBlockchain">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBlockchain" aria-expanded="false" aria-controls="collapseBlockchain">
+                                <b>Blockchain</b>
+                            </button>
+                        </h2>
+                        <div id="collapseBlockchain" class="accordion-collapse collapse" aria-labelledby="headingBlockchain" data-bs-parent="#blockchainAccordion">
+                            <div class="accordion-body">
+                                <div class="row">
+                                    <div class="col-sm-13" id="blockchainGlobalSettingsDiv">
+                                        <div class="form-check form-switch" id="indexerOnBatterySwitch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="indexerOnBatteryCheckbox">
+                                            <label class="form-check-label" for="indexerOnBatteryCheckbox">Run Indexer On Battery</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Algorand -->
+                                <!--<div class="row">
+                                    <div class="col-sm-12 centerColumn">
+                                        <div class="accordion accordion-flush" id="algorandAccordion">
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingFour">
+                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour" disabled>
+                                                        <b>Algorand</b>
+                                                    </button>
+                                                </h2>
+                                                <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#algorandAccordion">
+                                                    <div class="accordion-body">
+                                                        <div class="form-check form-switch" id="algoFullNodeDiv">
+                                                            <input class="form-check-input" type="checkbox" role="switch" id="algoFullNodeCheckbox" disabled>
+                                                            <label class="form-check-label" for="algoFullNodeCheckbox">Run Full Node</label>
+                                                        </div>
+
+                                                        <div class="form-check form-switch" id="algoFullIndexerDiv">
+                                                            <input class="form-check-input" type="checkbox" role="switch" id="algoFullIndexerCheckbox" disabled>
+                                                            <label class="form-check-label" for="algoFullIndexerCheckbox">Run Full Indexer</label>
+                                                        </div>
+
+                                                        <label for="algodServer" class="form-label">Algod Server</label>
+                                                        <div class="input-group mb-3">
+                                                            <input type="text" class="form-control" id="algodServer">
+                                                        </div>
+
+                                                        <label for="algodToken" class="form-label">Algod Token</label>
+                                                        <div class="input-group mb-3">
+                                                            <input type="password" class="form-control" id="algodToken">
+                                                        </div>
+
+                                                        <label for="indexerServer" class="form-label">Algorand Indexer Server</label>
+                                                        <div class="input-group mb-3">
+                                                            <input type="text" class="form-control" id="indexerServer">
+                                                        </div>
+
+                                                        <label for="indexerToken" class="form-label">Algorand Indexer Token</label>
+                                                        <div class="input-group mb-3">
+                                                            <input type="password" class="form-control" id="indexerToken">
+                                                        </div>
+
+                                                        <div>
+                                                            <button class="btn btn-primary" id="defaultServicesBtn">Default</button>
+                                                            <button class="btn btn-primary" id="saveServicesBtn">Save</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>-->
+
+                                <!-- Base -->
+                                <div class="row">
+                                    <div class="col-sm-12 centerColumn">
+                                        <div class="accordion accordion-flush" id="baseAccordion">
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingBase">
+                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBase" aria-expanded="false" aria-controls="collapseBase">
+                                                        <b>Base</b>
+                                                    </button>
+                                                </h2>
+                                                <div id="collapseBase" class="accordion-collapse collapse" aria-labelledby="headingBase" data-bs-parent="#baseAccordion">
+                                                    <div class="accordion-body">
+                                                        <div id="baseFullNodeDiv">
+                                                            <div class="form-check form-switch" id="baseFullNodeSwitch">
+                                                                <input class="form-check-input" type="checkbox" role="switch" id="baseFullNodeCheckbox" disabled>
+                                                                <label class="form-check-label" for="baseFullNodeCheckbox">Run Full Node</label>
+                                                            </div>
+                                                            <div id="baseFullNodeDataDirectoryDiv">
+                                                                <label for="baseDataDirectory" class="form-label">Node Data Directory</label>
+                                                                <div class="input-group mb-3" id="baseFullNodeInputDiv">
+                                                                    <input type="text" class="form-control" id="baseDataDirectory">
+                                                                    <button class="btn btn-primary btn-outline-secondary" id="baseDefaultDataDirectoryBtn" type="button">Default</button>
+                                                                    <button class="btn btn-primary btn-outline-secondary" id="baseSaveDataDirectoryBtn" type="button">Save</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label for="baseURL" id="baseUrlLabel" class="form-label">Base RPC URL</label>
+                                                        <div class="input-group mb-3" id="baseUrlInputDiv">
+                                                            <input type="text" class="form-control" id="baseURL">
+                                                            <button class="btn btn-primary btn-outline-secondary" id="defaultBaseURLBtn" type="button">Default</button>
+                                                            <button class="btn btn-primary btn-outline-secondary" id="saveBaseURLBtn" type="button">Save</button>
+                                                        </div>
+                                                        <div id="baseIndexerReset">
+                                                            <button class="btn btn-primary" id="baseIndexerResetBtn">Reset Indexer</button>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label for="baseThrottle" class="form-label" id="baseThrottleLabel">Server Throttle: <div id="baseThrottleNumber"></div> Requests-Per-Second</label>
+                                                        <div class="input-group mb3">
+                                                            <datalist id="baseThrottleMarkers">
+                                                                <option value="1" label="1"></option>
+                                                                <option value="25" label="25"></option>
+                                                                <option value="50" label="50"></option>
+                                                                <option value="100" label="100"></option>
+                                                                <option value="150" label="150"></option>
+                                                                <option value="200" label="200"></option>
+                                                                <option value="250" label="250"></option>
+                                                            </datalist>
+                                                            <input type="range" class="form-range" id="baseThrottle" min="1" max="250" step="1" value="25" list="baseThrottleMarkers">
+                                                            <div id="baseThrottleTooltip" class="rangeTooltip" role="tooltip">
+                                                                <div class="throttle-tooltip-inner"></div>
+                                                                <div class="throttle-tooltip-arrow"></div>
+                                                            </div>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label class="form-label" for="postHistoryDays" id="postHistoryDaysLabel">Post History To Keep (days)</label>
+                                                        <div class="input-group mb3">
+                                                            <input type="number" class="form-control" id="postHistoryDays" placeholder="Days" min="1" max="365" step="1" data-bind="value:postHistoryDays" />
+                                                            <button class="btn btn-primary" id="savePostHistoryDaysBtn">Save</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-2"></div>
+        </div>
+    </div>
+    <!-- Injected Variables -->
+    <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
+    <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">
+</body>
+</html>

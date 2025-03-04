@@ -1,0 +1,92 @@
+{{template "header" .}}
+<body class="body">
+    <div class="container-fluid vh-100">
+        <div class="row">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8 centerColumn">
+                <h1>YourPlace Setup</h1>
+                <div class="accordion accordion-flush" id="setupAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingOne">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-controls="collapseOne" id="buttonOne">
+                                Step 1<div class="check" id="checkOne"></div>
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#setupAccordion">
+                            <div class="accordion-body">
+                                <div id="cbWalletSetup">
+                                    <img src="/static/image/coinbase-wallet.png" class="imgWalletLogo" id="imgCBWallet" alt="">
+                                    <p>Download Coinbase Wallet:</p>
+                                    <img src="/static/image/appstore.png" class="img-store grow" id="imgAppstoreCBWallet" alt="">
+                                    <img src="/static/image/playstore.png" class="img-store grow" id="imgPlaystoreCBWallet" alt="">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-controls="collapseTwo" id="buttonTwo">
+                                Step 2<div class="check" id="checkTwo"></div><div id="address" style="display: none">Address: <div id="addressTruncated"></div></div>
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#setupAccordion">
+                            <div class="accordion-body">
+                                <button class="btn btn-primary" id="btnLogin">
+                                    <span id="btnLoginText">Login</span>
+                                </button>
+                                {{template "modalLogin" .}}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingThree">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-controls="collapseThree" id="buttonThree">
+                                Step 3<div class="check" id="checkThree"></div>
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#setupAccordion">
+                            <div class="accordion-body">
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" id="birthDate" placeholder="Select Birth Date">
+                                    <input type="hidden" id="birthDateEpoch">
+                                    <span class="input-group-text"><i class="bi bi-calendar"></i></span>
+                                </div>
+                                <p id="ageWarning">(Must be over 13 years old)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingFour">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-controls="collapseFour" id="buttonFour">
+                                Step 4<div class="check" id="checkFour"></div>
+                            </button>
+                        </h2>
+                        <div id="collapseFour" class="accordion-collapse collapse" data-bs-parent="#setupAccordion">
+                            <div class="accordion-body">
+                                <p>Uploads Directory:</p>
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" placeholder="{{ .defaultUploadDirectory }} (default)" id="uploadDirectory"
+                                           data-bs-toggle="tooltip" data-bs-title="Where to store your file uploads">
+                                    <input type="hidden" class="form-control" id="uploadDirectoryValue" value="{{ .defaultUploadDirectory }}">
+                                    <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
+                                </div>
+                                <button class="btn btn-primary" id="startInstallBtn" disabled>
+                                    <span class="spinner-border spinner-border-sm" id="installSpinner" role="status"></span>
+                                    <span id="startInstallBtnText">Start Install</span>
+                                </button>
+                                <div class="arrow-left" id="arrowLeft"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="col-sm-2"></div>
+        </div>
+    </div>
+{{template "modalDialog" .}}
+</body>
+</html>

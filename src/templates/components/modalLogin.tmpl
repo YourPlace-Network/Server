@@ -1,0 +1,33 @@
+{{define "modalLogin"}}<div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h5 id="modalLoginTitle">Choose Your Wallet</h5>
+                <button type="button" class="btn btn-primary btn-login-wallet" id="coinbaseWalletBtn">
+                    <img id="coinbaseImgModalLogin" class="wallet-logo" src="/static/image/coinbase-wallet.png" alt="Coinbase Wallet Logo"/>
+                    <span>Coinbase Wallet</span>
+                </button>
+                <button type="button" class="btn btn-primary btn-login-wallet" id="deflyWalletBtn" disabled>
+                    <img id="deflyImgModalLogin" class="wallet-logo" src="/static/image/defly.png" alt="Defly Wallet Logo"/>
+                    <span>Defly</span>
+                </button>
+                <button type="button" class="btn btn-primary btn-login-wallet" id="exodusWalletBtn" disabled>
+                    <img id="exodusImgModalLogin" class="wallet-logo" src="/static/image/exodus.svg" alt="Exodus Wallet Logo"/>
+                    <span>Exodus</span>
+                </button>
+                <button type="button" class="btn btn-primary btn-login-wallet" id="metaMaskWalletBtn" disabled>
+                    <img id="metaMaskImgModalLogin" class="wallet-logo" src="/static/image/metamask.png" alt="MetaMask Wallet Logo"/>
+                    <span>MetaMask</span>
+                </button>
+                <button type="button" class="btn btn-primary btn-login-wallet" id="peraWalletBtn" disabled>
+                    <img id="peraImgModalLogin" class="wallet-logo" src="/static/image/pera-small.png" alt="Pera Wallet Logo"/>
+                    <span>Pera</span>
+                </button>
+                <button type="button" class="btn btn-primary btn-login-wallet" id="phantomWalletBtn" disabled>
+                    <img id="phantomImgModalLogin" class="wallet-logo" src="/static/image/phantom.svg" alt="Phantom Wallet Logo"/>
+                    <span>Phantom</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>{{end}}

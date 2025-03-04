@@ -1,0 +1,13 @@
+# place this file at /etc/logrotate.d/yourplace-logrotate
+
+/var/log/yourplace.log {
+    daily
+    rotate 7
+    compress
+    missingok
+    notifempty
+    create 0644 root root
+    postrotate
+        systemctl restart yourplace.service > /dev/null
+    endscript
+}

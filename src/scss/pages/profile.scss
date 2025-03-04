@@ -1,0 +1,287 @@
+@use "sass:map";
+@use "../global.scss";
+
+// -------- Profile Header -------- //
+#profileBannerDiv {
+  height: 10em;
+  overflow: hidden;
+}
+#profileBanner {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: fill;
+  object-position: center;
+}
+#profileAvatar {
+  width: 8em;
+  height: 8em;
+  margin: 1em;
+  position: relative;
+  z-index: 10;
+  top: -5em;
+  float: left;
+  object-fit: contain;
+}
+#profileNavDiv {
+  height: 75px;
+  display: inline;
+}
+#nameDiv {
+  padding-top: 5px;
+}
+#atSymbol {
+  display: inline;
+}
+#addressDiv {
+  min-width: 20em;
+  position: relative;
+  z-index: 100;
+}
+#addressLink {
+  color: map.get(global.$colors, "text");
+  text-decoration: none;
+}
+#addressLink:hover {
+  text-decoration: underline;
+}
+#rowAvatarUsername {
+  height: 5.5em;
+}
+#profileName {
+  font-weight: bold;
+  font-size-adjust: 1;
+  padding-bottom: 10px;
+  margin-top: 10px;
+  margin-left: 1em;
+}
+#profileNameDomain {
+  font-weight: normal;
+  font-size-adjust: 0.4;
+  display: inline;
+}
+#profileEditBtn, #followBtn {
+  display: none;
+  float: right;
+  position: relative;
+  margin-top: 1em;
+  margin-right: 1em;
+  width: 5em;
+  height: 2.2em;
+  padding: 0;
+  z-index: 100;
+}
+#editImg {
+  height: 20px;
+  width: 20px;
+  padding-right: 5px;
+  margin-bottom: 4px;
+}
+#profileAddress {
+  margin-left: -3px;
+}
+#profileAddress:hover {
+  text-decoration: underline;
+}
+#profileAddressCopy {
+  padding-left: 5px;
+  font-size: 11px;
+  transition: transform 0.1s ease;
+  position: relative;
+  top: -3px;
+}
+#profileDescription {
+  position: relative;
+  top: -7.5em;
+  padding-top: 7em;
+  padding-left: 1em;
+  font-size: 1.1em;
+}
+#profileMeta {
+  z-index: 20;
+  width: 100%;
+  position: relative;
+  top: -7.5em;
+}
+.metaPair {
+  min-width: 5em;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+#profileLink {
+  color: map.get(global.$colors, "text");
+  text-decoration: none;
+}
+#profileWebsite {
+  color: map.get(global.$colors, "text");
+}
+#profileWebsite:hover {
+    text-decoration: underline;
+}
+#profileLink:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+.iconMeta {
+  position: relative;
+  filter: brightness(70%);
+  float: left;
+  padding-left: 15px;
+  padding-right: 4px;
+}
+.metaText {
+  position: relative;
+  filter: brightness(70%);
+  float: left;
+}
+.stat {
+  width: 25%;
+  min-width: 75px;
+  display: flex;
+}
+.stat1 {
+  padding-left: 20px;
+}
+.statNum {
+  padding-right: 5px;
+  font-weight: bold;
+}
+.statLabel {
+  filter: brightness(70%);
+}
+#profileStatsDiv {
+  position: relative;
+  width: 100%;
+  top: -7em;
+}
+#profileButtonsDiv {
+  float: left;
+  width: 100%;
+  top: -6em;
+  z-index: 20;
+  position: relative;
+  padding-left: 20px;
+}
+.navBtn {
+  height: 2.33em;
+  margin-left: 5px;
+  margin-right: 5px;
+}
+// -------Profile Posts ------- //
+#contentDiv {
+  width: 100%;
+  display: flow-root;
+  position: relative;
+  top: -4.5em;
+}
+.pinnedPost {
+  display: none;
+}
+#emptyContentDivPlaceHolder {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  color: map.get(global.$colors, "text");
+  background-color: map.get(global.$colors, "secondary");
+  border-radius: 1rem;
+}
+.placeHolderIconDiv {
+  background-color: map.get(global.$colors, "secondary");
+}
+#placeHolderIcon {
+  font-size: 3rem;
+  color: map.get(global.$colors, "quaternary");
+}
+#emptyContentDivPlaceHolder h3 {
+  margin-bottom: 0.5rem;
+  color: map.get(global.$colors, "text");
+}
+#emptyContentDivPlaceHolder p {
+  margin: 0;
+  font-size: 1.1rem;
+  color: map.get(global.$colors, "text");
+}
+
+
+// -------Edit Profile -------- //
+.editInput,
+#editBanner,
+#editAvatar {
+  margin-bottom: 20px;
+  width: 100%;
+}
+input[type="file"] {
+  display: none;
+}
+.editLabel {
+  color: map.get(global.$colors, "primary");
+}
+#saveProfileBtn {
+  float: right;
+}
+#avatarPreview {
+  width: 40px;
+  height: 40px;
+  float: right;
+}
+#bannerPreview {
+  width: 110px;
+  height: 40px;
+  float: right;
+  object-fit: fill;
+  object-position: center;
+}
+// --------- Lower Resolution Tweaks ---------- //
+@media(max-width: 800px) {
+  #profileEditBtn {
+    margin-top: -50px;
+  }
+  #followBtn {
+    margin-top: -50px;
+  }
+}
+@media(max-width: 600px) {
+  #bannerImg {
+    width: 100%;
+  }
+  #profileAvatar {
+    width: 30%;
+  }
+  #editImg, #editImg {
+    padding: 0;
+  }
+  #editBtnLabel, #followBtnLabel {
+    display: none;
+  }
+}
+@media(max-width: 500px) {
+  #profileAvatar {
+    margin-top: 0;
+  }
+  #nameDiv {
+    margin-top: -30px;
+    padding-top: 0;
+  }
+  #profileName {
+    margin-top: 0;
+    margin-left: 10em;
+  }
+}
+@media(max-width: 400px) {
+  #profileAvatar {
+    margin-top: 0;
+  }
+  #nameDiv {
+    margin-top: -50px;
+  }
+  #profileDescription {
+    top: -7em;
+  }
+  #profileMeta {
+    top: -6.7em;
+  }
+}

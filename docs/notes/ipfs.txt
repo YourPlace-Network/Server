@@ -1,0 +1,16 @@
+https://ipfs.video/
+https://medium.com/revotic/streaming-with-ipfs-2145e6df5a4e
+https://cahlen.org/streaming-videos-on-ipfs/
+https://fission.codes/blog/experimenting-with-hls-video-streaming-and-ipfs/
+https://github.com/moshisushi/hlsjs-ipfs-loader
+https://github.com/TimDaub/ipfs-hls-converter
+https://github.com/desiredState/IPFSStreamingVideo
+https://github.com/scanlime/hls-ipfs-player
+https://github.com/ipfs-examples/js-ipfs-browser-video-streaming
+https://ipfstube.erindachtler.me/
+https://github.com/download13/ipfstube
+
+https://github.com/ipfs/go-ipfs/tree/c9cc09f6f7ebe95da69be6fa92c88e4cb245d90b/docs/examples/go-ipfs-as-a-library
+https://bartlomiejmika.com/post/2021/quickstart-to-building-golang-apps-using-ipfs/
+
+ipfs file streaming via HTTP multipart/form-data = https://github.com/ipfs/kubo/blob/master/docs/implement-api-bindings.md

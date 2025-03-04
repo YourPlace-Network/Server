@@ -1,0 +1,56 @@
+name: Ubuntu
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Version From Go Code
+        id: get_version
+        run: |
+          VERSION=$(grep -Po 'version = "\K[^"]*' main.go)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Version found: $VERSION"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.4'
+
+      - name: Install Make
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make
+
+      - name: Install NPM Dependencies
+        run: |
+          npm install package.json
+
+      - name: Run Make Build
+        run: |
+          make clean build
+
+      - name: Configure DigitalOcean
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.SPACES_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.SPACES_SECRET_KEY }}
+          aws-region: us-east-1 # DigitalOcean Spaces requires this region
+          endpoint-url: https://nyc3.digitaloceanspaces.com
+
+      - name: Upload to DigitalOcean
+        run: |
+          aws s3 cp ./target/YourPlace.exe s3://yourplace-downloads.nyc3.digitaloceanspaces.com/windows/${{ env.VERSION }}/YourPlace.exe --acl public-read
+        env:
+          AWS_ENDPOINT_URL: https://nyc3.digitaloceanspaces.com

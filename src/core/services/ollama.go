@@ -1,0 +1,151 @@
+package services
+
+import (
+	"YourPlace/src/core"
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"time"
+)
+
+func OllamaSetup() bool {
+	model := "llama3.2:3b"
+	err := OllamaHealthCheck()
+	if err != nil {
+		core.LogError("Ollama health check failed: " + err.Error())
+		return false
+	}
+	isDownloaded, err := OllamaIsModelDownloaded(model)
+	if isDownloaded {
+		return true
+	}
+	err = OllamaDownloadModel(model)
+	if err != nil {
+		core.LogError("Failed to download model: " + err.Error())
+		return false
+	}
+	return true
+}
+func OllamaHealthCheck() error {
+	resp, err := http.Get("http://localhost:11434/api/ps")
+	if err != nil {
+		return fmt.Errorf("failed to check ollama health: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("ollama health check failed: %v", resp.Status)
+	}
+	return nil
+}
+func OllamaDownloadModel(modelName string) error {
+	core.LogDebug("Downloading Ollama model: " + modelName)
+	url := fmt.Sprintf("http://localhost:11434/api/pull")
+	requestBody := map[string]string{
+		"name": modelName,
+	}
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal json: %v", err)
+	}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to download model: %v", err)
+	}
+	defer resp.Body.Close()
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		var progressResponse struct {
+			Status string `json:"status"`
+			Digest string `json:"digest,omitempty"`
+			Total  int64  `json:"total,omitempty"`
+			Done   int64  `json:"completed,omitempty"`
+		}
+		if err = json.Unmarshal(scanner.Bytes(), &progressResponse); err != nil {
+			continue // skip malformed json
+		}
+		if progressResponse.Total > 0 {
+			progress := float64(progressResponse.Done) / float64(progressResponse.Total) * 100
+			fmt.Printf("Downloading %s: %.2f%%\n", modelName, progress)
+		} else {
+			fmt.Printf("\r%s", progressResponse.Status)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("failed to read response: %v", err)
+	}
+	return nil
+}
+func OllamaIsModelDownloaded(modelName string) (bool, error) {
+	resp, err := http.Get("http://localhost:11434/api/tags")
+	if err != nil {
+		return false, core.LogErrorReturn("failed to connect to Ollama API: " + err.Error())
+	}
+	defer resp.Body.Close()
+	var result struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return false, core.LogErrorReturn("failed to decode response: " + err.Error())
+	}
+	for _, model := range result.Models {
+		if model.Name == modelName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+func OllamaPromptModel(modelName string, prompt string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	url := "http://localhost:11434/api/generate"
+	requestBody := map[string]interface{}{
+		"model":  modelName,
+		"prompt": prompt,
+		"stream": true,
+	}
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", core.LogErrorReturn("Error marshaling Ollama request: " + err.Error())
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", core.LogErrorReturn("Error creating Ollama request: " + err.Error())
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", core.LogErrorReturn("Error sending Ollama request: " + err.Error())
+	}
+	defer resp.Body.Close()
+	scanner := bufio.NewScanner(resp.Body)
+	responseString := ""
+	for scanner.Scan() {
+		var response struct {
+			Response string `json:"response"`
+			Done     bool   `json:"done"`
+		}
+		if err = json.Unmarshal(scanner.Bytes(), &response); err != nil {
+			continue // Skip malformed JSON
+		}
+		responseString += response.Response
+		if response.Done {
+			break
+		}
+	}
+	if err = scanner.Err(); err != nil {
+		return "", core.LogErrorReturn("Error reading Ollama response: " + err.Error())
+	}
+	return responseString, nil
+}
