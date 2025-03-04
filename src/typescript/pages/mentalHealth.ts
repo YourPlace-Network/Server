@@ -694,6 +694,9 @@ const tips = [
     "There's a difference between a government subsidizing a private business, and a government buying services from a private business at fair market values",
     "If someone was lied to, and then they mistakenly repeat that information, that doesn't make them a liar. Maybe they should have verified the information before repeating it - which at worst, is just intellectual laziness",
     "Recognize poor leadership, get rid of it, get better",
+    "You can't negotiate with someone if you're insulting them at the same time",
+    "You might be right, but if you're going up against someone more powerful and more determined, then you'll lose and history will show you as being wrong. That's why the history books always show the winner as the 'good guy'",
+
 
 
 ];
