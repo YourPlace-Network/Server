@@ -27,6 +27,6 @@ To run a build with debugging enabled, run the command
 
 Output YourPlace binary will be in the `target/` directory
 
-Builds on Windows AMD64, OSX Darwin ARM64/AMD64 and coming soon: Linux AMD64
+Builds on Windows x64, OSX Apple Silicon, and coming soon: Linux x64
 
 See the Makefile for more build targets
