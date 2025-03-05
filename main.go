@@ -319,13 +319,11 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 		routes.MentalHealthRoutes(router, title, database, cryptoSeed)
 		routes.SearchRoutes(router, database, _blockchain)
 		routes.ServicesRoutes(router, database)
-		core.LogDebug("problem child: routes.ServicesRoutes()")
 		routes.NotificationRoutes(router, database)
 		if debug {
 			routes.TestRoutes(router, title)
 		}
 	}
-	core.LogDebug("routes initialized")
 	// --- Start Web Server Loop --- //
 	CSRF := csrf.Protect(cryptoSeed, csrf.SameSite(csrf.SameSiteStrictMode), csrf.Secure(true), csrf.HttpOnly(true), csrf.Path("/"))
 	var srv *http.Server
@@ -396,6 +394,11 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 			blockchain.IndexerFetchPosts(database, _blockchain, "base")
 		})
 	}
+	// ------- IPFS BadBits ------- //
+	network.UpdateBadBits(database)
+	c.AddFunc("@every 168h", func() {
+		network.UpdateBadBits(database)
+	})
 	// --- Start Cron --- //
 	c.Start()
 }

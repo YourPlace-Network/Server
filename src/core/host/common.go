@@ -46,7 +46,7 @@ func GetDataDir() string {
 func GetHomeDir() string {
 	user, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatalln("Could not get home directory: " + err.Error())
+		_core.LogError("Could not get home directory: " + err.Error())
 	}
 	return user
 }
@@ -89,7 +89,7 @@ func DeleteIfExists(path string) {
 func CreateFolder(path string) {
 	err := os.MkdirAll(path, 0755)
 	if err != nil {
-		log.Println("Could not create folder: " + path + " - " + err.Error())
+		_core.LogError("Could not create folder: " + path + " - " + err.Error())
 	}
 }
 func GetTempDir() string {
@@ -438,9 +438,6 @@ func PreInstall(favicon []byte) bool {
 	if !InstallIPFS() {
 		_core.LogWarn("Could not install IPFS")
 	}
-	/*if !InstallHelper() {
-		_core.LogWarn("Could not install YourPlace Helper")
-	}*/
 	if !InstallAutorun() {
 		_core.LogWarn("Could not install YourPlace Autorun")
 	}

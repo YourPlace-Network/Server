@@ -268,6 +268,10 @@ func findProcessByName(name string) (int, error) {
 
 /* ------ OS Specific Business Logic ------ */
 func InstallIPFS() bool {
+	KillProcess("YourPlaceIpfs")
+	if IsEmbeddedFileEqual(ipfsBin, GetInstallDir()+"YourPlaceIpfs") {
+		return true
+	}
 	if GetCPUArch() == 64 {
 		ipfsRepo := GetDataDir() + ".ipfs"
 		ipfsPath := "IPFS_PATH=" + EscapePath(ipfsRepo)

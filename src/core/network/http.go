@@ -3,6 +3,7 @@ package network
 import (
 	"YourPlace/src/core"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,12 +12,16 @@ import (
 	"time"
 )
 
-func HttpGet(url string) (string, error) {
-	client := &http.Client{}
-	req, _ := http.NewRequest("GET", url, nil)
-	resp, err := client.Do(req)
+func HttpGet(url string, timeout uint64) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return "", err
+		return "", errors.New("could not create request")
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", errors.New("could not send request")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {

@@ -2,6 +2,7 @@ import "bootstrap/dist/js/bootstrap.bundle";
 import "../../scss/components/menu.scss";
 import {GetAddress, GetChain, WalletGetAvatar} from "../util/blockchain/wallet";
 import {XSSSanitizeUrl} from "../util/security";
+import {CIDToSubdomainURL} from "../util/ipfs";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -47,7 +48,12 @@ import {XSSSanitizeUrl} from "../util/security";
             if (blockchain && address) {
                 let avatar = await WalletGetAvatar(blockchain, address);
                 if (avatar) {
-                    DOM.menuAvatar.src = XSSSanitizeUrl(avatar.toString());
+                    let cidURL = CIDToSubdomainURL(avatar.toString());
+                    if (cidURL) {
+                        DOM.menuAvatar.src = cidURL;
+                    } else {
+                        DOM.menuAvatar.src = XSSSanitizeUrl(avatar.toString());
+                    }
                 }
             }
         }

@@ -2,6 +2,7 @@ package network
 
 import (
 	_core "YourPlace/src/core"
+	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
 	"context"
 	"encoding/json"
@@ -271,4 +272,33 @@ func copyToMFS(source, destination string, port uint64) error {
 		return fmt.Errorf("HTTP error: %d - %s", resp.StatusCode, string(body))
 	}
 	return nil
+}
+func UpdateBadBits(database *db.Database) {
+	updateFlag := database.SettingsGetValue("badbitsEnabled")
+	if updateFlag != "true" {
+		_core.LogDebug("Bad bits list update is disabled")
+		return
+	}
+	_core.LogDebug("Updating bad bits list")
+	badbitsURL := "https://badbits.dwebops.pub/badbits.deny"
+	content, err := HttpGet(badbitsURL, 60)
+	if err != nil {
+		_core.LogError("Could not get bad bits list: " + err.Error())
+		return
+	}
+	badbitsPath := host.GetDataDir() + ".ipfs" + host.PathSeparator + "denylists" + host.PathSeparator
+	host.CreateFolder(badbitsPath)
+	err = os.WriteFile(badbitsPath+"badbits.deny", []byte(content), 0644)
+	if err != nil {
+		_core.LogError("Could not write bad bits list: " + err.Error())
+		return
+	}
+	// Restart IPFS daemon to apply changes
+	if host.DoesProcExist("YourPlaceIpfs" + host.BinaryExtension) {
+		host.KillProcess("YourPlaceIpfs" + host.BinaryExtension)
+	}
+	time.Sleep(3 * time.Second)
+	if !host.RunIPFS() {
+		_core.LogError("Could not run IPFS daemon")
+	}
 }

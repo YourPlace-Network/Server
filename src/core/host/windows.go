@@ -868,7 +868,7 @@ func RemoveScheduledTask(serviceName string) {
 // ------ OS Specific Business Logic ------ //
 func InstallIPFS() bool {
 	KillProcess("YourPlaceIpfs.exe")
-	if IsEmbeddedFileEqual(ffmpegBin, GetInstallDir()+"YourPlaceIpfs.exe") {
+	if IsEmbeddedFileEqual(ipfsBin, GetInstallDir()+"YourPlaceIpfs.exe") {
 		return true
 	}
 	if GetCPUArch() == 64 {

@@ -14,11 +14,6 @@ type Database struct {
 	sqlite SQLite
 	Engine string
 }
-type Value struct {
-	Key    string
-	Value  string // Could be JSON payload
-	Bucket string
-}
 
 func (db *Database) Init(path string, engine string) {
 	validEngines := []string{"sqlite"}
@@ -42,6 +37,7 @@ func (db *Database) SetDefaults() {
 	defaults := map[string]string{
 		"historyDays":      "90",
 		"indexerOnBattery": "false",
+		"badbitsEnabled":   "true",
 	}
 	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
 		for key, defaultValue := range defaults {
