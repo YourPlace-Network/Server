@@ -290,10 +290,8 @@ func UpdateBadBits(database *db.Database) {
 			host.DeleteIfExists(badbitsPath + "badbits.deny")
 			RestartIPFS()
 		}
-		_core.LogDebug("Bad bits list update is disabled")
 		return
 	}
-	_core.LogDebug("Updating bad bits list")
 	badbitsURL := "https://badbits.dwebops.pub/badbits.deny"
 	content, err := HttpGet(badbitsURL, 60)
 	if err != nil {
