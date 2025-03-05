@@ -13,7 +13,6 @@ import (
 
 func ServicesRoutes(router *gin.Engine, database *db.Database) {
 	model := "llama3.2:3b"
-
 	router.GET("/service/ai/ollamaEnabled/", func(c *gin.Context) {
 		err := services.OllamaHealthCheck()
 		if err != nil {
@@ -33,15 +32,6 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 			return
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "enabled", "message": "ollama model is downloaded"})
-		return
-	})
-	router.GET("/service/ai/ollamaEnabled/", func(c *gin.Context) {
-		err := services.OllamaHealthCheck()
-		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"status": "disabled"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"status": "enabled"})
 		return
 	})
 

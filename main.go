@@ -286,7 +286,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	//}
 	router := gin.Default()
 	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
+	router.Use(CustomGinRecovery())
 	router.Use(middleware.CORSMiddleware(port))
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.Use(middleware.LoopbackMiddleware(port))
@@ -319,11 +319,13 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 		routes.MentalHealthRoutes(router, title, database, cryptoSeed)
 		routes.SearchRoutes(router, database, _blockchain)
 		routes.ServicesRoutes(router, database)
+		core.LogDebug("problem child: routes.ServicesRoutes()")
 		routes.NotificationRoutes(router, database)
 		if debug {
 			routes.TestRoutes(router, title)
 		}
 	}
+	core.LogDebug("routes initialized")
 	// --- Start Web Server Loop --- //
 	CSRF := csrf.Protect(cryptoSeed, csrf.SameSite(csrf.SameSiteStrictMode), csrf.Secure(true), csrf.HttpOnly(true), csrf.Path("/"))
 	var srv *http.Server
@@ -401,6 +403,20 @@ func StartPatching() {
 	helperServiceName := "YourPlaceHelper"
 	host.RemoveScheduledTask(helperServiceName)
 	host.InstallHelper()
+}
+func CustomGinRecovery() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			err := recover()
+			if err != nil {
+				stack := make([]byte, 4096)
+				stack = stack[:runtime.Stack(stack, false)]
+				core.LogError(fmt.Sprintf("PANIC RECOVERED: %v\n%s", err, stack))
+				c.AbortWithStatus(http.StatusInternalServerError)
+			}
+		}()
+		c.Next()
+	}
 }
 
 // --- Systray Functions --- //

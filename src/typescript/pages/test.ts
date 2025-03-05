@@ -4,7 +4,8 @@ import "../components/menu";
 import "../components/addPost";
 import {LogError, LogInfo} from "../util/log";
 import {UploadFile} from "../util/files";
-
+import type {App, Account, FeedItem} from "../services/twitter";
+import {ProfileService} from "../services/twitter";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -15,7 +16,7 @@ import {UploadFile} from "../util/files";
             inputAvatar: document.getElementById("inputAvatar")! as HTMLInputElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
         }
-
+        
         async function updateAvatar() {
             let file = DOM.inputAvatar.files![0];
             let result = await UploadFile(file, DOM.csrfToken.value); // send file to server
