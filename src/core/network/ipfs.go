@@ -5,14 +5,18 @@ import (
 	"YourPlace/src/core/host"
 	"context"
 	"encoding/json"
+	"fmt"
 	ipfsfiles "github.com/ipfs/boxo/files"
 	ipfspath "github.com/ipfs/boxo/path"
 	ipfscid "github.com/ipfs/go-cid"
 	krpc "github.com/ipfs/kubo/client/rpc"
 	kcoreifaceoptions "github.com/ipfs/kubo/core/coreiface/options"
 	ma "github.com/multiformats/go-multiaddr"
+	"io"
 	"net"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -78,7 +82,7 @@ func (node *IPFS) IPFSNodeAlive() bool {
 	}
 }
 func (node *IPFS) IPFSAddFile(path string) (string, error) { // Adds & pins file or directory to IPFS
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	st, err := os.Stat(path)
 	if err != nil {
@@ -96,45 +100,33 @@ func (node *IPFS) IPFSAddFile(path string) (string, error) { // Adds & pins file
 		return "", _core.LogErrorReturn("Could not add file to IPFS: " + err.Error())
 	}
 	cid := ipfsPath.RootCid().String()
+	// Add to MFS (Files API) to make the file visible in the WebUI
+	filename := filepath.Base(path)
+	ipfsFilePath := "/ipfs/" + cid
+	mfsFilePath := "/uploads/" + filename
+	// Ensure the upload directory exists
+	err = createMFSDirectory(node.port, "/uploads")
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not create MFS directory: " + err.Error())
+	}
+	// Use HTTP API to add file to IPFS virtual file system (MFS)
+	err = copyToMFS(ipfsFilePath, mfsFilePath, node.port)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not create MFS symlink: " + err.Error())
+	}
+	// Verify the file was properly added and is retrievable
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_cid, err := ipfscid.Decode(cid)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not decode CID for file upload verification: " + err.Error())
+	}
+	_path := ipfspath.FromCid(_cid)
+	_, err = node.rpcNode.Unixfs().Get(ctx, _path)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not get file from IPFS for upload verification: " + err.Error())
+	}
 	return cid, nil
-
-	/*stats, err := os.Stat(path)
-	if err != nil {
-		_core.LogError("Could not get file stats: " + err.Error())
-		return "", err
-	}
-	serialFile, err := files.NewSerialFile(path, false, stats)
-	if err != nil {
-		_core.LogError("Could not create serial file: " + err.Error())
-		return "", err
-	}
-	resolved, err := node.rpcNode.Unixfs().Add(context.Background(), serialFile)
-	if err != nil {
-		_core.LogError("Could not add file to IPFS: " + err.Error())
-		return "", err
-	}
-	trimmedCID := strings.TrimPrefix(resolved.String(), "/ipfs/")
-	pathIPFS, err := _path.NewPath(resolved.String())
-	if err != nil {
-		_core.LogError("Could not get path from CID: " + err.Error())
-		return "", err
-	}
-	err = node.rpcNode.Pin().Add(context.Background(), pathIPFS)
-	if err != nil {
-		_core.LogError("Could not pin IPFS file: " + err.Error())
-	}
-	_, err = node.rpcNode.Unixfs().Ls(context.Background(), pathIPFS)
-	if err != nil {
-		_core.LogError("Could add file to IPFS instance: " + err.Error())
-	}
-	// I don't know what the RPC call is, so just using HTTP instead - https://docs.ipfs.tech/reference/kubo/rpc/#api-v0-files-cp
-	_, err = HttpPost("http://127.0.0.1:" + strconv.Itoa(int(node.port)) + "/api/v0/files/cp?arg=/ipfs/" + trimmedCID + "&arg=/" + trimmedCID)
-	if err != nil {
-		if !strings.Contains(err.Error(), "directory already has entry by that name") {
-			_core.LogError("Could not add file to IPFS instance 2: " + err.Error())
-		}
-	}
-	return trimmedCID, nil*/
 }
 func (node *IPFS) IPFSDownloadFile(cid string, path string) error { // Downloads a file or directory from IPFS to local file system
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -253,4 +245,30 @@ func UpdateIPFSConfig(port uint64) {
 	if err = os.WriteFile(path, modifiedJSON, 0644); err != nil {
 		_core.LogError("Could not write to IPFS config file: " + err.Error())
 	}
+}
+func createMFSDirectory(port uint64, path string) error {
+	_url := fmt.Sprintf("http://localhost:%d/api/v0/files/mkdir?arg=%s&p=true", port, path)
+	resp, err := http.Post(_url, "application/json", nil)
+	if err != nil {
+		return _core.LogErrorReturn("Could not create MFS directory: " + err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return _core.LogErrorReturn("Could not create MFS directory: " + string(body))
+	}
+	return nil
+}
+func copyToMFS(source, destination string, port uint64) error {
+	_url := fmt.Sprintf("http://127.0.0.1:%d/api/v0/files/cp?arg=%s&arg=%s", port, source, destination)
+	resp, err := http.Post(_url, "application/json", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("HTTP error: %d - %s", resp.StatusCode, string(body))
+	}
+	return nil
 }

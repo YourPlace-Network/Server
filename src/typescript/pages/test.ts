@@ -1,3 +1,5 @@
+import {AddFileToIPFS} from "../util/ipfs";
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/pages/test.scss";
 import "../components/menu";
@@ -16,15 +18,16 @@ import {ProfileService} from "../services/twitter";
             inputAvatar: document.getElementById("inputAvatar")! as HTMLInputElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
         }
-        
+
         async function updateAvatar() {
             let file = DOM.inputAvatar.files![0];
             let result = await UploadFile(file, DOM.csrfToken.value); // send file to server
             if (result[0] == 200) {
                 if (result[1].status == "success") {
-                    LogInfo("success");
                     console.log(result);
-                    return;
+                    let fileObj = result[1];
+                    let cid = await AddFileToIPFS(fileObj.path, DOM.csrfToken.value);
+                    console.log(cid);
                     // todo
                     /*try {
                         await WalletSetAvatar("ipfs://" + result[1].cid);
@@ -32,8 +35,9 @@ import {ProfileService} from "../services/twitter";
                         LogError("Failed to set avatar: " + e);
                     }*/
                 }
+            } else {
+                LogError("Failed to upload avatar: " + result[1].status);
             }
-            LogError("Failed to upload avatar: " + result[1].status);
         }
 
         DOM.inputAvatar.addEventListener("change", () => {

@@ -21,9 +21,9 @@ func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, p
 	})
 
 	router.POST("/ipfs/add/", func(c *gin.Context) {
-		// Take a file UUID (generated from /files/upload) and add it to IPFS + pin it and return the CID
+		// Take a file path (generated from POST /files/upload) and add it to IPFS + pin it and return the CID
 		type Payload struct {
-			FileUUID string `json:"fileUUID" required:"true"`
+			FilePath string `json:"filePath" required:"true"`
 		}
 		var payload Payload
 		err := c.BindJSON(&payload)
@@ -31,7 +31,7 @@ func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, p
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid file UUID JSON"})
 			return
 		}
-		cid, err := ipfs.IPFSAddFile(payload.FileUUID)
+		cid, err := ipfs.IPFSAddFile(payload.FilePath)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "IPFS Add Error: " + err.Error()})
 			return
