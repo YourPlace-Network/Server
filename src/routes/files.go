@@ -58,8 +58,7 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "failed to hash file"})
 			return
 		}
-		encodedFileHash := security.Base64EncodeBytes(fileHash)
-		finalFilePath := uploadDirectory + encodedFileHash + extension
+		finalFilePath := uploadDirectory + fileHash + extension
 		if !security.IsInParentDirectory(host.GetDataDir(), finalFilePath) { // Limit uploads to the upload directory
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
@@ -70,8 +69,8 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 			return
 		}
 		encodedUnsafeName := security.Base64Encode(file.Filename)
-		database.FileAdd(encodedFileHash, extension, finalFilePath, encodedUnsafeName, file.Size)
-		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "uuid": encodedFileHash, "path": finalFilePath, "extension": extension, "encodedUnsafeName": encodedUnsafeName, "size": file.Size})
+		database.FileAdd(fileHash, extension, finalFilePath, encodedUnsafeName, file.Size)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "uuid": fileHash, "path": finalFilePath, "extension": extension, "encodedUnsafeName": encodedUnsafeName, "size": file.Size})
 		return
 	})
 }

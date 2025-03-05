@@ -122,18 +122,20 @@ func HashBytes(value []byte) []byte {
 	digest.Write(value)
 	return digest.Sum(nil)
 }
-func HashFile(path string) ([]byte, error) {
+func HashFile(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, core.LogErrorReturn("Could not open file to hash: " + err.Error())
+		return "", core.LogErrorReturn("Could not open file to hash: " + err.Error())
 	}
 	defer file.Close()
 	hash := sha3.New512()
-	if _, err := io.Copy(hash, file); err != nil {
-		return nil, core.LogErrorReturn("Could not copy file data into hash object: " + err.Error())
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		return "", core.LogErrorReturn("Could not copy file data into hash object: " + err.Error())
 	}
 	hashBytes := hash.Sum(nil)
-	return hashBytes, nil
+	hashString := hex.EncodeToString(hashBytes)
+	return hashString, nil
 }
 func HMAC(key, data []byte) string {
 	mac := hmac.New(sha3.New512, key)
