@@ -119,7 +119,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 	targetEarliestBlockBigInt := big.NewInt(int64(targetEarliestBlock))
 	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
-	batchSize := big.NewInt(int64(baseThrottle - 1))
+	batchSize := big.NewInt(int64(baseThrottle - 2))
 	core.LogDebug("Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
@@ -267,7 +267,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 	targetEarliestBlockBigInt := targetEarliestBlock
 	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
-	batchSize := big.NewInt(int64(baseThrottle - 1))
+	batchSize := big.NewInt(int64(baseThrottle - 2))
 	core.LogDebug("Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	core.LogDebug("Block Count: " + blockCount.String())
@@ -400,7 +400,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 	database.IndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
 	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
-	batchSize := big.NewInt(int64(baseThrottle - 1))
+	batchSize := big.NewInt(int64(baseThrottle - 2))
 	core.LogDebug("Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, &targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
