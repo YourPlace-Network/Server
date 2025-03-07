@@ -79,7 +79,7 @@ import {WalletGetAvatar, WalletGetDescription, WalletGetName} from "../util/bloc
                             }
                         }
                     }
-                    let avatar: URL | null = await WalletGetAvatar(blockchain, address);
+                    let avatar: URL | null = new URL(await WalletGetAvatar(blockchain, address));
                     if (avatar === null) {
                         let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
                         if (response[0] === 200 && response[1] && response[1].avatarAddress) {

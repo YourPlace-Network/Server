@@ -135,24 +135,26 @@ export function GetChain() {
     }
     return null;
 }
-export async function WalletGetAvatar(chain?: string, address?: string): Promise<URL|null> {
+export async function WalletGetAvatar(chain?: string, address?: string): Promise<string> {
     if (!chain) {
         chain = GetChain()!;
     }
     switch (chain) {
-        case "algorand": return null;
+        case "algorand":
+            return "";
         case "base":
             let avatarURL = await baseGetAvatar(address);
             if (avatarURL) {
-                return new URL(avatarURL);
+                return avatarURL;
             }
             break;
-        case "solana": return null;
+        case "solana":
+            return "";
         default:
             LogError("Invalid chain when fetching avatar");
-            return null;
+            return "";
     }
-    return null;
+    return "";
 }
 export async function WalletGetName(chain?: string, address?: string): Promise<string|null> {
     if (!chain) {

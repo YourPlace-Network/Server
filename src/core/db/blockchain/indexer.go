@@ -23,6 +23,7 @@ import (
 
 const reportInterval = 10000 // print progress every # of blocks
 const saveInterval = 1000    // save progress every # of blocks
+const throttleOffset = 5     // How many blocks to subtract from the throttle limit to allow for the front-end to make calls without getting rate-limited
 
 var (
 	indexerCancel chan bool
@@ -119,7 +120,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 	targetEarliestBlockBigInt := big.NewInt(int64(targetEarliestBlock))
 	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
-	batchSize := big.NewInt(int64(baseThrottle - 2))
+	batchSize := big.NewInt(int64(baseThrottle - throttleOffset))
 	core.LogDebug("Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
@@ -222,7 +223,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					mod := big.NewInt(0)                                     // Send a status update
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(big.NewInt(int64(targetEarliestBlock)), targetLatestBlock, blockIndex, batchSize, baseThrottle)
+						IndexerPrintProgress(big.NewInt(int64(targetEarliestBlock)), targetLatestBlock, blockIndex, batchSize)
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
@@ -267,7 +268,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 	targetEarliestBlockBigInt := targetEarliestBlock
 	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
-	batchSize := big.NewInt(int64(baseThrottle - 2))
+	batchSize := big.NewInt(int64(baseThrottle - throttleOffset))
 	core.LogDebug("Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	core.LogDebug("Block Count: " + blockCount.String())
@@ -373,7 +374,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 					mod := big.NewInt(0)                                     // Send a status update
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, baseThrottle)
+						IndexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndex, batchSize)
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
@@ -400,7 +401,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 	database.IndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
 	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
-	batchSize := big.NewInt(int64(baseThrottle - 2))
+	batchSize := big.NewInt(int64(baseThrottle - throttleOffset))
 	core.LogDebug("Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, &targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
@@ -505,7 +506,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 					mod := big.NewInt(0)                                     // Send a status update
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, baseThrottle)
+						IndexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndex, batchSize)
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
@@ -586,7 +587,7 @@ func IndexerRestartJobs(database *db.Database, blockchain string) {
 	jobUUID := database.IndexerGetJobUUID(blockchain)
 	database.IndexerUpdateJobStatus(jobUUID, "failed")
 }
-func IndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, throttle int) {
+func IndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int) {
 	core.LogDebug("------------------------")
 	core.LogDebug("index: " + blockIndex.String())
 	core.LogDebug("target latest: " + targetLatestBlock.String())

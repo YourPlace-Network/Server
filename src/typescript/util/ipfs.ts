@@ -12,6 +12,7 @@ export async function AddFileToIPFS(filePath: string, csrfToken: string): Promis
     return null;
 }
 export function CIDToSubdomainURL(cid: string): string {
+    LogInfo("Converting CID to Subdomain URL: " + cid);
     const IPFS_PREFIX = "ipfs://";
     let url = "";
     if (cid.startsWith(IPFS_PREFIX)) {
@@ -27,7 +28,7 @@ export function CIDToSubdomainURL(cid: string): string {
     } catch (error) {
         LogError("Invalid CID when trying to convert to subdomain syntax: " + error)
     }
-    LogInfo("CID: " + cid + " to Subdomain URL: " + url);
+    LogInfo("CID to Subdomain URL: " + url);
     return url.trim();
 }
 

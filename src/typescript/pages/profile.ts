@@ -14,7 +14,7 @@ import {FetchPosts} from "../components/post";
 import {GetToasts} from "../components/toast";
 import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletGetDescription, WalletGetLocation, WalletGetWebsite, WalletSendPostNudge, WalletFollowUser} from "../util/blockchain/wallet";
 import {CreatePostCard} from "../util/domFactory";
-import {XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
+import {IsValidHttpUrl, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 
 declare global { // Extend the window interface with public objects
     interface Window {
@@ -91,7 +91,7 @@ declare global { // Extend the window interface with public objects
                 displayPosts(requestedBlockchain, requestedAddress),
                 renderProfileAddress(requestedAddress),
                 renderProfileName(requestedBlockchain, requestedAddress),
-                renderProfileAvatar(requestedBlockchain, requestedAddress),
+                //renderProfileAvatar(requestedBlockchain, requestedAddress),
                 renderProfileBanner(requestedBlockchain, requestedAddress),
                 renderProfileDescription(requestedBlockchain, requestedAddress),
                 renderProfileLocation(requestedBlockchain, requestedAddress),
@@ -148,82 +148,68 @@ declare global { // Extend the window interface with public objects
             });
         }
         async function renderProfileAvatar(blockchain: string, address: string) {
-            let avatar = "";
-            if (DOM.profileAvatar.src.endsWith("/static/image/avatar.png")) { // If you detect the default avatar
-                let avatarURL = await WalletGetAvatar(blockchain, address);// get the avatar from the blockchain
-                if (avatarURL != null && avatarURL.toString().length > 5) {// If the avatar is not null and has a length greater than 5
-                    avatar = avatarURL.toString(); // set the avatar to the blockchain avatar
-                } else {
-                    // Get the avatar from the server database
-                    let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
-                    if (response[0] === 200) {
-                        if (!response[1] || response[1].avatarAddress.length < 1) {
-                            return;
-                        }
-                        avatar = CIDToSubdomainURL(response[1].avatarAddress);
+            let avatarURL = await WalletGetAvatar(blockchain, address);// get the avatar from the blockchain
+            if (avatarURL) {
+                if (avatarURL.startsWith("ipfs://")) {
+                    avatarURL = CIDToSubdomainURL(avatarURL);
+                }
+            } else {
+                const response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
+                if (response[0] === 200 && response[1]?.avatarAddress) {
+                    avatarURL = response[1].avatarAddress;
+                    if (avatarURL.startsWith("ipfs://")) {
+                        avatarURL = CIDToSubdomainURL(avatarURL);
+                        /*if (avatarURL) {
+                            const img = new Image();
+                            img.crossOrigin = "anonymous";
+                            img.onload = () => {
+                                DOM.profileAvatar.src = img.src;
+                            };
+                            img.onerror = () => {
+                                LogError("Failed to load avatar image");
+                            };
+                            img.src = avatarURL;
+                        } else {
+                            LogError("Invalid avatar address");
+                        }*/
                     }
                 }
-                // Set the avatar
-                DOM.profileAvatar.src = XSSSanitizeUrl(avatar); // Set the main avatar
-                const avatarImages = document.querySelectorAll("img.postCardAvatar");
-                avatarImages.forEach((img: Element) => {
-                    if (img instanceof HTMLImageElement) {
-                            img.src = XSSSanitizeUrl(avatar); // Set the post avatars
-                    }
-                });
             }
+            DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
+
+            const avatarImages = document.querySelectorAll("img.postCardAvatar");
+            avatarImages.forEach((img: Element) => {
+                if (img instanceof HTMLImageElement) {
+                    img.src = XSSSanitizeUrl(avatarURL); // Set the post avatars
+                }
+            });
         }
         async function renderProfileBanner(blockchain: string, address: string) {
-            const url = `/profile/banner/${blockchain}/${address}`;
-            const response = await HttpGetJson(url);
-            console.log(response[1]);
-            return;
-            if (response[0] === 200) {
+            const response = await HttpGetJson("/profile/banner/" + blockchain + "/" + address);
+            console.log(response);
+            if (response[0] === 200 && response[1]?.bannerAddress) {
                 let bannerAddress = response[1].bannerAddress;
                 if (bannerAddress.startsWith("ipfs://")) {
                     bannerAddress = CIDToSubdomainURL(bannerAddress);
-                    console.log(bannerAddress);
-
-                    // http://bafybeien6nv6laiiq7eikqlus2wpjmzrm5lpy6rcffi2ykzfpmsxfuau4u.ipfs.localhost:42426/
-                    // http://bafybeifd3g35gbgsb2cwl2icpewuoqcbzhj33t6nlyv737emidsmxka33y.ipfs.localhost:42426/
-
-
                     if (bannerAddress) {
-                        // Create abort controller for timeout
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
-                        try {
-                            const bannerResponse = await fetch(bannerAddress, {
-                                signal: controller.signal,
-                                method: "GET",
-                                mode: "cors",
-                                credentials: "omit",
-                                headers: {
-                                    "Accept": "image/*",
-                                },
-                                cache: "force-cache"
-                            });
-                            if (bannerResponse.ok) {
-                                // Create object URL from the fetched image
-                                const blob = await bannerResponse.blob();
-                                const objectUrl = URL.createObjectURL(blob);
-                                DOM.profileBanner.src = objectUrl;
-                            } else {
-                                LogError("Failed to load banner image");
-                            }
-                        } catch (error) {
-                            LogError("Failed to load banner image: " + error);
-                        } finally {
-                            clearTimeout(timeoutId);
-                        }
+                        console.log("bannerAddress: " + bannerAddress);
+                        const img = new Image();
+                        img.crossOrigin = "anonymous";
+                        img.onload = () => {
+                            DOM.profileBanner.src = img.src;
+                        };
+                        img.onerror = () => {
+                            LogError("Failed to load banner image");
+                        };
+                        img.src = bannerAddress; // Start the loading process
                     } else {
                         LogError("Invalid banner address");
                     }
-                } else {
-                    DOM.profileBanner.src = bannerAddress;
+                } else if (IsValidHttpUrl(bannerAddress)) {
+                    DOM.profileBanner.src = XSSSanitizeUrl(bannerAddress);
                 }
             }
-            console.log("renderProfileBanner finished");
+            console.log("banner finished loading");
         }
         async function renderProfileDescription(blockchain: string, address: string) {
             let description = await WalletGetDescription(blockchain, address);

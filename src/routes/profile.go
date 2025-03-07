@@ -90,7 +90,6 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		c.HTML(http.StatusOK, "src/templates/pages/profile.tmpl", responseJson)
 	})
-
 	router.GET("/profile/name/:blockchain/:address", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchainParam) {
