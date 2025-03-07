@@ -1,7 +1,7 @@
 import {CID} from "multiformats/cid";
 import {IsValidIpfsCid} from "./security";
 import {HttpPostJson} from "./network";
-import {LogError} from "./log";
+import {LogError, LogInfo} from "./log";
 
 export async function AddFileToIPFS(filePath: string, csrfToken: string): Promise<CID | null> {
     let response = await HttpPostJson("/ipfs/add", {"filePath": filePath}, csrfToken);
@@ -13,20 +13,22 @@ export async function AddFileToIPFS(filePath: string, csrfToken: string): Promis
 }
 export function CIDToSubdomainURL(cid: string): string {
     const IPFS_PREFIX = "ipfs://";
+    let url = "";
     if (cid.startsWith(IPFS_PREFIX)) {
         cid = cid.substring(IPFS_PREFIX.length);
     }
     if (!IsValidIpfsCid(cid)) {
-        return "";
+        return url;
     }
-    if (cid.startsWith("Qm") && cid.length == 46) { // CIDv1 to CIDv1
-        let cidv1 = CID.parse(cid).toV1().toString();
-        return "https://" + cidv1 + ".ipfs.localhost:42426";
+    try {
+        const parsedCid = CID.parse(cid);
+        const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
+        url = "http://" + cidv1 + ".ipfs.localhost:42426";
+    } catch (error) {
+        LogError("Invalid CID when trying to convert to subdomain syntax: " + error)
     }
-    if (cid.startsWith("bafy") || cid.startsWith("bafk")) { // Already CIDv1
-        return "https://" + cid + ".ipfs.localhost:42426";
-    }
-    return "";
+    LogInfo("CID: " + cid + " to Subdomain URL: " + url);
+    return url.trim();
 }
 
 /* --- Helper Functions --- */

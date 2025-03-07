@@ -11,44 +11,23 @@ import (
 )
 
 func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte) {
-	/* Need to think through the security implications of middleware path detection and user-controllable top-level path routing
-	router.GET("/:address", func(c *gin.Context) {
-		address := c.Param("address")
-		core.LogDebug("ProfileRoutes(): " + address)
-
-		if strings.HasSuffix(address, ".base.eth") { // Check for Base ENS name
-			core.LogDebug("ProfileRoutes(): Base ENS name")
-			resolvedAddresses, err := blockchain.WalletGetAddress("base", address, _blockchain) // Check for Base ENS name
-			core.LogDebug("ProfileRoutes(): resolvedAddresses: " + resolvedAddresses)
-			if err == nil && security.IsValidAddress(resolvedAddresses, "base") {
-				c.Redirect(http.StatusFound, "/p/base/"+resolvedAddresses) // Base ENS name exists
-				return
-			}
-		}
-
-		if strings.HasSuffix(address, ".eth") { // Check for ENS name
-			resolvedAddresses, err := blockchain.WalletGetAddress("eth", address, _blockchain) // Check for ENS name
-			if err == nil && security.IsValidAddress(resolvedAddresses, "eth") {
-				c.Redirect(http.StatusFound, "/p/eth/"+resolvedAddresses) // ENS name exists
-				return
-			}
-		}
-
-		if security.IsValidAddress(address, "eth") { // Check for Ethereum address
-			c.Redirect(http.StatusFound, "/p/eth/"+address)
-			return
-		} else {
-			c.Redirect(http.StatusFound, "/p/")
-			return
-		}
-	})*/
 	router.GET("/p/*path", func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Param("path"), "/")
 		if path == "" {
-			blockchainparam, exists1 := c.Get("blockchain")
-			address, exists2 := c.Get("accountAddress")
+			value, exists1 := c.Get("blockchain")
+			blockchainParam := value.(string)
+			if !security.IsValidBlockchain(blockchainParam) {
+				c.Redirect(http.StatusFound, "/login?redirect=/p/")
+				return
+			}
+			value, exists2 := c.Get("accountAddress")
+			addressParam := value.(string)
+			if !security.IsValidAddress(addressParam, blockchainParam) {
+				c.Redirect(http.StatusFound, "/login?redirect=/p/")
+				return
+			}
 			if exists1 && exists2 {
-				c.Redirect(http.StatusFound, "/p/"+blockchainparam.(string)+"/"+address.(string))
+				c.Redirect(http.StatusFound, "/p/"+blockchainParam+"/"+addressParam)
 				return
 			} else {
 				c.Redirect(http.StatusFound, "/login?redirect=/p/")
@@ -113,17 +92,17 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 	})
 
 	router.GET("/profile/name/:blockchain/:address", func(c *gin.Context) {
-		blockchain := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchain) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
 			return
 		}
 		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddress(address, blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		name := database.ProfileGetName(address, blockchain)
+		name := database.ProfileGetName(address, blockchainParam)
 		if name == "" {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no name found"})
 			return
@@ -131,17 +110,17 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "name": name})
 	})
 	router.GET("/profile/avatar/:blockchain/:address", func(c *gin.Context) {
-		blockchain := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchain) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
 			return
 		}
 		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddress(address, blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		avatarAddress := database.ProfileGetAvatar(address, blockchain)
+		avatarAddress := database.ProfileGetAvatar(address, blockchainParam)
 		if avatarAddress == "" {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no avatar found"})
 			return
@@ -149,17 +128,17 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "avatarAddress": avatarAddress})
 	})
 	router.GET("/profile/banner/:blockchain/:address", func(c *gin.Context) {
-		blockchain := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchain) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
 			return
 		}
 		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddress(address, blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		bannerAddress := database.ProfileGetBanner(address, blockchain)
+		bannerAddress := database.ProfileGetBanner(address, blockchainParam)
 		if bannerAddress == "" {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no banner found"})
 			return
@@ -167,17 +146,17 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "bannerAddress": bannerAddress})
 	})
 	router.GET("/profile/description/:blockchain/:address", func(c *gin.Context) {
-		blockchain := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchain) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
 			return
 		}
 		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddress(address, blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		description := database.ProfileGetDescription(address, blockchain)
+		description := database.ProfileGetDescription(address, blockchainParam)
 		if description == "" {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no description found"})
 			return
@@ -185,17 +164,17 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		c.SecureJSON(http.StatusOK, gin.H{"description": description})
 	})
 	router.GET("/profile/location/:blockchain/:address", func(c *gin.Context) {
-		blockchain := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchain) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
 			return
 		}
 		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddress(address, blockchainParam) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		location := database.ProfileGetLocation(address, blockchain)
+		location := database.ProfileGetLocation(address, blockchainParam)
 		if location == "" {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no location found"})
 			return
@@ -203,17 +182,17 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		c.SecureJSON(http.StatusOK, gin.H{"location": location})
 	})
 	router.GET("/profile/birthdate/:blockchain/:address", func(c *gin.Context) {
-		blockchain := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchain) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
 			return
 		}
 		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddress(address, blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		birthdate := database.ProfileGetBirthDate(address, blockchain)
+		birthdate := database.ProfileGetBirthDate(address, blockchainParam)
 		if birthdate == nil {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no birthdate found"})
 			return
@@ -221,17 +200,17 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		c.SecureJSON(http.StatusOK, gin.H{"birthdate": birthdate})
 	})
 	router.GET("/profile/joineddate/:blockchain/:address", func(c *gin.Context) {
-		blockchain := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchain) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
 			return
 		}
 		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddress(address, blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		joinedDate := database.ProfileGetJoinedDate(address, blockchain)
+		joinedDate := database.ProfileGetJoinedDate(address, blockchainParam)
 		if joinedDate == nil {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no joined date found"})
 			return
@@ -239,17 +218,17 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		c.SecureJSON(http.StatusOK, gin.H{"joinedDate": joinedDate})
 	})
 	router.GET("/profile/website/:blockchain/:address", func(c *gin.Context) {
-		blockchain := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchain) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
 			return
 		}
 		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddress(address, blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		website := database.ProfileGetWebsite(address, blockchain)
+		website := database.ProfileGetWebsite(address, blockchainParam)
 		if website == "" {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no website found"})
 			return

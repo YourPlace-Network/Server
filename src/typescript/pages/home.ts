@@ -1,3 +1,5 @@
+import {CIDToSubdomainURL} from "../util/ipfs";
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/pages/home.scss";
 import "../components/addPost";
@@ -83,8 +85,7 @@ import {WalletGetAvatar, WalletGetDescription, WalletGetName} from "../util/bloc
                         if (response[0] === 200 && response[1] && response[1].avatarAddress) {
                             const avatarAddress = response[1].avatarAddress.trim();
                             if (avatarAddress.length > 0) {
-                                const ipfsPort = parseInt(window.location.port, 10) + 2;
-                                const avatarURL = avatarAddress.replace('ipfs://', `${window.location.protocol}//${window.location.hostname}:${ipfsPort}/ipfs/`);
+                                const avatarURL = CIDToSubdomainURL(avatarAddress);
                                 if (IsValidHttpUrl(avatarURL)) {
                                     avatar = new URL(avatarURL);
                                 } else {

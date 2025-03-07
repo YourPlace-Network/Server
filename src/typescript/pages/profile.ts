@@ -1,3 +1,5 @@
+import {CIDToSubdomainURL} from "../util/ipfs";
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss"
 import "../../scss/pages/profile.scss";
@@ -85,23 +87,19 @@ declare global { // Extend the window interface with public objects
                 LogError("profile.ts updateProfile() - invalid address");
                 return;
             }
-            try {
-                await Promise.allSettled([
-                    displayPosts(requestedBlockchain, requestedAddress),
-                    renderProfileAddress(requestedAddress),
-                    renderProfileName(requestedBlockchain, requestedAddress),
-                    renderProfileAvatar(requestedBlockchain, requestedAddress),
-                    renderProfileBanner(requestedBlockchain, requestedAddress),
-                    renderProfileDescription(requestedBlockchain, requestedAddress),
-                    renderProfileLocation(requestedBlockchain, requestedAddress),
-                    renderProfileWebsite(requestedBlockchain, requestedAddress),
-                    renderProfileBirthdate(requestedBlockchain, requestedAddress),
-                    renderProfileJoinedDate(requestedBlockchain, requestedAddress),
-                ]);
-                guestView().then(); // post rendering, non-concurrent, view changes
-            } catch (error) {
-                LogError("profile.ts updateProfile() - error: " + error);
-            }
+            await allSettledWithTimeout([
+                displayPosts(requestedBlockchain, requestedAddress),
+                renderProfileAddress(requestedAddress),
+                renderProfileName(requestedBlockchain, requestedAddress),
+                renderProfileAvatar(requestedBlockchain, requestedAddress),
+                renderProfileBanner(requestedBlockchain, requestedAddress),
+                renderProfileDescription(requestedBlockchain, requestedAddress),
+                renderProfileLocation(requestedBlockchain, requestedAddress),
+                renderProfileWebsite(requestedBlockchain, requestedAddress),
+                renderProfileBirthdate(requestedBlockchain, requestedAddress),
+                renderProfileJoinedDate(requestedBlockchain, requestedAddress),
+            ], 60000);
+            renderGuestView().then();
         }
         async function displayPosts(blockchain: string, address: string) { // adds posts to the DOM
             let posts = await FetchPosts(blockchain, address);
@@ -116,40 +114,6 @@ declare global { // Extend the window interface with public objects
                     postDiv.classList.add("shaded");
                 }
                 DOM.contentDiv.appendChild(postDiv);
-            }
-        }
-        async function guestView() {
-            // Edit the profile view, depending on if the viewer is the owner of the profile or not
-            const placeHolderNudgeHandler = () => {
-                WalletSendPostNudge(DOM.injectedAddress.value).then();
-            };
-            const placeHolderAddPostHandler = () => {
-                DOM.addPostButton.click();
-            };
-            let postCount = Number(DOM.postsNum.textContent);
-            if (DOM.isGuest.value === "true") {
-                DOM.profileEditBtn.style.display = "none";
-                DOM.followBtn.style.display = "block";
-                DOM.placeHolderH3.textContent = "Nothing posted yet";
-                DOM.placeHolderP.textContent = "Click to send a nudge! Sometimes friends need a little encouragement to share";
-                DOM.placeHolderIcon.classList.remove("bi-house-add");
-                DOM.placeHolderIcon.classList.add("bi-envelope-paper-heart");
-                DOM.emptyContentDivPlaceHolder.removeEventListener("click", placeHolderAddPostHandler);
-                DOM.emptyContentDivPlaceHolder.addEventListener("click", placeHolderNudgeHandler);
-            } else if (DOM.isGuest.value === "false") {
-                DOM.profileEditBtn.style.display = "block";
-                DOM.followBtn.style.display = "none";
-                DOM.placeHolderH3.textContent = "Share your first post!";
-                DOM.placeHolderP.textContent = "Your amazing thoughts belong here";
-                DOM.placeHolderIcon.classList.remove("bi-envelope-paper-heart");
-                DOM.placeHolderIcon.classList.add("bi-house-add");
-                DOM.emptyContentDivPlaceHolder.removeEventListener("click", placeHolderNudgeHandler);
-                DOM.emptyContentDivPlaceHolder.addEventListener("click", placeHolderAddPostHandler);
-            }
-            if (postCount > 0) {
-                DOM.emptyContentDivPlaceHolder.style.display = "none";
-            } else {
-                DOM.emptyContentDivPlaceHolder.style.display = "block";
             }
         }
 
@@ -196,8 +160,7 @@ declare global { // Extend the window interface with public objects
                         if (!response[1] || response[1].avatarAddress.length < 1) {
                             return;
                         }
-                        const ipfsPort = parseInt(window.location.port, 10) + 2;
-                        avatar = response[1].avatarAddress.replace('ipfs://', `${window.location.protocol}//${window.location.hostname}:${ipfsPort}/ipfs/`);
+                        avatar = CIDToSubdomainURL(response[1].avatarAddress);
                     }
                 }
                 // Set the avatar
@@ -214,28 +177,52 @@ declare global { // Extend the window interface with public objects
             const url = `/profile/banner/${blockchain}/${address}`;
             const response = await HttpGetJson(url);
             console.log(response[1]);
-
+            return;
             if (response[0] === 200) {
-                const ipfsPort = parseInt(window.location.port, 10) + 2;
-                const ipfsAddress = response[1].bannerAddress;
+                let bannerAddress = response[1].bannerAddress;
+                if (bannerAddress.startsWith("ipfs://")) {
+                    bannerAddress = CIDToSubdomainURL(bannerAddress);
+                    console.log(bannerAddress);
 
-                if (ipfsAddress.startsWith("ipfs://")) {
-                    // Extract the CID, preserving case sensitivity
-                    const cid = ipfsAddress.substring(7).split("/")[0];
-                    const pathPart = ipfsAddress.substring(7 + cid.length);
+                    // http://bafybeien6nv6laiiq7eikqlus2wpjmzrm5lpy6rcffi2ykzfpmsxfuau4u.ipfs.localhost:42426/
+                    // http://bafybeifd3g35gbgsb2cwl2icpewuoqcbzhj33t6nlyv737emidsmxka33y.ipfs.localhost:42426/
 
-                    // Create URL without using subdomain format - use path-based approach instead
-                    const pathUrl = `${window.location.protocol}//${window.location.hostname}:${ipfsPort}/ipfs/${cid}${pathPart}`;
 
-                    console.log("Using path-based gateway URL:", pathUrl);
-                    DOM.profileBanner.src = pathUrl;
-
-                    DOM.profileBanner.onerror = (e) => {
-                        console.error("Failed to load image:", e);
-                    };
+                    if (bannerAddress) {
+                        // Create abort controller for timeout
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+                        try {
+                            const bannerResponse = await fetch(bannerAddress, {
+                                signal: controller.signal,
+                                method: "GET",
+                                mode: "cors",
+                                credentials: "omit",
+                                headers: {
+                                    "Accept": "image/*",
+                                },
+                                cache: "force-cache"
+                            });
+                            if (bannerResponse.ok) {
+                                // Create object URL from the fetched image
+                                const blob = await bannerResponse.blob();
+                                const objectUrl = URL.createObjectURL(blob);
+                                DOM.profileBanner.src = objectUrl;
+                            } else {
+                                LogError("Failed to load banner image");
+                            }
+                        } catch (error) {
+                            LogError("Failed to load banner image: " + error);
+                        } finally {
+                            clearTimeout(timeoutId);
+                        }
+                    } else {
+                        LogError("Invalid banner address");
+                    }
+                } else {
+                    DOM.profileBanner.src = bannerAddress;
                 }
             }
-
             console.log("renderProfileBanner finished");
         }
         async function renderProfileDescription(blockchain: string, address: string) {
@@ -320,6 +307,40 @@ declare global { // Extend the window interface with public objects
                 DOM.profileJoined.textContent = joineddateformatted;
             }
         }
+        async function renderGuestView() {
+            // Edit the profile view, depending on if the viewer is the owner of the profile or not
+            const placeHolderNudgeHandler = () => {
+                WalletSendPostNudge(DOM.injectedAddress.value).then();
+            };
+            const placeHolderAddPostHandler = () => {
+                DOM.addPostButton.click();
+            };
+            let postCount = Number(DOM.postsNum.textContent);
+            if (DOM.isGuest.value === "true") {
+                DOM.profileEditBtn.style.display = "none";
+                DOM.followBtn.style.display = "block";
+                DOM.placeHolderH3.textContent = "Nothing posted yet";
+                DOM.placeHolderP.textContent = "Click to send a nudge! Sometimes friends need a little encouragement to share";
+                DOM.placeHolderIcon.classList.remove("bi-house-add");
+                DOM.placeHolderIcon.classList.add("bi-envelope-paper-heart");
+                DOM.emptyContentDivPlaceHolder.removeEventListener("click", placeHolderAddPostHandler);
+                DOM.emptyContentDivPlaceHolder.addEventListener("click", placeHolderNudgeHandler);
+            } else if (DOM.isGuest.value === "false") {
+                DOM.profileEditBtn.style.display = "block";
+                DOM.followBtn.style.display = "none";
+                DOM.placeHolderH3.textContent = "Share your first post!";
+                DOM.placeHolderP.textContent = "Your amazing thoughts belong here";
+                DOM.placeHolderIcon.classList.remove("bi-envelope-paper-heart");
+                DOM.placeHolderIcon.classList.add("bi-house-add");
+                DOM.emptyContentDivPlaceHolder.removeEventListener("click", placeHolderNudgeHandler);
+                DOM.emptyContentDivPlaceHolder.addEventListener("click", placeHolderAddPostHandler);
+            }
+            if (postCount > 0) {
+                DOM.emptyContentDivPlaceHolder.style.display = "none";
+            } else {
+                DOM.emptyContentDivPlaceHolder.style.display = "block";
+            }
+        }
 
         // --------- Exported Functions --------- //
         window.LoginCallback = function (status: string) {
@@ -347,6 +368,31 @@ declare global { // Extend the window interface with public objects
             let end = address.slice(endIndex, length);
             return first + middle + end;
         }
+        const timeoutPromise = (timeoutMs: number): Promise<never> => {
+            return new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error("Promise timed out"));
+                }, timeoutMs);
+            });
+        };
+        const allSettledWithTimeout = async <T>(promises: Promise<T>[], timeoutMs: number): Promise<PromiseSettledResult<T>[]> => {
+            try {
+                return await Promise.race([
+                    Promise.allSettled(promises),
+                    timeoutPromise(timeoutMs).then(() => {
+                        throw new Error(`Operation timed out after ${timeoutMs}ms`);
+                    })
+                ]);
+            } catch (error) {
+                // If timeout occurs, return partially settled promises
+                console.error("Operation timed out:", error);
+                // Return array of settled results, with pending ones marked as rejected with timeout reason
+                return promises.map((_, index) => ({
+                    status: "rejected" as const,
+                    reason: new Error(`Promise #${index} timed out after ${timeoutMs}ms`)
+                }));
+            }
+        };
 
         // --------- Event Handlers --------- //
         DOM.btnPosts.addEventListener("click", function () {

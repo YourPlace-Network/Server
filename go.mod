@@ -8,11 +8,10 @@ require (
 	github.com/danieljoos/wincred v1.2.2
 	github.com/ethereum/go-ethereum v1.14.12
 	github.com/getlantern/systray v1.2.2
-	github.com/gin-contrib/gzip v1.2.0
+	github.com/gin-contrib/gzip v1.2.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/glebarez/go-sqlite v1.22.0
 	github.com/go-ole/go-ole v1.3.0
-	//github.com/go-webauthn/webauthn v0.11.2
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/csrf v1.7.2
@@ -32,6 +31,8 @@ require (
 	golang.org/x/time v0.9.0
 )
 
+require github.com/chromedp/cdproto v0.0.0-20250120090109-d38428e4d9c8
+
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
@@ -47,7 +48,6 @@ require (
 	github.com/caddyserver/certmagic v0.21.4 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chromedp/cdproto v0.0.0-20250120090109-d38428e4d9c8 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
