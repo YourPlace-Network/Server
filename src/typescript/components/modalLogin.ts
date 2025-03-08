@@ -53,6 +53,7 @@ export function HideModalLogin() {
                 let status = await ConnectWallet(wallet);
                 if (status !== "success") {
                     ShowDialogModal(status);
+                    return;
                 }
                 if (window.location.pathname !== "/setup") {
                     await WalletLogin();

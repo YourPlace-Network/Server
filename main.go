@@ -395,7 +395,10 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 		})
 	}
 	// ------- IPFS BadBits ------- //
-	network.UpdateBadBits(database)
+	if !host.DoesExist(host.GetDataDir() + ".ipfs" + host.PathSeparator + "denylists" + host.PathSeparator + "badbits.deny") {
+		core.LogDebug("Badbits doesn't exist - creating")
+		network.UpdateBadBits(database)
+	}
 	c.AddFunc("@every 168h", func() {
 		network.UpdateBadBits(database)
 	})

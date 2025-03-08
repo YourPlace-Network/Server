@@ -139,6 +139,10 @@ export async function WalletGetAvatar(chain?: string, address?: string): Promise
     if (!chain) {
         chain = GetChain()!;
     }
+    if (!address) {
+        address = GetAddress()!;
+    }
+    console.log("WalletGetAvatar(): " + chain + " - " + address);
     switch (chain) {
         case "algorand":
             return "";
@@ -146,15 +150,15 @@ export async function WalletGetAvatar(chain?: string, address?: string): Promise
             let avatarURL = await baseGetAvatar(address);
             if (avatarURL) {
                 return avatarURL;
+            } else {
+                return "";
             }
-            break;
         case "solana":
             return "";
         default:
             LogError("Invalid chain when fetching avatar");
             return "";
     }
-    return "";
 }
 export async function WalletGetName(chain?: string, address?: string): Promise<string|null> {
     if (!chain) {

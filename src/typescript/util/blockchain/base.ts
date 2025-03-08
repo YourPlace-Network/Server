@@ -6,19 +6,7 @@ import {YP} from "../../services/yourplace";
 import {createPublicClient, http, parseEther, UserRejectedRequestError} from "viem";
 import {normalize as viemNormalize} from "viem/ens";
 import {base as viemBase} from "viem/chains";
-import {
-    connect as wagmiConnect,
-    createConfig,
-    createStorage,
-    disconnect,
-    getConnections,
-    getEnsAvatar,
-    type GetEnsAvatarReturnType,
-    http as wagmiHttp,
-    readContract,
-    sendTransaction,
-    signMessage
-} from "@wagmi/core";
+import {connect as wagmiConnect, createConfig, createStorage, disconnect, getConnections, getEnsAvatar, type GetEnsAvatarReturnType, http as wagmiHttp, readContract, sendTransaction, signMessage} from "@wagmi/core";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
 import {IsValidBaseAddress} from "../security";
@@ -272,22 +260,22 @@ async function baseGetURL(): Promise<string|null> {
     }
     return null;
 }
-export async function baseGetAvatar(address?: string) {
-    if (!address) {
-        address = GetAddress()!;
-    }
+export async function baseGetAvatar(address: string) {
+    console.log("baseGetAvatar(): " + address);
     if (!baseInit) {
         await initBaseWallet();
     }
     let baseName = await baseGetName(address);
+    console.log("baseGetAvatar(): base name = " + baseName);
     const avatarUrl: GetEnsAvatarReturnType = await getEnsAvatar(wagmiConfig, {
         name: viemNormalize(baseName),
         chainId: wagmiBase.id,
         universalResolverAddress: mainnetBase.ensBaseResolverAddress as `0x${string}`,
-        assetGatewayUrls: {
-            ipfs: "http://localhost:42426",
-        }
+        // assetGatewayUrls: {
+        //    ipfs: "http://localhost:42426",
+        // }
     });
+    console.log("wagmi avatar URL: " + avatarUrl);
     if (avatarUrl !== null && avatarUrl.length > 0) {
         return avatarUrl.toString();
     } else {

@@ -236,6 +236,13 @@ func UpdateIPFSConfig(port uint64) {
 		}
 		if swarmKey, _ := rootMap["Swarm"].(map[string]interface{}); ok {
 			swarmKey["DisableNatPortMap"] = false
+			swarmKey["EnableHolePunching"] = true
+		}
+		if routingKey, _ := rootMap["Routing"].(map[string]interface{}); ok {
+			routingKey["Type"] = "auto"
+			routingKey["AcceleratedDHTClient"] = true
+			delete(routingKey, "Methods")
+			delete(routingKey, "Routers")
 		}
 	}
 	modifiedJSON, err := json.MarshalIndent(parsedData, "", "\t")

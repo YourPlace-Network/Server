@@ -24,7 +24,6 @@ declare global { // Extend the window interface with public callback objects
 
         // --------- Callback Functions --------- //
         window.LoginCallback = async function(status: string) {
-            LogInfo("login window LoginCallback: " + status);
             try {
                 let address = GetAddress();
                 if (!address || !IsValidAddress(address)) {

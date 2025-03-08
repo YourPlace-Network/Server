@@ -697,7 +697,8 @@ const tips = [
     "You can't negotiate with someone if you're insulting them at the same time",
     "You might be right, but if you're going up against someone more powerful and more determined, then you'll lose and history will show you as being wrong. That's why the history books always show the winner as the 'good guy'",
     "Some people don't have the emotional skill to process their emotions or mental issues, so often those feelings get externalized as anger at others. Don't engage and if needed remind others that this person is unstable and thus unreliable",
-
+    "The antidote to online psyops is curiosity, not judgment",
+    "Being in the minority opinion is tough. It requires conviction and courage",
 
 
 ];
