@@ -128,6 +128,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
         }
     }
     postTextDiv.innerHTML = XSSSanitizeTinyMCEHtml(postText);
+    //postTextDiv.innerHTML = postText; // todo debug
     return postDiv;
 }
 export async function CreateProfileCard (profileData: any): Promise<HTMLDivElement>{

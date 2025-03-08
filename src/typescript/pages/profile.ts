@@ -12,7 +12,7 @@ import {FetchPosts} from "../components/post";
 import {GetToasts} from "../components/toast";
 import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletGetDescription, WalletGetLocation, WalletGetWebsite, WalletSendPostNudge, WalletFollowUser} from "../util/blockchain/wallet";
 import {CreatePostCard} from "../util/domFactory";
-import {IsValidHttpUrl, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
+import {IsValidHttpUrl, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {CIDToSubdomainURL, GetIPFSFile} from "../util/ipfs";
 
 declare global { // Extend the window interface with public objects
@@ -147,12 +147,14 @@ declare global { // Extend the window interface with public objects
             });
         }
         async function renderProfileAvatar(blockchain: string, address: string) {
-            console.log("renderProfileAvatar");
             let avatarURL = await WalletGetAvatar(blockchain, address); // get the avatar from the blockchain
-            console.log("avatarURL: " + avatarURL);
             if (IsValidHttpUrl(avatarURL)) {
-                DOM.profileAvatar.src = avatarURL;
+                DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
                 populatePostCards();
+                return;
+            } else if (IsValidIpfsCid(avatarURL)) {
+                avatarURL = CIDToSubdomainURL(avatarURL);
+                DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
                 return;
             }
         }

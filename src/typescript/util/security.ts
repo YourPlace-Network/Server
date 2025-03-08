@@ -14,6 +14,10 @@ export function IsValidBaseAddress(address: string): boolean {
     return isAddress(address);
 }
 export function IsValidIpfsCid(cid: string): boolean {
+    const IPFS_PREFIX = "ipfs://";
+    if (cid.startsWith(IPFS_PREFIX)) {
+        cid = cid.substring(IPFS_PREFIX.length);
+    }
     try {
         CID.parse(cid);
         return true;
@@ -95,14 +99,13 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
             "hr","span","img","iframe"],
         ALLOWED_ATTR: [
             "style","src","width","height","frameborder","allowfullscreen",
-            "allow","loading","credentialless"],
+            "allow","loading","credentialless","class"],
         ADD_ATTR: ["target"],
         FORBID_TAGS: ["script","style","form","input","button","textarea","svg"],
         FORBID_ATTR: ["onerror","onload","onclick","onmouseover","onmouseout"],
         SANITIZE_DOM: true,
         FORCE_BODY: true,
         IN_PLACE: true,
-        KEEP_CONTENT: false,
         RETURN_DOM: false,
         RETURN_DOM_FRAGMENT: false,
         RETURN_DOM_IMPORT: false,
@@ -112,7 +115,7 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
         ALLOW_DATA_ATTR: false,
     };
     // Set up a hook to filter style attributes
-    DOMPurify.addHook("beforeSanitizeAttributes", (node) => {
+    /*DOMPurify.addHook("beforeSanitizeAttributes", (node) => {
         if (node.hasAttribute("style")) {
             const style = node.getAttribute("style");
             if (style) {
@@ -157,8 +160,8 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
                 node.parentNode?.removeChild(node);
             }
         }
-    });
+    });*/
     const sanitized = DOMPurify.sanitize(html, config) as string;
-    DOMPurify.removeHook("beforeSanitizeAttributes");
+    //DOMPurify.removeHook("beforeSanitizeAttributes");
     return sanitized;
 }

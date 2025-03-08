@@ -699,6 +699,8 @@ const tips = [
     "Some people don't have the emotional skill to process their emotions or mental issues, so often those feelings get externalized as anger at others. Don't engage and if needed remind others that this person is unstable and thus unreliable",
     "The antidote to online psyops is curiosity, not judgment",
     "Being in the minority opinion is tough. It requires conviction and courage",
+    "Don't be the person who's offended by everything and ashamed by nothing. They offer nothing to polite society",
+    "If they're down to nitpicking your grammar or minor typos, then you know they've lost",
 
 
 ];

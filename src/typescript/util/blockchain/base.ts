@@ -261,21 +261,15 @@ async function baseGetURL(): Promise<string|null> {
     return null;
 }
 export async function baseGetAvatar(address: string) {
-    console.log("baseGetAvatar(): " + address);
     if (!baseInit) {
         await initBaseWallet();
     }
     let baseName = await baseGetName(address);
-    console.log("baseGetAvatar(): base name = " + baseName);
     const avatarUrl: GetEnsAvatarReturnType = await getEnsAvatar(wagmiConfig, {
         name: viemNormalize(baseName),
         chainId: wagmiBase.id,
         universalResolverAddress: mainnetBase.ensBaseResolverAddress as `0x${string}`,
-        // assetGatewayUrls: {
-        //    ipfs: "http://localhost:42426",
-        // }
     });
-    console.log("wagmi avatar URL: " + avatarUrl);
     if (avatarUrl !== null && avatarUrl.length > 0) {
         return avatarUrl.toString();
     } else {

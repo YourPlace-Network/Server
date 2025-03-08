@@ -136,23 +136,15 @@ export function GetChain() {
     return null;
 }
 export async function WalletGetAvatar(chain?: string, address?: string): Promise<string> {
-    if (!chain) {
-        chain = GetChain()!;
-    }
-    if (!address) {
-        address = GetAddress()!;
-    }
-    console.log("WalletGetAvatar(): " + chain + " - " + address);
+    if (!chain) chain = GetChain()!;
+    if (!address) address = GetAddress()!;
     switch (chain) {
         case "algorand":
             return "";
         case "base":
             let avatarURL = await baseGetAvatar(address);
-            if (avatarURL) {
-                return avatarURL;
-            } else {
-                return "";
-            }
+            if (avatarURL) return avatarURL;
+            return "";
         case "solana":
             return "";
         default:
