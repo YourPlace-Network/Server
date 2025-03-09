@@ -557,7 +557,6 @@ func InstallAutorun() bool {
 	}
 	return true
 }
-
 func IsOnBattery() bool { //TODO: I cant really test this because I dont have a windows machine with a battery
 	cmd := exec.Command("wmic", "path", "Win32_Battery", "get", "DeviceID", "/format:list")
 	output, err := cmd.Output()
