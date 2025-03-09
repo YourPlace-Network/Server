@@ -673,7 +673,6 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 					postTextStr := security.SanitizeNonPrintable(postText.(string))
 					database.OnchainP(txHash, blockchain, fromAddr, toAddr, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
 				}
-				database.OnchainP(txHash, blockchain, fromAddr, toAddr, parentTxHash, amountInt, timestamp, decodedDataStr, blockNumber)
 				break
 			}
 			break

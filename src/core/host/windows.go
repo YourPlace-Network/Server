@@ -124,7 +124,7 @@ type (
 func GetServerID() string {
 	cmd := exec.Command("wmic", "cpu", "get", "ProcessorId", "Name", "MaxClockSpeed")
 	var out bytes.Buffer
-	var err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		core.LogError("Could not generate server ID: " + err.Error())
 		return ""
@@ -558,26 +558,17 @@ func InstallAutorun() bool {
 	return true
 }
 
-/*func IsOnBattery() bool {
-	var status syscall.SystemPowerStatus
-	err := syscall.GetSystemPowerStatus(&status)
-	if err != nil {
-		core.LogError("Could not get system power status: " + err.Error())
-		return false
-	}
-	return status.ACLineStatus == 0 // 0 = offline, 1 = online, 255 = unknown
-}*/
-
 func IsOnBattery() bool { //TODO: I cant really test this because I dont have a windows machine with a battery
-	exists, err := batteryExists()
+	cmd := exec.Command("wmic", "path", "Win32_Battery", "get", "DeviceID", "/format:list")
+	output, err := cmd.Output()
 	if err != nil {
 		return false
 	}
-	if !exists {
+	if strings.Contains(string(output), "DeviceID") {
 		return false
 	}
-	cmd := exec.Command("wmic", "path", "Win32_Battery", "get", "BatteryStatus")
-	output, err := cmd.Output()
+	cmd = exec.Command("wmic", "path", "Win32_Battery", "get", "BatteryStatus")
+	output, err = cmd.Output()
 	if err != nil {
 		core.LogError("Could not get battery status: " + err.Error())
 		return false
@@ -593,15 +584,6 @@ func IsOnBattery() bool { //TODO: I cant really test this because I dont have a 
 		return false
 	}
 	return !(status == 2 || status == 3 || status == 6 || status == 7)
-}
-
-func batteryExists() (bool, error) {
-	cmd := exec.Command("wmic", "path", "Win32_Battery", "get", "DeviceID", "/format:list")
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	return strings.Contains(string(output), "DeviceID"), nil
 }
 
 // ------ Scheduled Task Functions (Admin) ------ //
