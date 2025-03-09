@@ -107,7 +107,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     postDiv.appendChild(embedDiv);
     postDiv.appendChild(reactionDiv);
 
-    // embed media
+    // Embed Rich Media
     const urlRegex = /(https:\/\/[^\s]+)/g;
     let postText = postData.payload;
     const urls = postData.payload.match(urlRegex);
@@ -127,8 +127,9 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
             }
         }
     }
+
+    // Post Rendering
     postTextDiv.innerHTML = XSSSanitizeTinyMCEHtml(postText);
-    //postTextDiv.innerHTML = postText; // todo debug
     return postDiv;
 }
 export async function CreateProfileCard (profileData: any): Promise<HTMLDivElement>{

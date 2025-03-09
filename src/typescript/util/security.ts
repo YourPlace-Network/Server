@@ -91,6 +91,12 @@ export function XSSSanitizeValue(value: string): string {
     }) as string;
 }
 export function XSSSanitizeTinyMCEHtml(html: string): string {
+    const allowedIframeURLs: string[] = [
+        "https://www.youtube.com/embed/",
+        "https://www.youtube-nocookie.com/embed/",
+        "https://player.vimeo.com/video/",
+        "https://rumble.com/embed/",
+    ];
     const config: DOMPurify.Config = {
         ALLOWED_TAGS: [
             "p","div","h1","h2","h3","h4","h5","h6","ul","ol","li",
@@ -114,54 +120,82 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
         ALLOW_ARIA_ATTR: false,
         ALLOW_DATA_ATTR: false,
     };
-    // Set up a hook to filter style attributes
-    /*DOMPurify.addHook("beforeSanitizeAttributes", (node) => {
-        if (node.hasAttribute("style")) {
-            const style = node.getAttribute("style");
-            if (style) {
-                // Create whitelist of allowed CSS properties and their valid patterns
-                const allowedStyles: Record<string, RegExp> = {
-                    "text-align": /^\s*(left|right|center|justify)\s*$/i,
-                    "color": /^(#[0-9a-f]{3,6}|rgba?\([0-9, .]+\))$/i,
-                    "background-color": /^(#[0-9a-f]{3,6}|rgba?\([0-9, .]+\))$/i,
-                    "font-weight": /^(normal|bold|[1-9]00)$/i,
-                    "text-decoration": /^(none|underline|line-through)$/i,
-                    "margin": /^[0-9]+(px|em|rem|%)( [0-9]+(px|em|rem|%))*$/i,
-                    "padding": /^[0-9]+(px|em|rem|%)( [0-9]+(px|em|rem|%))*$/i
-                };
-                // Filter style properties
-                const styleArray = style.split(";").map(s => s.trim());
-                const safeStyles = styleArray
-                    .map(s => {
-                        const [prop, value] = s.split(":");
-                        if (!prop || !value) return null;
-                        const trimmedProp = prop.trim().toLowerCase();
-                        const trimmedValue = value.trim().toLowerCase();
-                        // Check if property is allowed to value matches pattern
-                        if (allowedStyles[trimmedProp] &&
-                            allowedStyles[trimmedProp].test(trimmedValue)) {
-                            return `${trimmedProp}:${trimmedValue}`;
-                        }
-                        return null;
-                    }).filter(s => s != null).join(";");
-                if (safeStyles) {
-                    node.setAttribute("style", safeStyles);
-                } else {
-                    node.removeAttribute("style");
+    DOMPurify.addHook("uponSanitizeElement", function(node: Element, data: any) {
+        if (data.tagName.toLowerCase() === "iframe") {
+            // Get all attributes of the node
+            const attributes = node.attributes;
+            let srcValue: string | null = null;
+            // Loop through all attributes and find all variations of src
+            for (let i = 0; i < attributes.length; i++) {
+                if (attributes[i].name.toLowerCase() === "src") {
+                    srcValue = attributes[i].value;
+                    // Remove the attribute regardless of case
+                    node.removeAttribute(attributes[i].name);
+                    break;
                 }
-            } else {
-                node.removeAttribute("style");
+            }
+            // If src was found, check if it's in the whitelist
+            if (srcValue) {
+                const isAllowed = allowedIframeURLs.some(url => srcValue!.startsWith(url));
+                if (isAllowed) { // If allowed, add back a clean src attribute
+                    node.setAttribute("src", srcValue);
+                }
             }
         }
-        // Handle iframe src attributes - only allow YouTube
-        if (node.nodeName === "IFRAME" && node.hasAttribute("src")) {
-            const src = node.getAttribute("src");
-            if (src && !IsValidYoutubeUrl(src)) { // If not a valid YouTube URL, remove the entire iframe
-                node.parentNode?.removeChild(node);
+    });
+    DOMPurify.addHook("uponSanitizeAttribute", function(node: Element, data: any) {
+        const attributes = node.attributes;
+        let styleValue: string | null = null;
+        let styleAttrName: string | null = null;
+        // Look for any variant of "style" attribute
+        for (let i = 0; i < attributes.length; i++) {
+            if (attributes[i].name.toLowerCase() === "style") {
+                styleValue = attributes[i].value;
+                styleAttrName = attributes[i].name;
+                // Remove the attribute regardless of case
+                node.removeAttribute(styleAttrName);
+                break;
             }
         }
-    });*/
+        // If style was found, sanitize it
+        if (styleValue) {
+            const sanitizedStyle = sanitizeStyle(styleValue);
+            // If there are valid style properties, add back a clean style attribute
+            if (sanitizedStyle) {
+                node.setAttribute("style", sanitizedStyle);
+            }
+        }
+    });
+
     const sanitized = DOMPurify.sanitize(html, config) as string;
-    //DOMPurify.removeHook("beforeSanitizeAttributes");
+    DOMPurify.removeHook("uponSanitizeElement");
+    DOMPurify.removeHook("beforeSanitizeAttributes");
     return sanitized;
+}
+function sanitizeStyle(styleAttr: string): string {
+    const allowedStyleProperties: string[] = [
+        "text-decoration",
+        "text-align",
+        "color",
+        "background-color",
+    ];
+    if (!styleAttr) return "";
+    // Split the style attribute into individual declarations
+    const declarations = styleAttr.split(";").filter(Boolean);
+    const sanitizedDeclarations: string[] = [];
+    for (const declaration of declarations) {
+        // Split each declaration into property and value
+        const parts = declaration.split(":");
+        if (parts.length >= 2) {
+            const propertyName = parts[0].toLowerCase().trim();
+            const propertyValue = parts.slice(1).join(":").toLowerCase().trim();
+            if (propertyName && propertyValue) {
+                // Check if the property is in the whitelist
+                if (allowedStyleProperties.some(allowed => propertyName.toLowerCase() == allowed.toLowerCase())) {
+                    sanitizedDeclarations.push(`${propertyName}: ${propertyValue}`);
+                }
+            }
+        }
+    }
+    return sanitizedDeclarations.join("; ");
 }
