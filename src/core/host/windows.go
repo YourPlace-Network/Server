@@ -564,7 +564,7 @@ func IsOnBattery() bool { //TODO: I cant really test this because I dont have a 
 	if err != nil {
 		return false
 	}
-	if strings.Contains(string(output), "DeviceID") {
+	if !strings.Contains(string(output), "DeviceID") {
 		return false
 	}
 	cmd = exec.Command("wmic", "path", "Win32_Battery", "get", "BatteryStatus")
