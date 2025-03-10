@@ -8,10 +8,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
-const OllamaModel = "phi-2"
+const OllamaModel = "phi4-mini"
 const OllamaPort = "11434"
 
 func OllamaSetup() bool {
@@ -57,26 +58,34 @@ func OllamaDownloadModel(modelName string) error {
 		return core.LogErrorReturn("Ollama model download, failed to create request: " + err.Error())
 	}
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 0, // No timeout for downloading, but consider adding one with context
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return core.LogErrorReturn("Ollama model download, failed to download model: " + err.Error())
 	}
 	defer resp.Body.Close()
+	// Check status code
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return core.LogErrorReturn(fmt.Sprintf("Ollama model download failed with status code: %d", resp.StatusCode))
+	}
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
 		var progressResponse struct {
-			Status string `json:"status"`
-			Digest string `json:"digest,omitempty"`
-			Total  int64  `json:"total,omitempty"`
-			Done   int64  `json:"completed,omitempty"`
+			Status    string `json:"status"`
+			Digest    string `json:"digest,omitempty"`
+			Total     int64  `json:"total,omitempty"`
+			Completed int64  `json:"completed,omitempty"` // Match the field name to the JSON
 		}
-		if err = json.Unmarshal(scanner.Bytes(), &progressResponse); err != nil {
+		err = json.Unmarshal(scanner.Bytes(), &progressResponse)
+		if err != nil {
+			core.LogError("Ollama model download, failed to decode response: " + err.Error())
 			continue // skip malformed json
 		}
 		if progressResponse.Total > 0 {
-			progress := float64(progressResponse.Done) / float64(progressResponse.Total) * 100
-			core.LogDebug(fmt.Sprintf("Downloading %s: %.2f%%\n", modelName, progress))
+			progress := float64(progressResponse.Completed) / float64(progressResponse.Total) * 100
+			core.LogDebug(fmt.Sprintf("Downloading %s: %.2f%%", modelName, progress))
 		} else {
 			core.LogDebug("Ollama Download Progress: " + progressResponse.Status)
 		}
@@ -89,7 +98,7 @@ func OllamaDownloadModel(modelName string) error {
 func OllamaIsModelDownloaded(modelName string) (bool, error) {
 	resp, err := http.Get("http://localhost:" + OllamaPort + "/api/tags")
 	if err != nil {
-		return false, core.LogErrorReturn("failed to connect to Ollama API: " + err.Error())
+		return false, core.LogErrorReturn("Failed to connect to Ollama API: " + err.Error())
 	}
 	defer resp.Body.Close()
 	var result struct {
@@ -97,11 +106,12 @@ func OllamaIsModelDownloaded(modelName string) (bool, error) {
 			Name string `json:"name"`
 		} `json:"models"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return false, core.LogErrorReturn("failed to decode response: " + err.Error())
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return false, core.LogErrorReturn("Failed to decode response: " + err.Error())
 	}
 	for _, model := range result.Models {
-		if model.Name == modelName {
+		if strings.HasPrefix(model.Name, modelName) {
 			return true, nil
 		}
 	}
