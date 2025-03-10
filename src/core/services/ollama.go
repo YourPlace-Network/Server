@@ -11,18 +11,19 @@ import (
 	"time"
 )
 
+const Model = "phi-2"
+
 func OllamaSetup() bool {
-	model := "llama3.2:3b"
 	err := OllamaHealthCheck()
 	if err != nil {
 		core.LogError("Ollama health check failed: " + err.Error())
 		return false
 	}
-	isDownloaded, err := OllamaIsModelDownloaded(model)
+	isDownloaded, err := OllamaIsModelDownloaded(Model)
 	if isDownloaded {
 		return true
 	}
-	err = OllamaDownloadModel(model)
+	err = OllamaDownloadModel(Model)
 	if err != nil {
 		core.LogError("Failed to download model: " + err.Error())
 		return false
