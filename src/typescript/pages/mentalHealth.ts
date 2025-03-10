@@ -701,6 +701,8 @@ const tips = [
     "Being in the minority opinion is tough. It requires conviction and courage",
     "Don't be the person who's offended by everything and ashamed by nothing. They offer nothing to polite society",
     "If they're down to nitpicking your grammar or minor typos, then you know they've lost",
+    "Justice should never be disregarded for \"niceness\"",
+    "Just because it comes in the form of a childrens book or program, doesn't mean it's good advice. Screen those things before your child learns the wrong lessons",
 
 
 ];
