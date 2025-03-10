@@ -22,10 +22,10 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 		return
 	})
 	router.GET("/service/ai/ollamaModelEnabled/", func(c *gin.Context) {
-		boolean, err := services.OllamaIsModelDownloaded(services.Model)
+		boolean, err := services.OllamaIsModelDownloaded(services.OllamaModel)
 		if err != nil || !boolean {
 			go func() {
-				_ = services.OllamaDownloadModel(services.Model)
+				_ = services.OllamaDownloadModel(services.OllamaModel)
 			}()
 			c.SecureJSON(http.StatusOK, gin.H{"status": "disabled", "message": "ollama model not downloaded"})
 			return
@@ -58,7 +58,7 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 			"Be conservative in your ranting. Only rate it 1 or over, if the quote is overly offensive. " +
 			"This is the quote you are rating: \"" + quote + "\""
 		core.LogDebug("Ollama Prompt: " + prompt)
-		response, err := services.OllamaPromptModel(services.Model, prompt)
+		response, err := services.OllamaPromptModel(services.OllamaModel, prompt)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Ollama Error"})
 			return
