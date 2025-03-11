@@ -32,7 +32,7 @@ var (
 )
 
 // --- Indexer Main Method --- //
-func IndexerFetchPosts(database *db.Database, blockchain *Blockchain, chainName string) {
+func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) {
 	// Handle indexer mutex and exit channel
 	indexerCancel = make(chan bool, 1)
 	IndexerMutex.Lock()
@@ -58,7 +58,7 @@ func IndexerFetchPosts(database *db.Database, blockchain *Blockchain, chainName 
 		return // bail out
 	}
 
-	core.LogDebug("--- IndexerFetchPosts(): Fetching posts for " + chainName + " ---")
+	core.LogDebug("--- IndexerFetchData(): Fetching posts for " + chainName + " ---")
 	switch blockchain.Base.RpcUrl { // Set throttle defaults for known public nodes
 	case DefaultBlockchainNodes["base"][0]:
 		database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1]) // default rate limit for default nodes
@@ -653,8 +653,8 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 		return
 	}
 	txHash := strings.ToLower(transaction["hash"].(string))
-	fromAddr := strings.ToLower(transaction["from"].(string))
-	toAddr := strings.ToLower(transaction["to"].(string))
+	fromAddress := strings.ToLower(transaction["from"].(string))
+	toAddress := strings.ToLower(transaction["to"].(string))
 	parentTxHash := ""
 	if payloadObject["parentTxHash"] != nil {
 		parentTxHash = payloadObject["parentTxHash"].(string)
@@ -669,7 +669,7 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			core.LogDebug("Post Action: " + action)
 			switch actionPostfix {
 			case "":
-				database.OnchainP(txHash, blockchain, fromAddr, toAddr, parentTxHash, amountInt, timestamp, decodedDataStr, blockNumber)
+				database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, decodedDataStr, blockNumber)
 				break
 			}
 			break
@@ -678,16 +678,18 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			core.LogDebug("Follow Action: " + action)
 			switch actionPostfix {
 			case "":
-				if toAddr == fromAddr || toAddr != payloadObject["a"].(string) { // Ignore self-follow attempts and malformed addresses
+				blockchainPayload := payloadObject["b"].(string)
+				if !security.IsValidBlockchain(blockchainPayload) {
 					break
 				}
-				if !security.IsValidAddress(payloadObject["a"].(string), blockchain) {
+				addressPayload := payloadObject["a"].(string)
+				if !security.IsValidAddress(addressPayload, blockchainPayload) {
 					break
 				}
-				if !security.IsValidBlockchain(payloadObject["b"].(string)) {
+				if fromAddress == addressPayload && blockchain == blockchainPayload { // Ignore self-follow attempts (follower count fraud)
 					break
 				}
-				database.OnchainF(txHash, blockchain, fromAddr, blockchain, toAddr, payloadObject["b"].(string), timestamp)
+				database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressPayload, blockchainPayload, timestamp)
 			}
 		case 'm': // Metadata Actions
 			core.LogDebug("Metadata Action: " + action)
@@ -695,20 +697,20 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			case "n":
 				if name, ok := payloadObject["n"]; ok && name != nil {
 					nameStr := security.SanitizeNonPrintable(payloadObject["n"].(string))
-					database.OnchainMN(blockchain, fromAddr, nameStr, timestamp)
+					database.OnchainMN(blockchain, fromAddress, nameStr, timestamp)
 				}
 			case "a":
 				if avatar, ok := payloadObject["a"]; ok && avatar != nil {
 					avatarStr := security.SanitizeNonPrintable(payloadObject["a"].(string))
 					if security.IsValidURL(avatarStr) || security.IsValidCID(avatarStr) {
-						database.OnchainMA(blockchain, fromAddr, avatarStr, timestamp)
+						database.OnchainMA(blockchain, fromAddress, avatarStr, timestamp)
 					}
 				}
 			case "b":
 				if banner, ok := payloadObject["b"]; ok && banner != nil {
 					bannerStr := security.SanitizeNonPrintable(payloadObject["b"].(string))
 					if security.IsValidURL(bannerStr) || security.IsValidCID(bannerStr) {
-						database.OnchainMB(blockchain, fromAddr, bannerStr, timestamp)
+						database.OnchainMB(blockchain, fromAddress, bannerStr, timestamp)
 					}
 				}
 			case "bd":
@@ -720,26 +722,26 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 						return
 					}
 					if security.IsValidBirthDate(birthdateInt) {
-						database.OnchainMBD(blockchain, fromAddr, uint64(birthdateInt), timestamp)
+						database.OnchainMBD(blockchain, fromAddress, uint64(birthdateInt), timestamp)
 					}
 				}
 			case "l":
 				if location, ok := payloadObject["l"]; ok && location != nil {
 					locationStr := security.SanitizeNonPrintable(payloadObject["l"].(string))
-					database.OnchainML(blockchain, fromAddr, locationStr, timestamp)
+					database.OnchainML(blockchain, fromAddress, locationStr, timestamp)
 				}
 			case "w":
 				if website, ok := payloadObject["w"]; ok && website != nil {
 					websiteStr := security.SanitizeNonPrintable(payloadObject["w"].(string))
 					if security.IsValidURL(websiteStr) && len(websiteStr) > 0 {
-						database.OnchainMW(blockchain, fromAddr, websiteStr, timestamp)
+						database.OnchainMW(blockchain, fromAddress, websiteStr, timestamp)
 					}
 				}
 			case "d":
 				if description, ok := payloadObject["d"]; ok && description != nil {
 					descriptionStr := security.SanitizeNonPrintable(payloadObject["d"].(string))
 					if len(descriptionStr) > 0 {
-						database.OnchainMD(blockchain, fromAddr, descriptionStr, timestamp)
+						database.OnchainMD(blockchain, fromAddress, descriptionStr, timestamp)
 					}
 				}
 			}

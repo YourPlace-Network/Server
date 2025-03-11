@@ -296,10 +296,10 @@ func (db *Database) OnchainMD(blockchain string, address string, description str
 		db.sqlite.OnchainMD(blockchain, address, description, timestamp)
 	}
 }
-func (db *Database) OnchainF(txHash string, blockchain string, fromAddr string, fromBlockchain string, toAddr string, toBlockchain string, timestamp uint64) {
+func (db *Database) OnchainF(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.OnchainF(txHash, blockchain, fromAddr, fromBlockchain, toAddr, toBlockchain, timestamp)
+		db.sqlite.OnchainF(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	}
 }
 

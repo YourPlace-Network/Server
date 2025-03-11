@@ -709,6 +709,7 @@ const tips = [
     "If you can, carry a weapon to protect yourself. Train with it and know the laws. Be safe and only use it for self-defense",
 
 
+
 ];
 
 (function initialize() {

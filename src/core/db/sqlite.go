@@ -110,6 +110,22 @@ func (db *SQLite) getRows(query string) (*sql.Rows, error) {
 	defer stmt.Close()
 	return stmt.QueryContext(ctx)
 }
+func (db *SQLite) rowCount(query string) (int, error) {
+	rows, err := db.runParamSQLSelect(query)
+	if err != nil {
+		return 0, core.LogErrorReturn("Could not get row count: " + err.Error())
+	}
+	defer rows.Close()
+	rowCount := 0
+	for rows.Next() {
+		rowCount++
+	}
+	err = rows.Err()
+	if err != nil {
+		return 0, core.LogErrorReturn("Could not get row count: " + err.Error())
+	}
+	return rowCount, nil
+}
 func (db *SQLite) flushTable(name string) {
 	query := "DELETE * FROM " + sanitizeSQLiteTableName(name)
 	db.runSQL(query)
@@ -178,12 +194,6 @@ func (db *SQLite) withTransaction(fn func(*sql.Tx) error) error {
 	return nil
 }
 func (db *SQLite) createTables(ctx context.Context) error {
-	// First create a temporary table to store the current table schemas
-	schemaMigration := `CREATE TABLE IF NOT EXISTS _schema_migrations (table_name TEXT PRIMARY KEY, schema_hash TEXT);`
-	err := db.execWithRetry(ctx, schemaMigration, 3)
-	if err != nil {
-		core.LogError("Schema migration table creation failed: " + err.Error())
-	}
 	// Tables schema map
 	tables := map[string]string{
 		"meta":               "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
@@ -201,10 +211,10 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', birthdate INTEGER DEFAULT NULL, server TEXT DEFAULT '', " +
 			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, address TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, fromAddr TEXT, fromBlockchain TEXT, toAddr TEXT, toBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 	}
 	for _, createStatement := range tables {
-		err = db.execWithRetry(ctx, createStatement, 3)
+		err := db.execWithRetry(ctx, createStatement, 3)
 		if err != nil {
 			return core.LogErrorReturn("Table creation failed: " + err.Error())
 		}
@@ -579,8 +589,8 @@ func (db *SQLite) ProfileGetFollowerCount(address string, blockchain string) *in
 	}
 	return &postCount
 }
-func (db *SQLite) ProfileIsFollower(address string, blockchain string, followerAddress string, followerBlockchain string) bool {
-	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE fromAddr = ? AND blockchain = ? AND toAddr = ?", address, blockchain, followerAddress, followerBlockchain)
+func (db *SQLite) ProfileIsFollower(followeeAddress string, followeeBlockchain string, followerAddress string, followerBlockchain string) bool {
+	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE followeeAddress = ? AND followeeBlockchain = ? AND followerAddress = ? AND followerBlockchain = ?", followeeAddress, followeeBlockchain, followerAddress, followerBlockchain)
 	if err != nil {
 		core.LogError("Could not get follower status from database: " + err.Error())
 		return false
@@ -989,9 +999,21 @@ func (db *SQLite) OnchainMD(blockchain string, address string, description strin
 		core.LogError("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
-func (db *SQLite) OnchainF(txHash string, blockchain string, fromAddr string, fromBlockchain, toAddr string, toBlockchain string, timestamp uint64) {
-	query := "INSERT INTO onchain_follow (txHash, blockchain, fromAddr, fromBlockchain, toAddr, toBlockchain, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, fromBlockchain, toAddr, toBlockchain, timestamp)
+func (db *SQLite) OnchainF(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
+	followQuery := "SELECT 1 FROM onchain_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(followQuery, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
+	if err != nil {
+		core.LogError("Could not check if the follow already exists in the database: " + err.Error())
+		return
+	}
+	followExists := rows.Next() // if rows.Next() returns true, then at least 1 row exists, indicating the relationship already exists
+	rows.Close()
+	if followExists {
+		// Don't add a new follower database entry if the follower relationship already exists (prevent follower count fraud)
+		return
+	}
+	query := "INSERT INTO onchain_follow (txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err = db.runParamSQLUpdate(query, txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	if err != nil {
 		core.LogError("Could not tokenize the follow in the database: " + err.Error())
 	}

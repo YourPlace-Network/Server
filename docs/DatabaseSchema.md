@@ -112,17 +112,17 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **birthdateTimestamp** - INTEGER (Unix timestamp)
   * **serverTimestamp** - INTEGER (Unix timestamp)
 * **onchain_block** - Blocking and unblocking of content
-  * **txHash** - TEXT 
-  * **blockchain** - TEXT
+  * **txHash** - TEXT  (Primary Key)
+  * **blockchain** - TEXT (Primary Key)
   * **address** - TEXT
   * **key** - TEXT
   * **value** - TEXT
   * **timestamp** - INTEGER (Unix timestamp)
 * **onchain_follow** - Following and unfollowing of profiles
-  * **txHash** - TEXT
-  * **blockchain** - TEXT
-  * **fromAddr** - TEXT
-  * **fromBlockchain** - TEXT
-  * **toAddr** - TEXT
-  * **toBlockchain** - TEXT
+  * **txHash** - TEXT (Primary Key)
+  * **blockchain** - TEXT (Primary Key)
+  * **followerAddress** - TEXT
+  * **followerBlockchain** - TEXT
+  * **followeeAddress** - TEXT
+  * **followeeBlockchain** - TEXT
   * **timestamp** - INTEGER (Unix timestamp)

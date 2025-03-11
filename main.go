@@ -392,7 +392,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 				blockchain.IndexerStop()
 				return
 			}
-			blockchain.IndexerFetchPosts(database, _blockchain, "base")
+			blockchain.IndexerFetchData(database, _blockchain, "base")
 		})
 	}
 	// ------- IPFS BadBits ------- //

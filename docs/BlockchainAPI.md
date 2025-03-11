@@ -37,7 +37,7 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 - `yp/1/rl:{"txh":"txnHash"}` - Like a post
 - `yp/1/rdl:{"txh":"txnHash"}` - Dislike a post
 ### Following (to yourself)
-- `yp/1/f:{"a":"address", "b":"address"}` - Follow an address at a blockchain 🚢
+- `yp/1/f:{"a":"address", "b":"blockchain"}` - Follow an address at a blockchain 🚢
 - `yp/1/fu:{"a":"address", "b":"blockchain"}` - Unfollow an address at a blockchain
 - `yp/1/fh:{"h#":"#hashtag"}` - Follow a hashtag on all blockchains
 - `yp/1/fuh:{"h#":"#hashtag"}` - Unfollow a hashtag on all blockchains

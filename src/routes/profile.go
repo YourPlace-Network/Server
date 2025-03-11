@@ -248,7 +248,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		followerCount := database.ProfileGetFollowerCount(address, blockchainParam)
 		c.SecureJSON(http.StatusOK, gin.H{"followerCount": followerCount})
 	})
-	router.GET("/profile/isFollower/:blockchain/:address/:followerBlockchain/:followerAddress", func(c *gin.Context) {
+	router.GET("/profile/isFollower/:toBlockchain/:toAddress/:fromBlockcain/:fromAddress", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
