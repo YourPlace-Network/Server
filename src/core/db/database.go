@@ -56,8 +56,21 @@ func (db *Database) SetDefaults() {
 		core.LogError("Failed to set defaults: " + err.Error())
 	}
 }
-func (db *Database) ExportDatabase(exportPath string) {
-	db.ExportDatabase(exportPath)
+func (db *Database) ExportSnapshot(exportPath string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.ExportSnapshot(exportPath)
+	default:
+		return core.LogErrorReturn("Invalid DB engine selected")
+	}
+}
+func (db *Database) ImportSnapshot(importPath string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.ImportSnapshot(importPath)
+	default:
+		return core.LogErrorReturn("Invalid DB engine selected")
+	}
 }
 
 // --- Metadata & Settings Functions --- //

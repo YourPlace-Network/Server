@@ -337,9 +337,23 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, cry
 		blockchain.IndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
-	router.POST("/settings/database/export", func(c *gin.Context) {
-		exportPath := host.GetDataDir() + "yourplace.sqlite.db.backup"
-		database.ExportDatabase(exportPath)
+	router.POST("/settings/database/exportSnapshot", func(c *gin.Context) {
+		exportPath := host.GetDataDir() + "yourplace.db.snapshot"
+		err := database.ExportSnapshot(exportPath)
+		if err != nil {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "failed", "error": err.Error()})
+			return
+		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportPath})
+	})
+	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
+		importPath := host.GetDataDir() + "yourplace.db.snapshot"
+		// todo halt indexer prior to import
+		err := database.ImportSnapshot(importPath)
+		if err != nil {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "failed", "error": err.Error()})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "importPath": importPath})
 	})
 }

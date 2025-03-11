@@ -9,26 +9,6 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **publicIP** - TEXT
   * **walletAddress** - TEXT
   * **ypPortOpen** - INTEGER (0 or 1)
-* **posts** - Posts that a user creates
-  * **txHash** - TEXT (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
-  * **fromAddr** - TEXT
-  * **toAddr** - TEXT
-  * **parentTxHash** - TEXT
-  * **amount** - REAL
-  * **timestamp** - INTEGER (Unix timestamp)
-  * **data** - TEXT
-  * **blockNumber** - INTEGER
-* **profiles** - Profile information for a given user
-  * **address** - TEXT (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
-  * **name** - TEXT
-  * **avatar** - TEXT
-  * **banner** - TEXT
-  * **description** - TEXT
-  * **location** - TEXT
-  * **website** - TEXT
-  * **birthdate** - TEXT
 * **settings** - Local server settings
   * **algodURL** - TEXT
   * **algodToken** - TEXT
@@ -91,7 +71,7 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **contentType** - TEXT
   * **size** - INTEGER
   * **timestamp** - INTEGER (Unix timestamp)
-* **onchain_meta** - Metadata about the profile and server
+* **onchain_meta** - Metadata about profiles and their server
   * **blockchain** - TEXT (Primary Key)
   * **address** - TEXT (Primary Key)
   * **name** - TEXT

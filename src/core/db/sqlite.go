@@ -2,11 +2,16 @@ package db
 
 import (
 	"YourPlace/src/core"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"database/sql"
+	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	_ "github.com/glebarez/go-sqlite"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -22,7 +27,6 @@ func (db *SQLite) Init(path string) {
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	dbPath := path + "yourplace.sqlite.db"
-	core.LogDebug("Using SQLite database at: " + dbPath)
 	db.path = dbPath
 	database, err := sql.Open("sqlite", dbPath)
 	if err != nil || database == nil {
@@ -197,8 +201,6 @@ func (db *SQLite) createTables(ctx context.Context) error {
 	// Tables schema map
 	tables := map[string]string{
 		"meta":               "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
-		"posts":              "CREATE TABLE IF NOT EXISTS posts (txHash TEXT, blockchain TEXT, fromAddr TEXT, toAddr TEXT, parentTxHash TEXT, amount REAL, timestamp INTEGER, data TEXT, blockNumber INTEGER, PRIMARY KEY(txHash, blockchain))",
-		"profiles":           "CREATE TABLE IF NOT EXISTS profiles (address TEXT, blockchain TEXT, name TEXT, avatar TEXT, banner TEXT, description TEXT, location TEXT, website TEXT, joined INTEGER, birthdate INTEGER, PRIMARY KEY(address, blockchain))",
 		"settings":           "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
 		"files":              "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, extension TEXT, path TEXT, unsafeNameB64 TEXT, size INTEGER, addedDate INTEGER)",
 		"ipfsFiles":          "CREATE TABLE IF NOT EXISTS ipfsFiles (fileUUID TEXT PRIMARY KEY, cid TEXT, addedDate INTEGER)",
@@ -206,7 +208,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"authNonce":          "CREATE TABLE IF NOT EXISTS authNonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
 		"authExpired":        "CREATE TABLE IF NOT EXISTS authExpired (uuid TEXT PRIMARY KEY, status TEXT)",
 		"loginNonce":         "CREATE TABLE IF NOT EXISTS loginNonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
-		"onchain_post":       "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddr TEXT DEFAULT '', toAddr TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', blockNumber INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+		"onchain_post":       "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', toAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', blockNumber INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 		"onchain_attachment": "CREATE TABLE IF NOT EXISTS onchain_attachment (txHash TEXT, blockchain TEXT, address TEXT DEFAULT '', name TEXT DEFAULT '', contentType TEXT DEFAULT '', size INTEGER DEFAULT 0, timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', birthdate INTEGER DEFAULT NULL, server TEXT DEFAULT '', " +
 			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
@@ -235,45 +237,485 @@ func (db *SQLite) runExternalSQLFile(path string) {
 	}
 	db.runSQL(string(sqlBytes))
 }
-func (db *SQLite) exportDatabase(exportPath string) error {
+func (db *SQLite) ExportSnapshot(exportPath string) error {
 	if db.database == nil {
 		return core.LogErrorReturn("Database connection not initialized")
 	}
-	core.LogDebug("Exporting SQLite database to: " + exportPath)
-	// Retry parameters
-	maxRetries := 5
-	var lastErr error
-	// Generous timeout for the backup operation
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			// Exponential backoff: 1s, 2s, 4s, 8s, 16s
-			backoffDuration := time.Duration(1<<uint(attempt)) * time.Second
-			select {
-			case <-time.After(backoffDuration):
-				// Continue with retry
-			case <-ctx.Done():
-				return core.LogErrorReturn("Export operation timed out: " + ctx.Err().Error())
+	core.LogDebug("Exporting SQLite Snapshot to: " + exportPath)
+	// Tables to export
+	tables := []string{
+		"onchain_post",
+		"onchain_attachment",
+		"onchain_meta",
+		"onchain_block",
+		"onchain_follow",
+		"postsBackfill",
+	}
+	// Create buffer to hold the serialized data
+	var buffer bytes.Buffer
+	// Create metadata for the export
+	metaData := map[string]interface{}{
+		"timestamp": core.GetTimestamp(),
+		"version":   "1.0",
+		"tables":    tables,
+	}
+	// Create the output file
+	exportFile, err := os.Create(exportPath)
+	if err != nil {
+		return core.LogErrorReturn("Could not create export file: " + err.Error())
+	}
+	defer exportFile.Close()
+	// Use a gzip writer for compression
+	gzWriter, err := gzip.NewWriterLevel(exportFile, gzip.BestCompression)
+	if err != nil {
+		return core.LogErrorReturn("Could not create gzip writer: " + err.Error())
+	}
+	defer gzWriter.Close()
+	// First write the metadata
+	metaJSON, err := json.Marshal(metaData)
+	if err != nil {
+		return core.LogErrorReturn("Could not serialize metadata: " + err.Error())
+	}
+	// Write metadata length as a binary header (4 bytes)
+	binary.Write(gzWriter, binary.LittleEndian, uint32(len(metaJSON)))
+	// Write metadata
+	_, err = gzWriter.Write(metaJSON)
+	if err != nil {
+		return core.LogErrorReturn("Could not write metadata: " + err.Error())
+	}
+	// Export each table directly to the compressed stream
+	for _, table := range tables {
+		core.LogDebug("Exporting table: " + table)
+		// Get table schema
+		rows, err := db.runParamSQLSelect(fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'", table))
+		if err != nil {
+			return core.LogErrorReturn("Could not get table schema: " + err.Error())
+		}
+		var createStatement string
+		if rows.Next() {
+			err = rows.Scan(&createStatement)
+			if err != nil {
+				rows.Close()
+				return core.LogErrorReturn("Could not read table schema: " + err.Error())
 			}
 		}
-		// Create a context for this specific attempt
-		attemptCtx, attemptCancel := context.WithTimeout(ctx, 2*time.Minute)
-		// Use VACUUM INTO for a consistent backup
-		_, _err := db.database.ExecContext(attemptCtx, fmt.Sprintf("VACUUM INTO '%s'", exportPath))
-		// Always cancel the attempt context
-		attemptCancel()
-		if _err == nil {
-			core.LogDebug("Exported SQLite database to: " + exportPath)
-			return nil
+		rows.Close()
+		if createStatement == "" {
+			return core.LogErrorReturn("Table not found: " + table)
 		}
-		lastErr = _err
-		// If context is canceled, stop retrying
-		if ctx.Err() != nil {
-			return core.LogErrorReturn("Export operation canceled: " + ctx.Err().Error())
+		// Reset buffer
+		buffer.Reset()
+		// Write schema to buffer
+		err = binary.Write(&buffer, binary.LittleEndian, uint32(len(createStatement)))
+		if err != nil {
+			return core.LogErrorReturn("Could not write schema length: " + err.Error())
 		}
+		_, err = buffer.WriteString(createStatement)
+		if err != nil {
+			return core.LogErrorReturn("Could not write schema: " + err.Error())
+		}
+		// Get all data from the table
+		dataRows, err := db.runParamSQLSelect(fmt.Sprintf("SELECT * FROM %s", table))
+		if err != nil {
+			return core.LogErrorReturn("Could not get table data: " + err.Error())
+		}
+		// Get column information
+		columns, err := dataRows.Columns()
+		if err != nil {
+			dataRows.Close()
+			return core.LogErrorReturn("Could not get column information: " + err.Error())
+		}
+		// Serialize column count and names
+		err = binary.Write(&buffer, binary.LittleEndian, uint32(len(columns)))
+		if err != nil {
+			dataRows.Close()
+			return core.LogErrorReturn("Could not write column count: " + err.Error())
+		}
+		for _, column := range columns {
+			err = binary.Write(&buffer, binary.LittleEndian, uint32(len(column)))
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not write column name length: " + err.Error())
+			}
+			_, err = buffer.WriteString(column)
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not write column name: " + err.Error())
+			}
+		}
+		// Count rows (first pass)
+		rowCount := 0
+		for dataRows.Next() {
+			rowCount++
+		}
+		// Check for error in first pass
+		err = dataRows.Err()
+		if err != nil {
+			dataRows.Close()
+			return core.LogErrorReturn("Could not read rows: " + err.Error())
+		}
+		dataRows.Close()
+		// Write row count
+		err = binary.Write(&buffer, binary.LittleEndian, uint32(rowCount))
+		if err != nil {
+			return core.LogErrorReturn("Could not write row count: " + err.Error())
+		}
+		// If there are no rows, continue to next table
+		if rowCount == 0 {
+			// Write this table's buffer to compressed file
+			_, err = gzWriter.Write(buffer.Bytes())
+			if err != nil {
+				return core.LogErrorReturn("Could not write table buffer: " + err.Error())
+			}
+			continue
+		}
+		// Get data again for second pass
+		dataRows, err = db.runParamSQLSelect("SELECT * FROM " + table)
+		if err != nil {
+			return core.LogErrorReturn("Could not get table data (second pass): " + err.Error())
+		}
+		// Write this table's header to compressed file now
+		_, err = gzWriter.Write(buffer.Bytes())
+		if err != nil {
+			dataRows.Close()
+			return core.LogErrorReturn("Could not write table header: " + err.Error())
+		}
+		// Reset buffer for row data
+		buffer.Reset()
+		rowBuffer := bytes.NewBuffer(nil)
+		// Serialize each row
+		rowsProcessed := 0
+		values := make([]interface{}, len(columns))
+		valuePointers := make([]interface{}, len(columns))
+		for i := range values {
+			valuePointers[i] = &values[i]
+		}
+		for dataRows.Next() {
+			err = dataRows.Scan(valuePointers...)
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not scan row: " + err.Error())
+			}
+			// Reset row buffer
+			rowBuffer.Reset()
+			// Serialize each value in the row
+			for _, value := range values {
+				if value == nil {
+					// Write a type indicator for NULL (0)
+					err = rowBuffer.WriteByte(0)
+					if err != nil {
+						dataRows.Close()
+						return core.LogErrorReturn("Could not write NULL indicator: " + err.Error())
+					}
+				} else {
+					// Determine the type and serialize accordingly
+					switch v := value.(type) {
+					case int64:
+						rowBuffer.WriteByte(1) // Type indicator for int64
+						binary.Write(rowBuffer, binary.LittleEndian, v)
+					case float64:
+						rowBuffer.WriteByte(2) // Type indicator for float64
+						binary.Write(rowBuffer, binary.LittleEndian, v)
+					case []byte:
+						rowBuffer.WriteByte(3) // Type indicator for []byte
+						binary.Write(rowBuffer, binary.LittleEndian, uint32(len(v)))
+						rowBuffer.Write(v)
+					case string:
+						rowBuffer.WriteByte(4) // Type indicator for string
+						binary.Write(rowBuffer, binary.LittleEndian, uint32(len(v)))
+						rowBuffer.WriteString(v)
+					case time.Time:
+						rowBuffer.WriteByte(5) // Type indicator for time.Time
+						binary.Write(rowBuffer, binary.LittleEndian, v.Unix())
+					default:
+						// For any other type, convert to string
+						str := fmt.Sprintf("%v", v)
+						rowBuffer.WriteByte(4) // Type indicator for string
+						binary.Write(rowBuffer, binary.LittleEndian, uint32(len(str)))
+						rowBuffer.WriteString(str)
+					}
+				}
+			}
+			// Write row length and then row data
+			rowData := rowBuffer.Bytes()
+			err = binary.Write(&buffer, binary.LittleEndian, uint32(len(rowData)))
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not write row length: " + err.Error())
+			}
+			_, err = buffer.Write(rowData)
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not write row data: " + err.Error())
+			}
+			rowsProcessed++
+			// Flush to gzip writer ever 1000 rows to avoid memory buildup
+			if buffer.Len() > 1024*1024 || rowsProcessed%1000 == 0 {
+				_, err = gzWriter.Write(buffer.Bytes())
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not write batch of rows to buffer: " + err.Error())
+				}
+				buffer.Reset()
+			}
+			// Log progress for large tables
+			if rowsProcessed%10000 == 0 {
+				core.LogDebug(fmt.Sprintf("Exported %d/%d rows from table %s", rowsProcessed, rowCount, table))
+			}
+		}
+		// Check for error in second pass
+		err = dataRows.Err()
+		if err != nil {
+			dataRows.Close()
+			return core.LogErrorReturn("Could not read rows (second pass): " + err.Error())
+		}
+		dataRows.Close()
+		// Write any remaining data
+		if buffer.Len() > 0 {
+			_, err = gzWriter.Write(buffer.Bytes())
+			if err != nil {
+				return core.LogErrorReturn("Could not write remaining rows to buffer: " + err.Error())
+			}
+		}
+		core.LogDebug(fmt.Sprintf("Exported %d rows from table %s", rowsProcessed, table))
 	}
-	return core.LogWarningReturn("Export operation failed: " + lastErr.Error())
+	// Close the gzip writer to flush any remaining data
+	err = gzWriter.Close()
+	if err != nil {
+		return core.LogErrorReturn("Could not close gzip writer: " + err.Error())
+	}
+	core.LogInfo("SQLite Snapshot Exported Successfully To: " + exportPath)
+	return nil
+}
+func (db *SQLite) ImportSnapshot(importPath string) error {
+	if db.database == nil {
+		return core.LogErrorReturn("Database connection not initialized")
+	}
+	// Open the import file
+	importFile, err := os.Open(importPath)
+	if err != nil {
+		return core.LogErrorReturn("Could not open import file: " + err.Error())
+	}
+	defer importFile.Close()
+	// Create a gzip reader
+	gzReader, err := gzip.NewReader(importFile)
+	if err != nil {
+		return core.LogErrorReturn("Could not create gzip reader: " + err.Error())
+	}
+	defer gzReader.Close()
+	// Read metadata length
+	var metaLength uint32
+	err = binary.Read(gzReader, binary.LittleEndian, &metaLength)
+	if err != nil {
+		return core.LogErrorReturn("Could not read metadata length: " + err.Error())
+	}
+	// Read metadata
+	metaBytes := make([]byte, metaLength)
+	_, err = io.ReadFull(gzReader, metaBytes)
+	if err != nil {
+		return core.LogErrorReturn("Could not read metadata: " + err.Error())
+	}
+	var metadata map[string]interface{}
+	err = json.Unmarshal(metaBytes, &metadata)
+	if err != nil {
+		return core.LogErrorReturn("Could not parse metadata: " + err.Error())
+	}
+	// Get tables
+	tablesInterface, ok := metadata["tables"]
+	if !ok {
+		return core.LogErrorReturn("Metadata missing tables")
+	}
+	tablesArray, ok := tablesInterface.([]interface{})
+	if !ok {
+		return core.LogErrorReturn("Metadata tables not an array")
+	}
+	// Process each table
+	for range tablesArray {
+		// Read schema length
+		var schemaLength uint32
+		err = binary.Read(gzReader, binary.LittleEndian, &schemaLength)
+		if err != nil {
+			if err == io.EOF {
+				break // End of file, no more tables
+			}
+			return core.LogErrorReturn("Could not read schema length: " + err.Error())
+		}
+		// Read schema
+		schemaBytes := make([]byte, schemaLength)
+		_, err = io.ReadFull(gzReader, schemaBytes)
+		if err != nil {
+			return core.LogErrorReturn("Could not read schema: " + err.Error())
+		}
+		schema := string(schemaBytes)
+		// Extract table name from schema
+		tableName := extractTableName(schema)
+		if tableName == "" {
+			return core.LogErrorReturn("Could not extract table name from schema: " + schema)
+		}
+		core.LogDebug("Importing table: " + tableName)
+		// Ensure table exists
+		_, err = db.database.Exec(schema)
+		if err != nil {
+			core.LogDebug("Table already exists, continuing with import: " + tableName)
+		}
+		// Read column count
+		var columnCount uint32
+		err = binary.Read(gzReader, binary.LittleEndian, &columnCount)
+		if err != nil {
+			return core.LogErrorReturn("Could not read column count: " + err.Error())
+		}
+		// Read column names
+		columns := make([]string, columnCount)
+		for i := 0; i < int(columnCount); i++ {
+			var nameLength uint32
+			err = binary.Read(gzReader, binary.LittleEndian, &nameLength)
+			if err != nil {
+				return core.LogErrorReturn("Could not read column name length: " + err.Error())
+			}
+			nameBytes := make([]byte, nameLength)
+			_, err = io.ReadFull(gzReader, nameBytes)
+			if err != nil {
+				return core.LogErrorReturn("Could not read column name: " + err.Error())
+			}
+			columns[i] = string(nameBytes)
+		}
+		// Read row count
+		var rowCount uint32
+		err = binary.Read(gzReader, binary.LittleEndian, &rowCount)
+		if err != nil {
+			return core.LogErrorReturn("Could not read row count: " + err.Error())
+		}
+		// If no rows, continue to next table
+		if rowCount == 0 {
+			core.LogDebug("No rows to import for table: " + tableName)
+			continue
+		}
+		// Start transaction for this table
+		tx, err := db.database.Begin()
+		if err != nil {
+			return core.LogErrorReturn("Could not start transaction: " + err.Error())
+		}
+		// Prepare insert statement
+		placeholders := make([]string, len(columns))
+		for i := range columns {
+			placeholders[i] = "?"
+		}
+		var insertSQL string
+		if strings.HasPrefix(tableName, "onchain_") || tableName == "postsBackfill" {
+			insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
+		} else {
+			insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", tableName, strings.Join(placeholders, ", "), strings.Join(placeholders, ", "))
+		}
+		statement, err := tx.Prepare(insertSQL)
+		if err != nil {
+			tx.Rollback()
+			return core.LogErrorReturn("Could not prepare insert statement: " + err.Error())
+		}
+		// Import each row
+		rowsProcessed := 0
+		for rowIdx := 0; rowIdx < int(rowCount); rowIdx++ {
+			// Read row length
+			var rowLength uint32
+			err = binary.Read(gzReader, binary.LittleEndian, &rowLength)
+			if err != nil {
+				statement.Close()
+				tx.Rollback()
+				return core.LogErrorReturn("Could not read row length: " + err.Error())
+			}
+			// Read row data
+			rowData := make([]byte, rowLength)
+			_, err = io.ReadFull(gzReader, rowData)
+			if err != nil {
+				statement.Close()
+				tx.Rollback()
+				return core.LogErrorReturn("Could not read row data: " + err.Error())
+			}
+			// Parse row data
+			rowReader := bytes.NewReader(rowData)
+			values := make([]interface{}, len(columns))
+			for i := range columns {
+				// Read type indicator
+				typeIndicator, err := rowReader.ReadByte()
+				if err != nil {
+					statement.Close()
+					tx.Rollback()
+					return core.LogErrorReturn("Could not read type indicator: " + err.Error())
+				}
+				// Parse based on type
+				switch typeIndicator {
+				case 0: // NULL
+					values[i] = nil
+				case 1: // int64
+					var value int64
+					binary.Read(rowReader, binary.LittleEndian, &value)
+					values[i] = value
+				case 2: // float64
+					var value float64
+					binary.Read(rowReader, binary.LittleEndian, &value)
+					values[i] = value
+				case 3: // []byte
+					var length uint32
+					binary.Read(rowReader, binary.LittleEndian, &length)
+					bytes := make([]byte, length)
+					_, err := io.ReadFull(rowReader, bytes)
+					if err != nil {
+						statement.Close()
+						tx.Rollback()
+						return core.LogErrorReturn("Could not read []byte value: " + err.Error())
+					}
+					values[i] = bytes
+				case 4: // string
+					var length uint32
+					binary.Read(rowReader, binary.LittleEndian, &length)
+					bytes := make([]byte, length)
+					_, err := io.ReadFull(rowReader, bytes)
+					if err != nil {
+						statement.Close()
+						tx.Rollback()
+						return core.LogErrorReturn("Could not read string value: " + err.Error())
+					}
+					values[i] = string(bytes)
+				case 5: // time.Time
+					var unixTime int64
+					binary.Read(rowReader, binary.LittleEndian, &unixTime)
+					values[i] = time.Unix(unixTime, 0)
+				default:
+					statement.Close()
+					tx.Rollback()
+					return core.LogErrorReturn("Unknown type indicator: " + string(typeIndicator))
+				}
+			}
+			// Execute insert
+			_, err = statement.Exec(values...)
+			if err != nil {
+				statement.Close()
+				tx.Rollback()
+				return core.LogErrorReturn("Could not execute insert: " + err.Error())
+			}
+			rowsProcessed++
+			// Log Progress
+			if rowsProcessed%10000 == 0 {
+				core.LogDebug(fmt.Sprintf("Imported %d/%d rows from table %s", rowsProcessed, rowCount, tableName))
+			}
+		}
+		// Commit transaction
+		statement.Close()
+		err = tx.Commit()
+		if err != nil {
+			return core.LogErrorReturn("Could not commit transaction: " + err.Error())
+		}
+		core.LogDebug(fmt.Sprintf("Imported %d rows from table %s", rowsProcessed, tableName))
+	}
+	core.LogInfo("SQLite Snapshot Imported Successfully From: " + importPath)
+	return nil
+}
+func extractTableName(createSQL string) string { // extractTableName extracts the table name from a CREATE TABLE statement
+	re := regexp.MustCompile(`CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)`)
+	match := re.FindStringSubmatch(createSQL)
+	if len(match) > 1 {
+		return match[1]
+	}
+	return ""
 }
 func (db *SQLite) Ping() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -509,7 +951,7 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 		core.LogError("Could not parse database rows for profile joined date: " + err.Error())
 		return nil
 	}
-	rowsposts, err := db.runParamSQLSelect("SELECT timestamp FROM onchain_post WHERE fromAddr = LOWER(?) AND blockchain = ?", address, blockchain)
+	rowsposts, err := db.runParamSQLSelect("SELECT timestamp FROM onchain_post WHERE fromAddress = LOWER(?) AND blockchain = ?", address, blockchain)
 	if err == nil {
 		if rowsposts != nil {
 			defer rowsposts.Close()
@@ -541,9 +983,9 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 }
 func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[string]interface{} {
 	var posts []map[string]interface{}
-	rows, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddr = LOWER (?) AND blockchain = ? ORDER BY timestamp DESC", address, blockchain)
+	rows, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddress = LOWER (?) AND blockchain = ? ORDER BY timestamp DESC", address, blockchain)
 	if err != nil {
-		core.LogError("could not get user posts from database: " + err.Error())
+		core.LogError("Could not get user posts from database: " + err.Error())
 		return nil
 	}
 	defer rows.Close()
@@ -565,7 +1007,7 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 			"address":    address,
 		}
 		if _err != nil {
-			core.LogError("could not parse posts from database rows: " + _err.Error())
+			core.LogError("Could not parse posts from database rows: " + _err.Error())
 			return nil
 		}
 		posts = append(posts, post)
@@ -574,7 +1016,7 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 }
 func (db *SQLite) ProfileGetFollowerCount(address string, blockchain string) *int64 {
 	var postCount int64 = 0
-	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE toAddr = ? AND blockchain = ?", address, blockchain)
+	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE followeeAddress = ? AND followeeBlockchain = ?", address, blockchain)
 	if err != nil {
 		core.LogError("Could not get follower count from database: " + err.Error())
 		return nil
@@ -624,7 +1066,7 @@ type Result struct {
 func (db *SQLite) SearchGetPosts(query string) []Result {
 	var posts []Result
 	search := "%" + query + "%"
-	rows, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentHash, timestamp, data, fromAddr, blockchain FROM onchain_post WHERE LOWER (data) LIKE LOWER (?)", search)
+	rows, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentHash, timestamp, data, fromAddress, blockchain FROM onchain_post WHERE LOWER (data) LIKE LOWER (?)", search)
 	if err != nil {
 		core.LogError("Could not get searched posts from database: " + err.Error())
 		return nil
@@ -915,9 +1357,9 @@ func (db *SQLite) IndexerUpdateTailBlock(uuid string, tailBlock uint64) {
 		core.LogError("Could not update the indexer tail block in the database: " + err.Error())
 	}
 }
-func (db *SQLite) IndexerAddPost(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
-	query := "INSERT INTO posts (txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
+func (db *SQLite) IndexerAddPost(txHash string, blockchain string, fromAddress string, toAddress string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
+	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber)
 	if err != nil {
 		core.LogError("Could not add a post from the indexer into the database: " + err.Error())
 	}
@@ -931,14 +1373,14 @@ func (db *SQLite) IndexerResetJobs(blockchain string) {
 
 // --- Onchain Tokenized Functions --- //
 func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
-	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
 	if err != nil {
 		core.LogError("Could not tokenize the post in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
-	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
 	if err != nil {
 		core.LogError("Could not tokenize the post in the database: " + err.Error())

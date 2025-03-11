@@ -17,19 +17,19 @@ func HttpGet(url string, timeout uint64) (string, error) {
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return "", errors.New("could not create request")
+		return "", core.LogErrorReturn("Could not create request")
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", errors.New("could not send request")
+		return "", core.LogErrorReturn("Could not send request")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", errors.New("got non-200 response")
+		return "", core.LogErrorReturn("Got non-200 response")
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", errors.New("could not ready response body")
+		return "", core.LogErrorReturn("Could not ready response body")
 	}
 	return string(body), nil
 }
