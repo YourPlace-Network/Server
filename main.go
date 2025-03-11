@@ -389,6 +389,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 			indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
 			if host.IsOnBattery() && !indexerOnBatteryBool { // Don't run the indexer if the computer is on battery
 				core.LogDebug("Host is on battery - skipping indexer run")
+				blockchain.IndexerStop()
 				return
 			}
 			blockchain.IndexerFetchPosts(database, _blockchain, "base")
