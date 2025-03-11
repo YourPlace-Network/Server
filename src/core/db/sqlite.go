@@ -201,7 +201,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', birthdate INTEGER DEFAULT NULL, server TEXT DEFAULT '', " +
 			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, address TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, toAddr TEXT, fromAddr TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, fromAddr TEXT, fromBlockchain TEXT, toAddr TEXT, toBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 	}
 	for _, createStatement := range tables {
 		err = db.execWithRetry(ctx, createStatement, 3)
@@ -483,12 +483,7 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 	var metaAge int64 = 0
 	var postAge int64 = 0
 	var joinedDate int64 = 0
-	rowsmeta, err := db.runParamSQLSelect(`SELECT COALESCE( MIN(
-		CASE
-	WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp
-	WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN birthdateTimestamp > 0 THEN birthdateTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp
-	ELSE 0 END), 0)
-	AS min_timestamp FROM onchain_meta WHERE blockchain = ? AND address = LOWER(?)`, blockchain, address)
+	rowsmeta, err := db.runParamSQLSelect("SELECT COALESCE(MIN(CASE WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN birthdateTimestamp > 0 THEN birthdateTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp ELSE 0 END), 0) AS min_timestamp FROM onchain_meta WHERE blockchain = ? AND address = LOWER(?)", blockchain, address)
 	if err == nil {
 		if rowsmeta != nil {
 			defer rowsmeta.Close()
@@ -497,7 +492,6 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 				if err != nil {
 					core.LogError("Could not parse database rows for profile joined date: " + err.Error())
 					return nil
-
 				}
 			}
 		}
@@ -567,6 +561,43 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 		posts = append(posts, post)
 	}
 	return posts
+}
+func (db *SQLite) ProfileGetFollowerCount(address string, blockchain string) *int64 {
+	var postCount int64 = 0
+	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE toAddr = ? AND blockchain = ?", address, blockchain)
+	if err != nil {
+		core.LogError("Could not get follower count from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&postCount)
+		if err != nil {
+			core.LogError("Could not parse database rows for follower count: " + err.Error())
+			return nil
+		}
+	}
+	return &postCount
+}
+func (db *SQLite) ProfileIsFollower(address string, blockchain string, followerAddress string, followerBlockchain string) bool {
+	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE fromAddr = ? AND blockchain = ? AND toAddr = ?", address, blockchain, followerAddress, followerBlockchain)
+	if err != nil {
+		core.LogError("Could not get follower status from database: " + err.Error())
+		return false
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var count int
+		err = rows.Scan(&count)
+		if err != nil {
+			core.LogError("Could not parse database rows for follower status: " + err.Error())
+			return false
+		}
+		if count > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // --- Search Functions --- //
@@ -958,9 +989,9 @@ func (db *SQLite) OnchainMD(blockchain string, address string, description strin
 		core.LogError("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
-func (db *SQLite) OnchainF(txHash string, blockchain string, fromAddr string, toAddr string, timestamp uint64) {
-	query := "INSERT INTO onchain_follow (txHash, blockchain, toAddr, fromAddr, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, timestamp)
+func (db *SQLite) OnchainF(txHash string, blockchain string, fromAddr string, fromBlockchain, toAddr string, toBlockchain string, timestamp uint64) {
+	query := "INSERT INTO onchain_follow (txHash, blockchain, fromAddr, fromBlockchain, toAddr, toBlockchain, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, fromBlockchain, toAddr, toBlockchain, timestamp)
 	if err != nil {
 		core.LogError("Could not tokenize the follow in the database: " + err.Error())
 	}

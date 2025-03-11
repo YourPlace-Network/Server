@@ -684,7 +684,10 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 				if !security.IsValidAddress(payloadObject["a"].(string), blockchain) {
 					break
 				}
-				database.OnchainF(txHash, blockchain, toAddr, fromAddr, timestamp)
+				if !security.IsValidBlockchain(payloadObject["b"].(string)) {
+					break
+				}
+				database.OnchainF(txHash, blockchain, fromAddr, blockchain, toAddr, payloadObject["b"].(string), timestamp)
 			}
 		case 'm': // Metadata Actions
 			core.LogDebug("Metadata Action: " + action)

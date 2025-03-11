@@ -296,10 +296,10 @@ func (db *Database) OnchainMD(blockchain string, address string, description str
 		db.sqlite.OnchainMD(blockchain, address, description, timestamp)
 	}
 }
-func (db *Database) OnchainF(txHash string, blockchain string, toAddr string, fromAddr string, timestamp uint64) {
+func (db *Database) OnchainF(txHash string, blockchain string, fromAddr string, fromBlockchain string, toAddr string, toBlockchain string, timestamp uint64) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.OnchainF(txHash, blockchain, toAddr, fromAddr, timestamp)
+		db.sqlite.OnchainF(txHash, blockchain, fromAddr, fromBlockchain, toAddr, toBlockchain, timestamp)
 	}
 }
 
@@ -397,6 +397,22 @@ func (db *Database) ProfileGetJoinedDate(address string, blockchain string) *int
 	}
 	return joineddate
 }
+func (db *Database) ProfileGetFollowerCount(address string, blockchain string) *int64 {
+	var followerCount *int64
+	switch db.Engine {
+	case "sqlite":
+		followerCount = db.sqlite.ProfileGetFollowerCount(address, blockchain)
+	}
+	return followerCount
+}
+func (db *Database) ProfileIsFollower(address string, blockchain string, followerAddress string, followerBlockchain string) bool {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.ProfileIsFollower(address, blockchain, followerAddress, followerBlockchain)
+	}
+	return false
+}
+
 func parsePostText(data string) (string, error) {
 	parts := strings.SplitN(data, ":", 2)
 	if len(parts) != 2 {

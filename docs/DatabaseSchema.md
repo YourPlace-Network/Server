@@ -71,18 +71,6 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **domain** - TEXT
   * **expiration** - INTEGER (Unix timestamp)
   * **nonceHash** - TEXT
-## SQLite Views and Schema
-* **parsed_posts** - posts with parsed data
-  * **txHash** - TEXT
-  * **blockchain** - TEXT
-  * **fromAddr** - TEXT
-  * **toAddr** - TEXT
-  * **parentTxHash** - TEXT
-  * **amount** - REAL
-  * **timestamp** - INTEGER (Unix timestamp)
-  * **blockNumber** - INTEGER
-  * **text** - TEXT
-
 
 ## Onchain Tables and Schema
 * **onchain_post** - Posts that a user creates
@@ -133,6 +121,8 @@ The YourPlace server uses an embedded database engine to store information in a 
 * **onchain_follow** - Following and unfollowing of profiles
   * **txHash** - TEXT
   * **blockchain** - TEXT
-  * **toAddr** - TEXT
   * **fromAddr** - TEXT
+  * **fromBlockchain** - TEXT
+  * **toAddr** - TEXT
+  * **toBlockchain** - TEXT
   * **timestamp** - INTEGER (Unix timestamp)

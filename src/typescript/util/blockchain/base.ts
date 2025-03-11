@@ -241,15 +241,19 @@ export async function baseSetName(name: string) {
 export async function baseSubmitPost(payload: string) {
     let address = GetAddress()!;
     let jsonData = YP.post(payload);
-    baseTxn(address, jsonData).then();
+    const txnID = await baseTxn(address, jsonData);
+    return txnID;
 }
 export async function baseSubmitPostAttach(payload: string, attach: string[]) {
     let address = GetAddress()!;
     let jsonData = YP.postAttach(payload, attach);
     return await baseTxn(address, jsonData);
 }
-export async function baseFollowUser(address: string) {
-    const txnId = await baseTxn(address, YP.follow(address))
+export async function baseFollowUser(toAddress: string, toBlockchain: string) {
+    let address = GetAddress()!;
+    let jsonData = YP.follow(toAddress, toBlockchain);
+    const txnID = await baseTxn(address, jsonData);
+    return txnID;
 }
 
 // ---------- Get Functions ---------- //

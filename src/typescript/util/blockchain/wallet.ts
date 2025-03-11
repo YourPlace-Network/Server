@@ -387,21 +387,24 @@ export async function WalletSendPostNudge(address: string) {
             break;
     }
 }
-export async function WalletFollowUser(address: string): Promise<boolean> {
+export async function WalletFollowUser(toAddress: string, toBlockchain: string): Promise<string> {
     let wallet = GetWallet()!;
     let loggedInAddress = GetAddress()!;
-    if (address === loggedInAddress) {
+    if (toAddress === loggedInAddress) {
         ShowDialogModal("You can't follow yourself, silly :D How did you even do that??");
-        return false;
+        return "";
     }
     switch (wallet) {
         case "pera":
             break;
         case "cbwalletbase":
-            await baseFollowUser(address);
+            let txID = await baseFollowUser(toAddress, toBlockchain);
+            if (txID) {
+                return txID.toString();
+            }
             break;
     }
-    return false;
+    return "";
 }
 
 // ---------- Utility ---------- //
