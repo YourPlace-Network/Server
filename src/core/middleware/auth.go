@@ -23,7 +23,7 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/mentalHealth", "GET"},
 	{"/faq", "GET"},
 	{"/robots.txt", "GET"},
-	{"/settings/base", "GET"}, {"/settings/ipfs/port", "GET"}, {"/settings/base/url", "GET"},
+	{"/settings/base", "GET"}, {"/settings/ipfs/port", "GET"}, {"/settings/base/url", "GET"}, {"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"},
 	{"/s/", "GET"},
 	{"/404", "GET"},
 }
