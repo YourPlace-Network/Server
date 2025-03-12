@@ -317,8 +317,8 @@ func (db *Database) OnchainF(txHash string, blockchain string, followerAddress s
 }
 
 // --- Search Functions --- //
-func (db *Database) SearchGetPosts(query string) []Result {
-	var posts []Result
+func (db *Database) SearchGetPosts(query string) []map[string]interface{} {
+	var posts []map[string]interface{}
 	switch db.Engine {
 	case "sqlite":
 		posts = db.sqlite.SearchGetPosts(query)
@@ -326,8 +326,8 @@ func (db *Database) SearchGetPosts(query string) []Result {
 	}
 	return nil
 }
-func (db *Database) SearchGetProfiles(query string) []Result {
-	var profiles []Result
+func (db *Database) SearchGetProfiles(query string) []map[string]interface{} {
+	var profiles []map[string]interface{}
 	switch db.Engine {
 	case "sqlite":
 		profiles = db.sqlite.SearchGetProfiles(query)

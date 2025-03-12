@@ -1053,18 +1053,8 @@ func (db *SQLite) ProfileIsFollower(followeeAddress string, followeeBlockchain s
 }
 
 // --- Search Functions --- //
-type Result struct {
-	ResultType string `json:"type"`
-	Blockchain string `json:"blockchain"`
-	Address    string `json:"address"`
-	TxHash     string `json:"txHash"`
-	Timestamp  uint64 `json:"timestamp"`
-	Payload    string `json:"payload"`
-	ParentHash string `json:"parentHash"`
-}
-
-func (db *SQLite) SearchGetPosts(query string) []Result {
-	var posts []Result
+func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
+	var posts []map[string]interface{}
 	search := "%" + query + "%"
 	rows, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentHash, timestamp, data, fromAddress, blockchain FROM onchain_post WHERE LOWER (data) LIKE LOWER (?)", search)
 	if err != nil {
@@ -1081,14 +1071,14 @@ func (db *SQLite) SearchGetPosts(query string) []Result {
 			return nil
 		}
 		payload, err := parsePostText(data)
-		post := Result{
-			ResultType: "post",
-			Blockchain: blockchain,
-			Address:    address,
-			TxHash:     txHash,
-			Timestamp:  timestamp,
-			Payload:    payload,
-			ParentHash: parentHash,
+		post := map[string]interface{}{
+			"resultType": "post",
+			"blockchain": blockchain,
+			"address":    address,
+			"txHash":     txHash,
+			"timestamp":  timestamp,
+			"payload":    payload,
+			"parentHash": parentHash,
 		}
 		if err != nil {
 			core.LogError("Could not parse posts from database rows: " + err.Error())
@@ -1098,8 +1088,8 @@ func (db *SQLite) SearchGetPosts(query string) []Result {
 	}
 	return posts
 }
-func (db *SQLite) SearchGetProfiles(query string) []Result {
-	var profiles []Result
+func (db *SQLite) SearchGetProfiles(query string) []map[string]interface{} {
+	var profiles []map[string]interface{}
 	search := "%" + query + "%"
 	rows, err := db.runParamSQLSelect("SELECT address, blockchain FROM onchain_meta WHERE address LIKE ? OR name LIKE ?", search, search)
 	if err != nil {
@@ -1110,10 +1100,10 @@ func (db *SQLite) SearchGetProfiles(query string) []Result {
 	for rows.Next() {
 		var address, blockchain string
 		err = rows.Scan(&address, &blockchain)
-		profile := Result{
-			ResultType: "profile",
-			Address:    address,
-			Blockchain: blockchain,
+		profile := map[string]interface{}{
+			"resultType": "profile",
+			"address":    address,
+			"blockchain": blockchain,
 		}
 		if err != nil {
 			core.LogError("Could not parse posts from database rows")
