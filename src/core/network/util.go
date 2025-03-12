@@ -72,7 +72,6 @@ func IsTCPPortOpen(host string, port int) bool {
 	const timeout = 10 * time.Second
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), timeout)
 	if err != nil {
-		core.LogDebug("Could not connect to TCP port: " + strconv.Itoa(port) + " Host: " + host)
 		return false
 	}
 	defer func(conn net.Conn) {

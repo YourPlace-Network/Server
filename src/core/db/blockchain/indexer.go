@@ -105,7 +105,8 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 
 // --- Base Indexer Functions --- //
 func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLatestBlock *big.Int) {
-	// head block <----- latest block (starting traversal @ latest block)
+	// (old) head block <----- latest block (starting traversal @ latest block)
+	// head block -----> latest block (starting traversal @ head block)
 	core.LogDebug("--- IndexerBaseFrontFill()")
 	database.IndexerUpdateJobStatus(uuid, "running")
 	headBlock := database.IndexerGetHeadBlock(uuid)
@@ -134,11 +135,14 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := rate.NewLimiter(rate.Limit(1), 1) // 1 request per second (1 request = 1 batch of blocks)
-	batchStartBlock := targetLatestBlock             // Start at the latest block
-	txnCount := 0                                    // Count the number of transactions processed
-	blockIndex := batchStartBlock                    // Running tally of the current block
-	for i := 1; i <= int(batchCount.Int64()); i++ {  // Loop over batches of blocks
+	rateLimiter := rate.NewLimiter(rate.Limit(1), 1)               // 1 request per second (1 request = 1 batch of blocks)
+	batchStartBlock := new(big.Int).Set(targetEarliestBlockBigInt) // Start at the earliest block
+	core.LogDebug("Batch Start Block: " + batchStartBlock.String())
+	txnCount := 0
+	blockIndex := new(big.Int).Set(batchStartBlock)
+	core.LogDebug("Block Index: " + blockIndex.String())
+
+	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		select {
 		case <-indexerCancel:
 			core.LogDebug("Indexer job cancelled in frontfill during batch loop")
@@ -146,16 +150,16 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 			return
 		default:
 			_ = rateLimiter.Wait(context.Background())
-			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
-			if batchEndBlock.Cmp(targetEarliestBlockBigInt) == -1 { // stop at the earliest block allowed
-				batchEndBlock = targetEarliestBlockBigInt
+			batchEndBlock := new(big.Int).Add(batchStartBlock, batchSize)
+			if batchEndBlock.Cmp(targetLatestBlock) == 1 { // Stop at the latest block allowed
+				batchEndBlock = targetLatestBlock
 			}
-			if batchStartBlock.Cmp(batchEndBlock) < 0 { // break if the start block is behind the end block
+			if batchStartBlock.Cmp(batchEndBlock) >= 0 { // Break if the start block is ahead of or equal to the end block
 				break
 			}
 			// Batch up blocks into one RPC call
 			var batchBlockNumbers []big.Int
-			for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
+			for j := new(big.Int).Set(batchStartBlock); j.Cmp(batchEndBlock) == -1; j = new(big.Int).Add(j, big.NewInt(1)) {
 				batchBlockNumbers = append(batchBlockNumbers, *j)
 			}
 			// Create the batch RPC call
@@ -191,11 +195,12 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					goto BATCHRPCCALL
 				}
 			}
-			for _, elem := range batch { // Loop through each block in the batch response
+
+			for _, elem := range batch {
 				select {
 				case <-indexerCancel:
 					core.LogDebug("Indexer cancelled in frontfill during batch processing")
-					database.IndexerUpdateJobStatus(uuid, "stopped")
+					database.IndexerUpdateJobStatus(uuid, "failed")
 					return
 				default:
 					if elem.Error != nil {
@@ -211,35 +216,32 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					}
 					block := *elem.Result.(*map[string]interface{})
 					transactions := block["transactions"].([]interface{})
-					for _, txn := range transactions { // Loop through transactions in the block
+					for _, txn := range transactions {
 						transaction := txn.(map[string]interface{})
 						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex)
-						if ret == 1 || ret == 2 { // skip transactions that are not valid YP posts
+						if ret == 1 || ret == 2 {
 							continue
 						}
 						txnCount++
 					}
-					blockIndex = new(big.Int).Sub(blockIndex, big.NewInt(1)) // decrement the block index
-					mod := big.NewInt(0)                                     // Send a status update
+					blockIndex = new(big.Int).Add(blockIndex, big.NewInt(1))
+					mod := big.NewInt(0)
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(big.NewInt(int64(targetEarliestBlock)), targetLatestBlock, blockIndex, batchSize)
+						IndexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndex, batchSize)
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
-						//database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64()) <-- This was messing up the database logic
-						// todo - maybe do nothing?
-						//core.LogDebug("Save interval reached - index block: " + blockIndex.String())
+						database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
 					}
 				}
 			}
-			batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize)
+			batchStartBlock = new(big.Int).Add(batchStartBlock, batchSize)
 		}
 	}
-	database.IndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
+	core.LogDebug("Completed Front Fill - Updating Head Block: " + blockIndex.String())
+	database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
 	database.IndexerUpdateJobStatus(uuid, "complete")
-	latestBlockTemp := database.IndexerGetHeadBlock(uuid)
-	core.LogDebug("Completed Front Fill - Updating Head Block: " + strconv.Itoa(int(latestBlockTemp)))
 }
 func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLatestBlock *big.Int) {
 	// earliest block <----- tail block (starting traversal @ tail block)—

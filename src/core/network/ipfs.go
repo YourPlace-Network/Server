@@ -240,7 +240,7 @@ func UpdateIPFSConfig(port uint64) {
 		}
 		if routingKey, _ := rootMap["Routing"].(map[string]interface{}); ok {
 			routingKey["Type"] = "auto"
-			routingKey["AcceleratedDHTClient"] = true
+			routingKey["AcceleratedDHTClient"] = false
 			delete(routingKey, "Methods")
 			delete(routingKey, "Routers")
 		}
