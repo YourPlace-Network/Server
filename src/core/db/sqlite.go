@@ -991,11 +991,11 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 	defer rows.Close()
 	for rows.Next() {
 		var timestamp uint64
-		var txHash, data, parent string
-		_err := rows.Scan(&txHash, &parent, &timestamp, &data)
-		var payload, err = parsePostText(data)
+		var txHash, payload, parent string
+		err := rows.Scan(&txHash, &parent, &timestamp, &payload)
 		if err != nil {
 			core.LogError(err.Error())
+			return nil
 		}
 		post := map[string]interface{}{
 			"resultType": "profile post",
@@ -1005,10 +1005,6 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 			"payload":    payload,
 			"blockchain": blockchain,
 			"address":    address,
-		}
-		if _err != nil {
-			core.LogError("Could not parse posts from database rows: " + _err.Error())
-			return nil
 		}
 		posts = append(posts, post)
 	}
@@ -1064,13 +1060,12 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 	defer rows.Close()
 	for rows.Next() {
 		var timestamp uint64
-		var txHash, parentHash, data, blockchain, address string
-		err := rows.Scan(&txHash, &parentHash, &timestamp, &data, &address, &blockchain)
+		var txHash, parentHash, payload, blockchain, address string
+		err := rows.Scan(&txHash, &parentHash, &timestamp, &payload, &address, &blockchain)
 		if err != nil {
 			core.LogError("Could not scan database rows: " + err.Error())
 			return nil
 		}
-		payload, err := parsePostText(data)
 		post := map[string]interface{}{
 			"resultType": "post",
 			"blockchain": blockchain,
@@ -1079,10 +1074,6 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 			"timestamp":  timestamp,
 			"payload":    payload,
 			"parentHash": parentHash,
-		}
-		if err != nil {
-			core.LogError("Could not parse posts from database rows: " + err.Error())
-			return nil
 		}
 		posts = append(posts, post)
 	}

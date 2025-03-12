@@ -3,10 +3,8 @@ package db
 import (
 	"YourPlace/src/core"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 )
 
@@ -424,34 +422,4 @@ func (db *Database) ProfileIsFollower(address string, blockchain string, followe
 		return db.sqlite.ProfileIsFollower(address, blockchain, followerAddress, followerBlockchain)
 	}
 	return false
-}
-
-func parsePostText(data string) (string, error) {
-	parts := strings.SplitN(data, ":", 2)
-	if len(parts) != 2 {
-		return "", core.LogErrorReturn("invalid format: no colon found")
-	}
-	protocol := parts[0]
-	payloadJson := parts[1]
-	payload := ""
-	var err error = nil
-	switch protocol { //for handling future protocol changes
-	case "yp/1/p":
-		payload, err = yp1P(payloadJson)
-	}
-	return payload, err
-}
-
-func yp1P(payloadjson string) (string, error) { // parses posts for protocol yp/1/p
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(payloadjson), &data); err != nil {
-		return "", core.LogErrorReturn("json parse error: " + err.Error())
-	}
-
-	// Get "p" value
-	payload, ok := data["p"].(string)
-	if !ok {
-		return "", core.LogErrorReturn("p field not found")
-	}
-	return payload, nil
 }

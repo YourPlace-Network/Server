@@ -669,7 +669,10 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			core.LogDebug("Post Action: " + action)
 			switch actionPostfix {
 			case "":
-				database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, decodedDataStr, blockNumber)
+				if postText, ok := payloadObject["p"]; ok && postText != nil {
+					postTextStr := security.SanitizeNonPrintable(postText.(string))
+					database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
+				}
 				break
 			}
 			break

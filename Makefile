@@ -146,7 +146,7 @@ endif
 
 dbg_run:
 ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlace.exe -d=true -u=false
+	target\\YourPlace-$(VERSION).exe -d=true -u=false
 else ifeq ($(DETECTED_OS),Darwin)
 	mkdir -p ~/YourPlace && touch ~/YourPlace/debug
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
