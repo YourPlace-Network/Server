@@ -701,6 +701,13 @@ const tips = [
     "Being in the minority opinion is tough. It requires conviction and courage",
     "Don't be the person who's offended by everything and ashamed by nothing. They offer nothing to polite society",
     "If they're down to nitpicking your grammar or minor typos, then you know they've lost",
+    "Justice should never be disregarded for \"niceness\"",
+    "Just because it comes in the form of a childrens book or program, doesn't mean it's good advice. Screen those things before your child learns the wrong lessons",
+    "You don't need to support people who would put you at a disadvantage",
+    "If you see a reply to your post, and it's obvious the person didn't read or comprehend it, realize it's possible that they literally can't read. Literacy rates are often lower than you might imagine",
+    "How do you solve the problem? You just gotta start fixing it",
+    "If you can, carry a weapon to protect yourself. Train with it and know the laws. Be safe and only use it for self-defense",
+
 
 
 ];

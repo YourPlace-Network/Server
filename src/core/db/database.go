@@ -54,8 +54,21 @@ func (db *Database) SetDefaults() {
 		core.LogError("Failed to set defaults: " + err.Error())
 	}
 }
-func (db *Database) ExportDatabase(exportPath string) {
-	db.ExportDatabase(exportPath)
+func (db *Database) ExportSnapshot(exportPath string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.ExportSnapshot(exportPath)
+	default:
+		return core.LogErrorReturn("Invalid DB engine selected")
+	}
+}
+func (db *Database) ImportSnapshot(importPath string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.ImportSnapshot(importPath)
+	default:
+		return core.LogErrorReturn("Invalid DB engine selected")
+	}
 }
 
 // --- Metadata & Settings Functions --- //
@@ -294,10 +307,10 @@ func (db *Database) OnchainMD(blockchain string, address string, description str
 		db.sqlite.OnchainMD(blockchain, address, description, timestamp)
 	}
 }
-func (db *Database) OnchainF(txHash string, blockchain string, toAddr string, fromAddr string, timestamp uint64) {
+func (db *Database) OnchainF(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.OnchainF(txHash, blockchain, toAddr, fromAddr, timestamp)
+		db.sqlite.OnchainF(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	}
 }
 
@@ -394,4 +407,19 @@ func (db *Database) ProfileGetJoinedDate(address string, blockchain string) *int
 		joineddate = db.sqlite.ProfileGetJoinedDate(address, blockchain)
 	}
 	return joineddate
+}
+func (db *Database) ProfileGetFollowerCount(address string, blockchain string) *int64 {
+	var followerCount *int64
+	switch db.Engine {
+	case "sqlite":
+		followerCount = db.sqlite.ProfileGetFollowerCount(address, blockchain)
+	}
+	return followerCount
+}
+func (db *Database) ProfileIsFollower(address string, blockchain string, followerAddress string, followerBlockchain string) bool {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.ProfileIsFollower(address, blockchain, followerAddress, followerBlockchain)
+	}
+	return false
 }

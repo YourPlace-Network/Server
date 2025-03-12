@@ -91,12 +91,6 @@ export function XSSSanitizeValue(value: string): string {
     }) as string;
 }
 export function XSSSanitizeTinyMCEHtml(html: string): string {
-    const allowedIframeURLs: string[] = [
-        "https://www.youtube.com/embed/",
-        "https://www.youtube-nocookie.com/embed/",
-        "https://player.vimeo.com/video/",
-        "https://rumble.com/embed/",
-    ];
     const config: DOMPurify.Config = {
         ALLOWED_TAGS: [
             "p","div","h1","h2","h3","h4","h5","h6","ul","ol","li",
@@ -120,57 +114,57 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
         ALLOW_ARIA_ATTR: false,
         ALLOW_DATA_ATTR: false,
     };
-    DOMPurify.addHook("uponSanitizeElement", function(node: Element, data: any) {
-        if (data.tagName.toLowerCase() === "iframe") {
-            // Get all attributes of the node
-            const attributes = node.attributes;
-            let srcValue: string | null = null;
-            // Loop through all attributes and find all variations of src
-            for (let i = 0; i < attributes.length; i++) {
-                if (attributes[i].name.toLowerCase() === "src") {
-                    srcValue = attributes[i].value;
-                    // Remove the attribute regardless of case
-                    node.removeAttribute(attributes[i].name);
-                    break;
-                }
-            }
-            // If src was found, check if it's in the whitelist
-            if (srcValue) {
-                const isAllowed = allowedIframeURLs.some(url => srcValue!.startsWith(url));
-                if (isAllowed) { // If allowed, add back a clean src attribute
-                    node.setAttribute("src", srcValue);
-                }
-            }
-        }
-    });
+    DOMPurify.addHook("uponSanitizeElement", sanitizeIframe);
     DOMPurify.addHook("uponSanitizeAttribute", function(node: Element, data: any) {
         const attributes = node.attributes;
         let styleValue: string | null = null;
         let styleAttrName: string | null = null;
-        // Look for any variant of "style" attribute
-        for (let i = 0; i < attributes.length; i++) {
+        for (let i = 0; i < attributes.length; i++) { // Look for any variant of "style" attribute
             if (attributes[i].name.toLowerCase() === "style") {
                 styleValue = attributes[i].value;
                 styleAttrName = attributes[i].name;
-                // Remove the attribute regardless of case
-                node.removeAttribute(styleAttrName);
+                node.removeAttribute(styleAttrName); // Remove the attribute regardless of case
                 break;
             }
         }
-        // If style was found, sanitize it
-        if (styleValue) {
+        if (styleValue) { // If style was found, sanitize it
             const sanitizedStyle = sanitizeStyle(styleValue);
-            // If there are valid style properties, add back a clean style attribute
-            if (sanitizedStyle) {
+            if (sanitizedStyle) { // If there are valid style properties, add back a clean style attribute
                 node.setAttribute("style", sanitizedStyle);
             }
         }
     });
 
     const sanitized = DOMPurify.sanitize(html, config) as string;
+
     DOMPurify.removeHook("uponSanitizeElement");
     DOMPurify.removeHook("beforeSanitizeAttributes");
     return sanitized;
+}
+function sanitizeIframe(node: Element, data: any) {
+    const allowedIframeURLs: string[] = [
+        "https://www.youtube.com/embed/",
+        "https://www.youtube-nocookie.com/embed/",
+        "https://player.vimeo.com/video/",
+        "https://rumble.com/embed/",
+    ];
+    if (data.tagName.toLowerCase() === "iframe") {
+        const attributes = node.attributes; // Get all attributes of the node
+        let srcValue: string | null = null;
+        for (let i = 0; i < attributes.length; i++) { // Loop through all attributes and find all variations of src
+            if (attributes[i].name.toLowerCase() === "src") {
+                srcValue = attributes[i].value;
+                node.removeAttribute(attributes[i].name); // Remove the attribute regardless of case
+                break;
+            }
+        }
+        if (srcValue) { // If src was found, check if it's in the whitelist
+            const isAllowed = allowedIframeURLs.some(url => srcValue!.startsWith(url));
+            if (isAllowed) { // If allowed, add back a clean src attribute
+                node.setAttribute("src", srcValue);
+            }
+        }
+    }
 }
 function sanitizeStyle(styleAttr: string): string {
     const allowedStyleProperties: string[] = [

@@ -27,7 +27,7 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 # JSON API
 ### Posting (to yourself)
 - `yp/1/p:{"p":"payload"}` - Post a message 🚢
-- `yp/1/pa:{"p":"payload","a":[{"ipfs://CID/path.exe","application/vnd.microsoft.portable-executable",4096},{"ipfs://CID2/path2.jpg","image/jpeg",2048}]}` - Post a message with file attachment(s)
+- `yp/1/pa:{"p":"payload","a":[{"ipfs://CID/path.exe","application/vnd.microsoft.portable-executable",4096},{"ipfs://CID2/path2.jpg","image/jpeg",2048}]}` - Post a message with file attachment(s) [{path, mimetype, size}]
 - `yp/1/pr:{"txh":"txnHash"}` - Repost a post
 - `yp/1/pry:{"txh":"txnHash","p":"payload"}` - Reply to a post (to original poster)
 - `yp/1/prp:{"txh":"txnHash","p":"payload"}` - Repost a post with a message
@@ -37,10 +37,10 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 - `yp/1/rl:{"txh":"txnHash"}` - Like a post
 - `yp/1/rdl:{"txh":"txnHash"}` - Dislike a post
 ### Following (to yourself)
-- `yp/1/f:{"a":"address"}` - Follow an address 🚢
-- `yp/1/fu:{"a":"address"}` - Unfollow an address
-- `yp/1/fh:{"h#":"#hashtag"}` - Follow a hashtag
-- `yp/1/fuh:{"h#":"#hashtag"}` - Unfollow a hashtag
+- `yp/1/f:{"a":"address", "b":"blockchain"}` - Follow an address at a blockchain 🚢
+- `yp/1/fu:{"a":"address", "b":"blockchain"}` - Unfollow an address at a blockchain
+- `yp/1/fh:{"h#":"#hashtag"}` - Follow a hashtag on all blockchains
+- `yp/1/fuh:{"h#":"#hashtag"}` - Unfollow a hashtag on all blockchains
 ### Metadata (to yourself)
 - `yp/1/mn:{"n":"name"}` - Update name 🚢
 - `yp/1/ma:{"a":"ipfs://CID"}` - Update avatar Img (IPFS) 🚢

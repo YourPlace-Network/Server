@@ -60,9 +60,10 @@ export let YP = {
         }
         return `yp/1/pa:${JSON.stringify(payload)}`
     },
-    follow: function(address: string): string {
+    follow: function(toAddress: string, toBlockchain: string): string {
         const payload = {
-            a: address
+            a: toAddress,
+            b: toBlockchain,
         }
         return `yp/1/f:${JSON.stringify(payload)}`
     },

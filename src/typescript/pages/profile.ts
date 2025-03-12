@@ -63,8 +63,8 @@ declare global { // Extend the window interface with public objects
             placeHolderH3: document.querySelector('#emptyContentDivPlaceHolder h3')! as HTMLHeadingElement,
             placeHolderP: document.querySelector('#emptyContentDivPlaceHolder p')! as HTMLParagraphElement,
             placeHolderIcon: document.querySelector('#emptyContentDivPlaceHolder i')! as HTMLElement,
-            followingNum: document.getElementById("followingNum")! as HTMLDivElement,
-            followersNum: document.getElementById("followersNum")! as HTMLDivElement,
+            followingCount: document.getElementById("followingCount")! as HTMLDivElement,
+            followerCount: document.getElementById("followerCount")! as HTMLDivElement,
             postsNum: document.getElementById("postsNum")! as HTMLDivElement,
             likesNum: document.getElementById("likesNum")! as HTMLDivElement,
         }
@@ -97,6 +97,7 @@ declare global { // Extend the window interface with public objects
                 renderProfileWebsite(requestedBlockchain, requestedAddress),
                 renderProfileBirthdate(requestedBlockchain, requestedAddress),
                 renderProfileJoinedDate(requestedBlockchain, requestedAddress),
+                renderProfileFollowerCount(requestedBlockchain, requestedAddress),
             ], 60000);
             renderGuestView().then();
         }
@@ -250,7 +251,7 @@ declare global { // Extend the window interface with public objects
             }
         }
         async function renderProfileJoinedDate(blockchain: string, address: string) {
-            let response = await HttpGetJson("/profile/joineddate/" + blockchain + "/" + address);
+            let response = await HttpGetJson("/profile/joinedDate/" + blockchain + "/" + address);
             if (response[0] === 200) {
                 let joinedDate = response[1].joinedDate;
                 if (!joinedDate || joinedDate == 0) {
@@ -262,6 +263,13 @@ declare global { // Extend the window interface with public objects
                     year: 'numeric'
                 });
                 DOM.profileJoined.textContent = joineddateformatted;
+            }
+        }
+        async function renderProfileFollowerCount(blockchain: string, address: string) {
+            let response = await HttpGetJson("/profile/followerCount/" + blockchain + "/" + address);
+            if (response[0] === 200) {
+                let followerCount = response[1].followerCount;
+                DOM.followerCount.textContent = followerCount;
             }
         }
         async function renderGuestView() {
@@ -381,11 +389,12 @@ declare global { // Extend the window interface with public objects
             }, 1000);
         });
         DOM.followBtn.addEventListener("click", function() {
-            let selectedAddress = DOM.profileAddressFull.value;
-            if (!selectedAddress || !IsValidAddress(selectedAddress)) {
+            let toAddress = DOM.profileAddressFull.value;
+            if (!toAddress || !IsValidAddress(toAddress)) {
                 return;
             }
-            WalletFollowUser(selectedAddress).then();
+            let toBlockchain = DOM.injectedBlockchain.value;
+            WalletFollowUser(toAddress, toBlockchain).then();
         });
 
         init().then();

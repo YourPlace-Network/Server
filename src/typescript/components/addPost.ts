@@ -38,6 +38,7 @@ import tinymce from "tinymce/tinymce";
             resize: true,
             branding: false,
             license_key: "gpl",
+            //paste_data_images: false, // todo
             setup: function(editor) {
                 editor.on("input", function() {
                     debounceHandler();
@@ -70,6 +71,8 @@ import tinymce from "tinymce/tinymce";
                 hideModal();
                 return;
             }
+            console.log("post payload");
+            console.log(payload);
             // If there is a file attached, upload it first
             if (postObj.fileHash !== "") {
                 postObj.postText = payload;

@@ -198,7 +198,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"birthdate": birthdate})
 	})
-	router.GET("/profile/joineddate/:blockchain/:address", func(c *gin.Context) {
+	router.GET("/profile/joinedDate/:blockchain/:address", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
@@ -233,5 +233,43 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			return
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"website": website})
+	})
+	router.GET("/profile/followerCount/:blockchain/:address", func(c *gin.Context) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
+			return
+		}
+		address := c.Param("address")
+		if !security.IsValidAddress(address, blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
+			return
+		}
+		followerCount := database.ProfileGetFollowerCount(address, blockchainParam)
+		c.SecureJSON(http.StatusOK, gin.H{"followerCount": followerCount})
+	})
+	router.GET("/profile/isFollower/:toBlockchain/:toAddress/:fromBlockcain/:fromAddress", func(c *gin.Context) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
+			return
+		}
+		address := c.Param("address")
+		if !security.IsValidAddress(address, blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
+			return
+		}
+		followerBlockchain := c.Param("followerBlockchain")
+		if !security.IsValidBlockchain(followerBlockchain) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid follower blockchain"})
+			return
+		}
+		followerAddress := c.Param("followerAddress")
+		if !security.IsValidAddress(followerAddress, followerBlockchain) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid follower address"})
+			return
+		}
+		isFollower := database.ProfileIsFollower(address, blockchainParam, followerAddress, followerBlockchain)
+		c.SecureJSON(http.StatusOK, gin.H{"isFollower": isFollower})
 	})
 }

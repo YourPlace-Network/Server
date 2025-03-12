@@ -41,7 +41,7 @@
   width: 1em;
   border-radius: 50%;
   position: relative;
-  left: 2.5em;
+  left: calc(50% - .5em);
 }
 #yourplaceTrafficLight,
 #ipfsTrafficLight {
