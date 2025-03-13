@@ -86,7 +86,7 @@ import tinymce from "tinymce/tinymce";
         }
         async function prepareAttachedPost() {
             let ipfsIndex = ""
-            if (postObj.status == "transcoding" || postObj.status == "initialized") {
+            /*if (postObj.status == "transcoding" || postObj.status == "initialized") {
                 for (let i = 0; i < 100; i++) {
                     let data = await checkVideoStatus(postObj.fileHash);
                     if (data.fileStatus == "complete") {
@@ -99,7 +99,7 @@ import tinymce from "tinymce/tinymce";
 
             } else {
                 ipfsIndex = postObj.cid + postObj.extension
-            }
+            }*/
             let attachments: string[] = [ipfsIndex];
             WalletSubmitPostAttach(postObj.postText, attachments);
             clearPostObj();
@@ -111,19 +111,19 @@ import tinymce from "tinymce/tinymce";
             postObj.status = "";
         }
         async function uploadFile() {
+            console.log("upload triggered");
             // todo: not used right now. Needs better tinymce integration. Allow for future drag & drop upload too
             let fileInput = DOM.fileInput
             let fileList = fileInput.files;
             if (fileList == null) {
                 return;
             }
-            let file = fileList[0];
             let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
             // Show some loading indication
             DOM.uploadFileButton.disabled = true;
             DOM.uploadFileButton.textContent = "Uploading...";
 
-            let [status, data] = await UploadFile(file, csrfToken);
+            let [status, data] = await UploadFile(fileList, csrfToken);
             postObj.status = data.fileStatus;
             postObj.fileHash = data.hash;
             postObj.cid = data.cid;
@@ -181,9 +181,14 @@ import tinymce from "tinymce/tinymce";
             checkSpiciness().then();
         };
         const debounceHandler = debounce(handleInput, 2000);
+        function clickFileInput() {
+            DOM.fileInput.click()
+        }
 
         DOM.addPostButton.addEventListener("click", showModal);
         DOM.submitPostButton.addEventListener("click", submitPost);
+        DOM.uploadFileButton.addEventListener("click", clickFileInput);
+        DOM.fileInput.addEventListener("change", uploadFile)
         document.addEventListener("focusin", (e) => { // Prevent Bootstrap dialog from blocking focusin, thus breaking tinymce
             if (e.target instanceof Element && e.target.closest(".tox-tinymce-aux, .moxman-window, .tam-assetmanager-root") !== null) {
                 e.stopImmediatePropagation();

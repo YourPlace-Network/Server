@@ -679,23 +679,23 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			}
 			break
 		case 'r': // Reply Actions
-		case 'f': // Follow Actions
-			core.LogDebug("Follow Action: " + action)
-			switch actionPostfix {
-			case "":
-				blockchainPayload := payloadObject["b"].(string)
-				if !security.IsValidBlockchain(blockchainPayload) {
-					break
-				}
-				addressPayload := payloadObject["a"].(string)
-				if !security.IsValidAddress(addressPayload, blockchainPayload) {
-					break
-				}
-				if fromAddress == addressPayload && blockchain == blockchainPayload { // Ignore self-follow attempts (follower count fraud)
-					break
-				}
-				database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressPayload, blockchainPayload, timestamp)
+		/*case 'f': // Follow Actions
+		core.LogDebug("Follow Action: " + action)
+		switch actionPostfix {
+		case "":
+			blockchainPayload := payloadObject["b"].(string)
+			if !security.IsValidBlockchain(blockchainPayload) {
+				break
 			}
+			addressPayload := payloadObject["a"].(string)
+			if !security.IsValidAddress(addressPayload, blockchainPayload) {
+				break
+			}
+			if fromAddress == addressPayload && blockchain == blockchainPayload { // Ignore self-follow attempts (follower count fraud)
+				break
+			}
+			database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressPayload, blockchainPayload, timestamp)
+		}*/
 		case 'm': // Metadata Actions
 			core.LogDebug("Metadata Action: " + action)
 			switch actionPostfix {

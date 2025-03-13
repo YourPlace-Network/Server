@@ -102,6 +102,7 @@ export async function showProfileEditModal() {
             if (result[0] == 200) {
                 if (result[1].status == "success") {
                     // todo
+                    // File upload responses contain arrays now, response[1].data[i] is one file object. Look in files.go.
                     /*try {
                         await WalletSetAvatar("ipfs://" + result[1].cid);
                     } catch (e) {
@@ -115,6 +116,7 @@ export async function showProfileEditModal() {
             let file = DOM.inputBanner.files![0];
             DOM.bannerPreview.src = URL.createObjectURL(file);
             let result = await UploadFile(file, DOM.csrfToken.value);
+            // File upload responses contain arrays now. response[1].data[i] is one file data object. Look in files.go
             if (result[0] == 200) {
                 if (result[1].status == "success") {
                     try {
