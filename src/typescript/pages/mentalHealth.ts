@@ -708,7 +708,7 @@ const tips = [
     "How do you solve the problem? You just gotta start fixing it",
     "If you can, carry a weapon to protect yourself. Train with it and know the laws. Be safe and only use it for self-defense",
     "Cruelty for the sake of content is never acceptable and it will backfire",
-
+    "True change comes from the builders, not the complainers and destroyers",
 
 ];
 
