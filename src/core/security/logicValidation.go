@@ -584,8 +584,7 @@ func SanitizeNonPrintable(payload string) string {
 	result := make([]rune, 0, len(runes))
 	// Process each character
 	for _, r := range runes {
-		// Check if the character is printable using Unicode properties
-		// This includes letters, numbers, punctuation, symbols and spaces
+		// Check if the character is printable using Unicode properties (letters, numbers, punctuation, emojis, symbols and spaces)
 		if unicode.IsPrint(r) {
 			result = append(result, r)
 		}

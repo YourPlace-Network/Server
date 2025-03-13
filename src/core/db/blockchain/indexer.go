@@ -218,7 +218,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					transactions := block["transactions"].([]interface{})
 					for _, txn := range transactions {
 						transaction := txn.(map[string]interface{})
-						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex)
+						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
 						if ret == 1 || ret == 2 {
 							continue
 						}
@@ -366,7 +366,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 					transactions := block["transactions"].([]interface{})
 					for _, txn := range transactions { // Loop through transactions in the block
 						transaction := txn.(map[string]interface{})
-						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex)
+						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
 						if ret == 1 || ret == 2 { // skip transactions that are not valid YP posts
 							continue
 						}
@@ -498,7 +498,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 					transactions := block["transactions"].([]interface{})
 					for _, txn := range transactions { // Loop through transactions in the block
 						transaction := txn.(map[string]interface{})
-						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex)
+						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
 						if ret == 1 || ret == 2 { // skip transactions that are not valid YP posts
 							continue
 						}
@@ -525,25 +525,29 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 }
 
 // --- Helper Functions --- //
-func DispatchTransaction(database *db.Database, block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int) int {
+func DispatchTransaction(database *db.Database, block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string) int {
 	// ret 0 == success == transaction was a YP txn and was processed
 	// ret 1 == skipped == transaction was not a YP txn
 	// ret 2 == expired == transaction is older than the cached history limit
 	txHash := strings.ToLower(transaction["hash"].(string))
-	fromAddr := strings.ToLower(transaction["from"].(string))
 	if transaction["to"] == nil { // Skip transactions with no recipient
 		return 1
 	}
-	toAddr := strings.ToLower(transaction["to"].(string))
 	if transaction["input"] == nil { // Skip transactions with no data payload
 		return 1
 	}
-	data := transaction["input"].(string)[2:]
-	decodedDataBytes, _ := hex.DecodeString(data)
+	data, ok1 := transaction["input"].(string)
+	if !ok1 || len(data) <= 5 { // Skip transaction if the data field is not a string, or it's too short
+		return 1
+	}
+	decodedDataBytes, ok2 := hex.DecodeString(data)
+	if ok2 != nil { // Skip transactions with invalid hex data
+		return 1
+	}
 	decodedDataStr := string(decodedDataBytes)
-	amountHexStr := transaction["value"].(string)[2:]
-	amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)
-	parentTxHash := "" // todo - figure out comment logic hierarchy
+	//amountHexStr := transaction["value"].(string)[2:]
+	//amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)
+	//parentTxHash := "" // todo - figure out comment logic hierarchy
 	timestampHexStr := block["timestamp"].(string)[2:]
 	timestamp, _ := strconv.ParseUint(timestampHexStr, 16, 64)
 	if IsTimestampExpired(int64(*databaseHistoryDaysInt), int64(timestamp)) { // skip transactions older than the cached history limit
@@ -551,8 +555,7 @@ func DispatchTransaction(database *db.Database, block map[string]interface{}, tr
 	}
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
 		core.LogDebug("YourPlace Transaction Found: " + txHash)
-		database.IndexerAddPost(txHash, "base", fromAddr, toAddr, parentTxHash, amountInt, timestamp, decodedDataStr, blockIndex.Uint64())
-		TokenizeYourPlaceTransaction(database, "base", transaction, timestamp, blockIndex.Uint64())
+		TokenizeYourPlaceTransaction(database, blockchain, transaction, timestamp, blockIndex.Uint64())
 		return 0
 	} else {
 		return 1
@@ -626,19 +629,27 @@ func CalculatePercentage(totalRange *big.Int, index *big.Int) string {
 }
 func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, transaction map[string]interface{}, timestamp uint64, blockNumber uint64) {
 	// Pattern-based tokenization and database storage of YourPlace transactions
-	var protocolRegex = regexp.MustCompile(`^yp/([\d.]+)/([a-z]+):(.+)$`)
-	data := transaction["input"].(string)[2:]       // get data from the transaction
+	data := transaction["input"].(string)[2:]       // get data from the transaction & drop the '0x' prefix
 	decodedDataBytes, err := hex.DecodeString(data) // hex decode data
 	if err != nil {
 		core.LogError("Could not decode YourPlace transaction: " + err.Error())
 		return
 	}
-	decodedDataStr := string(decodedDataBytes)                  // convert bytes to string
+	decodedDataStr := string(decodedDataBytes) // convert bytes to string
+	var protocolRegex = regexp.MustCompile(`^yp/([\d.]+)/([a-z]+):(.+)$`)
 	matches := protocolRegex.FindStringSubmatch(decodedDataStr) // match the string to the protocol regex
 	if matches == nil {
 		core.LogError("Could not tokenize YourPlace transaction: " + decodedDataStr)
 		return
 	}
+
+	txHash := strings.ToLower(transaction["hash"].(string))
+	fromAddress := strings.ToLower(transaction["from"].(string))
+	toAddress := strings.ToLower(transaction["to"].(string))
+	parentTxHash := ""
+	amountHexStr := transaction["value"].(string)[2:]
+	amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)
+
 	version, err := strconv.Atoi(matches[1]) // get the version number
 	if err != nil {
 		core.LogError("Could not convert YourPlace transaction version: " + err.Error())
@@ -660,15 +671,6 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 		core.LogError("Could not unmarshal YourPlace transaction payload: " + err.Error())
 		return
 	}
-	txHash := strings.ToLower(transaction["hash"].(string))
-	fromAddress := strings.ToLower(transaction["from"].(string))
-	toAddress := strings.ToLower(transaction["to"].(string))
-	parentTxHash := ""
-	if payloadObject["parentTxHash"] != nil {
-		parentTxHash = payloadObject["parentTxHash"].(string)
-	}
-	amountHexStr := transaction["value"].(string)[2:]
-	amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)
 
 	// Execute the YourPlace transaction based on the action code
 	if version == 1 {
@@ -686,73 +688,148 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			core.LogDebug("Follow Action: " + action)
 			switch actionPostfix {
 			case "":
-				blockchainPayload := payloadObject["b"].(string)
-				if !security.IsValidBlockchain(blockchainPayload) {
+				blockchainPayload, ok1 := payloadObject["b"]
+				addressPayload, ok2 := payloadObject["a"]
+				if !ok1 || !ok2 {
+					core.LogDebug("Follow action missing required fields")
 					break
 				}
-				addressPayload := payloadObject["a"].(string)
-				if !security.IsValidAddress(addressPayload, blockchainPayload) {
+				blockchainStr, ok1 := blockchainPayload.(string)
+				addressStr, ok2 := addressPayload.(string)
+				if !ok1 || !ok2 {
+					core.LogDebug("Follow action fields are not strings")
 					break
 				}
-				if fromAddress == addressPayload && blockchain == blockchainPayload { // Ignore self-follow attempts (follower count fraud)
+				if !security.IsValidBlockchain(blockchainStr) {
+					core.LogDebug("Invalid blockchain in follow action")
 					break
 				}
-				database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressPayload, blockchainPayload, timestamp)
+				if !security.IsValidAddress(addressStr, blockchainStr) {
+					core.LogDebug("Invalid address in follow action")
+					break
+				}
+				if fromAddress == addressStr && blockchain == blockchainStr { // Ignore self-follow attempts (follower count fraud)
+					break
+				}
+				database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
+				break
 			}
 			break
 		case 'm': // Metadata Actions
 			core.LogDebug("Metadata Action: " + action)
 			switch actionPostfix {
 			case "n":
-				if name, ok := payloadObject["n"]; ok && name != nil {
-					nameStr := security.SanitizeNonPrintable(payloadObject["n"].(string))
-					database.OnchainMN(blockchain, fromAddress, nameStr, timestamp)
+				name, ok1 := payloadObject["n"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required name field")
+					break
 				}
+				nameStr, ok2 := name.(string)
+				if !ok2 {
+					core.LogDebug("Metadata action name field is not a string")
+					break
+				}
+				nameStr = security.SanitizeNonPrintable(payloadObject["n"].(string))
+				database.OnchainMN(blockchain, fromAddress, nameStr, timestamp)
+				break
 			case "a":
-				if avatar, ok := payloadObject["a"]; ok && avatar != nil {
-					avatarStr := security.SanitizeNonPrintable(payloadObject["a"].(string))
-					if security.IsValidURL(avatarStr) || security.IsValidCID(avatarStr) {
-						database.OnchainMA(blockchain, fromAddress, avatarStr, timestamp)
-					}
+				avatar, ok1 := payloadObject["a"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required avatar field")
+					break
 				}
+				avatarStr, ok2 := avatar.(string)
+				if !ok2 {
+					core.LogDebug("Metadata action avatar field is not a string")
+					break
+				}
+				avatarStr = security.SanitizeNonPrintable(avatarStr)
+				if security.IsValidURL(avatarStr) || security.IsValidCID(avatarStr) {
+					database.OnchainMA(blockchain, fromAddress, avatarStr, timestamp)
+				}
+				break
 			case "b":
-				if banner, ok := payloadObject["b"]; ok && banner != nil {
-					bannerStr := security.SanitizeNonPrintable(payloadObject["b"].(string))
-					if security.IsValidURL(bannerStr) || security.IsValidCID(bannerStr) {
-						database.OnchainMB(blockchain, fromAddress, bannerStr, timestamp)
-					}
+				banner, ok1 := payloadObject["b"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required banner field")
+					break
 				}
+				bannerStr, ok2 := banner.(string)
+				if !ok2 {
+					core.LogDebug("Metadata action banner field is not a string")
+					break
+				}
+				bannerStr = security.SanitizeNonPrintable(bannerStr)
+				if security.IsValidURL(bannerStr) || security.IsValidCID(bannerStr) {
+					database.OnchainMB(blockchain, fromAddress, bannerStr, timestamp)
+				}
+				break
 			case "bd":
-				if birthdate, ok := payloadObject["bd"]; ok && birthdate != nil {
-					birthdateStr := payloadObject["bd"].(string)
-					birthdateInt, _err := strconv.ParseInt(birthdateStr, 10, 64)
-					if _err != nil {
-						core.LogError("Could not convert YourPlace transaction birthdate: " + _err.Error())
-						return
-					}
-					if security.IsValidBirthDate(birthdateInt) {
-						database.OnchainMBD(blockchain, fromAddress, uint64(birthdateInt), timestamp)
-					}
+				birthdate, ok1 := payloadObject["bd"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required birthdate field")
+					break
 				}
+				birthdateStr, ok2 := birthdate.(string)
+				if !ok2 {
+					core.LogDebug("Metadata action birthdate field is not a string")
+					break
+				}
+				birthdateInt, _err := strconv.ParseInt(birthdateStr, 10, 64)
+				if _err != nil {
+					core.LogDebug("Could not convert YourPlace transaction birthdate: " + _err.Error())
+					break
+				}
+				if security.IsValidBirthDate(birthdateInt) {
+					database.OnchainMBD(blockchain, fromAddress, uint64(birthdateInt), timestamp)
+				}
+				break
 			case "l":
-				if location, ok := payloadObject["l"]; ok && location != nil {
-					locationStr := security.SanitizeNonPrintable(payloadObject["l"].(string))
-					database.OnchainML(blockchain, fromAddress, locationStr, timestamp)
+				location, ok1 := payloadObject["l"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required location field")
+					break
 				}
+				locationStr, ok2 := location.(string)
+				if !ok2 {
+					core.LogDebug("Metadata action location field is not a string")
+					break
+				}
+				locationStr = security.SanitizeNonPrintable(locationStr)
+				database.OnchainML(blockchain, fromAddress, locationStr, timestamp)
+				break
 			case "w":
-				if website, ok := payloadObject["w"]; ok && website != nil {
-					websiteStr := security.SanitizeNonPrintable(payloadObject["w"].(string))
-					if security.IsValidURL(websiteStr) && len(websiteStr) > 0 {
-						database.OnchainMW(blockchain, fromAddress, websiteStr, timestamp)
-					}
+				website, ok1 := payloadObject["w"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required website field")
+					break
 				}
+				websiteStr, ok2 := website.(string)
+				if !ok2 {
+					core.LogDebug("Metadata action website field is not a string")
+					break
+				}
+				websiteStr = security.SanitizeNonPrintable(websiteStr)
+				if security.IsValidURL(websiteStr) && len(websiteStr) > 0 {
+					database.OnchainMW(blockchain, fromAddress, websiteStr, timestamp)
+				}
+				break
 			case "d":
-				if description, ok := payloadObject["d"]; ok && description != nil {
-					descriptionStr := security.SanitizeNonPrintable(payloadObject["d"].(string))
-					if len(descriptionStr) > 0 {
-						database.OnchainMD(blockchain, fromAddress, descriptionStr, timestamp)
-					}
+				description, ok1 := payloadObject["d"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required description field")
+					break
 				}
+				descriptionStr, ok2 := description.(string)
+				if !ok2 {
+					core.LogDebug("Metadata action description field is not a string")
+					break
+				}
+				descriptionStr = security.SanitizeNonPrintable(descriptionStr)
+				if len(descriptionStr) > 0 {
+					database.OnchainMD(blockchain, fromAddress, descriptionStr, timestamp)
+				}
+				break
 			}
 			break
 		case 'b': // Blocking Actions
