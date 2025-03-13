@@ -21,9 +21,9 @@ import (
 // 0 --- Earliest --- Tail --- Head --- Latest
 // Job States - Running, Complete, Failed, Pending
 
-const reportInterval = 10000 // print progress every # of blocks
-const saveInterval = 1000    // save progress every # of blocks
-const throttleOffset = 5     // How many blocks to subtract from the throttle limit to allow for the front-end to make calls without getting rate-limited
+const reportInterval = 5000 // print progress every # of blocks
+const saveInterval = 1000   // save progress every # of blocks
+const throttleOffset = 5    // How many blocks to subtract from the throttle limit to allow for the front-end to make calls without getting rate-limited
 
 var (
 	indexerCancel chan bool
@@ -228,7 +228,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					mod := big.NewInt(0)
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndex, batchSize)
+						IndexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndex, batchSize, "forward")
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
@@ -376,7 +376,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 					mod := big.NewInt(0)                                     // Send a status update
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndex, batchSize)
+						IndexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
@@ -508,7 +508,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 					mod := big.NewInt(0)                                     // Send a status update
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndex, batchSize)
+						IndexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
@@ -589,16 +589,19 @@ func IndexerRestartJobs(database *db.Database, blockchain string) {
 	jobUUID := database.IndexerGetJobUUID(blockchain)
 	database.IndexerUpdateJobStatus(jobUUID, "failed")
 }
-func IndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int) {
+func IndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, traversalDirection string) {
 	core.LogDebug("------------------------")
 	core.LogDebug("index: " + blockIndex.String())
 	core.LogDebug("target latest: " + targetLatestBlock.String())
 	core.LogDebug("target earliest: " + targetEarliestBlock.String())
 	totalRange := new(big.Int).Sub(targetLatestBlock, targetEarliestBlock)
 	core.LogDebug("total range: " + totalRange.String())
-	indexOffset := new(big.Int).Sub(blockIndex, targetEarliestBlock)
-	//core.LogDebug("index offset: " + indexOffset.String())
-	progressMade := new(big.Int).Sub(totalRange, indexOffset)
+	var progressMade *big.Int
+	if traversalDirection == "forward" {
+		progressMade = new(big.Int).Sub(blockIndex, targetEarliestBlock)
+	} else {
+		progressMade = new(big.Int).Sub(targetLatestBlock, blockIndex)
+	}
 	core.LogDebug("progress made: " + progressMade.String())
 	progressPercent := CalculatePercentage(totalRange, progressMade)
 	core.LogDebug("progress: " + progressPercent + " %")
@@ -642,12 +645,15 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 		return
 	}
 	action := matches[2] // get the action code
+	core.LogDebug("Action: " + action)
 	if len(action) < 1 {
 		core.LogError("Invalid YourPlace transaction action: " + action)
 		return
 	}
-	actionPrefix := action[0]                                // parse out the action prefix
-	actionPostfix := action[1:]                              // parse out the action postfix
+	actionPrefix := action[0] // parse out the action prefix
+	core.LogDebug("Action Prefix: " + strconv.FormatUint(uint64(actionPrefix), 10))
+	actionPostfix := action[1:] // parse out the action postfix
+	core.LogDebug("Action Postfix: " + actionPostfix)
 	var payloadObject map[string]interface{}                 // create a map for the YourPlace payload object
 	err = json.Unmarshal([]byte(matches[3]), &payloadObject) // unmarshal the payload object
 	if err != nil {
@@ -693,6 +699,7 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 				}
 				database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressPayload, blockchainPayload, timestamp)
 			}
+			break
 		case 'm': // Metadata Actions
 			core.LogDebug("Metadata Action: " + action)
 			switch actionPostfix {
@@ -747,6 +754,7 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 					}
 				}
 			}
+			break
 		case 'b': // Blocking Actions
 		case 's': // Settings Actions
 		default:
