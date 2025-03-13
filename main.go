@@ -22,7 +22,6 @@ import (
 	"github.com/gorilla/csrf"
 	_cron "github.com/robfig/cron/v3"
 	"html/template"
-	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -279,12 +278,12 @@ func GetTLSCertificate(path string) (string, string, error) {
 	return certPath, keyPath, nil
 }
 func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, logFile *os.File) {
-	if debug {
-		gin.SetMode(gin.DebugMode)
-		gin.DefaultWriter = io.MultiWriter(logFile, os.Stdout)
-	} else {
-		gin.SetMode(gin.ReleaseMode)
-	}
+	//if debug {
+	//	gin.SetMode(gin.DebugMode)
+	//	gin.DefaultWriter = io.MultiWriter(logFile, os.Stdout)
+	//} else {
+	gin.SetMode(gin.ReleaseMode)
+	//}
 	router := gin.Default()
 	router.Use(gin.Logger())
 	router.Use(CustomGinRecovery())

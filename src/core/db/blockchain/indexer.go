@@ -184,7 +184,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 			default:
 				err := base.RpcClient.BatchCallContext(context.Background(), batch)
 				if err != nil {
-					//core.LogError("Could not get block data 1: " + err.Error())
+					core.LogDebug("Could not get block data 1: " + err.Error())
 					rpcErrorCount++
 					backoff := rpcErrorCount + 1
 					time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
@@ -204,7 +204,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					return
 				default:
 					if elem.Error != nil {
-						//core.LogError("Could not get block data 2: " + elem.Error.Error())
+						core.LogDebug("Could not get block data 2: " + elem.Error.Error())
 						rpcErrorCount++
 						backoff := rpcErrorCount + 1
 						time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
@@ -530,20 +530,16 @@ func DispatchTransaction(database *db.Database, block map[string]interface{}, tr
 	// ret 1 == skipped == transaction was not a YP txn
 	// ret 2 == expired == transaction is older than the cached history limit
 	txHash := strings.ToLower(transaction["hash"].(string))
+	//fromAddr := strings.ToLower(transaction["from"].(string))
 	if transaction["to"] == nil { // Skip transactions with no recipient
 		return 1
 	}
+	//toAddr := strings.ToLower(transaction["to"].(string))
 	if transaction["input"] == nil { // Skip transactions with no data payload
 		return 1
 	}
-	data, ok1 := transaction["input"].(string)
-	if !ok1 || len(data) <= 5 { // Skip transaction if the data field is not a string, or it's too short
-		return 1
-	}
-	decodedDataBytes, ok2 := hex.DecodeString(data)
-	if ok2 != nil { // Skip transactions with invalid hex data
-		return 1
-	}
+	data := transaction["input"].(string)[2:]
+	decodedDataBytes, _ := hex.DecodeString(data)
 	decodedDataStr := string(decodedDataBytes)
 	//amountHexStr := transaction["value"].(string)[2:]
 	//amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)
@@ -555,7 +551,8 @@ func DispatchTransaction(database *db.Database, block map[string]interface{}, tr
 	}
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
 		core.LogDebug("YourPlace Transaction Found: " + txHash)
-		TokenizeYourPlaceTransaction(database, blockchain, transaction, timestamp, blockIndex.Uint64())
+		//database.IndexerAddPost(txHash, "base", fromAddr, toAddr, parentTxHash, amountInt, timestamp, decodedDataStr, blockIndex.Uint64())
+		TokenizeYourPlaceTransaction(database, "base", transaction, timestamp, blockIndex.Uint64())
 		return 0
 	} else {
 		return 1
@@ -632,14 +629,14 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 	data := transaction["input"].(string)[2:]       // get data from the transaction & drop the '0x' prefix
 	decodedDataBytes, err := hex.DecodeString(data) // hex decode data
 	if err != nil {
-		core.LogError("Could not decode YourPlace transaction: " + err.Error())
+		core.LogDebug("Could not decode YourPlace transaction: " + err.Error())
 		return
 	}
 	decodedDataStr := string(decodedDataBytes) // convert bytes to string
 	var protocolRegex = regexp.MustCompile(`^yp/([\d.]+)/([a-z]+):(.+)$`)
 	matches := protocolRegex.FindStringSubmatch(decodedDataStr) // match the string to the protocol regex
 	if matches == nil {
-		core.LogError("Could not tokenize YourPlace transaction: " + decodedDataStr)
+		core.LogDebug("Could not tokenize YourPlace transaction: " + decodedDataStr)
 		return
 	}
 
