@@ -36,7 +36,7 @@ The Application is released under the Creative Commons Attribution-NonCommercial
 
 Any use of the Application in violation of these licensing terms is strictly prohibited and will constitute a breach of these Terms.
 
-## 5.AUTOMATIC UPDATES
+## 5. AUTOMATIC UPDATES
    
 The Application may automatically download and install updates from time to time. These updates are designed to improve, enhance, and further develop the Application and may include bug fixes, enhanced functions, new software modules, and completely new versions. You agree to receive such updates as part of your use of the Application.
 
@@ -75,21 +75,49 @@ The arbitration will be conducted by the American Arbitration Association (AAA) 
 
 ALL CLAIMS AND DISPUTES WITHIN THE SCOPE OF THIS ARBITRATION AGREEMENT MUST BE ARBITRATED ON AN INDIVIDUAL BASIS AND NOT ON A CLASS BASIS. CLAIMS OF MORE THAN ONE CUSTOMER OR USER CANNOT BE ARBITRATED JOINTLY OR CONSOLIDATED WITH THOSE OF ANY OTHER CUSTOMER OR USER.
 
-## 10.GOVERNING LAW
+## 10. GATEWAY CONTENT MODERATION
+
+If you or the Company operates a gateway on the Application, you and the Company:
+
+- Have the right to moderate, filter, or block any content, profiles, servers, or posts accessible through their gateway at their sole discretion
+- May implement Dynamic Block Lists (DBLs) or other content filtering mechanisms on their gateway
+- Are responsible for establishing and enforcing their own moderation policies
+- May refuse to display or relay content between users when one user has blocked another ("ghosting")
+- Are not obligated to index or display all available content on the YourPlace network
+- May curate content, implement specialized search functionality, or offer premium content curation services
+- Have no obligation to provide justification for content moderation decisions
+
+The Company does not control or dictate third-party gateway content moderation practices. Each gateway operator determines their own content standards while remaining responsible for compliance with applicable laws in their jurisdiction.
+
+## 11. INTELLECTUAL PROPERTY
+
+### 11.1 Your Content
+
+You retain all intellectual property rights to content you create and publish through the Application. However, by saving content to the blockchain, you grant an irrevocable, worldwide license for such content to be distributed and displayed by any gateway or server on the YourPlace network.
+
+### 11.2 Plugin Marketplace
+
+If you create or use plugins for the Application:
+
+- Plugin creators retain intellectual property rights to plugins they create
+- The Company may review and list plugins but makes no warranties regarding plugin functionality or safety
+- You are solely responsible for any consequences of installing third-party plugins
+
+## 12. GOVERNING LAW
 
 These Terms and any disputes arising out of or related to these Terms or the Application shall be governed by and construed in accordance with the laws of the Cayman Islands, without regard to its conflict of law principles.
 
-## 11.CHANGES TO TERMS
+## 13. CHANGES TO TERMS
 
 We reserve the right to modify these Terms at any time. If we make changes, we will provide notice by posting the updated Terms on our website and updating the "Last Updated" date. Your continued use of the Application after such changes constitutes your acceptance of the new Terms.
 
-## 12. SEVERABILITY
+## 14. SEVERABILITY
 
 If any provision of these Terms is held to be unenforceable or invalid, such provision will be changed and interpreted to accomplish the objectives of such provision to the greatest extent possible under applicable law, and the remaining provisions will continue in full force and effect.
 
-## 13. CONTACT INFORMATION
+## 15. CONTACT INFORMATION
 
 If you have any questions about these Terms, please contact us at:
 [help@yourplace.network](mailto:help@yourplace.network)
 
-Last Updated: March, 13 2025
+Last Updated: March, 14 2025
