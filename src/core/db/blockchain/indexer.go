@@ -676,7 +676,17 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			core.LogDebug("Post Action: " + action)
 			switch actionPostfix {
 			case "":
-				database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, decodedDataStr, blockNumber)
+				postText, ok := payloadObject["p"]
+				if !ok {
+					core.LogDebug("Post Action: no p in payload")
+					break
+				}
+				postTextStr, ok := postText.(string)
+				if !ok {
+					core.LogDebug("failed to convert post text to string")
+					break
+				}
+				database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
 				break
 			}
 			break
