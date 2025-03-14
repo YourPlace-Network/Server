@@ -1,3 +1,5 @@
+import {AddFileToIPFS} from "../util/ipfs";
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
@@ -25,7 +27,15 @@ import tinymce from "tinymce/tinymce";
         tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
         let postObj = {postText: "", fileHash: "", status: "", cid: "", extension: ""}
         let addPostModal = new window.bootstrap.Modal(DOM.addPostModal, {});
-        let uploadedFiles: file[] = [];
+        let uploadedFiles: fileData[] = [];
+        interface fileData {
+            uuid: string;
+            path: string;
+            extension: string;
+            encodedUnsafeName: string;
+            size: string;
+            ipfs?: string;
+        }
 
         tinymce.init({
             selector: "#addPostText",
@@ -87,7 +97,16 @@ import tinymce from "tinymce/tinymce";
             tinymce.get("addPostText")!.setContent("");
         }
         async function prepareAttachedPost() {
-            for (i = 0; uploadedFiles.length)
+            for (let i = 0; i < uploadedFiles.length; i++){
+                let path = uploadedFiles[i].path;
+                let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
+                let cid = await AddFileToIPFS(path, csrfToken);
+                let attachments: string[] = []
+                if (cid != null){
+                    uploadedFiles[i].ipfs = "ipfs://" + cid.toString();
+                }
+
+            }
             /*if (postObj.status == "transcoding" || postObj.status == "initialized") {
                 for (let i = 0; i < 100; i++) {
                     let data = await checkVideoStatus(postObj.fileHash);
@@ -127,7 +146,7 @@ import tinymce from "tinymce/tinymce";
 
             let [status, data] = await UploadFile(fileList, csrfToken);
             let jsonString = JSON.parse(data);
-            uploadedFiles = jsonString.data
+            uploadedFiles = jsonString.data;
 
             // Reset UI after upload
             DOM.uploadFileButton.disabled = false;
