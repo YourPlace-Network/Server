@@ -4,7 +4,7 @@ export async function UploadFile(file: File | FileList, csrfToken: string): Prom
     if (csrfToken == null || csrfToken == "") {
         return [400, {"status": "Invalid CSRF Token"}];
     }
-    let response = await HttpPostFile("/files/upload/", file, csrfToken);
+    let response = await HttpPostFile("/files/upload", file, csrfToken);
     return [response[0], response[1]];
 }
 export async function DownloadFile(uuid: string): Promise<[number, any]> {
