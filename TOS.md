@@ -109,7 +109,7 @@ If you create or use plugins for the Application:
 - By submitting a plugin to the marketplace, you grant the Company a non-exclusive license to distribute, display, and promote your plugin
 - You agree to indemnify and hold the Company harmless from all claims, damages, and expenses arising from your creation or use of plugins
 - The Company reserves the right to remove any plugin from the marketplace at its sole discretion
-- The Company is not responsible for monitoring plugins for intellectual property infringement
+- The Company is not responsible for monitoring plugins for security or intellectual property infringement
 
 ## 11.4 DMCA Compliance
 
