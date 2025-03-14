@@ -1326,7 +1326,6 @@ func (db *SQLite) IndexerUpdateJobStatus(uuid string, status string) {
 	}
 }
 func (db *SQLite) IndexerUpdateHeadBlock(uuid string, headBlock uint64) {
-	core.LogDebug("IndexerUpdateHeadBlock(): " + fmt.Sprint(headBlock))
 	_, err := db.runParamSQLUpdate("UPDATE postsBackfill SET headBlock = ?, timestamp = ? WHERE uuid = ?", headBlock, core.GetTimestamp(), uuid)
 	if err != nil {
 		core.LogError("Could not update the indexer head block in the database: " + err.Error())

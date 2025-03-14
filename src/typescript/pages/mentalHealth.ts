@@ -707,8 +707,8 @@ const tips = [
     "If you see a reply to your post, and it's obvious the person didn't read or comprehend it, realize it's possible that they literally can't read. Literacy rates are often lower than you might imagine",
     "How do you solve the problem? You just gotta start fixing it",
     "If you can, carry a weapon to protect yourself. Train with it and know the laws. Be safe and only use it for self-defense",
-
-
+    "Cruelty for the sake of content is never acceptable and it will backfire",
+    "True change comes from the builders, not the complainers and destroyers",
 
 ];
 

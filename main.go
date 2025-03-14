@@ -62,8 +62,8 @@ var (
 )
 
 func main() {
-	time.Sleep(3 * time.Second)   // Sleep for 1 second to allow the previous instance to close
-	_ = core.LogInit("yourplace") // Initialize the logger
+	time.Sleep(3 * time.Second)          // Sleep for 1 second to allow the previous instance to close
+	logFile := core.LogInit("yourplace") // Initialize the logger
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
 
 	// --- Command Line Arguments --- //
@@ -202,7 +202,7 @@ func main() {
 
 	// --- Start Web Server --- //
 	core.LogDebug("Starting web server")
-	StartWebServer(database, _blockchain, ipfs, installed)
+	StartWebServer(database, _blockchain, ipfs, installed, logFile)
 
 	// --- Systray --- //
 	systray.Run(SystrayOnReady, SystrayOnExit)
@@ -277,10 +277,10 @@ func GetTLSCertificate(path string) (string, string, error) {
 	}
 	return certPath, keyPath, nil
 }
-func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool) {
-	//if debug { // todo add back in debug mode
-	//gin.SetMode(gin.DebugMode)
-	//gin.DefaultWriter = io.MultiWriter(logFile, os.Stdout)
+func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, logFile *os.File) {
+	//if debug {
+	//	gin.SetMode(gin.DebugMode)
+	//	gin.DefaultWriter = io.MultiWriter(logFile, os.Stdout)
 	//} else {
 	gin.SetMode(gin.ReleaseMode)
 	//}
@@ -295,8 +295,8 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	if !installed {
 		router.Use(middleware.SetupMiddleware(installed))
 	}
-	//router.Use(middleware.HotPatch())
-	//router.Use(middleware.IdsMiddleware())
+	router.Use(middleware.HotPatch())
+	router.Use(middleware.IdsMiddleware())
 	router.Use(middleware.RateLimitMiddleware())
 	router.Use(middleware.ContentTypeMiddleware())
 	router.Use(middleware.BlockedContent(database))
@@ -337,7 +337,6 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 			ReadHeaderTimeout: 20 * time.Second,
 			MaxHeaderBytes:    1 << 20, // 1 MB max header size
 		}
-		core.LogInfo("--- Starting " + title + " Server ---")
 		go func() {
 			err := srv.ListenAndServe()
 			if err != nil {
@@ -345,10 +344,10 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 			}
 		}()
 		for i := 0; i < 10; i++ {
+			time.Sleep(500 * time.Millisecond)
 			if network.IsTCPPortOpen("127.0.0.1", port) {
 				break
 			}
-			time.Sleep(500 * time.Millisecond)
 		}
 		PostServerRun(database)
 	}
