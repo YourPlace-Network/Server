@@ -675,9 +675,15 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 					postTextStr := security.SanitizeNonPrintable(postText.(string))
 					database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
 				}
-				break
+			case "a":
+				if postText, ok := payloadObject["p"]; ok && postText != nil { //TODO: fully implement
+					if attachments, ok := payloadObject["a"]; ok && attachments != nil {
+						postTextStr := security.SanitizeNonPrintable(postText.(string))
+						//attachmentStr := security.SanitizeNonPrintable(attachments.(string))
+						database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
+					}
+				}
 			}
-			break
 		case 'r': // Reply Actions
 		/*case 'f': // Follow Actions
 		core.LogDebug("Follow Action: " + action)

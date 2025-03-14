@@ -25,6 +25,7 @@ import tinymce from "tinymce/tinymce";
         tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
         let postObj = {postText: "", fileHash: "", status: "", cid: "", extension: ""}
         let addPostModal = new window.bootstrap.Modal(DOM.addPostModal, {});
+        let uploadedFiles: file[] = [];
 
         tinymce.init({
             selector: "#addPostText",
@@ -74,7 +75,8 @@ import tinymce from "tinymce/tinymce";
             console.log("post payload");
             console.log(payload);
             // If there is a file attached, upload it first
-            if (postObj.fileHash !== "") {
+            if (Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
+                console.log("prepare attached if triggered")
                 postObj.postText = payload;
                 await prepareAttachedPost();
             } else {
@@ -85,7 +87,7 @@ import tinymce from "tinymce/tinymce";
             tinymce.get("addPostText")!.setContent("");
         }
         async function prepareAttachedPost() {
-            let ipfsIndex = ""
+            for (i = 0; uploadedFiles.length)
             /*if (postObj.status == "transcoding" || postObj.status == "initialized") {
                 for (let i = 0; i < 100; i++) {
                     let data = await checkVideoStatus(postObj.fileHash);
@@ -124,10 +126,8 @@ import tinymce from "tinymce/tinymce";
             DOM.uploadFileButton.textContent = "Uploading...";
 
             let [status, data] = await UploadFile(fileList, csrfToken);
-            postObj.status = data.fileStatus;
-            postObj.fileHash = data.hash;
-            postObj.cid = data.cid;
-            postObj.extension = data.extension;
+            let jsonString = JSON.parse(data);
+            uploadedFiles = jsonString.data
 
             // Reset UI after upload
             DOM.uploadFileButton.disabled = false;
