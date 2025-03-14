@@ -93,7 +93,7 @@ The Company does not control or dictate third-party gateway content moderation p
 
 ### 11.1 Your Content
 
-You retain all intellectual property rights to content you create and publish through the Application. However, by saving content to the blockchain, you grant an irrevocable, worldwide license for such content to be distributed and displayed by any gateway or server on the YourPlace network.
+You retain all intellectual property rights to content you create and publish through the Application. However, by saving content to the blockchain or IPFS, you grant an irrevocable, worldwide license for such content to be distributed and displayed by any gateway or server on the YourPlace network.
 
 ### 11.2 Company Intellectual Property
 
