@@ -95,13 +95,25 @@ The Company does not control or dictate third-party gateway content moderation p
 
 You retain all intellectual property rights to content you create and publish through the Application. However, by saving content to the blockchain, you grant an irrevocable, worldwide license for such content to be distributed and displayed by any gateway or server on the YourPlace network.
 
-### 11.2 Plugin Marketplace
+### 11.2 Company Intellectual Property
+
+The Company retains all intellectual property rights to the Application, including but not limited to its software code, architecture, algorithms, user interface, design elements, logos, names, trademarks, and other proprietary technology. Nothing in these Terms transfers ownership of the Company's intellectual property to you. All rights not expressly granted herein are reserved by the Company.
+
+### 11.3 Plugin Marketplace
 
 If you create or use plugins for the Application:
 
 - Plugin creators retain intellectual property rights to plugins they create
 - The Company may review and list plugins but makes no warranties regarding plugin functionality or safety
 - You are solely responsible for any consequences of installing third-party plugins
+- By submitting a plugin to the marketplace, you grant the Company a non-exclusive license to distribute, display, and promote your plugin
+- You agree to indemnify and hold the Company harmless from all claims, damages, and expenses arising from your creation or use of plugins
+- The Company reserves the right to remove any plugin from the marketplace at its sole discretion
+- The Company is not responsible for monitoring plugins for intellectual property infringement
+
+## 11.4 DMCA Compliance
+
+The Company respects the intellectual property rights of others and expects users to do the same. If you believe that your copyrighted work has been copied in a way that constitutes copyright infringement, please submit a notification according to the Digital Millennium Copyright Act (DMCA) by providing our copyright agent with the required information as specified on our website.
 
 ## 12. GOVERNING LAW
 
