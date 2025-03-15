@@ -674,6 +674,7 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 		switch actionPrefix {
 		case 'p': // Post Actions
 			core.LogDebug("Post Action: " + action)
+		outerSwitch:
 			switch actionPostfix {
 			case "":
 				postText, ok := payloadObject["p"]
@@ -686,8 +687,39 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 					core.LogDebug("failed to convert post text to string")
 					break
 				}
+				security.SanitizeNonPrintable(postTextStr)
 				database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
 				break
+			case "a":
+				postText, ok1 := payloadObject["p"]
+				attachments, ok2 := payloadObject["a"]
+				if !ok1 || !ok2 {
+					core.LogDebug("Post attach action missing required fields")
+				}
+				postTextStr, ok1 := postText.(string)
+				attachmentsArray, ok2 := attachments.([]interface{})
+				if !ok1 || !ok2 {
+					core.LogDebug("Post attach action fields are not properly typed")
+				}
+				security.SanitizeNonPrintable(postTextStr)
+				for _, innerArray := range attachmentsArray {
+					innerArray, ok := innerArray.([]interface{})
+					if !ok {
+						core.LogDebug("Post attach action fields are not array")
+						break
+					}
+					for i, value := range innerArray {
+						switch t := value.(type) {
+						case string:
+							innerArray[i] = security.SanitizeNonPrintable(t)
+						case float64:
+						default:
+							core.LogDebug("Post attach action fields are not properly typed")
+							break outerSwitch
+						}
+					}
+				}
+				database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber, attachmentsArray)
 			}
 			break
 		case 'r': // Reply Actions

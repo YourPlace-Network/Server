@@ -244,7 +244,7 @@ export async function baseSubmitPost(payload: string) {
     const txnID = await baseTxn(address, jsonData);
     return txnID;
 }
-export async function baseSubmitPostAttach(payload: string, attach: string[]) {
+export async function baseSubmitPostAttach(payload: string, attach: string[][]) {
     let address = GetAddress()!;
     let jsonData = YP.postAttach(payload, attach);
     return await baseTxn(address, jsonData);

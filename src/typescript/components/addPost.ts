@@ -8,6 +8,7 @@ import {UploadFile} from "../util/files";
 import {Sleep} from "../util/time";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 import tinymce from "tinymce/tinymce";
+import {lookup} from "mime-types";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -97,33 +98,21 @@ import tinymce from "tinymce/tinymce";
             tinymce.get("addPostText")!.setContent("");
         }
         async function prepareAttachedPost() {
+            await ipfsUpload();
+            let attachments: string[][] = [];
             for (let i = 0; i < uploadedFiles.length; i++){
-                let path = uploadedFiles[i].path;
-                let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
-                let cid = await AddFileToIPFS(path, csrfToken);
-                let attachments: string[] = []
-                if (cid != null){
-                    uploadedFiles[i].ipfs = "ipfs://" + cid.toString();
-                }
-
+                let file = uploadedFiles[i];
+                let ipfs = file.ipfs;
+                let mimeType = lookup(file.extension);
+                let size = file.size
+                if (typeof ipfs === 'string' && typeof mimeType === 'string' && size != ""){
+                    let attachment = [ipfs, mimeType, size];
+                    attachments.push(attachment);
+                } else return
             }
-            /*if (postObj.status == "transcoding" || postObj.status == "initialized") {
-                for (let i = 0; i < 100; i++) {
-                    let data = await checkVideoStatus(postObj.fileHash);
-                    if (data.fileStatus == "complete") {
-                        postObj.cid = data.cid;
-                        ipfsIndex = postObj.cid + "/" + postObj.fileHash + ".m3u8";
-                        break;
-                    }
-                    await Sleep(10000);
-                }
-
-            } else {
-                ipfsIndex = postObj.cid + postObj.extension
-            }*/
-            let attachments: string[] = [ipfsIndex];
-            WalletSubmitPostAttach(postObj.postText, attachments);
+            await WalletSubmitPostAttach(postObj.postText, attachments);
             clearPostObj();
+            uploadedFiles = [];
         }
         function clearPostObj() {
             postObj.postText = "";
@@ -131,10 +120,17 @@ import tinymce from "tinymce/tinymce";
             postObj.fileHash = "";
             postObj.status = "";
         }
+        async function ipfsUpload(){
+            let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
+            for (let i = 0; i <uploadedFiles.length; i++){
+                let cid = await AddFileToIPFS(uploadedFiles[i].path, csrfToken);
+                uploadedFiles[i].ipfs = "ipfs://" + cid?.toString();
+            }
+        }
         async function uploadFile() {
             console.log("upload triggered");
             // todo: not used right now. Needs better tinymce integration. Allow for future drag & drop upload too
-            let fileInput = DOM.fileInput
+            let fileInput = DOM.fileInput;
             let fileList = fileInput.files;
             if (fileList == null) {
                 return;
@@ -145,8 +141,8 @@ import tinymce from "tinymce/tinymce";
             DOM.uploadFileButton.textContent = "Uploading...";
 
             let [status, data] = await UploadFile(fileList, csrfToken);
-            let jsonString = JSON.parse(data);
-            uploadedFiles = jsonString.data;
+            uploadedFiles = data.data;
+            console.log(uploadedFiles);
 
             // Reset UI after upload
             DOM.uploadFileButton.disabled = false;

@@ -358,7 +358,7 @@ export async function WalletSubmitPost(payload: string) {
             break;
     }
 }
-export async function WalletSubmitPostAttach(payload: string, attach: string[]) {
+export async function WalletSubmitPostAttach(payload: string, attach: string[][]) {
     let wallet = GetWallet()!;
     if (wallet == "pera") {
         //await setAlgoPostAttach(payload, attach);

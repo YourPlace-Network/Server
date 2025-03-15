@@ -259,10 +259,10 @@ func (db *Database) OnchainP(txHash string, blockchain string, fromAddr string, 
 		db.sqlite.OnchainP(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
 	}
 }
-func (db *Database) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
+func (db *Database) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64, attachments []interface{}) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.OnchainPA(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
+		db.sqlite.OnchainPA(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber, attachments)
 	}
 }
 func (db *Database) OnchainMN(blockchain string, address string, name string, timestamp uint64) {

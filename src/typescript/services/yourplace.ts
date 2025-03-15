@@ -53,7 +53,7 @@ export let YP = {
         }
         return `yp/1/p:${JSON.stringify(payload)}`
     },
-    postAttach: function(post: string, attach: string[]): string {
+    postAttach: function(post: string, attach: string[][]): string {
         const payload = {
             p: post,
             a: attach
