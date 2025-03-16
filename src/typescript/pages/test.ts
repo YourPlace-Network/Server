@@ -26,7 +26,7 @@ import {ProfileService} from "../services/twitter";
                 if (result[1].status == "success") {
                     console.log(result);
                     let fileObj = result[1].data[0];
-                    let cid = await AddFileToIPFS(fileObj.path, DOM.csrfToken.value);
+                    let cid = await AddFileToIPFS(fileObj.pathOnDisk, DOM.csrfToken.value);
                     console.log(cid);
                     // todo
                     /*try {

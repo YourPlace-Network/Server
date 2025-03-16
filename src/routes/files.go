@@ -4,7 +4,6 @@ package routes
 // https://cloudflare-ipfs.com/ipfs/<CID>
 
 import (
-	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/security"
@@ -28,7 +27,6 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 	})
 
 	router.POST("/files/upload", func(c *gin.Context) {
-		core.LogDebug("uplo")
 		form, err := c.MultipartForm()
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "no file(s) uploaded"})
@@ -77,7 +75,7 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 			database.FileAdd(fileHash, extension, finalFilePath, encodedUnsafeName, file.Size)
 			fileData := map[string]interface{}{
 				"uuid":              fileHash,
-				"path":              finalFilePath,
+				"pathOnDisk":        finalFilePath,
 				"extension":         extension,
 				"encodedUnsafeName": encodedUnsafeName,
 				"size":              file.Size,

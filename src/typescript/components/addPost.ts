@@ -1,14 +1,12 @@
-import {AddFileToIPFS} from "../util/ipfs";
-
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
 import {UploadFile} from "../util/files";
-import {Sleep} from "../util/time";
+import {AddFileToIPFS} from "../util/ipfs";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 import tinymce from "tinymce/tinymce";
-import {lookup} from "mime-types";
+import {lookup as lookupMimeType} from "mime-types";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -23,6 +21,7 @@ import {lookup} from "mime-types";
             fileInput: document.getElementById("file")! as HTMLInputElement,
             spiceometerDiv: document.getElementById("spiceometerDiv")! as HTMLDivElement,
             spiceometerText: document.getElementById("spiceometerText")! as HTMLDivElement,
+            csrfToken: document.getElementById("csrfToken") as HTMLInputElement,
         }
         let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
@@ -31,11 +30,11 @@ import {lookup} from "mime-types";
         let uploadedFiles: fileData[] = [];
         interface fileData {
             uuid: string;
-            path: string;
+            pathOnDisk: string;
             extension: string;
             encodedUnsafeName: string;
             size: string;
-            ipfs?: string;
+            url?: string;
         }
 
         tinymce.init({
@@ -83,11 +82,7 @@ import {lookup} from "mime-types";
                 hideModal();
                 return;
             }
-            console.log("post payload");
-            console.log(payload);
-            // If there is a file attached, upload it first
             if (Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
-                console.log("prepare attached if triggered")
                 postObj.postText = payload;
                 await prepareAttachedPost();
             } else {
@@ -98,19 +93,23 @@ import {lookup} from "mime-types";
             tinymce.get("addPostText")!.setContent("");
         }
         async function prepareAttachedPost() {
-            await ipfsUpload();
+            let csrfToken = DOM.csrfToken.value;
+            for (let i = 0; i < uploadedFiles.length; i++){
+                let cid = await AddFileToIPFS(uploadedFiles[i].pathOnDisk, csrfToken);
+                uploadedFiles[i].url = "ipfs://" + cid?.toString();
+            }
             let attachments: string[][] = [];
             for (let i = 0; i < uploadedFiles.length; i++){
                 let file = uploadedFiles[i];
-                let ipfs = file.ipfs;
-                let mimeType = lookup(file.extension);
+                let url = file.url;
+                let mimeType = lookupMimeType(file.extension);
                 let size = file.size
-                if (typeof ipfs === 'string' && typeof mimeType === 'string' && size != ""){
-                    let attachment = [ipfs, mimeType, size];
+                if (typeof url ==="string" && typeof mimeType === "string" && size != ""){
+                    let attachment = [url, mimeType, size];
                     attachments.push(attachment);
                 } else return
             }
-            await WalletSubmitPostAttach(postObj.postText, attachments);
+            WalletSubmitPostAttach(postObj.postText, attachments);
             clearPostObj();
             uploadedFiles = [];
         }
@@ -120,16 +119,8 @@ import {lookup} from "mime-types";
             postObj.fileHash = "";
             postObj.status = "";
         }
-        async function ipfsUpload(){
-            let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
-            for (let i = 0; i <uploadedFiles.length; i++){
-                let cid = await AddFileToIPFS(uploadedFiles[i].path, csrfToken);
-                uploadedFiles[i].ipfs = "ipfs://" + cid?.toString();
-            }
-        }
         async function uploadFile() {
-            console.log("upload triggered");
-            // todo: not used right now. Needs better tinymce integration. Allow for future drag & drop upload too
+            // todo: Needs better tinymce integration. Allow for future drag & drop upload too
             let fileInput = DOM.fileInput;
             let fileList = fileInput.files;
             if (fileList == null) {
@@ -142,7 +133,6 @@ import {lookup} from "mime-types";
 
             let [status, data] = await UploadFile(fileList, csrfToken);
             uploadedFiles = data.data;
-            console.log(uploadedFiles);
 
             // Reset UI after upload
             DOM.uploadFileButton.disabled = false;

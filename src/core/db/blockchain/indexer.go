@@ -674,7 +674,7 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 		switch actionPrefix {
 		case 'p': // Post Actions
 			core.LogDebug("Post Action: " + action)
-		outerSwitch:
+		postFixSwitch: // we still need this labeled break. It's the best way to break this switch from a nested for loop.
 			switch actionPostfix {
 			case "":
 				postText, ok := payloadObject["p"]
@@ -687,7 +687,6 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 					core.LogDebug("failed to convert post text to string")
 					break
 				}
-				security.SanitizeNonPrintable(postTextStr)
 				database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
 				break
 			case "a":
@@ -700,24 +699,23 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 				attachmentsArray, ok2 := attachments.([]interface{})
 				if !ok1 || !ok2 {
 					core.LogDebug("Post attach action fields are not properly typed")
+					break
 				}
-				security.SanitizeNonPrintable(postTextStr)
-				for _, innerArray := range attachmentsArray {
-					innerArray, ok := innerArray.([]interface{})
+				for _, attachment := range attachmentsArray {
+					attachmentArray, ok := attachment.([]interface{})
 					if !ok {
 						core.LogDebug("Post attach action fields are not array")
-						break
+						break postFixSwitch // if we don't use a labeled break this will only exit the for loop
 					}
-					for i, value := range innerArray {
-						switch t := value.(type) {
-						case string:
-							innerArray[i] = security.SanitizeNonPrintable(t)
-						case float64:
-						default:
-							core.LogDebug("Post attach action fields are not properly typed")
-							break outerSwitch
-						}
+					_, okUrl := attachmentArray[0].(string)
+					_, okContentType := attachmentArray[1].(string)
+					sizeFloat, okSize := attachmentArray[2].(float64)
+					if !okUrl || !okContentType || !okSize {
+						core.LogDebug("Post attach array values are not properly typed")
+						break postFixSwitch
 					}
+					sizeUint := uint64(sizeFloat)
+					attachmentArray[2] = sizeUint
 				}
 				database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber, attachmentsArray)
 			}

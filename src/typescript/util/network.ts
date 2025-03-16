@@ -52,7 +52,7 @@ export async function HttpPostFile(url: string, file: File | FileList, csrfToken
         for (let i = 0; i < file.length; i++) {
             formData.append("file", file[i])
         }
-    }else {
+    } else {
         formData.append("file", file);
     }
     const options = {
