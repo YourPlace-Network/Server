@@ -50,6 +50,13 @@ Let's build code that we're proud to write and others are happy to read.
 
 ### Front-End Typescript Code
 
+- Use tabs for indentation instead of spaces. This is the standard for Typescript code.
+- When naming variables, functions, types and packages, use `camelCase`.
+- When naming variables, functions, types and packages, use a descriptive name and avoid generic words like "type, data, value, array" unless it's necessary to describe the purpose of the thing. For example, use `avatarURL` instead of just `url`. The name should precisely describe the purpose of the thing with no ambiguity. Verbose names are better.
+- Always use double-quotes `"` for strings unless absolutely necessary to use single-quotes `'` or backticks `` ` ``.
+- Use strict equality operators instead of loose equality operators. For example, use `===` instead of `==` and `!==` instead of `!=`.
+
+
 ### Front-End HTML Code
 
 ### Front-End SCSS Code
