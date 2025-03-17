@@ -55,7 +55,7 @@ Let's build code that we're proud to write and others are happy to read.
 - When naming variables, functions, types and packages, use a descriptive name and avoid generic words like "type, data, value, array" unless it's necessary to describe the purpose of the thing. For example, use `avatarURL` instead of just `url`. The name should precisely describe the purpose of the thing with no ambiguity. Verbose names are better.
 - Always use double-quotes `"` for strings unless absolutely necessary to use single-quotes `'` or backticks `` ` ``.
 - Use strict equality operators instead of loose equality operators. For example, use `===` instead of `==` and `!==` instead of `!=`.
-
+- Always end lines and code blocks with a semicolon `;`. This makes the code easier to read and understand and helps the IDE syntax parser.
 
 ### Front-End HTML Code
 
