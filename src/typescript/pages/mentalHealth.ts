@@ -715,7 +715,7 @@ const tips = [
     "You will always be the bad guy when the wrong person tells your story",
     "Don't complain about your wife or kids with a bunch of strangers",
     "Eating more legumes, vegetables, fruits, yogurt, fish, seafood, milk, and fruit juice are been linked to lower levels of stress and anxiety. Diets high in processed foods are consistently associated with a higher risk of depression and anxiety",
-    "Don't \"vent\" when you get angry. It might feel good at the moment, but it increases stimulation and conditions you towards aggression. Instead, take a timeout, deep breaths, take a walk, meditate, quietly reflect on the anger - just do anything to decrease your overall stimulation",
+    "Don't vent when you get angry. It might feel good in the moment, but it increases stimulation and conditions you towards aggression when mad. Instead, take a timeout, deep breaths, take a walk, meditate, quietly reflect on the anger - just do anything to decrease your overall stimulation",
     "The faster that you do the hard things you want to avoid, the faster you will receive the good things you actually want",
     "Nothing undermines your financial judgement as much as the sight of your neighbor getting rich",
     "Your hardest battles are infrequently with the world. It's usually with yourself",
