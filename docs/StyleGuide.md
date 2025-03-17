@@ -35,6 +35,7 @@ Let's build code that we're proud to write and others are happy to read.
 - Scrutinize the use of semicolons `;` in Go. There are few, if any, necessary use-cases for them.
 - There are very few scenarios where we should be using `panic` or `os.Exit` in Go. If you need to halt the program in an emergency, use `host.Shutdown` with an exit code instead. This ensures the program shuts down gracefully.
 - When returning JSON in Gin-Gonic, prefer to use `c.SecureJSON` instead of `c.JSON`. This will help ensure that the JSON is secure and can't be hijacked by a malicious user.
+- When returning JSON in Gin-Gonic, use the `gin.H{}` structure to create the JSON object. This makes the code easier to read and understand, and centralizes the JSON handling into Gin.
 - Don't surface error messages or user-controlled data in the HTTP response or in any response headers, unless absolutely necessary and only after it's been sanitized and validated.
 - Avoid putting user-controlled data into any log messages. This can lead to log injection attacks and can expose sensitive data or exhaust resources.
 - You may put system error messages like `err.Error()` into logs, but try to avoid it if possible. Instead, log a more descriptive message that explains the error and what the system is doing to recover from it.
