@@ -45,7 +45,6 @@ Let's build code that we're proud to write and others are happy to read.
 - Avoid using reflection in Go. It's slow, hard to read, and hard to debug. If you need to use reflection, consider if there is a better way to do it.
 - Most (but not all) error scenarios require bailing out of the current execution context. If necessary, be sure to include `return`, `break`, or `continue` after the error is logged.
 - Try to not use `time.Sleep` or equivalent in Go. There are some scenarios where it's necessary, but it's not often and usually only in the context of waiting for the OS to perform some task.
-- 
 
 ### Back-End Shell Code
 
