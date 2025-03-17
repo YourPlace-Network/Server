@@ -871,6 +871,7 @@ func handlePostAttachmentTransaction(payloadObject map[string]interface{}, datab
 	attachments, ok2 := payloadObject["a"]
 	if !ok1 || !ok2 {
 		core.LogDebug("Post attach action missing required fields")
+		return false
 	}
 	postTextStr, ok1 := postText.(string)
 	attachmentsArray, ok2 := attachments.([]interface{})
