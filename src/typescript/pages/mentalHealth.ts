@@ -583,7 +583,7 @@ const tips = [
     "Sometimes people just make mistakes or bad decisions. Not everything is some malicious conspiracy",
     "Don't drink alcohol and do anything that requires attention, coordination, balance, or flirt with anyone except your significant other",
     "Don't drink alcohol at work events. It's a recipe for mistakes",
-    "Don't try to 'beat the train'. You'll just get run over",
+    "Don't try to beat the train. You'll just get run over",
     "Protect your head - helmets, mental health, eye/ear protection, brushing teeth, etc.",
     "Be careful when using your phone around roads and train tracks. One mistake or trip on a curb, and you're under a vehicle",
     "Never trust drug dealers. They will poison you for profit",
@@ -591,7 +591,7 @@ const tips = [
     "DUIs aren't worth it. Better to just sleep it off, get a taxi, or call a sober friend to take you home",
     "Don't lean back in chairs that weren't designed for it. It can easily slip, you hit your head, and you can die",
     "If you're driving, that text message can wait",
-    "Being labeled a 'party animal' or something similar is actually a bad thing",
+    "Being labeled a \"party animal\" or something similar is actually a bad thing",
     "Protect newborns when they sleep. Don't give any opportunity for them to fall out of, or be crushed by anything",
     "If someone is yelling and cursing at you, call the police - even just for them to deescalate. Don't deal with it yourself. Tell the cops you feared for your safety and ask for a formal report",
     "Stress and grief are killers. Take it seriously and find help",
@@ -720,7 +720,7 @@ const tips = [
     "Nothing undermines your financial judgement as much as the sight of your neighbor getting rich",
     "Your hardest battles are infrequently with the world. It's usually with yourself",
     "When someone throws a whole bunch of arguments at you (especially emotional ones) and won't let you interject, it's usually because they don't want to hear a retort or give you a chance to research how their points are wrong",
-
+    "Don't confront large groups of angry people by yourself. They will kill you without hesitation, and then they'll cover for their own, leaving your family without justice. Let professionals take care of it",
 
 
 ];
