@@ -2,180 +2,164 @@ package services
 
 import (
 	"YourPlace/src/core"
+	"YourPlace/src/core/host"
+	"YourPlace/src/core/security"
 	"context"
 	"fmt"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
-	"github.com/gin-gonic/gin"
-	"log"
-	"net/http"
+	"github.com/chromedp/chromedp/kb"
+	"math/rand"
 	"os"
+	"strings"
 	"time"
 )
 
-type Tweet struct {
-	Text   string `json:"text"`
-	Author string `json:"author"`
-}
-type App struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
-type Account struct {
-	ID    string `json:"id"`
-	Apps  []App  `json:"apps"`
-	Email string `json:"email"`
-}
-type FeedItem struct {
-	ID        string `json:"id"`
-	Content   string `json:"content"`
-	Timestamp string `json:"timestamp"`
-	UserID    string `json:"userId"`
-}
-type AttachAppRequest struct {
-	AccountID string `json:"accountId"`
-	AppID     string `json:"appId"`
+type Post struct {
+	Username string
+	Content  string
 }
 
-// In-memory storage // TODO: Replace with database
-var accounts = make(map[string]Account)
-var apps = make(map[string]App)
-var feedItems = make(map[string]FeedItem)
+const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.3"
 
-func AttachTwitterAppHandler(c *gin.Context) {
-	var req AttachAppRequest
-	err := c.ShouldBindJSON(&req)
-	if err != nil {
-		c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Invalid request body"})
-		return
-	}
-	account, exists := accounts[req.AccountID]
-	if !exists {
-		c.SecureJSON(http.StatusNotFound, gin.H{"status": "Account not found"})
-		return
-	}
-	app, exists := apps[req.AppID]
-	if !exists {
-		c.SecureJSON(http.StatusNotFound, gin.H{"status": "App not found"})
-		return
-	}
-	// Check if app is already attached
-	for _, a := range account.Apps {
-		if a.ID == app.ID {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
-			return
-		}
-	}
-	// Attach app to account
-	account.Apps = append(account.Apps, app)
-	accounts[req.AccountID] = account
-	c.SecureJSON(http.StatusOK, gin.H{"status": "success", "account": account})
-}
-func ProfileFeedHandler(c *gin.Context) {
-	accountID := c.Query("accountId")
-	if accountID == "" {
-		c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Account ID is required"})
-		return
-	}
-	_, exists := accounts[accountID]
-	if !exists {
-		c.SecureJSON(http.StatusNotFound, gin.H{"status": "Account not found"})
-		return
-	}
-	feed, exists := feedItems[accountID]
-	if !exists {
-		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "feed": []FeedItem{}})
-		return
-	}
-	c.SecureJSON(http.StatusOK, gin.H{"status": "success", "feed": feed})
-}
+var typingSpeed = addTimeVariation(200 * time.Millisecond)
+var chromeOptions = append(chromedp.DefaultExecAllocatorOptions[:],
+	chromedp.Flag("headless", false), // todo debug
+	chromedp.UserAgent(userAgent),
+	chromedp.Flag("disable-popup-blocking", true),
+)
 
-func GetTweets(username string, password string) {
-	options := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("disable-dev-shm-usage", true),
-		chromedp.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.3"),
-		chromedp.NoFirstRun,
-		chromedp.NoDefaultBrowserCheck,
-		chromedp.WindowSize(1920, 1080),
-		chromedp.Headless,
-		chromedp.DisableGPU,
-		chromedp.NoSandbox,
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), options...)
+func LogInToTwitter(email, username, password string) ([]*network.Cookie, error) {
+	core.LogDebug("Logging into x.com")
+
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), chromeOptions...)
 	defer cancel()
 	ctx, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
-	ctx, cancel = context.WithTimeout(ctx, 30*time.Second) // create timeout for entire execution
-	defer cancel()
+	ctx, timeoutCancel := context.WithTimeout(ctx, 240*time.Second)
+	defer timeoutCancel()
 
-	var cookies []*network.Cookie
+	captureHTML := func(stepName string) {
+		var html string
+		err := chromedp.Run(ctx, chromedp.EvaluateAsDevTools(`document.documentElement.outerHTML`, &html))
+		if err == nil {
+			filename := fmt.Sprintf("%sdebug_%s.html", host.GetDataDir(), stepName)
+			err = os.WriteFile(filename, []byte(html), 0644)
+			if err == nil {
+				core.LogDebug(fmt.Sprintf("HTML saved to %s", filename))
+			} else {
+				core.LogDebug(fmt.Sprintf("Failed to save HTML: %s", err.Error()))
+			}
+		} else {
+			core.LogDebug(fmt.Sprintf("Failed to capture HTML: %s", err.Error()))
+		}
+	}
+	captureScreenshot := func(stepName string) {
+		var buf []byte
+		err := chromedp.Run(ctx, chromedp.FullScreenshot(&buf, 90))
+		if err == nil {
+			filename := fmt.Sprintf("%sscreenshot_%s.png", host.GetDataDir(), stepName)
+			err = os.WriteFile(filename, buf, 0644)
+			if err == nil {
+				core.LogDebug(fmt.Sprintf("Screenshot saved to %s", filename))
+			} else {
+				core.LogDebug(fmt.Sprintf("Failed to save screenshot: %s", err.Error()))
+			}
+		} else {
+			core.LogDebug(fmt.Sprintf("Failed to capture screenshot: %s", err.Error()))
+		}
+	}
+	capturePage := func(stepName string) {
+		captureHTML(stepName)
+		captureScreenshot(stepName)
+	}
+	_ = capturePage // todo debug
+
+	// Navigate to the login page
+	core.LogDebug("Navigating to Twitter")
 	err := chromedp.Run(ctx,
-		chromedp.Navigate("https://x.com//login"), // Navigate to login page
+		chromedp.Navigate("https://x.com/i/flow/login"),
+		chromedp.WaitVisible("body", chromedp.ByQuery),
+		chromedp.Sleep(time.Duration(security.RandomUint(2, 4))*time.Second),
+	)
+	if err != nil {
+		return nil, core.LogErrorReturn("Login Page Navigation Error: " + err.Error())
+	}
+
+	// Enter email address
+	core.LogDebug("Email Entry")
+	err = chromedp.Run(ctx,
+		chromedp.WaitVisible("input[autocomplete=\"username\"]", chromedp.ByQuery),
+		slowType("input[autocomplete=\"username\"]", email+kb.Enter),
+		chromedp.Sleep(time.Duration(security.RandomUint(5, 10))*time.Second),
+	)
+	if err != nil {
+		return nil, core.LogErrorReturn("Username Entry Error: " + err.Error())
+	}
+
+	// Check if "Enter your phone number or username" prompt appears
+	core.LogDebug("Checking if phone number or username is required")
+	var pageText string
+	err = chromedp.Run(ctx, chromedp.EvaluateAsDevTools(`document.body.innerText`, &pageText))
+	if strings.Contains(pageText, "Enter your phone number or username") {
+		core.LogDebug("Username Entry")
+		err2 := chromedp.Run(ctx,
+			chromedp.WaitVisible("input[data-testid=\"ocfEnterTextTextInput\"]"),
+			slowType("input[data-testid=\"ocfEnterTextTextInput\"]", username+kb.Enter),
+			chromedp.Sleep(time.Duration(security.RandomUint(5, 10))*time.Second),
+		)
+		if err2 != nil {
+			return nil, core.LogErrorReturn("Email Entry Error: " + err2.Error())
+		}
+	}
+
+	// Enter password
+	err = chromedp.Run(ctx,
+		chromedp.WaitVisible("input[type=\"password\"]", chromedp.ByQuery),
+		slowType("input[type=\"password\"]", password+kb.Enter),
+		chromedp.Sleep(time.Duration(security.RandomUint(15, 30))*time.Second),
+	)
+	if err != nil {
+		return nil, core.LogErrorReturn("Password Entry Error: " + err.Error())
+	}
+
+	// Check if logged in
+	core.LogDebug("Checking if logged in")
+	err = chromedp.Run(ctx,
+		chromedp.WaitVisible("a[href=\"/compose/post\"]", chromedp.ByQuery),
+	)
+
+	// Retrieve all cookies after successful login
+	var cookies []*network.Cookie
+	err = chromedp.Run(ctx,
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			cookies, _ = network.GetCookies().Do(ctx)
-			core.LogInfo("Cookies: " + fmt.Sprintf("%+v", cookies))
+			cookiesResult, err3 := network.GetCookies().Do(ctx)
+			if err3 != nil {
+				return err3
+			}
+			cookies = cookiesResult
 			return nil
 		}),
-		chromedp.WaitVisible("//input[@autocomplete='username']"),        // Wait for username field
-		chromedp.SendKeys("//input[@autocomplete='username']", username), // Type username
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			return debugStep(ctx, "1_initial_load")
-		}),
-		//chromedp.Click("//div[@role='button']//span[text()='Next']"),     // Click next button
-		//chromedp.WaitVisible(`//input[@name='password']`),                // Wait for password field
-		//chromedp.SendKeys(`//input[@name='password']`, password),         // Type password
-		//chromedp.Click(`//div[@role='button']//span[text()='Log in']`),   // Click login button
-		//chromedp.WaitVisible(`//div[@data-testid='primaryColumn']`),      // Wait for home page to load
 	)
 	if err != nil {
-		core.LogError("Twitter Browser Error 1: " + err.Error())
-		return
+		return nil, core.LogErrorReturn("Cookie Retrieval Error: " + err.Error())
 	}
-
-	return // debug
-
-	var tweets []Tweet
-	err = chromedp.Run(ctx,
-		chromedp.WaitVisible(`div[data-testid="tweet"]`),
-		chromedp.Evaluate(`
-            Array.from(document.querySelectorAll('div[data-testid="tweet"]')).map(tweet => {
-                return {
-                    text: tweet.querySelector('div[data-testid="tweetText"]')?.innerText,
-                    author: tweet.querySelector('div[data-testid="User-Name"]')?.innerText
-                }
-            })
-        `, &tweets),
-	)
-	if err != nil {
-		core.LogError("Twitter Browser Error 2: " + err.Error())
-		return
-	}
-	for _, tweet := range tweets {
-		core.LogInfo("Tweet: " + tweet.Text + " by " + tweet.Author)
-	}
+	return cookies, nil
 }
 
-func debugStep(ctx context.Context, stepName string) error {
-	// Get page HTML
-	var html string
-	if err := chromedp.Run(ctx, chromedp.InnerHTML("html", &html)); err != nil {
-		return fmt.Errorf("getting HTML for step %s: %w", stepName, err)
-	}
-	// Save HTML to file
-	filename := fmt.Sprintf("debug_%s.html", stepName)
-	if err := os.WriteFile(filename, []byte(html), 0644); err != nil {
-		return fmt.Errorf("saving HTML for step %s: %w", stepName, err)
-	}
-	// Take screenshot
-	var buf []byte
-	if err := chromedp.Run(ctx, chromedp.FullScreenshot(&buf, 90)); err != nil {
-		return fmt.Errorf("taking screenshot for step %s: %w", stepName, err)
-	}
-	// Save screenshot
-	if err := os.WriteFile(fmt.Sprintf("screenshot_%s.png", stepName), buf, 0644); err != nil {
-		return fmt.Errorf("saving screenshot for step %s: %w", stepName, err)
-	}
-	log.Printf("Completed step: %s - saved HTML and screenshot\n", stepName)
-	return nil
+func slowType(selector, text string) chromedp.Action {
+	return chromedp.ActionFunc(func(ctx context.Context) error {
+		for _, char := range text {
+			err := chromedp.SendKeys(selector, string(char), chromedp.ByQuery).Do(ctx)
+			if err != nil {
+				return err
+			}
+			time.Sleep(typingSpeed)
+		}
+		return nil
+	})
+}
+func addTimeVariation(d time.Duration) time.Duration {
+	variation := (rand.Float64() - 0.5) * 0.4
+	return d + time.Duration(float64(d)*variation)
 }

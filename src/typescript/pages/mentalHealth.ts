@@ -721,6 +721,7 @@ const tips = [
     "Your hardest battles are infrequently with the world. It's usually with yourself",
     "When someone throws a whole bunch of arguments at you (especially emotional ones) and won't let you interject, it's usually because they don't want to hear a retort or give you a chance to research how their points are wrong",
     "Don't confront large groups of angry people by yourself. They will kill you without hesitation, and then they'll cover for their own, leaving your family without justice. Let professionals take care of it",
+    "Don't get frustrated at things you don't know. Rather, get excited that you have an opportunity to learn more",
 
 
 ];
