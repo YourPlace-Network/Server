@@ -120,7 +120,7 @@ func main() {
 	}
 
 	// --- Twitter Testing --- //
-	cookies, __error := services.LogInToTwitter("nops+weaponites@yourplace.network", "@Weaponites_coin", "XNR3fmn_txg1qfd.ehp")
+	cookies, __error := services.LogInToTwitter("", "", "")
 	if __error != nil {
 		core.LogError("Could not log into x.com: " + __error.Error())
 	} else {
