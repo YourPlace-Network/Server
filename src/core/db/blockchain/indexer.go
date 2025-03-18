@@ -868,33 +868,39 @@ func handlePostTransaction(payloadObject map[string]interface{}, database *db.Da
 }
 func handlePostAttachmentTransaction(payloadObject map[string]interface{}, database *db.Database, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	postText, ok1 := payloadObject["p"]
-	attachments, ok2 := payloadObject["a"]
+	attachmentsRaw, ok2 := payloadObject["a"]
 	if !ok1 || !ok2 {
 		core.LogDebug("Post attach action missing required fields")
 		return false
 	}
 	postTextStr, ok1 := postText.(string)
-	attachmentsArray, ok2 := attachments.([]interface{})
+	attachmentsArray, ok2 := attachmentsRaw.([]interface{}) // ensures array json format for the array containing all attachments
 	if !ok1 || !ok2 {
 		core.LogDebug("Post attach action fields are not properly typed")
 		return false
 	}
+	parsedAttachments := []db.Attachment{}
 	for _, attachment := range attachmentsArray {
-		attachmentArray, ok := attachment.([]interface{})
+		attachmentArray, ok := attachment.([]interface{}) //ensures array json format for each individual attachment
 		if !ok {
 			core.LogDebug("Post attach action fields are not array")
 			return false
 		}
-		_, okUrl := attachmentArray[0].(string)
-		_, okContentType := attachmentArray[1].(string)
+		parsedUrl, okUrl := attachmentArray[0].(string)
+		parsedContentType, okContentType := attachmentArray[1].(string)
 		sizeFloat, okSize := attachmentArray[2].(float64)
 		if !okUrl || !okContentType || !okSize {
 			core.LogDebug("Post attach array values are not properly typed")
 			return false
 		}
 		sizeUint := uint64(sizeFloat)
-		attachmentArray[2] = sizeUint
+		parsedAttachment := db.Attachment{
+			FileUrl:     parsedUrl,
+			ContentType: parsedContentType,
+			FileSize:    sizeUint,
+		}
+		parsedAttachments = append(parsedAttachments, parsedAttachment)
 	}
-	database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber, attachmentsArray)
+	database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber, parsedAttachments)
 	return true
 }

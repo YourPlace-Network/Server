@@ -259,12 +259,19 @@ func (db *Database) OnchainP(txHash string, blockchain string, fromAddr string, 
 		db.sqlite.OnchainP(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
 	}
 }
-func (db *Database) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64, attachments []interface{}) {
+func (db *Database) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64, attachments []Attachment) {
 	switch db.Engine {
 	case "sqlite":
 		db.sqlite.OnchainPA(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber, attachments)
 	}
 }
+
+type Attachment struct { //we can move this as long as it isn't defined in the blockchain package otherwise we will have a circular import
+	FileUrl     string
+	ContentType string
+	FileSize    uint64
+}
+
 func (db *Database) OnchainMN(blockchain string, address string, name string, timestamp uint64) {
 	switch db.Engine {
 	case "sqlite":

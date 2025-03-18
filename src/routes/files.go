@@ -29,7 +29,7 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 	router.POST("/files/upload", func(c *gin.Context) {
 		form, err := c.MultipartForm()
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "no file(s) uploaded"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "No file(s) uploaded"})
 			return
 		}
 		files := form.File["file"]
@@ -39,7 +39,7 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 			uploadDirectory = uploadDirectory + host.PathSeparator
 		}
 		if !host.DoesExist(uploadDirectory) {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "upload directory does not exist"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Upload directory does not exist"})
 			return
 		}
 		for _, file := range files {
@@ -48,17 +48,17 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 			newFileName := fileUUID + extension
 			newFilePath := uploadDirectory + newFileName
 			if !security.IsInParentDirectory(host.GetDataDir(), newFilePath) { // Limit uploads to the upload directory
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "cannot upload file to unknown directory"})
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Cannot upload file to unknown directory"})
 				return
 			}
 			err = c.SaveUploadedFile(file, newFilePath)
 			if err != nil {
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "failed to save file"})
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to save file"})
 				return
 			}
 			fileHash, err := security.HashFile(newFilePath)
 			if err != nil {
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "failed to hash file"})
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to hash file"})
 				return
 			}
 			finalFilePath := uploadDirectory + fileHash + extension
@@ -68,7 +68,7 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 			}
 			host.MoveFile(newFilePath, finalFilePath)
 			if !host.DoesExist(finalFilePath) {
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "failed to move file"})
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to move file"})
 				return
 			}
 			encodedUnsafeName := security.Base64Encode(file.Filename)

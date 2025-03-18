@@ -1,5 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
+import {IsValidIpfsCid} from "../util/security";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
 import {UploadFile} from "../util/files";
@@ -34,7 +35,7 @@ import {lookup as lookupMimeType} from "mime-types";
             extension: string;
             encodedUnsafeName: string;
             size: string;
-            url?: string;
+            fileUrl?: string;
         }
 
         tinymce.init({
@@ -96,15 +97,19 @@ import {lookup as lookupMimeType} from "mime-types";
             let csrfToken = DOM.csrfToken.value;
             for (let i = 0; i < uploadedFiles.length; i++){
                 let cid = await AddFileToIPFS(uploadedFiles[i].pathOnDisk, csrfToken);
-                uploadedFiles[i].url = "ipfs://" + cid?.toString();
+                let cidString = cid?.toString()
+                if (cidString === undefined || !IsValidIpfsCid(cidString)) {
+                    return
+                }
+                uploadedFiles[i].fileUrl = "ipfs://" + cidString;
             }
             let attachments: string[][] = [];
             for (let i = 0; i < uploadedFiles.length; i++){
                 let file = uploadedFiles[i];
-                let url = file.url;
+                let url = file.fileUrl;
                 let mimeType = lookupMimeType(file.extension);
-                let size = file.size
-                if (typeof url ==="string" && typeof mimeType === "string" && size != ""){
+                let size = file.size;
+                if (typeof url === "string" && mimeType !== false && size !== ""){
                     let attachment = [url, mimeType, size];
                     attachments.push(attachment);
                 } else return
@@ -187,7 +192,7 @@ import {lookup as lookupMimeType} from "mime-types";
         };
         const debounceHandler = debounce(handleInput, 2000);
         function clickFileInput() {
-            DOM.fileInput.click()
+            DOM.fileInput.click();
         }
 
         DOM.addPostButton.addEventListener("click", showModal);

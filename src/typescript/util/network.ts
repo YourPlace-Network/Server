@@ -50,7 +50,7 @@ export async function HttpPostFile(url: string, file: File | FileList, csrfToken
     let formData = new FormData();
     if (file instanceof FileList) {
         for (let i = 0; i < file.length; i++) {
-            formData.append("file", file[i])
+            formData.append("file", file[i]);
         }
     } else {
         formData.append("file", file);
