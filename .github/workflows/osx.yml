@@ -50,6 +50,8 @@ jobs:
         security import /tmp/certs/developerID_application.cer -k build.keychain -T /usr/bin/codesign -T /usr/bin/productsign
         security import /tmp/certs/developerID_installer.cer -k build.keychain -T /usr/bin/codesign -T /usr/bin/productsign
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.TEMP_KEYCHAIN_PASSWORD }}" build.keychain
+        security find-certificate -c "Developer ID Application: Austin Lawrence (2NNLSL5QT4)" -p > /tmp/cert.pem
+        security add-trust -d -k ~/Library/Keychains/login.keychain-db -p basic -p codesigning -p productsign /tmp/cert.pem
 
     - name: Build
       run: |
@@ -66,3 +68,10 @@ jobs:
     - name: Upload to DigitalOcean
       run: |
         aws s3 cp ./target/YourPlace*.pkg s3://yourplace-downloads/osx/ --acl public-read --endpoint=https://nyc3.digitaloceanspaces.com
+
+    - name: Cleanup
+      run: |
+        security delete-keychain build.keychain
+        rm -rf /tmp/certs
+        rm -rf /tmp/cert.pem
+        make clean

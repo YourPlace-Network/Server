@@ -115,8 +115,10 @@ else ifeq ($(DETECTED_OS),Darwin)
 	VERSION=$(shell grep 'version.*=.*"' helper/helper_osx.go | cut -d'"' -f2)
 	@echo $(VERSION) > src/core/host/bin/helper/osx/helper.version
 	go build -o target/YourPlaceHelper helper/helper_osx.go
+	codesign --force --sign "Developer ID Application: Austin Lawrence (2NNLSL5QT4)" --options runtime --verbose target/YourPlaceHelper
 	cp -rf target/YourPlaceHelper src/core/host/bin/helper/osx/YourPlaceHelper
 	go build -o target/YourPlace main.go
+	codesign --force --sign "Developer ID Application: Austin Lawrence (2NNLSL5QT4)" --options runtime --verbose target/YourPlace
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh dev
 endif

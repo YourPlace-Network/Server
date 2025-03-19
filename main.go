@@ -190,8 +190,13 @@ func main() {
 	if !ipfs.IPFSNodeAlive() {
 		core.LogFatal("IPFS node is not alive")
 	}
-	if !network.IsTCPPortOpen(publicIP.String(), port+1) {
-		core.LogWarn("IPFS port is not open to the internet")
+	publicIP, err = network.GetPublicIP()
+	if err != nil {
+		core.LogError("Could not get public IP: " + err.Error())
+	} else if publicIP != nil {
+		if !network.IsTCPPortOpen(publicIP.String(), port+1) {
+			core.LogWarn("IPFS port is not open to the internet")
+		}
 	}
 
 	// --- Start Cron Jobs --- //
@@ -262,20 +267,6 @@ func PostServerRun(database *db.Database) {
 	} else {
 		database.MetaUpdateValue("ypPortOpen", "true")
 	}
-}
-func GetTLSCertificate(path string) (string, string, error) {
-	_, err := os.ReadFile(tlsCert)
-	if err == nil {
-		_, err = os.ReadFile(tlsKey)
-		if err == nil {
-			return tlsCert, tlsKey, nil
-		}
-	}
-	certPath, keyPath, err := security.GenerateCACert(path)
-	if err != nil {
-		return "", "", err
-	}
-	return certPath, keyPath, nil
 }
 func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, logFile *os.File) {
 	//if debug {

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+APP_CERTIFICATE="Developer ID Application: Austin Lawrence (2NNLSL5QT4)"
+INSTALLER_CERTIFICATE="Developer ID Installer: Austin Lawrence (2NNLSL5QT4)"
+
 # Development Mode
 DEV_MODE=0
 DEV_ARG=""
@@ -38,6 +41,7 @@ chmod 0755 ./target/scripts/postinstall
 
 # -------- Uninstaller -------- #
 cp ./resources/osx/uninstall.sh ./target/YourPlace.app/Contents/Resources/scripts/
+codesign --force --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/Resources/scripts/uninstall.sh
 chmod 0755 ./target/YourPlace.app/Contents/Resources/scripts/uninstall.sh
 
 # --------- Installer --------- #
@@ -67,16 +71,36 @@ productbuild --distribution "./target/distribution.xml" \
              "./target/YourPlace-${VERSION}.pkg"
 
 # --------- Signing & Notarization --------- #
-if [ $DEV_MODE -eq 0 ]; then
-  # Sign the pkg installer - (The binaries are signed in the Makefile)
-  productsign --sign "Developer ID Installer: Austin Lawrence (2NNLSL5QT4)" ./target/YourPlace-${VERSION}.pkg ./target/YourPlace-${VERSION}-signed.pkg
-
+if [ $DEV_MODE -eq 1 ]; then
+  # Cleaning app bundle of resource forks and metadata
+  xattr -cr ./target/YourPlace.app
+  # Sign the app package
+  codesign --deep --force --sign "${APP_CERTIFICATE}" --options runtime ./target/YourPlace.app
+  # Check for installer certificate
+  if ! security find-identity -p codesigning | grep -q "${INSTALLER_CERTIFICATE}"; then
+    echo "ERROR: Developer ID Installer certificate not found"
+    echo "Please ensure your Developer ID Installer certificate is properly installed"
+    exit 1
+  fi
+  echo "Signing and notarizing package..."
+  # Sign the pkg installer
+  productsign --sign "${INSTALLER_CERTIFICATE}" ./target/YourPlace-${VERSION}.pkg ./target/YourPlace-${VERSION}-signed.pkg
+  if [ $? -ne 0 ]; then
+    echo "ERROR: Package signing failed"
+    exit 1
+  fi
   # Notarize the signed package
   xcrun notarytool submit ./target/YourPlace-${VERSION}-signed.pkg --wait --keychain-profile "${NOTARYPASS}"
-
-  # Wait for notarization to complete, then staple the notarization ticket
+  if [ $? -ne 0 ]; then
+    echo "ERROR: Package notarization failed"
+    exit 1
+  fi
+  # Staple the notarization ticket
   xcrun stapler staple ./target/YourPlace-${VERSION}-signed.pkg
-
+  if [ $? -ne 0 ]; then
+    echo "ERROR: Notarization ticket stapling failed"
+    exit 1
+  fi
   # Clean up
   rm -f ./target/YourPlace-${VERSION}.pkg # Remove the unsigned package
   mv ./target/YourPlace-${VERSION}-signed.pkg ./target/YourPlace-${VERSION}.pkg # Rename the signed package
