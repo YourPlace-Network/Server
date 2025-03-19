@@ -22,13 +22,29 @@ type Post struct {
 
 const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.3"
 
-var typingSpeed = addTimeVariation(200 * time.Millisecond)
+var typingSpeed = 150 * time.Millisecond // How much delay between each keystroke to simulate human input (slow typing adds a random +-20% variation to this)
 var chromeOptions = append(chromedp.DefaultExecAllocatorOptions[:],
 	chromedp.Flag("headless", false), // todo debug
 	chromedp.UserAgent(userAgent),
 	chromedp.Flag("disable-popup-blocking", true),
 )
 
+func TwitterTest() {
+	email := host.GetEnvVar("X_EMAIL")
+	username := host.GetEnvVar("X_USERNAME")
+	password := host.GetEnvVar("X_PASSWORD")
+	cookies, __error := LogInToTwitter(email, username, password)
+	if __error != nil {
+		core.LogError("Could not log into x.com: " + __error.Error())
+	} else {
+		core.LogInfo("Logged into x.com")
+		for cookie := range cookies {
+			core.LogInfo("\tCookie: " + cookies[cookie].Name)
+			core.LogInfo("\tValue: " + cookies[cookie].Value)
+		}
+	}
+	host.Shutdown(0)
+}
 func LogInToTwitter(email, username, password string) ([]*network.Cookie, error) {
 	core.LogDebug("Logging into x.com")
 
@@ -146,6 +162,23 @@ func LogInToTwitter(email, username, password string) ([]*network.Cookie, error)
 	}
 	return cookies, nil
 }
+func SaveCookies(cookies []*network.Cookie) {
+	// todo
+	// auth_token = primary authentication cookie for x.com
+	// ct0 = CSRF token for authenticated requests
+	// guest_id = guest token for unauthenticated requests
+	//security.AddSecret("x.com", "cookies")
+}
+func GetCookies() []*network.Cookie {
+	//security.GetSecret("x.com")
+	return nil
+}
+func CheckTwitterCookiesAlive() {
+	// todo check if the auth cookies are still alive
+}
+func RefreshTwitterCookies() {
+	// perform a request to /home to refresh the cookie expiration
+}
 
 func slowType(selector, text string) chromedp.Action {
 	return chromedp.ActionFunc(func(ctx context.Context) error {
@@ -154,7 +187,8 @@ func slowType(selector, text string) chromedp.Action {
 			if err != nil {
 				return err
 			}
-			time.Sleep(typingSpeed)
+			typingSpeedVariable := addTimeVariation(typingSpeed)
+			time.Sleep(typingSpeedVariable)
 		}
 		return nil
 	})

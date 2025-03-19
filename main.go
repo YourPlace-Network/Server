@@ -119,20 +119,6 @@ func main() {
 		core.LogFatal("YourPlace must not be run as an administrator")
 	}
 
-	// --- Twitter Testing --- //
-	/*cookies, __error := services.LogInToTwitter("", "", "")
-	if __error != nil {
-		core.LogError("Could not log into x.com: " + __error.Error())
-	} else {
-		core.LogInfo("Logged into x.com")
-		for cookie := range cookies {
-			core.LogInfo("\tCookie: " + cookies[cookie].Name)
-			core.LogInfo("\tValue: " + cookies[cookie].Value)
-		}
-	}
-	host.Shutdown(0)*/
-	// --- End Twitter Testing --- //
-
 	host.DeleteAll(host.GetInstallDir() + "yourplace.version")
 	_ = os.WriteFile(host.GetInstallDir()+"yourplace.version", []byte(version), 0644) // write the version string to file
 
