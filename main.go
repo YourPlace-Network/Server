@@ -120,7 +120,7 @@ func main() {
 	}
 
 	// --- Twitter Testing --- //
-	cookies, __error := services.LogInToTwitter("", "", "")
+	/*cookies, __error := services.LogInToTwitter("", "", "")
 	if __error != nil {
 		core.LogError("Could not log into x.com: " + __error.Error())
 	} else {
@@ -130,7 +130,7 @@ func main() {
 			core.LogInfo("\tValue: " + cookies[cookie].Value)
 		}
 	}
-	host.Shutdown(0)
+	host.Shutdown(0)*/
 	// --- End Twitter Testing --- //
 
 	host.DeleteAll(host.GetInstallDir() + "yourplace.version")
