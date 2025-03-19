@@ -722,6 +722,12 @@ const tips = [
     "When someone throws a whole bunch of arguments at you (especially emotional ones) and won't let you interject, it's usually because they don't want to hear a retort or give you a chance to research how their points are wrong",
     "Don't confront large groups of angry people by yourself. They will kill you without hesitation, and then they'll cover for their own, leaving your family without justice. Let professionals take care of it",
     "Don't get frustrated at things you don't know. Rather, get excited that you have an opportunity to learn more",
+    "Just because you had a sexual experience that you regret later on, doesn't necessarily make you a victim of anything",
+    "Remember that doctors inherently have a financial motive to give you bad news. If they say you have 6 months to live, but you actually live 5 years - who looks like the genius at the end of it? This is why it's important to get second and third opinions when given bad health news",
+    "On an individual level, don't worry too much about the end of the world, the apocalypse, or some other mass extinction event. If it happens, it happens, so just enjoy your life. Some natural world ending events can be prevented, and we should encourage our leaders and society as a whole to mitigate those where we can",
+    "If a religion focuses *too* much on the end of the world, then it's very likely being used to create fear to manipulate and control you",
+    "Very few people can actually predict a major civil or world war. It's only in hindsight that there are clear start and end points to the conflict. In fact, when the American Civil War started, there were civilians who so underestimated the conflict that they went out to picnic and watch the Battle of Manassas, only to find themselves in the middle of a chaotic and bloody fight, and retreating along with the Union soldiers",
+
 
 
 ];
