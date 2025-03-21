@@ -1,7 +1,7 @@
 import {isValidAddress} from "algosdk";
 import {CID} from "multiformats/cid";
 import {isAddress} from "web3-validator";
-import * as DOMPurify from "dompurify";
+import DOMPurify from "dompurify";
 
 export function IsValidBlockchain(chain: string): boolean {
     const validChains = ["algo", "base", "eth", "sol"];
@@ -60,7 +60,7 @@ export function XSSSanitizeUrl(href: string): string {
     return "#";
 }
 export function XSSSanitizeTextUrl(payload: string): string {
-    const config: DOMPurify.Config = {
+    const config = {
         ALLOWED_TAGS: ["a"],
         ALLOWED_ATTR: ["href", "target"],
         ADD_ATTR: ["target"],
@@ -91,7 +91,7 @@ export function XSSSanitizeValue(value: string): string {
     }) as string;
 }
 export function XSSSanitizeTinyMCEHtml(html: string): string {
-    const config: DOMPurify.Config = {
+    const config = {
         ALLOWED_TAGS: [
             "p","div","h1","h2","h3","h4","h5","h6","ul","ol","li",
             "blockquote","pre","code","em","i","strong","b","s",
@@ -114,7 +114,7 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
         ALLOW_ARIA_ATTR: false,
         ALLOW_DATA_ATTR: false,
     };
-    DOMPurify.addHook("uponSanitizeElement", sanitizeIframe);
+    DOMPurify.addHook("uponSanitizeElement", node => sanitizeIframe);
     DOMPurify.addHook("uponSanitizeAttribute", function(node: Element, data: any) {
         const attributes = node.attributes;
         let styleValue: string | null = null;
