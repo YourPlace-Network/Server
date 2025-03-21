@@ -37,7 +37,7 @@
     "css-loader": "6.8.1",
     "datastore-core": "9.2.3",
     "datastore-idb": "2.1.4",
-    "dompurify": "3.1.4",
+    "dompurify": "3.2.4",
     "ethers": "6.13.3",
     "flatpickr": "4.6.13",
     "giphy-js-sdk-core": "1.0.6",
@@ -65,7 +65,8 @@
     "util": "0.12.5",
     "viem": "2.23.4",
     "viem-chains": "1.0.2",
-    "web3": "4.12.1"
+    "web3": "4.12.1",
+    "webpack": "5.98.0"
   },
   "devDependencies": {
     "@types/node": "20.2.3",
@@ -74,7 +75,7 @@
     "async": "3.2.4",
     "decode-uri-component": "0.4.1",
     "copy-webpack-plugin": "12.0.2",
-    "ejs": "3.1.9",
+    "ejs": "3.1.10",
     "electron": "31.3.1",
     "file-loader": "6.2.0",
     "file-type": "18.4.0",
@@ -93,7 +94,6 @@
     "typescript": "5.0.4",
     "undici": "6.19.5",
     "url-parse": "1.5.10",
-    "webpack": "5.84.1",
     "webpack-cli": "5.1.1",
     "webpack-merge": "6.0.1"
   }
