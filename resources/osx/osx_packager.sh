@@ -94,7 +94,9 @@ if [ $DEV_MODE -eq 0 ]; then
     exit 1
   fi
   # Store notary credentials in the keychain
-  xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "${NOTARYPASS}" AustinLawrence
+  if ! xcrun notarytool info --keychain-Profile "AustinLawrence" 2>/dev/null; then
+    xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "${NOTARYPASS}" AustinLawrence
+  fi
   # Notarize the signed package
   xcrun notarytool submit --wait ./target/YourPlace-${VERSION}-signed.pkg --keychain-profile "AustinLawrence"
   # Verify: xcrun notarytool info -p "AustinLawrence" <UUID>

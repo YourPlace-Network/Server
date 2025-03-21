@@ -21,13 +21,13 @@ encode_file() {
 
 echo "This script will help you prepare certificate files for GitHub Actions secrets."
 echo "You need the following files:"
-echo "1. Developer ID Application certificate (.p12)"
-echo "2. Developer ID Installer certificate (.p12)"
+echo "1. Developer ID Application certificate (.cer)"
+echo "2. Developer ID Installer certificate (.cer)"
 echo ""
 
 # Get paths to certificate files
-read -p "Path to Developer ID Application certificate (.p12): " APP_CERT_PATH
-read -p "Path to Developer ID Installer certificate (.p12): " INSTALLER_CERT_PATH
+read -p "Path to Developer ID Application certificate (.cer): " APP_CERT_PATH
+read -p "Path to Developer ID Installer certificate (.cer): " INSTALLER_CERT_PATH
 
 # Encode certificate files
 encode_file "$APP_CERT_PATH" "$OUTPUT_DIR/application_cert.txt"
