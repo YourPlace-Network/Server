@@ -64,7 +64,7 @@ jobs:
 
     - name: Configure Notarization Tool
       run: |
-        xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-ID "2NNLSL5QT4" --password "${{ secrets.OSX_NOTARY_PASSWORD }}" AustinLawrence
+        xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "${{ secrets.OSX_NOTARY_PASSWORD }}" AustinLawrence
 
     - name: Build
       run: |
