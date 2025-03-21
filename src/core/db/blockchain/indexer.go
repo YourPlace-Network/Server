@@ -680,7 +680,7 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 					break
 				}
 			case "a":
-				if !handlePostAttachmentTransaction(payloadObject, database, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
+				if !handlePostTransactionAttachment(payloadObject, database, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
 					break
 				}
 			}
@@ -860,13 +860,13 @@ func handlePostTransaction(payloadObject map[string]interface{}, database *db.Da
 	}
 	postTextStr, ok := postText.(string)
 	if !ok {
-		core.LogDebug("failed to convert post text to string")
+		core.LogDebug("Failed to convert post text to string")
 		return false
 	}
 	database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
 	return true
 }
-func handlePostAttachmentTransaction(payloadObject map[string]interface{}, database *db.Database, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+func handlePostTransactionAttachment(payloadObject map[string]interface{}, database *db.Database, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	postText, ok1 := payloadObject["p"]
 	attachmentsRaw, ok2 := payloadObject["a"]
 	if !ok1 || !ok2 {
