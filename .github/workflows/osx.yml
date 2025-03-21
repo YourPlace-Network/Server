@@ -31,7 +31,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.23.6'
+        go-version: '1.24.1'
 
     - name: Setup Keychain and Certs
       run: |
@@ -39,23 +39,27 @@ jobs:
         security create-keychain -p "${{ secrets.TEMP_KEYCHAIN_PASSWORD }}" build.keychain
         security default-keychain -s build.keychain
         security unlock-keychain -p "${{ secrets.TEMP_KEYCHAIN_PASSWORD }}" build.keychain
-        security set-keychain-settings -t 3600 -l build.keychain
+        security set-keychain-settings -t 36000 -l build.keychain
 
     - name: Deploy Dev Signing Certs
       shell: bash
       run: |
         mkdir -p /tmp/certs
-        echo "${{ secrets.OSX_SIGNING_CERT_APPLICATION_DEV }}" | base64 -d > /tmp/certs/developerID_application.cer
-        echo "${{ secrets.OSX_SIGNING_CERT_INSTALLER_DEV }}" | base64 -d > /tmp/certs/developerID_installer.cer
+        echo "${{ secrets.OSX_SIGNING_CERT_APPLICATION }}" | base64 -d > /tmp/certs/developerID_application.cer
+        echo "${{ secrets.OSX_SIGNING_CERT_INSTALLER }}" | base64 -d > /tmp/certs/developerID_installer.cer
         security import /tmp/certs/developerID_application.cer -k build.keychain -T /usr/bin/codesign -T /usr/bin/productsign
         security import /tmp/certs/developerID_installer.cer -k build.keychain -T /usr/bin/codesign -T /usr/bin/productsign
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.TEMP_KEYCHAIN_PASSWORD }}" build.keychain
         security find-certificate -c "Developer ID Application: Austin Lawrence (2NNLSL5QT4)" -p > /tmp/cert.pem
         security add-trust -d -k ~/Library/Keychains/login.keychain-db -p basic -p codesigning -p productsign /tmp/cert.pem
 
+    - name: Configure Notarization Tool
+      run: |
+        xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-ID "2NNLSL5QT4" --password "${{ secrets.APPLE_NOTARY_PASSWORD }}" AustinLawrence
+
     - name: Build
       run: |
-        make clean install build
+        make build
 
     - name: Configure AWS Credentials
       run: |
