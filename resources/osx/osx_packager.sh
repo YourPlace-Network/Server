@@ -100,14 +100,15 @@ if [ $DEV_MODE -eq 0 ]; then
   xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "${NOTARYPASS}" AustinLawrence
   # Notarize the signed package
   xcrun notarytool submit --wait ./target/YourPlace-${VERSION}-signed.pkg --keychain-profile "AustinLawrence"
-  # xcrun notarytool info -p "AustinLawrence" <UUID>
+  # Verify: xcrun notarytool info -p "AustinLawrence" <UUID>
   # Staple the notarization ticket
   xcrun stapler staple ./target/YourPlace-${VERSION}-signed.pkg
   if [ $? -ne 0 ]; then
     echo "ERROR: Notarization ticket stapling failed"
     exit 1
   fi
+  # Verify: spctl -a -vvv -t install YourPlace-0.1.0-signed.pkg
   # Clean up
-  rm -f ./target/YourPlace-${VERSION}.pkg # Remove the unsigned package
+  mv ./target/YourPlace-${VERSION}.pkg ./target/YourPlace-${VERSION}-unsigned.pkg # Rename the unsigned package
   mv ./target/YourPlace-${VERSION}-signed.pkg ./target/YourPlace-${VERSION}.pkg # Rename the signed package
 fi
