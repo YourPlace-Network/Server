@@ -59,14 +59,11 @@ if [ $DEV_MODE -eq 0 ]; then
   # Cleaning app bundle of resource forks and metadata
   xattr -cr ./target/YourPlace.app
   # Sign the app bundle and binaries
-  echo "Signing binaries"
   codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/Resources/scripts/uninstall.sh
   codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/MacOS/YourPlaceHelper
   codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/MacOS/YourPlace
-  echo "Signing YourPlace.app"
-  codesign --timestamp --options runtime --force --deep --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app
+  codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app
   # Verify the signatures to ensure it's valid
-  echo "Verifying the app"
   codesign -vvv --deep --strict ./target/YourPlace.app
   if [ $? -ne 0 ]; then
     echo "ERROR: Code signing failed verification"
