@@ -21,6 +21,7 @@ jobs:
         brew update
         brew upgrade
         brew install make
+        brew install awscli
     
     - name: Setup Node.js
       uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
@@ -72,12 +73,6 @@ jobs:
       run: |
         make build
 
-    - name: List
-      run: |
-        pwd
-        ls -alh
-        ls -alh target/
-
     - name: DigitalOcean S3 Upload
       uses: BetaHuhn/do-spaces-action@47f34d70b97cced8e8dbb50e2ecfaaf4381593a7 # v2.0.146
       with:
@@ -88,6 +83,22 @@ jobs:
         source: target/YourPlace-*.pkg
         out_dir: /osx/
         permission: public-read
+
+    - name: Configure AWS CLI for DigitalOcean Spaces
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.S3_UPLOAD_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.S3_UPLOAD_SECRET }}
+        aws configure set default.region nyc3
+        aws configure set default.s3.endpoint https://nyc3.digitaloceanspaces.com
+
+    - name: Upload files to DigitalOcean Spaces
+      run: |
+        for file in ./target/YourPlace-*.pkg; do
+          if [ -f "$file" ]; then
+            echo "Uploading $file to DO Spaces..."
+            aws s3 cp "$file" s3://yourplace-downloads/osx/$(basename "$file") --acl public-read
+          fi
+        done
 
     - name: Cleanup
       run: |
