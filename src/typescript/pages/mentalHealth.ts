@@ -728,6 +728,8 @@ const tips = [
     "If a religion focuses *too* much on the end of the world, then it's very likely being used to create fear to manipulate and control you",
     "Very few people can actually predict a major civil or world war. It's only in hindsight that there are clear start and end points to the conflict. In fact, when the American Civil War started, there were civilians who so underestimated the conflict that they went out to picnic and watch the Battle of Manassas, only to find themselves in the middle of a chaotic and bloody fight, and retreating along with the Union soldiers",
     "Only take advice on relationships and love from couples who've been together for a long time. The internet is one of the last places you want to look for that information",
+    "Sometimes the best thing to do is just laugh at the haters",
+
 
 
 ];
