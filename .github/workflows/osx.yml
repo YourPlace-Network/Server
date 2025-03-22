@@ -83,7 +83,7 @@ jobs:
     - name: Upload to DigitalOcean
       run: |
         ls -l ./target
-        aws s3 cp ./target/YourPlace-*.pkg s3://yourplace-downloads/osx/ --acl=public-read --endpoint=https://nyc3.digitaloceanspaces.com
+        aws s3 cp ./target/YourPlace-*.pkg s3://yourplace-downloads/osx/ --acl public-read --endpoint https://nyc3.digitaloceanspaces.com
 
     - name: Cleanup
       run: |
