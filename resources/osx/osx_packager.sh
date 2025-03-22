@@ -97,7 +97,7 @@ if [ $DEV_MODE -eq 0 ]; then
   if [ -n "${NOTARYPASS}" ]; then # Using -n to check if the variable is not empty
     xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "${NOTARYPASS}" AustinLawrence
   else
-    echo "Notary password not set in the environment, skipping as we assume it's set in the Github action"
+    echo "Notary password not set in the environment, skipping as we assume that it's been set in the Github action"
   fi
   # Notarize the signed package
   xcrun notarytool submit --wait ./target/YourPlace-${VERSION}-signed.pkg --keychain-profile "AustinLawrence"
