@@ -729,6 +729,7 @@ const tips = [
     "Very few people can actually predict a major civil or world war. It's only in hindsight that there are clear start and end points to the conflict. In fact, when the American Civil War started, there were civilians who so underestimated the conflict that they went out to picnic and watch the Battle of Manassas, only to find themselves in the middle of a chaotic and bloody fight, and retreating along with the Union soldiers",
     "Only take advice on relationships and love from couples who've been together for a long time. The internet is one of the last places you want to look for that information",
     "Sometimes the best thing to do is just laugh at the haters. It's possible that it will drive them so crazy, that they will make a mistake that you can use against them. As long as you're prepared to deal with the lash out, then let them make that mistake",
+    "Read \"The Art of War\" by Sun Tzu. If you can apply those principals, then you will win every battle",
 
 
 
