@@ -74,7 +74,9 @@ jobs:
 
     - name: List
       run: |
+        pwd
         ls -alh
+        ls -alh target/
 
     - name: DigitalOcean S3 Upload
       uses: BetaHuhn/do-spaces-action@47f34d70b97cced8e8dbb50e2ecfaaf4381593a7 # v2.0.146
@@ -83,7 +85,7 @@ jobs:
         secret_key: ${{ secrets.S3_UPLOAD_SECRET }}
         space_name: yourplace-downloads
         space_region: nyc3
-        source: ./target/YourPlace-*.pkg
+        source: target/YourPlace-*.pkg
         out_dir: /osx/
         permission: public-read
 
