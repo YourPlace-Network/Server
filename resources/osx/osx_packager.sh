@@ -110,6 +110,6 @@ if [ $DEV_MODE -eq 0 ]; then
   fi
   # Verify: spctl -a -vvv -t install YourPlace-0.1.0-signed.pkg
   # Clean up
-  mv ./target/YourPlace-${VERSION}.pkg ./target/YourPlace-${VERSION}-unsigned.pkg # Rename the unsigned package
+  rm ./target/YourPlace-${VERSION}.pkg # Delete the unsigned package
   mv ./target/YourPlace-${VERSION}-signed.pkg ./target/YourPlace-${VERSION}.pkg # Rename the signed package
 fi
