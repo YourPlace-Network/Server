@@ -72,6 +72,10 @@ jobs:
       run: |
         make build
 
+    - name: List
+      run: |
+        ls -alh
+
     - name: DigitalOcean S3 Upload
       uses: BetaHuhn/do-spaces-action@47f34d70b97cced8e8dbb50e2ecfaaf4381593a7 # v2.0.146
       with:
