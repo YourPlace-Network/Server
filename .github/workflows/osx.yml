@@ -73,17 +73,6 @@ jobs:
       run: |
         make build
 
-    - name: DigitalOcean S3 Upload
-      uses: BetaHuhn/do-spaces-action@47f34d70b97cced8e8dbb50e2ecfaaf4381593a7 # v2.0.146
-      with:
-        access_key: ${{ secrets.S3_UPLOAD_ID }}
-        secret_key: ${{ secrets.S3_UPLOAD_SECRET }}
-        space_name: yourplace-downloads
-        space_region: nyc3
-        source: target/YourPlace-*.pkg
-        out_dir: /osx/
-        permission: public-read
-
     - name: Configure AWS CLI for DigitalOcean Spaces
       run: |
         aws configure set aws_access_key_id ${{ secrets.S3_UPLOAD_ID }}
