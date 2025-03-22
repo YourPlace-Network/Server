@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
     - name: Check out repository code
@@ -42,7 +45,6 @@ jobs:
         security set-keychain-settings -t 36000 -l build.keychain
 
     - name: Deploy Dev Signing Certs
-      shell: bash
       run: |
         mkdir -p /tmp/certs
         echo "${{ secrets.OSX_SIGNING_CERT_APPLICATION }}" | base64 -d > /tmp/certs/developerID_application.cer
