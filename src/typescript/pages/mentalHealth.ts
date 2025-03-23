@@ -730,7 +730,7 @@ const tips = [
     "Only take advice on relationships and love from couples who've been together for a long time. The internet is one of the last places you want to look for that information",
     "Sometimes the best thing to do is just laugh at the haters. It's possible that it will drive them so crazy, that they will make a mistake that you can use against them. As long as you're prepared to deal with the lash out, then let them make that mistake",
     "Read \"The Art of War\" by Sun Tzu. If you can apply those principals, then you will win every battle",
-
+    "There are *a lot* of stupid people on the internet. They will believe anything, including stuff they just made up. Don't be one of them",
 
 
 ];
