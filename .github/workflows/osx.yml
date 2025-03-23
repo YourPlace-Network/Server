@@ -77,7 +77,7 @@ jobs:
       run: |
         aws configure set aws_access_key_id ${{ secrets.S3_UPLOAD_ID }}
         aws configure set aws_secret_access_key ${{ secrets.S3_UPLOAD_SECRET }}
-        aws configure set default.region nyc3
+        aws configure set default.region us-east-1
         aws configure set default.s3.endpoint https://nyc3.digitaloceanspaces.com
 
     - name: Upload files to DigitalOcean Spaces
@@ -85,7 +85,7 @@ jobs:
         for file in ./target/YourPlace-*.pkg; do
           if [ -f "$file" ]; then
             echo "Uploading $file to DO Spaces..."
-            aws s3 cp "$file" s3://yourplace-downloads/osx/$(basename "$file") --acl public-read
+            aws s3 cp "$file" s3://yourplace-downloads/osx/ --acl public-read --endpoint-url https://nyc3.digitaloceanspaces.com
           fi
         done
 
