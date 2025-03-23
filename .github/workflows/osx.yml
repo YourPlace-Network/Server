@@ -85,7 +85,7 @@ jobs:
         for file in ./target/YourPlace-*.pkg; do
           if [ -f "$file" ]; then
             echo "Uploading $file to DO Spaces..."
-            aws s3 cp "$file" s3://yourplace-downloads/osx/ --debug --acl public-read --endpoint-url https://nyc3.digitaloceanspaces.com
+            aws s3 cp "$file" s3://yourplace-downloads/osx/ --debug --acl public-read --endpoint=https://nyc3.digitaloceanspaces.com
           fi
         done
 
