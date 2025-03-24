@@ -72,7 +72,7 @@ jobs:
     - name: List
       run: |
         ls -lah
-        ls -lah /src/core/host/bin/ipfs/osx/
+        ls -lah src/core/host/bin/ipfs/osx/
 
     - name: Build
       run: |

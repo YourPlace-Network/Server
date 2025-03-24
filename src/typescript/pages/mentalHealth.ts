@@ -731,7 +731,9 @@ const tips = [
     "Sometimes the best thing to do is just laugh at the haters. It's possible that it will drive them so crazy, that they will make a mistake that you can use against them. As long as you're prepared to deal with the lash out, then let them make that mistake",
     "Read \"The Art of War\" by Sun Tzu. If you can apply those principals, then you will win every battle",
     "There are *a lot* of stupid people on the internet. They will believe anything, including stuff they just made up. Don't be one of them",
-
+    "Don't let people bait you into not blocking them, just so they can antagonize you later on. Just block and move on",
+    "Low IQ people will accuse you of being a hypocrite without even knowing what you stand for. Block them and don't engage further. They have a sad life and you don't need to be pulled into it",
+    "You are your own being, with your own agency, and your own ability to craft your life however you want. Blaming current failures on events that didn't even happen to you, or didn't happen in your lifetime, is just a cope",
 
 ];
 
