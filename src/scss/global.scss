@@ -20,10 +20,13 @@ $body-bg: map.get($colors, "tertiary");
 $body-color: map.get($colors, "text");
 $primary: map.get($colors, "primary");
 $secondary: map.get($colors, "secondary");
+$tertiary: map.get($colors, "tertiary");
+$quaternary: map.get($colors, "quaternary");
 $light: map.get($colors, "light");
 $dark: map.get($colors, "dark");
 $success: map.get($colors, "success");
-$link-color: map.get($colors, "link");
+$link: map.get($colors, "link");
+$text: map.get($colors, "text");
 
 /* Boostrap Component Colors */
 $modal-content-bg: map.get($colors, "tertiary");
@@ -93,25 +96,17 @@ textarea {
   top: 0;
 }
 a {
-  color: map.get($colors, "link");
-  text-decoration: none;
-}
-a:hover,
-a:visited,
-a:active {
-  color: map.get($colors, "text");
-  text-decoration: none;
+  color: $link;
+  text-decoration: underline;
+  &:hover,
+  &:visited,
+  &:active {
+    color: $link;
+    text-decoration: underline;
+  }
 }
 .rotate-img {
   animation: rotate 2s linear infinite;
-}
-#tooltip {
-  /* Float on top of the UI */
-  position: absolute;
-  /* Avoid layout interference */
-  width: max-content;
-  top: 0;
-  left: 0;
 }
 .clickable {
   display: inline-block;

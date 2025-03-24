@@ -734,6 +734,11 @@ const tips = [
     "Don't let people bait you into not blocking them, just so they can antagonize you later on. Just block and move on",
     "Low IQ people will accuse you of being a hypocrite without even knowing what you stand for. Block them and don't engage further. They have a sad life and you don't need to be pulled into it",
     "You are your own being, with your own agency, and your own ability to craft your life however you want. Blaming current failures on events that didn't even happen to you, or didn't happen in your lifetime, is just a cope",
+    "When you have liberty, sometimes you might have undesirable outcomes. However, the liberty in of itself, is more important for the advancement of humanity",
+    "Values are transcendent to the technology of the day",
+
+
+
 
 ];
 

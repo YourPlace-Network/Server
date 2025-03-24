@@ -77,7 +77,6 @@
 }
 #saveUploadDirectoryBtn {
   position: relative;
-  float: left;
   margin: 0 0 10px 10px;
   width: 100px;
 }
@@ -88,18 +87,37 @@
   margin: 6px 0 10px 10px;
   font-weight: bold;
 }
-#savedBaseURLSuccess {
-  display: none;
+#ipfsHelp {
   position: relative;
-  float: left;
-  margin: 6px 0 10px 10px;
-  font-weight: bold;
+  top: 0.1em;
+  padding-left: 0.3em;
 }
-#baseThrottleNumber {
-  display: inline;
+#ipfsPinningUrlBtn {
+  border-top-right-radius: 0.5em;
+  border-bottom-right-radius: 0.5em;
+}
+#ipfsPinningKey {
+  margin-left: 1em;
+  border-bottom-left-radius: 0.5em;
+  border-top-left-radius: 0.5em;
+}
+#saveIpfsPinningBtn {
+  width: 100px;
+}
+#ipfsNodeLinkDiv {
+  margin-top: 1em;
+}
+#ipfsNodeLink > span {
+  margin-left: 0.4em;
+}
+#ipfsSvg {
+  width: 1.5em;
+  height: 1.5em;
+  position: relative;
+  top: -0.05em;
 }
 #aiRow {
-  margin-top: 75px;
+  margin-top: 1.5em;
 }
 #aiModelDropdown {
   margin-top: 20px;
@@ -113,6 +131,9 @@
 #baseFullNodeDataDirectoryDiv {
   padding-top: 10px;
   padding-left: 45px;
+}
+#baseThrottleNumber {
+  display: inline;
 }
 #baseFullNodeInputDiv, #baseUrlInputDiv {
   padding-bottom: 10px;

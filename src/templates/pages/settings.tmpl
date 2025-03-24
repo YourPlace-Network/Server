@@ -38,14 +38,38 @@
                         </h2>
                         <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#settingsAccordion">
                             <div class="accordion-body">
-                                <label for="uploadDirectory" class="form-label">Upload Directory</label>
-                                <div class="input-group mb-3">
-                                    <input type="text" class="form-control" id="uploadDirectory">
+                                <div id="uploadDirectoryDiv">
+                                    <label for="uploadDirectory" class="form-label">File Upload Directory</label>
+                                    <div class="input-group mb-3">
+                                        <input type="text" class="form-control" id="uploadDirectory">
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-primary" id="defaultUploadDirectoryBtn">Default</button>
+                                        <button class="btn btn-primary" id="saveUploadDirectoryBtn">Save</button>
+                                    </div>
                                 </div>
-                                <div>
-                                    <button class="btn btn-primary" id="defaultUploadDirectoryBtn">Default</button>
-                                    <button class="btn btn-primary" id="saveUploadDirectoryBtn">Save</button>
-                                    <div id="savedUploadDirectorySuccess">Success</div>
+
+                                <hr>
+
+                                <div id="ipfsPinningDiv">
+                                    <label for="ipfsPinningForm" class="form-label">IPFS File Pinning</label>
+                                    <a href="/faq#headingSlow" target="_blank" id="ipfsHelpLink"><i class="bi bi-question-circle" id="ipfsHelp" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" data-bs-delay="0" title="Use an IPFS pinning service to accelerate your uploaded files (recommended)"></i></a>
+                                    <div class="input-group mb-3" id="ipfsPinningForm">
+                                        <input type="text" class="form-control" id="ipfsPinningURL" placeholder="Pinning URL">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" id="ipfsPinningUrlBtn" type="button" data-bs-toggle="dropdown" aria-expanded="false"></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" href="#" onclick="selectOption('Option 1')">Pinata.cloud</a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="selectOption('Option 2')">web3.storage</a></li>
+                                            <li class="ipfsPinningLi" id="eternumPinning">Eternum.io</li>
+                                        </ul>
+                                        <input type="text" class="form-control" id="ipfsPinningKey" placeholder="Secret Access Token">
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-primary" id="saveIpfsPinningBtn">Save</button>
+                                    </div>
+                                    <div id="ipfsNodeLinkDiv">
+                                        <a id="ipfsNodeLink" href="http://localhost:42425/webui" target="_blank"><img src="/static/image/ipfs.svg" alt="ipfs" id="ipfsSvg"><span>IPFS Node Management</span></a>
+                                    </div>
                                 </div>
 
                                 <!-- Artificial Intelligence -->
