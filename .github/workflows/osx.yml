@@ -71,11 +71,6 @@ jobs:
       run: |
         xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "${{ secrets.OSX_NOTARY_PASSWORD }}" AustinLawrence
 
-    - name: List
-      run: |
-        ls -lah
-        ls -lah src/core/host/bin/ipfs/osx/
-
     - name: Build
       run: |
         make build
