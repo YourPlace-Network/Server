@@ -130,6 +130,15 @@ a {
   cursor: not-allowed;
   //opacity: 0.6;
 }
+footer {
+  margin: 3em 0 1em 0;
+  width: 100%;
+  text-align: center;
+  font-size: 0.8em;
+  > p {
+    margin: 0;
+  }
+}
 
 @keyframes rotate {
   0% {

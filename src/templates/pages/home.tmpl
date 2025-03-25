@@ -27,6 +27,7 @@
             </div>
         </div>
     </div>
+    {{template "footer" .}}
     <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
     <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">
 </body>
