@@ -2,6 +2,7 @@ export function ExpandAccordionByHash() {
     if (!window.location.hash) return;
     const targetElement = document.querySelector(window.location.hash);
     if (!targetElement) return;
+
     // Find all parent accordions
     let element: Element | null = targetElement;
     while (element && element !== document.body) {
@@ -12,16 +13,12 @@ export function ExpandAccordionByHash() {
                 toggle: false
             });
             collapse.show();
-            // Also need to find any parent accordions
-            const parentAccordion = element.closest(".accordion");
-            if (parentAccordion) {
-                const parentCollapse = parentAccordion.querySelector(".accordion-collapse");
-                if (parentCollapse) {
-                    const collapse = new window.bootstrap.Collapse(parentCollapse, {
-                        toggle: false
-                    });
-                    collapse.show();
-                }
+
+            // Update the associated button state
+            const accordionButton = document.querySelector(`[data-bs-target="${element.id}"]`);
+            if (accordionButton) {
+                accordionButton.classList.remove("collapsed");
+                accordionButton.setAttribute("aria-expanded", "true");
             }
         }
         element = element.parentElement;

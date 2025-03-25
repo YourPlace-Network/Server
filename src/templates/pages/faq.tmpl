@@ -1,7 +1,7 @@
 {{template "header" .}}
 <body class="body">
 {{template "htmlMenu" .}}
-    <div class="container-fluid vh-100">
+    <div class="container-fluid">
         <div class="row" id="row1">
             <div class="col-sm-1"></div>
             <div class="col-sm-10">
@@ -203,6 +203,7 @@
             <div class="col-sm-1"></div>
         </div>
     </div>
+    {{template "footer" .}}
     <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
     <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">
 </body>

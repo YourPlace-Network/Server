@@ -51,9 +51,20 @@ $theme-colors: map-merge($theme-colors, $colors);
 html {
     scrollbar-gutter: stable;
 }
+html, body {
+  min-height: 100%;
+  position: relative;
+  margin: 0;
+}
 body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   padding-right: 0 !important;
   overflow-y: scroll;
+}
+.container-fluid {
+  flex: 1 0 auto;
 }
 .btn {
   color: map.get($colors, "text");
@@ -131,7 +142,9 @@ a {
   //opacity: 0.6;
 }
 footer {
-  margin: 3em 0 1em 0;
+  flex-shrink: 0;
+  margin-top: 3em;
+  margin-bottom: 1em;
   width: 100%;
   text-align: center;
   font-size: 0.8em;
