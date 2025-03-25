@@ -2,7 +2,11 @@
 @use "../global.scss";
 
 #settingsAccordion {
-  padding-top: 1em;
+  padding-top: 1.5em;
+}
+button.accordion-button {
+  border-radius: 1em !important;
+  margin-bottom: 0.5em;
 }
 .container {
   padding: 15px 0 0 0;
