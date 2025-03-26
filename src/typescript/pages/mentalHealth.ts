@@ -740,6 +740,17 @@ const tips = [
     "Guys: Don't take relationship advice from the friend wo can't keep a relationship",
     "In a long-term relationship it's normal and healthy for one person to take ownership of certain aspects of daily life, such as: bread-winning, childcare, cleaning, cooking, maintenance, shopping, etc. The point is to share the overall burden. You shouldn't have to do everything while your partner does little or nothing",
     "Homemaking and childcare is a honorable and respectable path to choose. It's fundamental to growing humanity and is one of the most important, and sometimes difficult, jobs",
+    "Don't just parrot complaints and political views that other people have. Understand if those things effect you personally, research them fully, and then form your own opinion",
+    "Very often, the real truth far down the search results, past all the \"reputable\" outlets",
+    "List out the top 5 news sources you trust - and be honest with yourself here. If they are all rated as biased towards one political viewpoint, then you know where you stand",
+    "If you're visiting a country that values modesty, politeness and respectfulness - then you better act right or they might throw you in jail",
+    "Making fun of a disabled person makes you the bad guy. Laughing at or encouraging that behavior makes you just as bad",
+    "Propaganda purposefully doesn't want you to have a balanced perspective on life and world events. Whenever something is \"the worst/best thing to ever happen\" then you know someone's trying to play you - and every politician does this",
+    "Are you leaders pushing for real reform, or are they talking about irrelevant side-topics?",
+
+
+
+
 
 
 ];
