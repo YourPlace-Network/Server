@@ -736,8 +736,10 @@ const tips = [
     "You are your own being, with your own agency, and your own ability to craft your life however you want. Blaming current failures on events that didn't even happen to you, or didn't happen in your lifetime, is just a cope",
     "When you have liberty, sometimes you might have undesirable outcomes. However, the liberty in of itself, is more important for the advancement of humanity",
     "Values are transcendent to the technology of the day",
-
-
+    "Ladies: Don't take relationship advice from the friend who can't keep a relationship",
+    "Guys: Don't take relationship advice from the friend wo can't keep a relationship",
+    "In a long-term relationship it's normal and healthy for one person to take ownership of certain aspects of daily life, such as: bread-winning, childcare, cleaning, cooking, maintenance, shopping, etc. The point is to share the overall burden. You shouldn't have to do everything while your partner does little or nothing",
+    "Homemaking and childcare is a honorable and respectable path to choose. It's fundamental to growing humanity and is one of the most important, and sometimes difficult, jobs",
 
 
 ];
