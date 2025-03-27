@@ -3,11 +3,11 @@ import "../../scss/components/addPost.scss";
 import {IsValidIpfsCid} from "../util/security";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
+import {extensionToMimeType} from "../util/mimeTypes";
 import {UploadFile} from "../util/files";
 import {AddFileToIPFS} from "../util/ipfs";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 import tinymce from "tinymce/tinymce";
-import {lookup as lookupMimeType} from "mime-types";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -107,9 +107,9 @@ import {lookup as lookupMimeType} from "mime-types";
             for (let i = 0; i < uploadedFiles.length; i++){
                 let file = uploadedFiles[i];
                 let url = file.fileUrl;
-                let mimeType = lookupMimeType(file.extension);
+                let mimeType = extensionToMimeType(file.extension);
                 let size = file.size;
-                if (typeof url === "string" && mimeType !== false && size !== ""){
+                if (typeof url === "string" && mimeType !== "" && size !== ""){
                     let attachment = [url, mimeType, size];
                     attachments.push(attachment);
                 } else return
@@ -198,7 +198,7 @@ import {lookup as lookupMimeType} from "mime-types";
         DOM.addPostButton.addEventListener("click", showModal);
         DOM.submitPostButton.addEventListener("click", submitPost);
         DOM.uploadFileButton.addEventListener("click", clickFileInput);
-        DOM.fileInput.addEventListener("change", uploadFile)
+        DOM.fileInput.addEventListener("change", uploadFile);
         document.addEventListener("focusin", (e) => { // Prevent Bootstrap dialog from blocking focusin, thus breaking tinymce
             if (e.target instanceof Element && e.target.closest(".tox-tinymce-aux, .moxman-window, .tam-assetmanager-root") !== null) {
                 e.stopImmediatePropagation();

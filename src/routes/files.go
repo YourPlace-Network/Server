@@ -29,7 +29,7 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 	router.POST("/files/upload", func(c *gin.Context) {
 		form, err := c.MultipartForm()
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "No file(s) uploaded"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "No file uploaded"})
 			return
 		}
 		files := form.File["file"]
