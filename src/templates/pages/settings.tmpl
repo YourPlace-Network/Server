@@ -3,7 +3,7 @@
 {{template "htmlMenu" .}}
 {{template "modalDialog" .}}
 {{template "toast" .}}
-    <div class="container-fluid vh-100">
+    <div class="container-fluid">
         <!--<div class="row">
             <div class="col-sm-2"></div>
             <div class="col-sm-8 centerColumn">
@@ -31,21 +31,45 @@
             <div class="col-sm-8 centerColumn">
                 <div class="accordion accordion-flush" id="settingsAccordion">
                     <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingOne">
-                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                        <h2 class="accordion-header" id="contentHeading">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#content" aria-expanded="true" aria-controls="content">
                                 <b>Content</b>
                             </button>
                         </h2>
-                        <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#settingsAccordion">
+                        <div id="content" class="accordion-collapse collapse" aria-labelledby="contentHeading" data-bs-parent="#settingsAccordion">
                             <div class="accordion-body">
-                                <label for="uploadDirectory" class="form-label">Upload Directory</label>
-                                <div class="input-group mb-3">
-                                    <input type="text" class="form-control" id="uploadDirectory">
+                                <div id="uploadDirectoryDiv">
+                                    <label for="uploadDirectory" class="form-label">File Upload Directory</label>
+                                    <div class="input-group mb-3">
+                                        <input type="text" class="form-control" id="uploadDirectory">
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-primary" id="defaultUploadDirectoryBtn">Default</button>
+                                        <button class="btn btn-primary" id="saveUploadDirectoryBtn">Save</button>
+                                    </div>
                                 </div>
-                                <div>
-                                    <button class="btn btn-primary" id="defaultUploadDirectoryBtn">Default</button>
-                                    <button class="btn btn-primary" id="saveUploadDirectoryBtn">Save</button>
-                                    <div id="savedUploadDirectorySuccess">Success</div>
+
+                                <hr>
+
+                                <div id="ipfsPinningDiv">
+                                    <label for="ipfsPinningForm" class="form-label">IPFS File Pinning</label>
+                                    <a href="/faq#collapseSlow" target="_blank" id="ipfsHelpLink"><i class="bi bi-question-circle" id="ipfsHelp" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" data-bs-delay="0" title="Use an IPFS pinning service to accelerate your uploaded files (recommended)"></i></a>
+                                    <div class="input-group mb-3" id="ipfsPinningForm">
+                                        <input type="text" class="form-control" id="ipfsPinningURL" placeholder="Pinning URL">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" id="ipfsPinningUrlBtn" type="button" data-bs-toggle="dropdown" aria-expanded="false"></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li class="ipfsPinningLI" id="pinataLI">Pinata.cloud</li>
+                                            <li class="ipfsPinningLI" id="web3LI">web3.storage</li>
+                                            <li class="ipfsPinningLI" id="eternumLI">Eternum.io</li>
+                                        </ul>
+                                        <input type="text" class="form-control" id="ipfsPinningKey" placeholder="Secret Access Token">
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-primary" id="saveIpfsPinningBtn">Save</button>
+                                    </div>
+                                    <div id="ipfsNodeLinkDiv">
+                                        <a id="ipfsNodeLink" href="http://localhost:42425/webui" target="_blank"><img src="/static/image/ipfs.svg" alt="ipfs" id="ipfsSvg"><span>IPFS Node Management</span></a>
+                                    </div>
                                 </div>
 
                                 <!-- Artificial Intelligence -->
@@ -119,12 +143,12 @@
             <div class="col-sm-8 centerColumn">
                 <div class="accordion accordion-flush" id="networkingAccordion">
                     <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingThree">
-                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="true" aria-controls="collapseThree">
+                        <h2 class="accordion-header" id="headingNetworking">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#networking" aria-expanded="true" aria-controls="networking">
                                 <b>Networking</b>
                             </button>
                         </h2>
-                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#networkingAccordion">
+                        <div id="networking" class="accordion-collapse collapse" aria-labelledby="headingNetworking" data-bs-parent="#networkingAccordion">
                             <div class="accordion-body">
                                 <p>Certain network ports must be open on your router for YourPlace to fully function</p>
                                 <div id="yourplaceTrafficLight"></div><div id="connectivityStatusLabel"> = YourPlace Port (42424)</div><br>
@@ -290,6 +314,7 @@
             <div class="col-sm-2"></div>
         </div>
     </div>
+    {{template "footer" .}}
     <!-- Injected Variables -->
     <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
     <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">

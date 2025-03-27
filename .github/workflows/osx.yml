@@ -8,19 +8,25 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
     - name: Check out repository code
-      uses: actions/checkout@v2
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        lfs: true
 
     - name: Update Brew
       run: |
         brew update
         brew upgrade
         brew install make
+        brew install awscli
     
     - name: Setup Node.js
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
       with:
         node-version: '20.x'
         
@@ -29,9 +35,9 @@ jobs:
         npm install package.json
 
     - name: Setup Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
       with:
-        go-version: '1.23.6'
+        go-version: '1.24.1'
 
     - name: Setup Keychain and Certs
       run: |
@@ -39,23 +45,37 @@ jobs:
         security create-keychain -p "${{ secrets.TEMP_KEYCHAIN_PASSWORD }}" build.keychain
         security default-keychain -s build.keychain
         security unlock-keychain -p "${{ secrets.TEMP_KEYCHAIN_PASSWORD }}" build.keychain
-        security set-keychain-settings -t 3600 -l build.keychain
+        security set-keychain-settings -t 36000 -l build.keychain
 
     - name: Deploy Dev Signing Certs
-      shell: bash
       run: |
         mkdir -p /tmp/certs
-        echo "${{ secrets.OSX_SIGNING_CERT_APPLICATION_DEV }}" | base64 -d > /tmp/certs/developerID_application.cer
-        echo "${{ secrets.OSX_SIGNING_CERT_INSTALLER_DEV }}" | base64 -d > /tmp/certs/developerID_installer.cer
+        echo "${{ secrets.OSX_SIGNING_CERT_APPLICATION }}" | base64 -d > /tmp/certs/developerID_application.cer
+        echo "${{ secrets.OSX_SIGNING_KEY_APPLICATION }}" | base64 -d > /tmp/certs/developerID_application.p12
+        echo "${{ secrets.OSX_SIGNING_CERT_INSTALLER }}" | base64 -d > /tmp/certs/developerID_installer.cer
+        echo "${{ secrets.OSX_SIGNING_KEY_INSTALLER }}" | base64 -d > /tmp/certs/developerID_installer.p12
+        
+        # Import certificates and keys
         security import /tmp/certs/developerID_application.cer -k build.keychain -T /usr/bin/codesign -T /usr/bin/productsign
         security import /tmp/certs/developerID_installer.cer -k build.keychain -T /usr/bin/codesign -T /usr/bin/productsign
+        security import /tmp/certs/developerID_application.p12 -k build.keychain -P "" -T /usr/bin/codesign -T /usr/bin/productsign
+        security import /tmp/certs/developerID_installer.p12 -k build.keychain -P "" -T /usr/bin/codesign -T /usr/bin/productsign
+        
+        # Set key partition list for the keychain
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.TEMP_KEYCHAIN_PASSWORD }}" build.keychain
+        
+        # Verify the certificates and identities were properly imported
+        security find-identity -v -p codesigning build.keychain
+
+    - name: Configure Notarization Tool
+      run: |
+        xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "${{ secrets.OSX_NOTARY_PASSWORD }}" AustinLawrence
 
     - name: Build
       run: |
-        make clean install build
+        make build
 
-    - name: Configure AWS Credentials
+    - name: Configure AWS CLI for DigitalOcean Spaces
       run: |
         aws configure set aws_access_key_id ${{ secrets.S3_UPLOAD_ID }}
         aws configure set aws_secret_access_key ${{ secrets.S3_UPLOAD_SECRET }}
@@ -63,6 +83,18 @@ jobs:
         aws configure set default.s3.endpoint_url https://nyc3.digitaloceanspaces.com
         aws configure set default.s3.addressing_style path
 
-    - name: Upload to DigitalOcean
+    - name: Upload files to DigitalOcean Spaces
       run: |
-        aws s3 cp ./target/YourPlace*.pkg s3://yourplace-downloads/osx/ --acl public-read --endpoint=https://nyc3.digitaloceanspaces.com
+        for file in ./target/YourPlace-*.pkg; do
+          if [ -f "$file" ]; then
+            echo "Uploading $file to DO Spaces..."
+            aws s3 cp "$file" s3://yourplace-downloads/osx/ --acl=public-read --endpoint=https://nyc3.digitaloceanspaces.com
+          fi
+        done
+
+    - name: Cleanup
+      run: |
+        security delete-keychain build.keychain
+        rm -rf /tmp/certs
+        rm -rf /tmp/cert.pem
+        make clean

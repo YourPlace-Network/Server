@@ -1,4 +1,4 @@
-import * as DOMPurify from "dompurify";
+import DOMPurify from "dompurify";
 import {IsValidAlgoAddress} from "../util/security";
 
 let nfdJSON: null | any = null;

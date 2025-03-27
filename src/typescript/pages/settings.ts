@@ -9,6 +9,8 @@ import {createPopper, type Instance} from "@popperjs/core";
 import {ShowDialogModal} from "../components/modalDialog";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {ShowSavedToast} from "../components/toast";
+import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
+
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -46,6 +48,7 @@ import {ShowSavedToast} from "../components/toast";
         let popperInstance: Instance | null = null;
 
         async function init() {
+            InitTooltips();
             try {
                 await Promise.all([
                     getUploadDirectory(),
@@ -63,36 +66,7 @@ import {ShowSavedToast} from "../components/toast";
             } catch (error) {
                 LogError("Error initializing settings page: " + error);
             }
-            expandAccordionByHash();
-        }
-        function expandAccordionByHash() {
-            if (!window.location.hash) return;
-            const targetElement = document.querySelector(window.location.hash);
-            if (!targetElement) return;
-            // Find all parent accordions
-            let element: Element | null = targetElement;
-            while (element && element !== document.body) {
-                // If this element is a collapse panel
-                if (element.classList.contains("accordion-collapse")) {
-                    // Show this accordion panel
-                    const collapse = new window.bootstrap.Collapse(element, {
-                        toggle: false
-                    });
-                    collapse.show();
-                    // Also need to find any parent accordions
-                    const parentAccordion = element.closest(".accordion");
-                    if (parentAccordion) {
-                        const parentCollapse = parentAccordion.querySelector(".accordion-collapse");
-                        if (parentCollapse) {
-                            const collapse = new window.bootstrap.Collapse(parentCollapse, {
-                                toggle: false
-                            });
-                            collapse.show();
-                        }
-                    }
-                }
-                element = element.parentElement;
-            }
+            ExpandAccordionByHash();
         }
 
         /* Getting Current Settings Values */
