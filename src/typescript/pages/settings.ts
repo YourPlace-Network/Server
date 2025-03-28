@@ -104,8 +104,10 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         async function getBaseIndexerProgress() {
             let response = await HttpGetJson("/settings/base/indexerProgress");
             if (response[0] === 200) {
-                console.log(response);
-
+                console.log("earliestBlock: " + response[1].earliestBlock);
+                console.log("tailBlock: " + response[1].tailBlock);
+                console.log("headBlock: " + response[1].headBlock);
+                console.log("latestBlock: " + response[1].latestBlock);
             }
         }
         async function getBaseThrottle() {
