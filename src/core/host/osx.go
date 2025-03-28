@@ -15,8 +15,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"os/user"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -237,33 +237,31 @@ func IsOnBattery() bool {
 	output := out.String()
 	return !strings.Contains(output, "'AC Power'")
 }
-func findProcessByName(name string) (int, error) {
-	cmd := exec.Command("ps", "-A", "-o", "pid,comm")
-	output, err := cmd.Output()
+func AddSecret(name string, secret string) {
+	currentUser, _ := user.Current()
+	cmd := exec.Command("security", "add-generic-password",
+		"-s", security.SanitizePathTraversal(name),
+		"-a", currentUser.Username,
+		"-w", security.SanitizePathTraversal(secret))
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return -1, core.LogErrorReturn("Could not list processes: " + err.Error())
+		core.LogError("Failed to save secret: " + name)
+		return
 	}
-	lines := strings.Split(string(output), "\n")
-	for i := 1; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-		pid := fields[0]
-		processName := fields[1]
-		if processName == name {
-			pidInt, _err := strconv.Atoi(pid)
-			if _err != nil {
-				return -1, core.LogErrorReturn("Could not convert PID to int: " + err.Error())
-			}
-			return pidInt, nil
-		}
+	core.LogDebug(string(output))
+}
+func GetSecret(name string) string {
+	currentUser, _ := user.Current()
+	cmd := exec.Command("security", "find-generic-password",
+		"-s", security.SanitizePathTraversal(name),
+		"-a", currentUser.Username,
+		"-w")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		core.LogError("Failed to retrieve secret: " + name)
+		return ""
 	}
-	return -1, core.LogErrorReturn("Could not find process: " + name)
+	return strings.TrimSpace(string(output))
 }
 
 /* ------ OS Specific Business Logic ------ */

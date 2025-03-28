@@ -150,6 +150,15 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, cry
 			"indexerOnBattery": indexerOnBatteryBool,
 		})
 	})
+	router.GET("/settings/content/ipfsPinning", func(c *gin.Context) {
+		pinningURL := database.SettingsGetValue("ipfsPinningURL")
+		pinningKey := host.GetSecret("ipfsPinningKey")
+		pinningKeyMasked := security.MaskToken(pinningKey)
+		c.SecureJSON(http.StatusOK, gin.H{
+			"pinningURL": pinningURL,
+			"pinningKey": pinningKeyMasked,
+		})
+	})
 
 	router.POST("/settings/uploadDirectory", func(c *gin.Context) {
 		type Payload struct {
@@ -355,5 +364,24 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, cry
 			return
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "importPath": importPath})
+	})
+	router.POST("/settings/content/ipfsPinning", func(c *gin.Context) {
+		type Payload struct {
+			PinningURL string `json:"pinningURL" required:"true"`
+			PinningKey string `json:"pinningKey" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning JSON"})
+			return
+		}
+		if !security.IsValidURL(payload.PinningURL) || len(payload.PinningKey) <= 5 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning URL or Key"})
+			return
+		}
+		host.AddSecret("ipfsPinningKey", security.SanitizeNonPrintable(payload.PinningKey))
+		database.SettingsUpdateValue("ipfsPinningURL", payload.PinningURL)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "IPFS URL and Key saved"})
 	})
 }

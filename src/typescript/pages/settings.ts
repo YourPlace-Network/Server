@@ -45,10 +45,12 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             ipfsTrafficLight: document.getElementById("ipfsTrafficLight")! as HTMLDivElement,
             retestPortsBtn: document.getElementById("retestPortsBtn")! as HTMLButtonElement,
             ipfsPinningURL: document.getElementById("ipfsPinningURL")! as HTMLInputElement,
+            ipfsPinningKey: document.getElementById("ipfsPinningKey")! as HTMLInputElement,
             pinataLI: document.getElementById("pinataLI")! as HTMLLIElement,
             web3LI: document.getElementById("web3LI")! as HTMLLIElement,
             //eternumLI: document.getElementById("eternumLI")! as HTMLLIElement,
             filebaseLi: document.getElementById("filebaseLI")! as HTMLLIElement,
+            saveIpfsPinningBtn: document.getElementById("saveIpfsPinningBtn")! as HTMLButtonElement,
         }
         let popperInstance: Instance | null = null;
 
@@ -67,6 +69,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                     getOllamaModelEnabled(),
                     getIndexerOnBattery(),
                     getNetworkPorts(),
+                    getIpfsPinning(),
                 ]);
             } catch (error) {
                 LogError("Error initializing settings page: " + error);
@@ -174,6 +177,15 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 DOM.ipfsTrafficLight.classList.remove("greenLight");
                 DOM.ipfsTrafficLight.classList.add("redLight");
                 LogError("Failed to check network ports");
+            }
+        }
+        async function getIpfsPinning() {
+            let response = await HttpGetJson("/settings/content/ipfsPinning");
+            if (response[0] === 200) {
+                DOM.ipfsPinningURL.value = response[1].pinningURL;
+                DOM.ipfsPinningKey.value = response[1].pinningKey;
+            } else {
+                ShowDialogModal("Failed to get IPFS Pinning settings");
             }
         }
 
@@ -328,6 +340,18 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 LogError("Indexer On Battery Error");
             }
         }
+        async function setIPFSPinning() {
+            const data = {
+                pinningURL: DOM.ipfsPinningURL.value,
+                pinningKey: DOM.ipfsPinningKey.value,
+            }
+            let response = await HttpPostJson("/settings/content/ipfsPinning", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                ShowSavedToast();
+            } else {
+                ShowDialogModal(response[1].status);
+            }
+        }
 
         /* Throttle Slider */
         const getThumbElement = (): HTMLElement => {
@@ -397,11 +421,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.baseThrottle.addEventListener("touchend", hideTooltip);
 
         /* Event Listeners */
-        DOM.baseDataDirectory!.addEventListener("change", function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            setBaseDataDirectory().then();
-        });
+        DOM.baseDataDirectory!.addEventListener("change", setBaseDataDirectory);
         DOM.baseDefaultDataDirectoryBtn!.addEventListener("click", setDefaultBaseDataDirectory);
         DOM.baseFullNodeCheckbox!.addEventListener("change", setBaseFullNode);
         DOM.baseThrottle!.addEventListener("change", setBaseThrottle);
@@ -424,9 +444,10 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         });
         DOM.filebaseLi!.addEventListener("click", function(e) {
             DOM.ipfsPinningURL.value = "https://api.filebase.io/v1/ipfs";
-            ShowDialogModalHTML("Please create an account at <a href='https://console.filebase.com/' target='_blank'>Filebase here</a><br><br>Then create a Bucket and add your Access Key \"<b>Secret</b>\" to the IPFS Pinning settings page");
+            ShowDialogModalHTML("Please create an account at <a href='https://console.filebase.com/' target='_blank'>Filebase here</a><br><br>Then create a Bucket and generate a \"<b>Token</b>\" for that bucket, and add it to the IPFS Pinning settings page");
         });
         //DOM.eternumLI!.addEventListener("click", function(e) {});
+        DOM.saveIpfsPinningBtn.addEventListener("click", setIPFSPinning);
 
         init().then();
     }

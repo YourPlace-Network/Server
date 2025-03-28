@@ -584,6 +584,22 @@ func IsOnBattery() bool { //TODO: I cant really test this because I dont have a 
 	}
 	return !(status == 2 || status == 3 || status == 6 || status == 7)
 }
+func AddSecret(name string, secret string) {
+	cred := wincred.NewGenericCredential(name)
+	cred.CredentialBlob = []byte(secret)
+	err := cred.Write()
+	if err != nil {
+		core.LogError("Failed to store secret: " + name)
+	}
+}
+func GetSecret(name string) string {
+	cred, err := wincred.GetGenericCredential(name)
+	if err != nil {
+		core.LogError("Failed to retrieve secret: " + name)
+		return ""
+	}
+	return string(cred.CredentialBlob)
+}
 
 // ------ Scheduled Task Functions (Admin) ------ //
 func InstallScheduledTask(serviceName string) {
