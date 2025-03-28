@@ -1,3 +1,5 @@
+import {LogInfo} from "../util/log";
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import DOMPurify from "dompurify";
 import "../../scss/components/modalDialog.scss"
@@ -11,12 +13,18 @@ export function ShowDialogModal(message: string) {
     modal.show();
 }
 export function ShowDialogModalHTML(message: string) {
-    document.getElementById("modalDialogContent")!.innerHTML = DOMPurify.sanitize(message, {USE_PROFILES:{html:true}});
+    document.getElementById("modalDialogContent")!.innerHTML = DOMPurify.sanitize(
+        message, {
+            USE_PROFILES: {html:true},
+            ADD_ATTR: ["target"],
+        }
+    );
     let element = document.getElementById("modalDialog")!;
     let modal = new window.bootstrap.Modal(element, {});
     modal.show();
 }
 export function ShowDialogModalHTMLUnsafe(message: string) {
+    LogInfo("Potentially Dangerous ShowDialogModalHTMLUnsafe() Used. Ensure that no user-controlled data can reach this function. Usage on this page: " + window.location.toString());
     document.getElementById("modalDialogContent")!.innerHTML = message;
     let element = document.getElementById("modalDialog")!;
     let modal = new window.bootstrap.Modal(element, {});

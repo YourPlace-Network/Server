@@ -91,6 +91,24 @@ button.accordion-button {
   margin: 6px 0 10px 10px;
   font-weight: bold;
 }
+#ipfsPinningUrlUL {
+  background-color: global.$secondary;
+}
+.ipfsPinningLI {
+  padding-left: 0.5em;
+  &:hover {
+    background-color: global.$primary;
+    text-underline: global.$text;
+    cursor: pointer;
+  }
+}
+.ipfsPinningIcon {
+  width: 1em;
+  height: 1em;
+  margin-right: 0.5em;
+  position: relative;
+  top: -0.12em;
+}
 #ipfsHelp {
   position: relative;
   top: 0.1em;

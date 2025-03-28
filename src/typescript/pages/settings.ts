@@ -6,7 +6,7 @@ import DOMPurify from "dompurify";
 import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError, LogInfo} from "../util/log";
 import {createPopper, type Instance} from "@popperjs/core";
-import {ShowDialogModal} from "../components/modalDialog";
+import {ShowDialogModal, ShowDialogModalHTML, ShowDialogModalHTMLUnsafe} from "../components/modalDialog";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {ShowSavedToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
@@ -44,6 +44,11 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             yourplaceTrafficLight: document.getElementById("yourplaceTrafficLight")! as HTMLDivElement,
             ipfsTrafficLight: document.getElementById("ipfsTrafficLight")! as HTMLDivElement,
             retestPortsBtn: document.getElementById("retestPortsBtn")! as HTMLButtonElement,
+            ipfsPinningURL: document.getElementById("ipfsPinningURL")! as HTMLInputElement,
+            pinataLI: document.getElementById("pinataLI")! as HTMLLIElement,
+            web3LI: document.getElementById("web3LI")! as HTMLLIElement,
+            //eternumLI: document.getElementById("eternumLI")! as HTMLLIElement,
+            filebaseLi: document.getElementById("filebaseLI")! as HTMLLIElement,
         }
         let popperInstance: Instance | null = null;
 
@@ -410,6 +415,18 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.spiceometerCheck!.addEventListener("change", setSpiceometer);
         DOM.indexerOnBatteryCheckbox!.addEventListener("change", setIndexerOnBattery);
         DOM.retestPortsBtn!.addEventListener("click", getNetworkPorts);
+        DOM.pinataLI!.addEventListener("click", function(e) {
+            ShowDialogModalHTML("Please create an account and secret from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your \"<b>Gateway URL</b>\" and \"<b>JWT (secret access token)</b>\" to the IPFS Pinning settings page");
+        });
+        DOM.web3LI!.addEventListener("click", function(e) {
+            DOM.ipfsPinningURL.value = "https://api.web3.storage";
+            ShowDialogModalHTML("Please create an account and secret from <a href='https://web3.storage/' target='_blank'>Web3.Storage here</a><br><br>Then add your \"<b>Secret Access Token</b>\" to the IPFS Pinning settings page");
+        });
+        DOM.filebaseLi!.addEventListener("click", function(e) {
+            DOM.ipfsPinningURL.value = "https://api.filebase.io/v1/ipfs";
+            ShowDialogModalHTML("Please create an account at <a href='https://console.filebase.com/' target='_blank'>Filebase here</a><br><br>Then create a Bucket and add your Access Key \"<b>Secret</b>\" to the IPFS Pinning settings page");
+        });
+        //DOM.eternumLI!.addEventListener("click", function(e) {});
 
         init().then();
     }
