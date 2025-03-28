@@ -64,6 +64,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                     getUploadDirectory(),
                     getBaseURL(),
                     getPostHistoryDays(),
+                    getBaseIndexerProgress(),
                     getBaseThrottle(),
                     getBaseFullNode(),
                     getBaseDataDirectory(),
@@ -104,7 +105,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             let response = await HttpGetJson("/settings/base/indexerProgress");
             if (response[0] === 200) {
                 console.log(response);
-                
+
             }
         }
         async function getBaseThrottle() {
