@@ -277,6 +277,13 @@
                                                         </div>
 
                                                         <hr /><!-- ----------------------------------- -->
+                                                        <label for="baseIndexerProgress" class="form-label" id="baseIndexerProgressLabel">Indexer Progress:</label>
+                                                        <div class="progress" id="baseIndexerProgressDiv">
+                                                            <div id="baseIndexerProgressUncachedTail" class="progress-bar" role="progressbar" style="width: 10%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                            <div id="baseIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 80%" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100">80%</div>
+                                                            <div id="baseIndexerProgressUncachedHead" class="progress-bar" role="progressbar" style="width: 10%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        </div>
+
                                                         <label for="baseThrottle" class="form-label" id="baseThrottleLabel">Server Throttle: <div id="baseThrottleNumber"></div> Requests-Per-Second</label>
                                                         <div class="input-group mb3">
                                                             <datalist id="baseThrottleMarkers">

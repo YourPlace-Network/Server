@@ -1,0 +1,6 @@
+https://medium.com/@donwaleyb/mint-your-own-nfts-with-wagmi-a-beginners-guide-6148f9ee324f
+
+https://wagmi.sh/react/guides/write-to-contract
+
+https://1.x.wagmi.sh/examples/contract-write
+

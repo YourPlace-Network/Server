@@ -155,6 +155,12 @@ button.accordion-button {
   padding-top: 10px;
   padding-left: 45px;
 }
+#baseIndexerProgressDiv {
+  margin-bottom: 3em;
+}
+#baseIndexerProgressCached {
+  background-color: global.$quaternary;
+}
 #baseThrottleNumber {
   display: inline;
 }

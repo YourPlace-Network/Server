@@ -22,6 +22,9 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             baseFullNodeDataDirectoryDiv: document.getElementById("baseFullNodeDataDirectoryDiv")! as HTMLDivElement,
             baseFullNodeCheckbox: document.getElementById("baseFullNodeCheckbox")! as HTMLInputElement,
             baseSaveDataDirectoryBtn: document.getElementById("baseSaveDataDirectoryBtn")! as HTMLButtonElement,
+            baseIndexerProgressUncachedTail: document.getElementById("baseIndexerProgressUncachedTail")! as HTMLDivElement,
+            baseIndexerProgressCached: document.getElementById("baseIndexerProgressCached")! as HTMLDivElement,
+            baseIndexerProgressUncachedHead: document.getElementById("baseIndexerProgressUncachedHead")! as HTMLDivElement,
             baseThrottle: document.getElementById("baseThrottle")! as HTMLInputElement,
             baseThrottleTooltip: document.getElementById("baseThrottleTooltip")! as HTMLElement,
             baseThrottleNumber: document.getElementById("baseThrottleNumber")! as HTMLDivElement,
@@ -95,6 +98,13 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             let response = await HttpGetJson("/settings/base/url");
             if (response[0] === 200) {
                 DOM.baseURL.value = DOMPurify.sanitize(response[1].baseURL);
+            }
+        }
+        async function getBaseIndexerProgress() {
+            let response = await HttpGetJson("/settings/base/indexerProgress");
+            if (response[0] === 200) {
+                console.log(response);
+                
             }
         }
         async function getBaseThrottle() {

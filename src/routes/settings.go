@@ -8,12 +8,13 @@ import (
 	"YourPlace/src/core/services"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/csrf"
+	"math/big"
 	"net/http"
 	"strconv"
 	"time"
 )
 
-func SettingsRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte) {
+func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte) {
 	defaultUploadDirectory := host.GetDataDir() + "upload" + host.PathSeparator
 
 	router.GET("/settings", func(c *gin.Context) { // Settings View
@@ -157,6 +158,23 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, cry
 		c.SecureJSON(http.StatusOK, gin.H{
 			"pinningURL": pinningURL,
 			"pinningKey": pinningKeyMasked,
+		})
+	})
+	router.GET("/settings/base/indexerProgress", func(c *gin.Context) {
+		earliestBlock := _blockchain.GetEarliestBlock("base")
+		jobUUID := database.IndexerGetJobUUID("base")
+		tailBlock := database.IndexerGetTailBlock(jobUUID)
+		headBlock := database.IndexerGetHeadBlock(jobUUID)
+		latestBlock, err := _blockchain.GetLatestBlock("base")
+		if err != nil || latestBlock == big.NewInt(0) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Base latest block"})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"earliestBlock": earliestBlock,
+			"tailBlock":     tailBlock,
+			"headBlock":     headBlock,
+			"latestBlock":   latestBlock,
 		})
 	})
 
