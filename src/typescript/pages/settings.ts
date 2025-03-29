@@ -1,4 +1,3 @@
-import {ShowModalYesNo} from "../components/modalYesNo";
 
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss";
@@ -8,12 +7,8 @@ import DOMPurify from "dompurify";
 import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError, LogInfo} from "../util/log";
 import {createPopper, type Instance} from "@popperjs/core";
-import {
-    EnableDialogModalOkBtn,
-    ShowDialogModal,
-    ShowDialogModalHTML,
-    ShowDialogModalHTMLUnsafe
-} from "../components/modalDialog";
+import {ShowDialogModal, ShowDialogModalHTML,} from "../components/modalDialog";
+import {ShowModalYesNo, ShowModalYesNoHTML} from "../components/modalYesNo";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {ShowSavedToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
@@ -350,7 +345,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             }
         }
         async function setBaseIndexerReset() {
-            const confirmed = await ShowModalYesNo("Are you sure you want to reset the indexer? This will delete all cached data and re-index everything. It will take a long time and download a lot of data.");
+            const confirmed = await ShowModalYesNoHTML("Are you sure you want to reset the indexer?<br><br>This will delete all cached data and re-index everything.<br><br>It will take a long time and download a lot of data.<br><br>Your personal data will not be deleted.");
             if (confirmed) {
                 let response = await HttpPostJson("/settings/base/indexerReset",
                     {indexerReset: true},
