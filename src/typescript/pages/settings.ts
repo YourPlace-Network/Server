@@ -1,3 +1,5 @@
+import {ShowModalYesNo} from "../components/modalYesNo";
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss";
 import "../../scss/pages/settings.scss";
@@ -6,7 +8,12 @@ import DOMPurify from "dompurify";
 import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError, LogInfo} from "../util/log";
 import {createPopper, type Instance} from "@popperjs/core";
-import {ShowDialogModal, ShowDialogModalHTML, ShowDialogModalHTMLUnsafe} from "../components/modalDialog";
+import {
+    EnableDialogModalOkBtn,
+    ShowDialogModal,
+    ShowDialogModalHTML,
+    ShowDialogModalHTMLUnsafe
+} from "../components/modalDialog";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {ShowSavedToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
@@ -23,6 +30,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             baseFullNodeCheckbox: document.getElementById("baseFullNodeCheckbox")! as HTMLInputElement,
             baseSaveDataDirectoryBtn: document.getElementById("baseSaveDataDirectoryBtn")! as HTMLButtonElement,
             baseIndexerProgressUncachedTail: document.getElementById("baseIndexerProgressUncachedTail")! as HTMLDivElement,
+            baseIndexerCachedPercent: document.getElementById("baseIndexerCachedPercent")! as HTMLSpanElement,
             baseIndexerProgressCached: document.getElementById("baseIndexerProgressCached")! as HTMLDivElement,
             baseIndexerProgressUncachedHead: document.getElementById("baseIndexerProgressUncachedHead")! as HTMLDivElement,
             baseThrottle: document.getElementById("baseThrottle")! as HTMLInputElement,
@@ -59,6 +67,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
 
         async function init() {
             InitTooltips();
+
             try {
                 await Promise.all([
                     getUploadDirectory(),
@@ -78,7 +87,11 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             } catch (error) {
                 LogError("Error initializing settings page: " + error);
             }
+
             ExpandAccordionByHash();
+
+            /* Cron Jobs */
+            setInterval(getBaseIndexerProgress, 120000);
         }
 
         /* Getting Current Settings Values */
@@ -104,10 +117,35 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         async function getBaseIndexerProgress() {
             let response = await HttpGetJson("/settings/base/indexerProgress");
             if (response[0] === 200) {
-                console.log("earliestBlock: " + response[1].earliestBlock);
-                console.log("tailBlock: " + response[1].tailBlock);
-                console.log("headBlock: " + response[1].headBlock);
-                console.log("latestBlock: " + response[1].latestBlock);
+                let earliestBlock = response[1].earliestBlock;
+                let tailBlock = response[1].tailBlock;
+                let headBlock = response[1].headBlock;
+                let latestBlock = response[1].latestBlock;
+                // Calculate the ranges
+                const totalRange = latestBlock - earliestBlock;
+                const earliestToTailRange = tailBlock - earliestBlock;
+                const tailToHeadRange = headBlock - tailBlock;
+                const headToLatestRange = latestBlock - headBlock;
+                // Calculate percentages and round to nearest integer
+                const tailPercentage = Math.round((earliestToTailRange / totalRange) * 100);
+                const latestPercentage = Math.round((headToLatestRange / totalRange) * 100);
+                const cachedPercentage = 100 - (tailPercentage + latestPercentage);
+                DOM.baseIndexerProgressUncachedTail.style.width = tailPercentage + "%";
+                DOM.baseIndexerProgressUncachedTail.ariaValueNow = tailPercentage.toString();
+                DOM.baseIndexerProgressCached.style.width = cachedPercentage + "%";
+                DOM.baseIndexerProgressCached.ariaValueNow = cachedPercentage.toString();
+                DOM.baseIndexerCachedPercent.textContent = cachedPercentage.toString() + "%";
+                if (cachedPercentage === 100) {
+                    DOM.baseIndexerCachedPercent.classList.remove("progress-bar-animated");
+                    DOM.baseIndexerProgressCached.classList.remove("progress-bar-striped");
+                    DOM.baseIndexerProgressCached.classList.add("bg-success");
+                } else {
+                    DOM.baseIndexerCachedPercent.classList.add("progress-bar-animated");
+                    DOM.baseIndexerProgressCached.classList.add("progress-bar-striped");
+                    DOM.baseIndexerProgressCached.classList.remove("bg-success");
+                }
+                DOM.baseIndexerProgressUncachedHead.style.width = latestPercentage + "%";
+                DOM.baseIndexerProgressUncachedHead.ariaValueNow = latestPercentage.toString();
             }
         }
         async function getBaseThrottle() {
@@ -312,14 +350,17 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             }
         }
         async function setBaseIndexerReset() {
-            let response = await HttpPostJson("/settings/base/indexerReset",
-                {indexerReset: true},
-                DOM.csrfToken.value);
-            if (response[0] === 200) {
-                LogInfo("Base Indexer Reset");
-                ShowSavedToast();
-            } else {
-                LogInfo("Base Indexer Reset Error");
+            const confirmed = await ShowModalYesNo("Are you sure you want to reset the indexer? This will delete all cached data and re-index everything. It will take a long time and download a lot of data.");
+            if (confirmed) {
+                let response = await HttpPostJson("/settings/base/indexerReset",
+                    {indexerReset: true},
+                    DOM.csrfToken.value);
+                if (response[0] === 200) {
+                    LogInfo("Base Indexer Reset");
+                    ShowSavedToast();
+                } else {
+                    LogInfo("Base Indexer Reset Error");
+                }
             }
         }
         async function setSpiceometer() {
