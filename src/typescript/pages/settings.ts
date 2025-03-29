@@ -116,6 +116,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 let tailBlock = response[1].tailBlock;
                 let headBlock = response[1].headBlock;
                 let latestBlock = response[1].latestBlock;
+                LogInfo("Base Indexer Progress: " + earliestBlock + " " + tailBlock + " " + headBlock + " " + latestBlock);
                 // Calculate the ranges
                 const totalRange = latestBlock - earliestBlock;
                 const earliestToTailRange = tailBlock - earliestBlock;
@@ -345,7 +346,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             }
         }
         async function setBaseIndexerReset() {
-            const confirmed = await ShowModalYesNoHTML("Are you sure you want to reset the indexer?<br><br>This will delete all cached data and re-index everything.<br><br>It will take a long time and download a lot of data.<br><br>Your personal data will not be deleted.");
+            const confirmed = await ShowModalYesNoHTML("⚠️ Are you sure you want to reset the indexer? ⚠️<br><br>This will delete cached YourPlace data and re-index everything<br><br>It will take a long time and download a lot of data<br><br>Your personal data, posts, and profile <u>will not</u> be deleted");
             if (confirmed) {
                 let response = await HttpPostJson("/settings/base/indexerReset",
                     {indexerReset: true},
