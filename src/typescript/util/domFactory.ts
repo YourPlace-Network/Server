@@ -3,7 +3,11 @@ import "../../scss/components/profileCard.scss";
 import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
 import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml} from "./security";
 
-export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data set profile to true if calling from a users profile
+export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {// returns a post div element when given a post's data set profile to true if calling from a users profile
+    function hasAttachments(): boolean {
+        return "attachments" in postData;
+    }
+
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
     let postAddress = document.createElement("input") as HTMLInputElement;
@@ -22,6 +26,9 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     let ellipsesMenuItemExplorerLink = document.createElement("a") as HTMLAnchorElement;
     let postTextDiv = document.createElement("div") as HTMLDivElement;
     let embedDiv = document.createElement("div") as HTMLDivElement;
+    if (hasAttachments()) {
+        let attachmentDiv = document.createElement("div") as HTMLDivElement;
+    }
     let reactionDiv = document.createElement("div") as HTMLDivElement;
     let unixpostdate = postData.timestamp;
     let postdatevalue = new Date(unixpostdate * 1000).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true});
