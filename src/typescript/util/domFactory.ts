@@ -2,12 +2,73 @@ import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
 import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml} from "./security";
+import {CIDToSubdomainURL} from "./ipfs";
+import bootstrap from "bootstrap";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {// returns a post div element when given a post's data set profile to true if calling from a users profile
     function hasAttachments(): boolean {
         return "attachments" in postData;
     }
-
+    function createAttachmentCarousel(): HTMLDivElement {
+        let carouselDiv = document.createElement("div") as HTMLDivElement;
+        carouselDiv.classList.add("carousel", "slide");
+        carouselDiv.id = postData.txHash;
+        let carouselList = document.createElement("ol") as HTMLOListElement;
+        carouselList.classList.add("carousel-indicators");
+        let carouselInnerDiv = document.createElement("div") as HTMLDivElement;
+        carouselInnerDiv.classList.add("carousel-inner");
+        let previousButton = document.createElement("a") as HTMLAnchorElement;
+        previousButton.classList.add("carousel-control-prev");
+        previousButton.href = "#" + postData.txHash;
+        previousButton.role = "button";
+        previousButton.setAttribute("data-bs-slide", "prev");
+        let previousIcon = document.createElement("span") as HTMLSpanElement;
+        previousIcon.classList.add("carousel-control-prev-icon");
+        previousIcon.ariaHidden = "true";
+        previousButton.appendChild(previousIcon);
+        let nextButton = document.createElement("a") as HTMLAnchorElement;
+        nextButton.classList.add("carousel-control-next");
+        nextButton.href = "#" + postData.txHash;
+        nextButton.role = "button";
+        nextButton.setAttribute("data-bs-slide", "next");
+        let nextIcon = document.createElement("span") as HTMLSpanElement;
+        nextIcon.classList.add("carousel-control-next-icon");
+        nextIcon.ariaHidden = "true";
+        nextButton.appendChild(nextIcon);
+        for (let i = 0; i < postData.attachments.length; i++) {
+            let attachment = postData.attachments[i];
+            let fileUrl = attachment[0];
+            let contentType = attachment[1];
+            let selector = document.createElement("li") as HTMLLIElement;
+            let item = document.createElement("div") as HTMLDivElement;
+            if (i == 0) {
+                selector.classList.add("active");
+                item.classList.add("active");
+            }
+            selector.setAttribute("data-bs-target", "#" + postData.txHash);
+            selector.setAttribute("data-bs-slide-to", i.toString());
+            item.classList.add("carousel-item")
+            let contentTypePrefix = contentType.split("/")[0];
+            switch (contentTypePrefix) {
+                case "image":
+                    if (fileUrl.startsWith("ipfs://")) {
+                        fileUrl = CIDToSubdomainURL(fileUrl);
+                    }
+                    let image = document.createElement("img") as HTMLImageElement;
+                    image.classList.add("d-block");
+                    image.classList.add("w-100");
+                    image.src = fileUrl;
+                    item.appendChild(image);
+            }
+            carouselList.appendChild(selector);
+            carouselInnerDiv.appendChild(item);
+        }
+        carouselDiv.appendChild(carouselList);
+        carouselDiv.appendChild(carouselInnerDiv);
+        carouselDiv.appendChild(previousButton);
+        carouselDiv.appendChild(nextButton);
+        return carouselDiv;
+    }
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
     let postAddress = document.createElement("input") as HTMLInputElement;
@@ -26,9 +87,6 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     let ellipsesMenuItemExplorerLink = document.createElement("a") as HTMLAnchorElement;
     let postTextDiv = document.createElement("div") as HTMLDivElement;
     let embedDiv = document.createElement("div") as HTMLDivElement;
-    if (hasAttachments()) {
-        let attachmentDiv = document.createElement("div") as HTMLDivElement;
-    }
     let reactionDiv = document.createElement("div") as HTMLDivElement;
     let unixpostdate = postData.timestamp;
     let postdatevalue = new Date(unixpostdate * 1000).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true});
@@ -112,6 +170,20 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     postHeaderDiv.appendChild(ellipsesDiv);
     postDiv.appendChild(postTextDiv);
     postDiv.appendChild(embedDiv);
+    if (hasAttachments()) {
+        let attachmentDiv = createAttachmentCarousel();
+        postDiv.appendChild(attachmentDiv);
+        setTimeout(() => {
+            const carouselElement = document.getElementById(postData.txHash);
+            if (carouselElement) {
+                try {
+                    new bootstrap.Carousel(carouselElement);
+                } catch (e) {
+                    console.error("Error initializing carousel:", e);
+                }
+            }
+        }, 0);
+    }
     postDiv.appendChild(reactionDiv);
 
     // Embed Rich Media
