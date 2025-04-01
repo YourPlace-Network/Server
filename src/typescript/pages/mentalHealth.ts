@@ -747,8 +747,7 @@ const tips = [
     "Making fun of a disabled person makes you the bad guy. Laughing at or encouraging that behavior makes you just as bad",
     "Propaganda purposefully doesn't want you to have a balanced perspective on life and world events. Whenever something is \"the worst/best thing to ever happen\" then you know someone's trying to play you - and every politician does this",
     "Are you leaders pushing for real reform, or are they talking about irrelevant side-topics?",
-
-
+    "Generosity can become an overindulgence. If you start taking and borrowing money that you don't have, then generosity can become a vice",
 
 
 

@@ -13,32 +13,47 @@ jobs:
         shell: pwsh
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Check Out Code
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        lfs: true
     
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
       with:
         node-version: '20.x'
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
       with:
         go-version: '1.23.6'
 
     - name: Choco Install
-      uses: ConorMacBride/install-package@v1
+      uses: ConorMacBride/install-package@3e7ad059e07782ee54fa35f827df52aae0626f30 # v1.1.0
       with:
         choco: make
 
-    - name: Make Clean
-      run: make clean
-      continue-on-error: true
+    - name: Azure Login
+      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-    - name: Make Install
-      run: make install
+    - name: Azure CLI
+      uses: azure/cli@089eac9d8cc39f5d003e94f8b65efc51076c9cbd # v2.1.0
+      with:
+        azcliversion: latest
+        inlineScript: |
+          az account show
 
-    - name: Make Build
-      run: make build
+    - name: Configure Azure SSH Key
+      run: |
+        New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.ssh"
+        Set-Content -Path "$env:USERPROFILE\.ssh\id_rsa" -Value "${{ secrets.AZURE_SSH_PRIVATE_KEY }}"
+        icacls "$env:USERPROFILE\.ssh\id_rsa" /inheritance:r
+        icacls "$env:USERPROFILE\.ssh\id_rsa" /grant:r "$env:USERNAME:(R)"
+        ssh-keyscan -H ${{ secrets.AZURE_HOST }} >> "$env:USERPROFILE\.ssh\known_hosts"
 
     - name: Configure AWS Credentials
       run: |
@@ -48,9 +63,34 @@ jobs:
         aws configure set default.s3.endpoint_url https://nyc3.digitaloceanspaces.com
         aws configure set default.s3.addressing_style path
 
-    - name: Upload to DigitalOcean
+    - name: Make Clean
+      run: make clean
+      continue-on-error: true
+
+    - name: Make Install
+      run: make install
+      continue-on-error: true
+
+    - name: List
       run: |
-        $files = Get-ChildItem target\YourPlace*.exe
-        foreach ($file in $files) {
-          aws s3 cp $file.FullName s3://yourplace-downloads/windows/ --acl public-read --endpoint=https://nyc3.digitaloceanspaces.com
-        }
+        ls -la
+        echo "PATH: $env:PATH"
+        echo "GOPATH: $env:GOPATH"
+        echo "GOROOT: $env:GOROOT"
+        echo "HOME: $env:HOME"
+        echo "USERPROFILE: $env:USERPROFILE"
+
+    - name: Make Build
+      run: make build
+
+    - name: Copy EXE to Azure VM
+      run: |
+        scp -i "$env:USERPROFILE\.ssh\id_rsa" -o StrictHostKeyChecking=no .\path\to\your\application.exe ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/path/on/vm/
+
+    - name: Run EXE on Azure VM
+      run: |
+        ssh -i "$env:USERPROFILE\.ssh\id_rsa" -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "cd /path/on/vm && chmod +x application.exe && ./application.exe"
+
+    - name: Cleanup
+      run: |
+        make clean
