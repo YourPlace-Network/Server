@@ -1,7 +1,13 @@
 {{define "modalYesNo"}}<div class="modal" id="modalYesNo" aria-hidden="true" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-body" id="modalYesNoContent"></div>
+            <div class="modal-body">
+                <div id="modalYesNoContent"></div>
+            </div>
+            <div class="modal-footer" id="modalYesNoFooter">
+                <button type="button" class="btn btn-primary" id="modalYesButton">Yes</button>
+                <button type="button" class="btn btn-secondary" id="modalNoButton">No</button>
+            </div>
         </div>
     </div>
 </div>{{end}}

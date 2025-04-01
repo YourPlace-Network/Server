@@ -1,2 +1,14 @@
 @use "../global";
 
+#modalYesNoFooter {
+  border-top: none;
+  justify-content: center;
+}
+#modalYesButton {
+  width: 5em;
+  background-color: global.$success
+}
+#modalNoButton {
+  width: 5em;
+  background-color: global.$danger
+}

@@ -8,12 +8,13 @@ import (
 	"YourPlace/src/core/services"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/csrf"
+	"math/big"
 	"net/http"
 	"strconv"
 	"time"
 )
 
-func SettingsRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte) {
+func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte) {
 	defaultUploadDirectory := host.GetDataDir() + "upload" + host.PathSeparator
 
 	router.GET("/settings", func(c *gin.Context) { // Settings View
@@ -148,6 +149,32 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, cry
 		}
 		c.SecureJSON(http.StatusOK, gin.H{
 			"indexerOnBattery": indexerOnBatteryBool,
+		})
+	})
+	router.GET("/settings/content/ipfsPinning", func(c *gin.Context) {
+		pinningURL := database.SettingsGetValue("ipfsPinningURL")
+		pinningKey := host.GetSecret("ipfsPinningKey")
+		pinningKeyMasked := security.MaskToken(pinningKey)
+		c.SecureJSON(http.StatusOK, gin.H{
+			"pinningURL": pinningURL,
+			"pinningKey": pinningKeyMasked,
+		})
+	})
+	router.GET("/settings/base/indexerProgress", func(c *gin.Context) {
+		earliestBlock := _blockchain.GetEarliestBlock("base")
+		jobUUID := database.IndexerGetJobUUID("base")
+		tailBlock := database.IndexerGetTailBlock(jobUUID)
+		headBlock := database.IndexerGetHeadBlock(jobUUID)
+		latestBlock, err := _blockchain.GetLatestBlock("base")
+		if err != nil || latestBlock == big.NewInt(0) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Base latest block"})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"earliestBlock": earliestBlock,
+			"tailBlock":     tailBlock,
+			"headBlock":     headBlock,
+			"latestBlock":   latestBlock,
 		})
 	})
 
@@ -355,5 +382,24 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, cry
 			return
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "importPath": importPath})
+	})
+	router.POST("/settings/content/ipfsPinning", func(c *gin.Context) {
+		type Payload struct {
+			PinningURL string `json:"pinningURL" required:"true"`
+			PinningKey string `json:"pinningKey" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning JSON"})
+			return
+		}
+		if !security.IsValidURL(payload.PinningURL) || len(payload.PinningKey) <= 5 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning URL or Key"})
+			return
+		}
+		host.AddSecret("ipfsPinningKey", security.SanitizeNonPrintable(payload.PinningKey))
+		database.SettingsUpdateValue("ipfsPinningURL", payload.PinningURL)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "IPFS URL and Key saved"})
 	})
 }

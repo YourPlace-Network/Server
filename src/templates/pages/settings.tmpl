@@ -2,6 +2,7 @@
 <body class="body">
 {{template "htmlMenu" .}}
 {{template "modalDialog" .}}
+{{template "modalYesNo" .}}
 {{template "toast" .}}
     <div class="container-fluid">
         <!--<div class="row">
@@ -57,10 +58,11 @@
                                     <div class="input-group mb-3" id="ipfsPinningForm">
                                         <input type="text" class="form-control" id="ipfsPinningURL" placeholder="Pinning URL">
                                         <button class="btn btn-outline-secondary dropdown-toggle" id="ipfsPinningUrlBtn" type="button" data-bs-toggle="dropdown" aria-expanded="false"></button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
-                                            <li class="ipfsPinningLI" id="pinataLI">Pinata.cloud</li>
-                                            <li class="ipfsPinningLI" id="web3LI">web3.storage</li>
-                                            <li class="ipfsPinningLI" id="eternumLI">Eternum.io</li>
+                                        <ul class="dropdown-menu dropdown-menu-end" id="ipfsPinningUrlUL">
+                                            <li class="ipfsPinningLI" id="pinataLI"><img src="/static/image/pinata.svg" class="ipfsPinningIcon">Pinata.cloud</li>
+                                            <li class="ipfsPinningLI" id="web3LI"><img src="/static/image/web3storage.svg" class="ipfsPinningIcon">web3.storage</li>
+                                            <li class="ipfsPinningLI" id="filebaseLI"><img src="/static/image/filebase.svg" class="ipfsPinningIcon">Filebase</li>
+                                            <!--<li class="ipfsPinningLI" id="eternumLI"><img src="/static/image/eternum.png" class="ipfsPinningIcon">Eternum.io</li>-->
                                         </ul>
                                         <input type="text" class="form-control" id="ipfsPinningKey" placeholder="Secret Access Token">
                                     </div>
@@ -271,11 +273,7 @@
                                                             <button class="btn btn-primary btn-outline-secondary" id="defaultBaseURLBtn" type="button">Default</button>
                                                             <button class="btn btn-primary btn-outline-secondary" id="saveBaseURLBtn" type="button">Save</button>
                                                         </div>
-                                                        <div id="baseIndexerReset">
-                                                            <button class="btn btn-primary" id="baseIndexerResetBtn">Reset Indexer</button>
-                                                        </div>
 
-                                                        <hr /><!-- ----------------------------------- -->
                                                         <label for="baseThrottle" class="form-label" id="baseThrottleLabel">Server Throttle: <div id="baseThrottleNumber"></div> Requests-Per-Second</label>
                                                         <div class="input-group mb3">
                                                             <datalist id="baseThrottleMarkers">
@@ -292,6 +290,18 @@
                                                                 <div class="throttle-tooltip-inner"></div>
                                                                 <div class="throttle-tooltip-arrow"></div>
                                                             </div>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label for="baseIndexerProgress" class="form-label" id="baseIndexerProgressLabel">Indexer Progress:</label>
+                                                        <div class="progress" id="baseIndexerProgressDiv">
+                                                            <div id="baseIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                            <div id="baseIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="baseIndexerCachedPercent">80%</span></div>
+                                                            <div id="baseIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        </div>
+
+                                                        <div id="baseIndexerReset">
+                                                            <button class="btn btn-primary" id="baseIndexerResetBtn">Reset Indexer</button>
                                                         </div>
 
                                                         <hr /><!-- ----------------------------------- -->

@@ -1,3 +1,4 @@
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss";
 import "../../scss/pages/settings.scss";
@@ -6,7 +7,8 @@ import DOMPurify from "dompurify";
 import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError, LogInfo} from "../util/log";
 import {createPopper, type Instance} from "@popperjs/core";
-import {ShowDialogModal} from "../components/modalDialog";
+import {ShowDialogModal, ShowDialogModalHTML,} from "../components/modalDialog";
+import {ShowModalYesNo, ShowModalYesNoHTML} from "../components/modalYesNo";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {ShowSavedToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
@@ -22,6 +24,10 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             baseFullNodeDataDirectoryDiv: document.getElementById("baseFullNodeDataDirectoryDiv")! as HTMLDivElement,
             baseFullNodeCheckbox: document.getElementById("baseFullNodeCheckbox")! as HTMLInputElement,
             baseSaveDataDirectoryBtn: document.getElementById("baseSaveDataDirectoryBtn")! as HTMLButtonElement,
+            baseIndexerProgressUncachedTail: document.getElementById("baseIndexerProgressUncachedTail")! as HTMLDivElement,
+            baseIndexerCachedPercent: document.getElementById("baseIndexerCachedPercent")! as HTMLSpanElement,
+            baseIndexerProgressCached: document.getElementById("baseIndexerProgressCached")! as HTMLDivElement,
+            baseIndexerProgressUncachedHead: document.getElementById("baseIndexerProgressUncachedHead")! as HTMLDivElement,
             baseThrottle: document.getElementById("baseThrottle")! as HTMLInputElement,
             baseThrottleTooltip: document.getElementById("baseThrottleTooltip")! as HTMLElement,
             baseThrottleNumber: document.getElementById("baseThrottleNumber")! as HTMLDivElement,
@@ -44,16 +50,25 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             yourplaceTrafficLight: document.getElementById("yourplaceTrafficLight")! as HTMLDivElement,
             ipfsTrafficLight: document.getElementById("ipfsTrafficLight")! as HTMLDivElement,
             retestPortsBtn: document.getElementById("retestPortsBtn")! as HTMLButtonElement,
+            ipfsPinningURL: document.getElementById("ipfsPinningURL")! as HTMLInputElement,
+            ipfsPinningKey: document.getElementById("ipfsPinningKey")! as HTMLInputElement,
+            pinataLI: document.getElementById("pinataLI")! as HTMLLIElement,
+            web3LI: document.getElementById("web3LI")! as HTMLLIElement,
+            //eternumLI: document.getElementById("eternumLI")! as HTMLLIElement,
+            filebaseLi: document.getElementById("filebaseLI")! as HTMLLIElement,
+            saveIpfsPinningBtn: document.getElementById("saveIpfsPinningBtn")! as HTMLButtonElement,
         }
         let popperInstance: Instance | null = null;
 
         async function init() {
             InitTooltips();
+
             try {
                 await Promise.all([
                     getUploadDirectory(),
                     getBaseURL(),
                     getPostHistoryDays(),
+                    getBaseIndexerProgress(),
                     getBaseThrottle(),
                     getBaseFullNode(),
                     getBaseDataDirectory(),
@@ -62,11 +77,16 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                     getOllamaModelEnabled(),
                     getIndexerOnBattery(),
                     getNetworkPorts(),
+                    getIpfsPinning(),
                 ]);
             } catch (error) {
                 LogError("Error initializing settings page: " + error);
             }
+
             ExpandAccordionByHash();
+
+            /* Cron Jobs */
+            setInterval(getBaseIndexerProgress, 120000);
         }
 
         /* Getting Current Settings Values */
@@ -87,6 +107,41 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             let response = await HttpGetJson("/settings/base/url");
             if (response[0] === 200) {
                 DOM.baseURL.value = DOMPurify.sanitize(response[1].baseURL);
+            }
+        }
+        async function getBaseIndexerProgress() {
+            let response = await HttpGetJson("/settings/base/indexerProgress");
+            if (response[0] === 200) {
+                let earliestBlock = response[1].earliestBlock;
+                let tailBlock = response[1].tailBlock;
+                let headBlock = response[1].headBlock;
+                let latestBlock = response[1].latestBlock;
+                LogInfo("Base Indexer Progress: " + earliestBlock + " " + tailBlock + " " + headBlock + " " + latestBlock);
+                // Calculate the ranges
+                const totalRange = latestBlock - earliestBlock;
+                const earliestToTailRange = tailBlock - earliestBlock;
+                const tailToHeadRange = headBlock - tailBlock;
+                const headToLatestRange = latestBlock - headBlock;
+                // Calculate percentages and round to nearest integer
+                const tailPercentage = Math.round((earliestToTailRange / totalRange) * 100);
+                const latestPercentage = Math.round((headToLatestRange / totalRange) * 100);
+                const cachedPercentage = 100 - (tailPercentage + latestPercentage);
+                DOM.baseIndexerProgressUncachedTail.style.width = tailPercentage + "%";
+                DOM.baseIndexerProgressUncachedTail.ariaValueNow = tailPercentage.toString();
+                DOM.baseIndexerProgressCached.style.width = cachedPercentage + "%";
+                DOM.baseIndexerProgressCached.ariaValueNow = cachedPercentage.toString();
+                DOM.baseIndexerCachedPercent.textContent = cachedPercentage.toString() + "%";
+                if (cachedPercentage === 100) {
+                    DOM.baseIndexerCachedPercent.classList.remove("progress-bar-animated");
+                    DOM.baseIndexerProgressCached.classList.remove("progress-bar-striped");
+                    DOM.baseIndexerProgressCached.classList.add("bg-success");
+                } else {
+                    DOM.baseIndexerCachedPercent.classList.add("progress-bar-animated");
+                    DOM.baseIndexerProgressCached.classList.add("progress-bar-striped");
+                    DOM.baseIndexerProgressCached.classList.remove("bg-success");
+                }
+                DOM.baseIndexerProgressUncachedHead.style.width = latestPercentage + "%";
+                DOM.baseIndexerProgressUncachedHead.ariaValueNow = latestPercentage.toString();
             }
         }
         async function getBaseThrottle() {
@@ -169,6 +224,15 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 DOM.ipfsTrafficLight.classList.remove("greenLight");
                 DOM.ipfsTrafficLight.classList.add("redLight");
                 LogError("Failed to check network ports");
+            }
+        }
+        async function getIpfsPinning() {
+            let response = await HttpGetJson("/settings/content/ipfsPinning");
+            if (response[0] === 200) {
+                DOM.ipfsPinningURL.value = response[1].pinningURL;
+                DOM.ipfsPinningKey.value = response[1].pinningKey;
+            } else {
+                ShowDialogModal("Failed to get IPFS Pinning settings");
             }
         }
 
@@ -282,14 +346,17 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             }
         }
         async function setBaseIndexerReset() {
-            let response = await HttpPostJson("/settings/base/indexerReset",
-                {indexerReset: true},
-                DOM.csrfToken.value);
-            if (response[0] === 200) {
-                LogInfo("Base Indexer Reset");
-                ShowSavedToast();
-            } else {
-                LogInfo("Base Indexer Reset Error");
+            const confirmed = await ShowModalYesNoHTML("⚠️ Are you sure you want to reset the indexer? ⚠️<br><br>This will delete cached YourPlace data and re-index everything<br><br>It will take a long time and download a lot of data<br><br>Your personal data, posts, and profile <u>will not</u> be deleted");
+            if (confirmed) {
+                let response = await HttpPostJson("/settings/base/indexerReset",
+                    {indexerReset: true},
+                    DOM.csrfToken.value);
+                if (response[0] === 200) {
+                    LogInfo("Base Indexer Reset");
+                    ShowSavedToast();
+                } else {
+                    LogInfo("Base Indexer Reset Error");
+                }
             }
         }
         async function setSpiceometer() {
@@ -321,6 +388,18 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 ShowSavedToast();
             } else {
                 LogError("Indexer On Battery Error");
+            }
+        }
+        async function setIPFSPinning() {
+            const data = {
+                pinningURL: DOM.ipfsPinningURL.value,
+                pinningKey: DOM.ipfsPinningKey.value,
+            }
+            let response = await HttpPostJson("/settings/content/ipfsPinning", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                ShowSavedToast();
+            } else {
+                ShowDialogModal(response[1].status);
             }
         }
 
@@ -392,11 +471,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.baseThrottle.addEventListener("touchend", hideTooltip);
 
         /* Event Listeners */
-        DOM.baseDataDirectory!.addEventListener("change", function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            setBaseDataDirectory().then();
-        });
+        DOM.baseDataDirectory!.addEventListener("change", setBaseDataDirectory);
         DOM.baseDefaultDataDirectoryBtn!.addEventListener("click", setDefaultBaseDataDirectory);
         DOM.baseFullNodeCheckbox!.addEventListener("change", setBaseFullNode);
         DOM.baseThrottle!.addEventListener("change", setBaseThrottle);
@@ -410,6 +485,19 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.spiceometerCheck!.addEventListener("change", setSpiceometer);
         DOM.indexerOnBatteryCheckbox!.addEventListener("change", setIndexerOnBattery);
         DOM.retestPortsBtn!.addEventListener("click", getNetworkPorts);
+        DOM.pinataLI!.addEventListener("click", function(e) {
+            ShowDialogModalHTML("Please create an account and secret from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your \"<b>Gateway URL</b>\" and \"<b>JWT (secret access token)</b>\" to the IPFS Pinning settings page");
+        });
+        DOM.web3LI!.addEventListener("click", function(e) {
+            DOM.ipfsPinningURL.value = "https://api.web3.storage";
+            ShowDialogModalHTML("Please create an account and secret from <a href='https://web3.storage/' target='_blank'>Web3.Storage here</a><br><br>Then add your \"<b>Secret Access Token</b>\" to the IPFS Pinning settings page");
+        });
+        DOM.filebaseLi!.addEventListener("click", function(e) {
+            DOM.ipfsPinningURL.value = "https://api.filebase.io/v1/ipfs";
+            ShowDialogModalHTML("Please create an account at <a href='https://console.filebase.com/' target='_blank'>Filebase here</a><br><br>Then create a Bucket and generate a \"<b>Token</b>\" for that bucket, and add it to the IPFS Pinning settings page");
+        });
+        //DOM.eternumLI!.addEventListener("click", function(e) {});
+        DOM.saveIpfsPinningBtn.addEventListener("click", setIPFSPinning);
 
         init().then();
     }
