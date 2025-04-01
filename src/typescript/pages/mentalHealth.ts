@@ -727,6 +727,29 @@ const tips = [
     "On an individual level, don't worry too much about the end of the world, the apocalypse, or some other mass extinction event. If it happens, it happens, so just enjoy your life. Some natural world ending events can be prevented, and we should encourage our leaders and society as a whole to mitigate those where we can",
     "If a religion focuses *too* much on the end of the world, then it's very likely being used to create fear to manipulate and control you",
     "Very few people can actually predict a major civil or world war. It's only in hindsight that there are clear start and end points to the conflict. In fact, when the American Civil War started, there were civilians who so underestimated the conflict that they went out to picnic and watch the Battle of Manassas, only to find themselves in the middle of a chaotic and bloody fight, and retreating along with the Union soldiers",
+    "Only take advice on relationships and love from couples who've been together for a long time. The internet is one of the last places you want to look for that information",
+    "Sometimes the best thing to do is just laugh at the haters. It's possible that it will drive them so crazy, that they will make a mistake that you can use against them. As long as you're prepared to deal with the lash out, then let them make that mistake",
+    "Read \"The Art of War\" by Sun Tzu. If you can apply those principals, then you will win every battle",
+    "There are *a lot* of stupid people on the internet. They will believe anything, including stuff they just made up. Don't be one of them",
+    "Don't let people bait you into not blocking them, just so they can antagonize you later on. Just block and move on",
+    "Low IQ people will accuse you of being a hypocrite without even knowing what you stand for. Block them and don't engage further. They have a sad life and you don't need to be pulled into it",
+    "You are your own being, with your own agency, and your own ability to craft your life however you want. Blaming current failures on events that didn't even happen to you, or didn't happen in your lifetime, is just a cope",
+    "When you have liberty, sometimes you might have undesirable outcomes. However, the liberty in of itself, is more important for the advancement of humanity",
+    "Values are transcendent to the technology of the day",
+    "Ladies: Don't take relationship advice from the friend who can't keep a relationship",
+    "Guys: Don't take relationship advice from the friend wo can't keep a relationship",
+    "In a long-term relationship it's normal and healthy for one person to take ownership of certain aspects of daily life, such as: bread-winning, childcare, cleaning, cooking, maintenance, shopping, etc. The point is to share the overall burden. You shouldn't have to do everything while your partner does little or nothing",
+    "Homemaking and childcare is a honorable and respectable path to choose. It's fundamental to growing humanity and is one of the most important, and sometimes difficult, jobs",
+    "Don't just parrot complaints and political views that other people have. Understand if those things effect you personally, research them fully, and then form your own opinion",
+    "Very often, the real truth far down the search results, past all the \"reputable\" outlets",
+    "List out the top 5 news sources you trust - and be honest with yourself here. If they are all rated as biased towards one political viewpoint, then you know where you stand",
+    "If you're visiting a country that values modesty, politeness and respectfulness - then you better act right or they might throw you in jail",
+    "Making fun of a disabled person makes you the bad guy. Laughing at or encouraging that behavior makes you just as bad",
+    "Propaganda purposefully doesn't want you to have a balanced perspective on life and world events. Whenever something is \"the worst/best thing to ever happen\" then you know someone's trying to play you - and every politician does this",
+    "Are you leaders pushing for real reform, or are they talking about irrelevant side-topics?",
+
+
+
 
 
 

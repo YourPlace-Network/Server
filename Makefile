@@ -19,7 +19,6 @@ else
 	NODE=$(shell which node)
 	NPM=$(shell which npm)
 	NPX=$(shell which npx)
-	HELPER=src/core/host/bin/helper/osx/YourPlaceHelper
 endif
 
 # --- Code Update Commands --- #
@@ -48,7 +47,6 @@ else ifeq ($(DETECTED_OS),Darwin)
 	-pkill -f YourPlaceIpfs 2>/dev/null || true
 	-pkill -f YourPlaceFfmpeg 2>/dev/null || true
 	rm -rf target 2>/dev/null || true
-	rm -f "$(HELPER)" 2>/dev/null || true
 	go clean
 endif
 
@@ -60,7 +58,7 @@ test:
 	go test
 
 # --- Build Commands --- #
-build:
+build: clean
 ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
 	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force }"
@@ -70,29 +68,22 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlaceHelper.exe helper\helper_win.go
 	powershell -Command "Copy-Item -Path 'target\YourPlaceHelper.exe' -Destination 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
 	$(NPX) webpack --config "src\typescript\webpack.prod.cjs"
-	go generate
 	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlace.exe main.go
 	resources\windows\upx.exe -o target\YourPlace-$(VERSION).exe target\YourPlace.exe
 	powershell -Command "Remove-Item -Path 'target\YourPlace.exe' -Force"
 	powershell -Command "Remove-Item -Path 'target\YourPlaceHelper.exe' -Force"
 else ifeq ($(DETECTED_OS),Darwin)
-	xcrun notarytool store-credentials "NOTARYPASS" --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "$(NOTARYPASS)"
-	$(NPX) webpack --config src/typescript/webpack.prod.cjs
+	$(NPX) webpack --config src/typescript/webpack.prod.js
 	mkdir -p src/core/host/bin/helper/osx/
-	go generate
-	touch src/core/host/bin/helper/osx/YourPlaceHelper
 	VERSION=$(shell grep 'version.*=.*"' helper/helper_osx.go | cut -d'"' -f2)
 	@echo $(VERSION) > src/core/host/bin/helper/osx/helper.version
 	go build -o target/YourPlaceHelper helper/helper_osx.go
-	codesign --force --sign "Developer ID Application: Austin Lawrence (2NNLSL5QT4)" --options runtime target/YourPlaceHelper
-	cp -rf target/YourPlaceHelper src/core/host/bin/helper/osx/YourPlaceHelper
 	go build -o target/YourPlace main.go
-	codesign --force --sign "Developer ID Application: Austin Lawrence (2NNLSL5QT4)" --options runtime target/YourPlace
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh
 endif
 
-dbg_build:
+dbg_build: clean
 ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
 	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force }"
@@ -115,10 +106,8 @@ else ifeq ($(DETECTED_OS),Darwin)
 	VERSION=$(shell grep 'version.*=.*"' helper/helper_osx.go | cut -d'"' -f2)
 	@echo $(VERSION) > src/core/host/bin/helper/osx/helper.version
 	go build -o target/YourPlaceHelper helper/helper_osx.go
-	codesign --force --sign "Developer ID Application: Austin Lawrence (2NNLSL5QT4)" --options runtime --verbose target/YourPlaceHelper
 	cp -rf target/YourPlaceHelper src/core/host/bin/helper/osx/YourPlaceHelper
 	go build -o target/YourPlace main.go
-	codesign --force --sign "Developer ID Application: Austin Lawrence (2NNLSL5QT4)" --options runtime --verbose target/YourPlace
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh dev
 endif

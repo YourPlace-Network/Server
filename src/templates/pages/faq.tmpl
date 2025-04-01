@@ -1,7 +1,7 @@
 {{template "header" .}}
 <body class="body">
 {{template "htmlMenu" .}}
-    <div class="container-fluid vh-100">
+    <div class="container-fluid">
         <div class="row" id="row1">
             <div class="col-sm-1"></div>
             <div class="col-sm-10">
@@ -120,7 +120,9 @@
                         <div id="collapseSlow" class="accordion-collapse collapse" aria-labelledby="headingSlow" data-bs-parent="#accordionFAQ">
                             <div class="accordion-body">
                                 <strong>Less popular files are stored on fewer peers in the IPFS network, and thus takes longer to find and download.</strong> Some content may be cached by centralized services to increase the responsiveness of YourPlace, but fully decentralized content may be slower to load. Running a YourPlace server ensures your files are pinned and seeded to the IPFS network so that they are never garbage collected. A single user may run multiple YourPlace servers to further accelerate their content.
-                                Content that is never accessed will eventually be garbage collected from IPFS. The most popular content on IPFS may never be removed because many peers keep a copy.
+                                Content that is never accessed will eventually be garbage collected from IPFS. The most popular content on IPFS may never be removed because many peers keep a copy.<br><br>
+                                To ensure that your files are served in the fastest way possible, it is recommended that you set up an IPFS pinning service in the <a href="/settings#content">IPFS File Pinning Settings</a>. Any IPFS pinning service will work, but we recommend <a href="https://pinata.cloud" target="_blank" rel="noopener noreferrer">Pinata</a>, <a href="https://web3.storage/" target="_blank" rel="noopener noreferrer">Web3.storage</a>, or <a href="https://www.eternum.io/" target="_blank" rel="noopener noreferrer">Eternum</a>. You will need to create an account on their site, generate a key, then add that key into the YourPlace settings.<br><br>
+                                It is also recommended that you ensure that the proper network ports are opened on your router to make the YourPlace server reachable from the public internet. Please see the <a href="/settings#networking">Network Settings</a> page to test that your server is reachable. You will need to consult your ISP or router documentation to understand how to open these ports. It's typically called "port forwarding."
                             </div>
                         </div>
                     </div>
@@ -192,7 +194,7 @@
                         </h2>
                         <div id="collapseCreator" class="accordion-collapse collapse" aria-labelledby="headingCreator" data-bs-parent="#accordionFAQ">
                             <div class="accordion-body">
-                                <strong>YourPlace was created by <a href="https://www.linkedin.com/in/0x9090/" target="_blank" rel="noopener noreferrer"><u>Nops</u></a>, a professional security engineer with a lifetime of engineering, cryptography and software security experience.</strong> Nops believes in fundamental human rights such as free speech and the right to self-sovereignty. He created YourPlace to challenge the censorship status-quo and give responsibility and content ownership back to the user.
+                                <strong>YourPlace was created by <a href="https://www.linkedin.com/in/0x9090/" target="_blank" rel="noopener noreferrer"><u>Nops</u></a>, a professional security engineer with a lifetime of engineering, cryptography and software security experience.</strong> Nops believes in fundamental human rights such as free speech and the right to self-sovereignty. He created YourPlace to challenge the censorship status-quo and give responsibility and content ownership back to the user. YourPlace was coded with love, and not vibes :)
                             </div>
                         </div>
                     </div>
@@ -202,6 +204,7 @@
             <div class="col-sm-1"></div>
         </div>
     </div>
+    {{template "footer" .}}
     <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
     <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">
 </body>

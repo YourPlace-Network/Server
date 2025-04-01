@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -983,19 +984,38 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 }
 func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[string]interface{} {
 	var posts []map[string]interface{}
-	rows, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddress = LOWER (?) AND blockchain = ? ORDER BY timestamp DESC", address, blockchain)
+	rowsPosts, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddress = LOWER (?) AND blockchain = ? ORDER BY timestamp DESC", address, blockchain)
 	if err != nil {
 		core.LogError("Could not get user posts from database: " + err.Error())
 		return nil
 	}
-	defer rows.Close()
-	for rows.Next() {
+	defer rowsPosts.Close()
+	for rowsPosts.Next() {
 		var timestamp uint64
 		var txHash, payload, parent string
-		err := rows.Scan(&txHash, &parent, &timestamp, &payload)
+		var attachments [][]string
+		err := rowsPosts.Scan(&txHash, &parent, &timestamp, &payload)
 		if err != nil {
 			core.LogError(err.Error())
 			return nil
+		}
+		rowsAttachments, err := db.runParamSQLSelect("SELECT contentType, size, fileUrl FROM onchain_attachment WHERE txHash = ? AND blockchain = ?", txHash, blockchain)
+		if err != nil {
+			core.LogError("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
+		}
+		defer rowsAttachments.Close()
+		for rowsAttachments.Next() {
+			var contentType string
+			var size uint64
+			var fileUrl string
+			err := rowsAttachments.Scan(&contentType, &size, &fileUrl)
+			if err != nil {
+				core.LogError("Could parse rows for post attachment: " + err.Error())
+				break // bail rowsAttachments for loop
+			}
+			sizeString := strconv.FormatUint(size, 10)
+			attachment := []string{fileUrl, contentType, sizeString}
+			attachments = append(attachments, attachment)
 		}
 		post := map[string]interface{}{
 			"resultType": "profile post",
@@ -1005,6 +1025,9 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 			"payload":    payload,
 			"blockchain": blockchain,
 			"address":    address,
+		}
+		if attachments != nil { // Adds attachment field only if attachments exist for this post
+			post["attachments"] = attachments
 		}
 		posts = append(posts, post)
 	}
@@ -1061,10 +1084,29 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 	for rows.Next() {
 		var timestamp uint64
 		var txHash, parentHash, payload, blockchain, address string
+		var attachments [][]string
 		err := rows.Scan(&txHash, &parentHash, &timestamp, &payload, &address, &blockchain)
 		if err != nil {
 			core.LogError("Could not scan database rows: " + err.Error())
 			return nil
+		}
+		rowsAttachments, err := db.runParamSQLSelect("SELECT contentType, size, fileUrl FROM onchain_attachment WHERE txHash = ? AND blockchain = ?", txHash, blockchain)
+		if err != nil {
+			core.LogError("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
+		}
+		defer rowsAttachments.Close()
+		for rowsAttachments.Next() {
+			var contentType string
+			var size uint64
+			var fileUrl string
+			err := rowsAttachments.Scan(&contentType, &size, &fileUrl)
+			if err != nil {
+				core.LogError("Could parse rows for post attachment: " + err.Error())
+				break // bail rowsAttachments for loop
+			}
+			sizeString := strconv.FormatUint(size, 10)
+			attachment := []string{fileUrl, contentType, sizeString}
+			attachments = append(attachments, attachment)
 		}
 		post := map[string]interface{}{
 			"resultType": "post",
@@ -1074,6 +1116,9 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 			"timestamp":  timestamp,
 			"payload":    payload,
 			"parentHash": parentHash,
+		}
+		if attachments != nil {
+			post["attachments"] = attachments
 		}
 		posts = append(posts, post)
 	}

@@ -1,4 +1,4 @@
-import * as DOMPurify from "dompurify";
+import DOMPurify from "dompurify";
 
 export function LogInfo(message: string) {
     console.log('%c[INFO]%c ' + DOMPurify.sanitize(message), 'color: #0080FF', 'color: #FFFFFF');

@@ -1,6 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/postCard.scss";
-import * as DOMPurify from "dompurify";
+import DOMPurify from "dompurify";
 import {HttpGetJson} from "../util/network";
 
 export async function FetchPosts(blockchain: string, address: string): Promise<[] | null> { // retrieves a user's posts from the backend

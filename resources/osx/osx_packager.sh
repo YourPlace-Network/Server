@@ -41,19 +41,35 @@ chmod 0755 ./target/scripts/postinstall
 
 # -------- Uninstaller -------- #
 cp ./resources/osx/uninstall.sh ./target/YourPlace.app/Contents/Resources/scripts/
-codesign --force --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/Resources/scripts/uninstall.sh
 chmod 0755 ./target/YourPlace.app/Contents/Resources/scripts/uninstall.sh
 
 # --------- Installer --------- #
-cp ./target/YourPlace ./target/YourPlace.app/Contents/MacOS/
-cp ./target/YourPlaceHelper ./target/YourPlace.app/Contents/MacOS/
-cp ./resources/osx/AppIcon.icns ./target/YourPlace.app/Contents/Resources
+cp ./target/YourPlace ./target/YourPlace.app/Contents/MacOS/YourPlace
+cp ./target/YourPlaceHelper ./target/YourPlace.app/Contents/MacOS/YourPlaceHelper
+cp ./resources/osx/AppIcon.icns ./target/YourPlace.app/Contents/Resources/AppIcon.icns
 cp ./src/www/image/yourplace-logo-zoomed-out.png ./target/Resources/yourplace.png
 sips -Z 225 ./target/Resources/yourplace.png
 
 # --------- Packaging --------- #
 cp ./resources/osx/Info.plist ./target/YourPlace.app/Contents/
 cp ./resources/osx/distribution.xml ./target/
+
+# --------- Signing & Notarization --------- #
+if [ $DEV_MODE -eq 0 ]; then
+  # Cleaning app bundle of resource forks and metadata
+  xattr -cr ./target/YourPlace.app
+  # Sign the app bundle and binaries
+  codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/Resources/scripts/uninstall.sh
+  codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/MacOS/YourPlaceHelper
+  codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/MacOS/YourPlace
+  codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app
+  # Verify the signatures to ensure it's valid
+  codesign -vvv --deep --strict ./target/YourPlace.app
+  if [ $? -ne 0 ]; then
+    echo "ERROR: Code signing failed verification"
+    exit 1
+  fi
+fi
 
 # Create component package
 pkgbuild --root "./target/YourPlace.app" \
@@ -70,38 +86,30 @@ productbuild --distribution "./target/distribution.xml" \
              --version "${VERSION}" \
              "./target/YourPlace-${VERSION}.pkg"
 
-# --------- Signing & Notarization --------- #
-if [ $DEV_MODE -eq 1 ]; then
-  # Cleaning app bundle of resource forks and metadata
-  xattr -cr ./target/YourPlace.app
-  # Sign the app package
-  codesign --deep --force --sign "${APP_CERTIFICATE}" --options runtime ./target/YourPlace.app
-  # Check for installer certificate
-  if ! security find-identity -p codesigning | grep -q "${INSTALLER_CERTIFICATE}"; then
-    echo "ERROR: Developer ID Installer certificate not found"
-    echo "Please ensure your Developer ID Installer certificate is properly installed"
-    exit 1
-  fi
-  echo "Signing and notarizing package..."
+if [ $DEV_MODE -eq 0 ]; then
   # Sign the pkg installer
   productsign --sign "${INSTALLER_CERTIFICATE}" ./target/YourPlace-${VERSION}.pkg ./target/YourPlace-${VERSION}-signed.pkg
   if [ $? -ne 0 ]; then
     echo "ERROR: Package signing failed"
     exit 1
   fi
-  # Notarize the signed package
-  xcrun notarytool submit ./target/YourPlace-${VERSION}-signed.pkg --wait --keychain-profile "${NOTARYPASS}"
-  if [ $? -ne 0 ]; then
-    echo "ERROR: Package notarization failed"
-    exit 1
+  # Store notary credentials in the keychain
+  if [ -n "${NOTARYPASS}" ]; then # Using -n to check if the variable is not empty
+    xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "${NOTARYPASS}" AustinLawrence
+  else
+    echo "Notary password not set in the environment, skipping as we assume that it's been set in the Github action"
   fi
+  # Notarize the signed package
+  xcrun notarytool submit --wait ./target/YourPlace-${VERSION}-signed.pkg --keychain-profile "AustinLawrence"
+  # Verify: xcrun notarytool info -p "AustinLawrence" <UUID>
   # Staple the notarization ticket
   xcrun stapler staple ./target/YourPlace-${VERSION}-signed.pkg
   if [ $? -ne 0 ]; then
     echo "ERROR: Notarization ticket stapling failed"
     exit 1
   fi
+  # Verify: spctl -a -vvv -t install YourPlace-0.1.0-signed.pkg
   # Clean up
-  rm -f ./target/YourPlace-${VERSION}.pkg # Remove the unsigned package
+  rm ./target/YourPlace-${VERSION}.pkg # Delete the unsigned package
   mv ./target/YourPlace-${VERSION}-signed.pkg ./target/YourPlace-${VERSION}.pkg # Rename the signed package
 fi
