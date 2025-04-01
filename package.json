@@ -73,8 +73,8 @@
     "@types/superagent": "4.1.17",
     "ansi-regex": "6.0.1",
     "async": "3.2.4",
-    "decode-uri-component": "0.4.1",
     "copy-webpack-plugin": "12.0.2",
+    "decode-uri-component": "0.4.1",
     "ejs": "3.1.10",
     "electron": "31.3.1",
     "file-loader": "6.2.0",
@@ -94,7 +94,7 @@
     "typescript": "5.0.4",
     "undici": "6.19.5",
     "url-parse": "1.5.10",
-    "webpack-cli": "5.1.1",
+    "webpack-cli": "^5.1.1",
     "webpack-merge": "6.0.1"
   }
 }

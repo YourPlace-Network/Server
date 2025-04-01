@@ -13,20 +13,22 @@ jobs:
         shell: pwsh
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        lfs: true
     
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
       with:
         node-version: '20.x'
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
       with:
         go-version: '1.23.6'
 
     - name: Choco Install
-      uses: ConorMacBride/install-package@v1
+      uses: ConorMacBride/install-package@3e7ad059e07782ee54fa35f827df52aae0626f30 # v1.1.0
       with:
         choco: make
 
@@ -54,3 +56,7 @@ jobs:
         foreach ($file in $files) {
           aws s3 cp $file.FullName s3://yourplace-downloads/windows/ --acl public-read --endpoint=https://nyc3.digitaloceanspaces.com
         }
+
+    - name: Cleanup
+      run: |
+        make clean

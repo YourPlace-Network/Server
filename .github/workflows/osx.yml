@@ -29,10 +29,6 @@ jobs:
       uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
       with:
         node-version: '20.x'
-        
-    - name: Install dependencies
-      run: |
-        npm install package.json
 
     - name: Setup Go
       uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
@@ -70,6 +66,10 @@ jobs:
     - name: Configure Notarization Tool
       run: |
         xcrun notarytool store-credentials --apple-id "nops@yourplace.network" --team-id "2NNLSL5QT4" --password "${{ secrets.OSX_NOTARY_PASSWORD }}" AustinLawrence
+
+    - name: Install
+      run: |
+        make install
 
     - name: Build
       run: |
