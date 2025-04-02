@@ -14,13 +14,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Extract Version From Go Code
-        id: get_version
-        run: |
-          VERSION=$(grep -Po 'version = "\K[^"]*' main.go)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Version found: $VERSION"
-
       - name: Setup Node.js
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
