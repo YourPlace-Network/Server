@@ -1,4 +1,4 @@
-name: Windows
+name: Windows Latest
 
 on:
   release:
@@ -26,42 +26,12 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
       with:
-        go-version: '1.23.6'
+        go-version: '1.24.1'
 
     - name: Choco Install
       uses: ConorMacBride/install-package@3e7ad059e07782ee54fa35f827df52aae0626f30 # v1.1.0
       with:
-        choco: make
-
-    - name: Azure Login
-      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-    - name: Azure CLI
-      uses: azure/cli@089eac9d8cc39f5d003e94f8b65efc51076c9cbd # v2.1.0
-      with:
-        azcliversion: latest
-        inlineScript: |
-          az account show
-
-    - name: Configure Azure SSH Key
-      run: |
-        New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.ssh"
-        Set-Content -Path "$env:USERPROFILE\.ssh\id_rsa" -Value "${{ secrets.AZURE_SSH_PRIVATE_KEY }}"
-        icacls "$env:USERPROFILE\.ssh\id_rsa" /inheritance:r
-        icacls "$env:USERPROFILE\.ssh\id_rsa" /grant:r "$env:USERNAME:(R)"
-        ssh-keyscan -H ${{ secrets.AZURE_HOST }} >> "$env:USERPROFILE\.ssh\known_hosts"
-
-    - name: Configure AWS Credentials
-      run: |
-        aws configure set aws_access_key_id ${{ secrets.S3_UPLOAD_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.S3_UPLOAD_SECRET }}
-        aws configure set default.region us-east-1
-        aws configure set default.s3.endpoint_url https://nyc3.digitaloceanspaces.com
-        aws configure set default.s3.addressing_style path
+        choco: make awscli
 
     - name: Make Clean
       run: make clean
@@ -71,25 +41,23 @@ jobs:
       run: make install
       continue-on-error: true
 
-    - name: List
-      run: |
-        ls -la
-        echo "PATH: $env:PATH"
-        echo "GOPATH: $env:GOPATH"
-        echo "GOROOT: $env:GOROOT"
-        echo "HOME: $env:HOME"
-        echo "USERPROFILE: $env:USERPROFILE"
-
     - name: Make Build
       run: make build
 
-    - name: Copy EXE to Azure VM
-      run: |
-        scp -i "$env:USERPROFILE\.ssh\id_rsa" -o StrictHostKeyChecking=no .\path\to\your\application.exe ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/path/on/vm/
+    - name: Configure AWS/DigitalOcean Credentials
+      uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+      with:
+        aws-access-key-id: ${{ secrets.SPACES_ACCESS_KEY }}
+        aws-secret-access-key: ${{ secrets.SPACES_SECRET_KEY }}
+        aws-region: us-east-1 # DigitalOcean Spaces requires this region
+        endpoint-url: https://nyc3.digitaloceanspaces.com
 
-    - name: Run EXE on Azure VM
+    - name: Upload to DigitalOcean
       run: |
-        ssh -i "$env:USERPROFILE\.ssh\id_rsa" -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "cd /path/on/vm && chmod +x application.exe && ./application.exe"
+          $files = Get-ChildItem target\YourPlace-*.exe
+          foreach ($file in $files) {
+            aws s3 cp $file.FullName s3://yourplace-downloads/windows/ --acl public-read --endpoint=https://nyc3.digitaloceanspaces.com
+          }
 
     - name: Cleanup
       run: |
