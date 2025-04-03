@@ -1,73 +1,22 @@
 import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
-import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml} from "./security";
+import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml, HashString} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
 import bootstrap from "bootstrap";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {// returns a post div element when given a post's data set profile to true if calling from a users profile
+    const txHash = XSSSanitizeValue(postData.txHash);
+    let blockchain = "";
+    let address = "";
+    if (IsValidBlockchain(postData.blockchain)) {
+        blockchain = XSSSanitizeValue(postData.blockchain);
+    }
+    if (IsValidAddress(postData.address, blockchain)) {
+        address = XSSSanitizeValue(postData.address);
+    }
     function hasAttachments(): boolean {
         return "attachments" in postData;
-    }
-    function createAttachmentCarousel(): HTMLDivElement {
-        let carouselDiv = document.createElement("div") as HTMLDivElement;
-        carouselDiv.classList.add("carousel", "slide");
-        carouselDiv.id = postData.txHash;
-        let carouselList = document.createElement("ol") as HTMLOListElement;
-        carouselList.classList.add("carousel-indicators");
-        let carouselInnerDiv = document.createElement("div") as HTMLDivElement;
-        carouselInnerDiv.classList.add("carousel-inner");
-        let previousButton = document.createElement("a") as HTMLAnchorElement;
-        previousButton.classList.add("carousel-control-prev");
-        previousButton.href = "#" + postData.txHash;
-        previousButton.role = "button";
-        previousButton.setAttribute("data-bs-slide", "prev");
-        let previousIcon = document.createElement("span") as HTMLSpanElement;
-        previousIcon.classList.add("carousel-control-prev-icon");
-        previousIcon.ariaHidden = "true";
-        previousButton.appendChild(previousIcon);
-        let nextButton = document.createElement("a") as HTMLAnchorElement;
-        nextButton.classList.add("carousel-control-next");
-        nextButton.href = "#" + postData.txHash;
-        nextButton.role = "button";
-        nextButton.setAttribute("data-bs-slide", "next");
-        let nextIcon = document.createElement("span") as HTMLSpanElement;
-        nextIcon.classList.add("carousel-control-next-icon");
-        nextIcon.ariaHidden = "true";
-        nextButton.appendChild(nextIcon);
-        for (let i = 0; i < postData.attachments.length; i++) {
-            let attachment = postData.attachments[i];
-            let fileUrl = attachment[0];
-            let contentType = attachment[1];
-            let selector = document.createElement("li") as HTMLLIElement;
-            let item = document.createElement("div") as HTMLDivElement;
-            if (i == 0) {
-                selector.classList.add("active");
-                item.classList.add("active");
-            }
-            selector.setAttribute("data-bs-target", "#" + postData.txHash);
-            selector.setAttribute("data-bs-slide-to", i.toString());
-            item.classList.add("carousel-item")
-            let contentTypePrefix = contentType.split("/")[0];
-            switch (contentTypePrefix) {
-                case "image":
-                    if (fileUrl.startsWith("ipfs://")) {
-                        fileUrl = CIDToSubdomainURL(fileUrl);
-                    }
-                    let image = document.createElement("img") as HTMLImageElement;
-                    image.classList.add("d-block");
-                    image.classList.add("w-100");
-                    image.src = fileUrl;
-                    item.appendChild(image);
-            }
-            carouselList.appendChild(selector);
-            carouselInnerDiv.appendChild(item);
-        }
-        carouselDiv.appendChild(carouselList);
-        carouselDiv.appendChild(carouselInnerDiv);
-        carouselDiv.appendChild(previousButton);
-        carouselDiv.appendChild(nextButton);
-        return carouselDiv;
     }
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
@@ -91,13 +40,13 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     let unixpostdate = postData.timestamp;
     let postdatevalue = new Date(unixpostdate * 1000).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true});
     let walletAddressLink = WalletGetExplorerAddressLink(postData.address);
-    let walletTxLink = WalletGetExplorerTxLink(postData.txHash);
+    let walletTxLink = WalletGetExplorerTxLink(txHash);
 
     // adding attributes to elements
     postDiv.classList.add("postCard");
     postID.type = "hidden";
     postID.classList.add("postCardID");
-    postID.value = XSSSanitizeValue(postData.txHash);
+    postID.value = txHash;
     postBlockchain.type = "hidden";
     postBlockchain.classList.add("postCardBlockchain");
     postBlockchain.value = XSSSanitizeValue(postData.blockchain);
@@ -105,11 +54,9 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     postAddress.classList.add("postCardAddress");
     postAddress.value = XSSSanitizeValue(postData.address);
     avatarDiv.classList.add("postCardAvatar");
-    let blockchain = postData.blockchain;
-    let address = postData.address;
     if (postData.resultType != "profile post" && IsValidBlockchain(blockchain) && IsValidAddress(address, blockchain)) {
         avatarDiv.classList.add("clickable");
-        avatarDiv.addEventListener('click', () => {
+        avatarDiv.addEventListener("click", () => {
             window.location.replace("/p/" + blockchain + "/" + address);
         });
     }
@@ -171,10 +118,10 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     postDiv.appendChild(postTextDiv);
     postDiv.appendChild(embedDiv);
     if (hasAttachments()) {
-        let attachmentDiv = createAttachmentCarousel();
+        let attachmentDiv = await CreateCarousel();
         postDiv.appendChild(attachmentDiv);
         setTimeout(() => {
-            const carouselElement = document.getElementById(postData.txHash);
+            const carouselElement = document.getElementById(txHash);
             if (carouselElement) {
                 try {
                     new bootstrap.Carousel(carouselElement);
@@ -290,4 +237,54 @@ function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
     iframe.setAttribute("loading", "lazy");
     iframe.setAttribute("credentialless", "");
     return iframe;
+}
+export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> { // Creates carousel element for attachments
+    let carouselDiv = document.createElement("div") as HTMLDivElement;
+    let carouselList = document.createElement("ol") as HTMLOListElement;
+    let carouselInnerDiv = document.createElement("div") as HTMLDivElement;
+    let previousButton = document.createElement("a") as HTMLAnchorElement;
+    let previousIcon = document.createElement("span") as HTMLSpanElement;
+    let nextButton = document.createElement("a") as HTMLAnchorElement;
+    let nextIcon = document.createElement("span") as HTMLSpanElement;
+    const elementString = elements.map(el => el.outerHTML).join("");
+    const elementHash = await HashString(elementString);
+    carouselDiv.classList.add("carousel", "slide");
+    carouselDiv.id = elementHash;
+    carouselList.classList.add("carousel-indicators");
+    carouselInnerDiv.classList.add("carousel-inner");
+    previousButton.classList.add("carousel-control-prev");
+    previousButton.href = "#" + elementHash;
+    previousButton.role = "button";
+    previousButton.setAttribute("data-bs-slide", "prev");
+    previousIcon.classList.add("carousel-control-prev-icon");
+    previousIcon.ariaHidden = "true";
+    nextButton.classList.add("carousel-control-next");
+    nextButton.href = "#" + elementHash;
+    nextButton.role = "button";
+    nextButton.setAttribute("data-bs-slide", "next");
+    nextIcon.classList.add("carousel-control-next-icon");
+    nextIcon.ariaHidden = "true";
+    for (let i = 0; i < elements.length; i++) {
+        let element = elements[i];
+        let selector = document.createElement("li") as HTMLLIElement;
+        let item = document.createElement("div") as HTMLDivElement;
+        if (i == 0) {
+            selector.classList.add("active");
+            item.classList.add("active");
+        }
+        selector.setAttribute("data-bs-target", "#" + elementHash);
+        selector.setAttribute("data-bs-slide-to", i.toString());
+        item.classList.add("carousel-item");
+        element.classList.add("d-block", "w-100");
+        item.appendChild(element);
+        previousButton.appendChild(previousIcon);
+        nextButton.appendChild(nextIcon);
+        carouselList.appendChild(selector);
+        carouselInnerDiv.appendChild(item);
+    }
+    carouselDiv.appendChild(carouselList);
+    carouselDiv.appendChild(carouselInnerDiv);
+    carouselDiv.appendChild(previousButton);
+    carouselDiv.appendChild(nextButton);
+    return carouselDiv;
 }

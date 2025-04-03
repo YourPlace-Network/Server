@@ -18,7 +18,7 @@ else
 	GO=$(shell which go)
 	NODE=$(shell which node)
 	NPM=$(shell which npm)
-	NPX=$(shell which npx)
+	NPX="$(shell which npx)"
 endif
 
 # --- Code Update Commands --- #
@@ -107,7 +107,7 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@echo $(VERSION) > src/core/host/bin/helper/osx/helper.version
 	go build -o target/YourPlaceHelper helper/helper_osx.go
 	cp -rf target/YourPlaceHelper src/core/host/bin/helper/osx/YourPlaceHelper
-	go build -o target/YourPlace main.go
+	go build -v -o target/YourPlace main.go
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh dev
 endif
