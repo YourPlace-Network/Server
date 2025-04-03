@@ -1,4 +1,4 @@
-name: Gateway - Windows
+name: Windows-Gateway
 
 on:
   workflow_dispatch:

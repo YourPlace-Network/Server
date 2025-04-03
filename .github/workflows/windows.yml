@@ -1,4 +1,4 @@
-name: Windows Latest
+name: Windows-Latest
 
 on:
   release:

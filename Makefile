@@ -67,7 +67,7 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -ExecutionPolicy Bypass -File $(PACKAGER)
 	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlaceHelper.exe helper\helper_win.go
 	powershell -Command "Copy-Item -Path 'target\YourPlaceHelper.exe' -Destination 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
-	$(NPX) webpack --config "src\typescript\webpack.prod.cjs"
+	$(NPX) webpack --config "src\typescript\webpack.prod.js"
 	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlace.exe main.go
 	resources\windows\upx.exe -o target\YourPlace-$(VERSION).exe target\YourPlace.exe
 	powershell -Command "Remove-Item -Path 'target\YourPlace.exe' -Force"
