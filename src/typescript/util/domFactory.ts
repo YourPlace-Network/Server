@@ -6,15 +6,6 @@ import {CIDToSubdomainURL} from "./ipfs";
 import bootstrap from "bootstrap";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {// returns a post div element when given a post's data set profile to true if calling from a users profile
-    const txHash = XSSSanitizeValue(postData.txHash);
-    let blockchain = "";
-    let address = "";
-    if (IsValidBlockchain(postData.blockchain)) {
-        blockchain = XSSSanitizeValue(postData.blockchain);
-    }
-    if (IsValidAddress(postData.address, blockchain)) {
-        address = XSSSanitizeValue(postData.address);
-    }
     function hasAttachments(): boolean {
         return "attachments" in postData;
     }
@@ -40,13 +31,13 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     let unixpostdate = postData.timestamp;
     let postdatevalue = new Date(unixpostdate * 1000).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true});
     let walletAddressLink = WalletGetExplorerAddressLink(postData.address);
-    let walletTxLink = WalletGetExplorerTxLink(txHash);
+    let walletTxLink = WalletGetExplorerTxLink(postData.txHash);
 
     // adding attributes to elements
     postDiv.classList.add("postCard");
     postID.type = "hidden";
     postID.classList.add("postCardID");
-    postID.value = txHash;
+    postID.value = postData.txHash;
     postBlockchain.type = "hidden";
     postBlockchain.classList.add("postCardBlockchain");
     postBlockchain.value = XSSSanitizeValue(postData.blockchain);
@@ -54,10 +45,10 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     postAddress.classList.add("postCardAddress");
     postAddress.value = XSSSanitizeValue(postData.address);
     avatarDiv.classList.add("postCardAvatar");
-    if (postData.resultType != "profile post" && IsValidBlockchain(blockchain) && IsValidAddress(address, blockchain)) {
+    if (postData.resultType != "profile post" && IsValidBlockchain(postData.blockchain) && IsValidAddress(postData.address, postData.blockchain)) {
         avatarDiv.classList.add("clickable");
         avatarDiv.addEventListener("click", () => {
-            window.location.replace("/p/" + blockchain + "/" + address);
+            window.location.replace("/p/" + postData.blockchain + "/" + postData.address);
         });
     }
     avatarImg.classList.add("postCardAvatar");
@@ -118,21 +109,32 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     postDiv.appendChild(postTextDiv);
     postDiv.appendChild(embedDiv);
     if (hasAttachments()) {
-        let attachmentDiv = await CreateCarousel();
-        postDiv.appendChild(attachmentDiv);
-        setTimeout(() => {
-            const carouselElement = document.getElementById(txHash);
-            if (carouselElement) {
-                try {
-                    new bootstrap.Carousel(carouselElement);
-                } catch (e) {
-                    console.error("Error initializing carousel:", e);
-                }
+        let attachmentElements: HTMLElement[] = [];
+        for (let i = 0; i < postData.attachments.length; i ++) {
+            let attachment = postData.attachments[i];
+            let mimeType = attachment[1];
+            let mimeTypePrefix = mimeType.split("/")[0];
+            let fileUrl = attachment[0];
+            if (fileUrl.startsWith("ipfs://")) {
+                fileUrl = CIDToSubdomainURL(fileUrl);
             }
-        }, 0);
+            switch (mimeTypePrefix) {
+                case "image":
+                    let image = document.createElement("img") as HTMLImageElement;
+                    image.src = fileUrl;
+                    if (postData.attachments.length === 1) {
+                        postDiv.appendChild(image);
+                    }else {
+                        attachmentElements.push(image);
+                    }
+            }
+        }
+        if (postData.attachments.length > 1) {
+            let attachmentCarousel = await CreateCarousel(attachmentElements);
+            postDiv.appendChild(attachmentCarousel);
+        }
     }
     postDiv.appendChild(reactionDiv);
-
     // Embed Rich Media
     const urlRegex = /(https:\/\/[^\s]+)/g;
     let postText = postData.payload;
@@ -238,7 +240,7 @@ function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
     iframe.setAttribute("credentialless", "");
     return iframe;
 }
-export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> { // Creates carousel element for attachments
+export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> {// Creates carousel element for attachments
     let carouselDiv = document.createElement("div") as HTMLDivElement;
     let carouselList = document.createElement("ol") as HTMLOListElement;
     let carouselInnerDiv = document.createElement("div") as HTMLDivElement;
@@ -246,20 +248,20 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
     let previousIcon = document.createElement("span") as HTMLSpanElement;
     let nextButton = document.createElement("a") as HTMLAnchorElement;
     let nextIcon = document.createElement("span") as HTMLSpanElement;
-    const elementString = elements.map(el => el.outerHTML).join("");
-    const elementHash = await HashString(elementString);
+    const elementsString = elements.map(el => el.outerHTML).join("");
+    const elementsHash = await HashString(elementsString);
     carouselDiv.classList.add("carousel", "slide");
-    carouselDiv.id = elementHash;
+    carouselDiv.id = elementsHash;
     carouselList.classList.add("carousel-indicators");
     carouselInnerDiv.classList.add("carousel-inner");
     previousButton.classList.add("carousel-control-prev");
-    previousButton.href = "#" + elementHash;
+    previousButton.href = "#" + elementsHash;
     previousButton.role = "button";
     previousButton.setAttribute("data-bs-slide", "prev");
     previousIcon.classList.add("carousel-control-prev-icon");
     previousIcon.ariaHidden = "true";
     nextButton.classList.add("carousel-control-next");
-    nextButton.href = "#" + elementHash;
+    nextButton.href = "#" + elementsHash;
     nextButton.role = "button";
     nextButton.setAttribute("data-bs-slide", "next");
     nextIcon.classList.add("carousel-control-next-icon");
@@ -272,7 +274,7 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
             selector.classList.add("active");
             item.classList.add("active");
         }
-        selector.setAttribute("data-bs-target", "#" + elementHash);
+        selector.setAttribute("data-bs-target", "#" + elementsHash);
         selector.setAttribute("data-bs-slide-to", i.toString());
         item.classList.add("carousel-item");
         element.classList.add("d-block", "w-100");

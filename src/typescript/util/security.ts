@@ -194,10 +194,9 @@ function sanitizeStyle(styleAttr: string): string {
     return sanitizedDeclarations.join("; ");
 }
 export async function HashString (input: string): Promise<string> {
-    const buffer = new TextEncoder().encode(input);
-    const hash = await crypto.subtle.digest("SHA3-256", buffer);
-    const hashArray = Array.from(new Uint8Array(hash));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join("");
+    const buffer = new TextEncoder().encode(input); // generates hash buffer from string
+    const hash = await crypto.subtle.digest("SHA-256", buffer); // hashes the buffer
+    const hashArray = Array.from(new Uint8Array(hash)); // converts hash to Uint8Array
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join(""); // converts array to hex string
     return hashHex;
-
 }

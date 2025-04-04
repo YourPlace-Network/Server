@@ -108,6 +108,7 @@ import tinymce from "tinymce/tinymce";
                 let file = uploadedFiles[i];
                 let url = file.fileUrl;
                 let mimeType = extensionToMimeType(file.extension);
+                if (mimeType == null) {return}
                 let size = file.size;
                 if (typeof url === "string" && mimeType !== "" && size !== ""){
                     let attachment = [url, mimeType, size];

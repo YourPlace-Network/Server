@@ -63,7 +63,7 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 			}
 			finalFilePath := uploadDirectory + fileHash + extension
 			if !security.IsInParentDirectory(host.GetDataDir(), finalFilePath) { // Limit uploads to the upload directory
-				c.AbortWithStatus(http.StatusBadRequest)
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Cannot upload file to unknown directory"})
 				return
 			}
 			host.MoveFile(newFilePath, finalFilePath)
