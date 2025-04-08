@@ -65,6 +65,7 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force }"
 	powershell -Command "if (-not (Test-Path '$(GOTMPDIR)')) { New-Item -ItemType Directory -Path '$(GOTMPDIR)' -Force }"
 	powershell -Command "New-Item -ItemType File -Path 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
+	powershell -ExecutionPolicy Bypass -File resources\windows\helper_build_setup.ps1
 	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlaceHelper.exe helper\helper_win.go
 	powershell -Command "Copy-Item -Path 'target\YourPlaceHelper.exe' -Destination 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
 	$(NPX) webpack --config "src\typescript\webpack.prod.js"
@@ -87,6 +88,7 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force }"
 	powershell -Command "if (-not (Test-Path '$(GOTMPDIR)')) { New-Item -ItemType Directory -Path '$(GOTMPDIR)' -Force }"
 	powershell -Command "New-Item -ItemType File -Path 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
+	powershell -ExecutionPolicy Bypass -File resources\windows\helper_build_setup.ps1
 	go build -ldflags "-s -w" -o target\YourPlaceHelper.exe helper\helper_win.go
 	powershell -Command "Copy-Item -Path 'target\YourPlaceHelper.exe' -Destination 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
 	$(NPX) webpack --config "src\typescript\webpack.prod.js"

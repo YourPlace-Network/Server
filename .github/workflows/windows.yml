@@ -33,10 +33,6 @@ jobs:
       with:
         choco: make awscli
 
-    - name: Make Clean
-      run: make clean
-      continue-on-error: true
-
     - name: Make Install
       run: make install
       continue-on-error: true
