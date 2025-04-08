@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte) {
+func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool) {
 	router.GET("/p/*path", func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Param("path"), "/")
 		if path == "" {
@@ -87,6 +87,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"injectedBlockchain":    blockchainParam,
 			"isCookieAuthenticated": true,
 			"isGuest":               isGuest, // Guest mode distinguishes if the viewer is the guest or owner of the profile
+			"gatewayMode":           gateway,
 		}
 		c.HTML(http.StatusOK, "src/templates/pages/profile.tmpl", responseJson)
 	})

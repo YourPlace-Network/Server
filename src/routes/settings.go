@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte) {
+func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool) {
 	defaultUploadDirectory := host.GetDataDir() + "upload" + host.PathSeparator
 
 	router.GET("/settings", func(c *gin.Context) { // Settings View

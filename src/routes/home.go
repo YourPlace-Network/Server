@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool, database *db.Database, cryptoSeed []byte) {
+func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool, database *db.Database, cryptoSeed []byte, gateway bool) {
 	router.GET("/", func(c *gin.Context) {
 		token := csrf.Token(c.Request)
 		authenticated := false
@@ -21,6 +21,7 @@ func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool
 			"pageName":              "home",
 			"csrfToken":             token,
 			"isCookieAuthenticated": authenticated,
+			"gatewayMode":           gateway,
 		})
 	})
 	router.GET("/favicon.ico", func(c *gin.Context) {

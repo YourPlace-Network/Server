@@ -295,24 +295,24 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	LoadTemplates(router, templateFS, "src/templates/*tmpl")
 	router.StaticFS("/static", staticFS())
 	router.MaxMultipartMemory = 8 << 20
-	routes.NotFoundRoutes(router, title)
-	routes.HomeRoutes(router, title, favicon, installed, database, cryptoSeed)
-	routes.FAQRoutes(router, title, database, cryptoSeed)
-	routes.SettingsRoutes(router, title, database, _blockchain, cryptoSeed)
-	routes.LoginRoutes(router, title, database, cryptoSeed, domain, installed)
+	routes.NotFoundRoutes(router, title, gateway)
+	routes.HomeRoutes(router, title, favicon, installed, database, cryptoSeed, gateway)
+	routes.FAQRoutes(router, title, database, cryptoSeed, gateway)
+	routes.SettingsRoutes(router, title, database, _blockchain, cryptoSeed, gateway)
+	routes.LoginRoutes(router, title, database, cryptoSeed, domain, installed, gateway)
 	if !installed {
 		routes.SetupRoutes(router, database, title, favicon, port)
 	} else {
-		routes.ProfileRoutes(router, title, database, _blockchain, cryptoSeed)
+		routes.ProfileRoutes(router, title, database, _blockchain, cryptoSeed, gateway)
 		routes.PostRoutes(router, database)
 		routes.FilesRoutes(router, database)
 		routes.IPFSRoutes(router, database, ipfs, port)
-		routes.MentalHealthRoutes(router, title, database, cryptoSeed)
+		routes.MentalHealthRoutes(router, title, database, cryptoSeed, gateway)
 		routes.SearchRoutes(router, database, _blockchain)
 		routes.ServicesRoutes(router, database)
 		routes.NotificationRoutes(router, database)
 		if debug {
-			routes.TestRoutes(router, title)
+			routes.TestRoutes(router, title, gateway)
 		}
 	}
 	// --- Start Web Server Loop --- //

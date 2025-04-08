@@ -10,8 +10,16 @@ import (
 	"strings"
 )
 
+type ExceptionRule struct {
+	Method string // HTTP method (GET, POST, etc.)
+	Path   string // Exact path to match
+}
+
 func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clients to originate from 127.0.0.1 for certain API paths
-	return func(c *gin.Context) {
+	// Paths to be included for localhost enforcement, your path must start with one of these prefixes
+	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test"}
+
+	return func(c *gin.Context) { // Check if this request matches an exception rule
 		validHosts := map[string]bool{
 			"localhost": true,
 			"127.0.0.1": true,
@@ -26,21 +34,21 @@ func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clie
 		}
 		// Get the request path
 		requestPath := c.Request.RequestURI
-		// To be included for localhost enforcement, your path must start with one of these prefixes
-		paths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test"}
-		for _, path := range paths {
+		for _, path := range includedPaths {
 			if strings.HasPrefix(requestPath, path) {
 				// IP address checks
 				if ip != "127.0.0.1" && ip != "::1" {
-					core.LogError("Client connecting from non-loopback address " + ip)
+					core.LogDebug("Client connecting from non-loopback address " + ip)
 					c.AbortWithStatus(http.StatusBadRequest)
 					return
 				}
-				if !validHosts[c.ClientIP()] {
-					core.LogError("Client connecting from non-loopback address " + c.ClientIP())
+				clientIP := c.ClientIP()
+				if !validHosts[clientIP] {
+					core.LogDebug("Client connecting from non-loopback address " + c.ClientIP())
 					c.AbortWithStatus(http.StatusBadRequest)
 					return
 				}
+				break // Found a match and passed validation
 			}
 		}
 		c.Next()
