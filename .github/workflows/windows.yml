@@ -47,15 +47,15 @@ jobs:
     - name: Configure AWS/DigitalOcean Credentials
       uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
       with:
-        aws-access-key-id: ${{ secrets.SPACES_ACCESS_KEY }}
-        aws-secret-access-key: ${{ secrets.SPACES_SECRET_KEY }}
+        aws-access-key-id: ${{ secrets.S3_UPLOAD_ID }}
+        aws-secret-access-key: ${{ secrets.S3_UPLOAD_SECRET }}
         aws-region: us-east-1 # DigitalOcean Spaces requires this region
 
     - name: Upload to DigitalOcean
       run: |
           $files = Get-ChildItem target\YourPlace-*.exe
           foreach ($file in $files) {
-            aws s3 cp $file.FullName s3://yourplace-downloads/windows/ --acl public-read --endpoint=https://nyc3.digitaloceanspaces.com
+            aws s3 cp $file.FullName s3://yourplace-downloads/windows/ --acl=public-read --endpoint=https://nyc3.digitaloceanspaces.com
           }
 
     - name: Cleanup
