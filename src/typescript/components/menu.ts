@@ -14,6 +14,7 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             menuLoginBtn: document.getElementById("menuLoginBtn")! as HTMLButtonElement,
             menuAvatar: document.getElementById("menuAvatar")! as HTMLImageElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
+            gatewayMode: document.getElementById("gatewayMode")! as HTMLInputElement,
         }
 
         function loginEvent(e: Event) {
