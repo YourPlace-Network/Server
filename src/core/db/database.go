@@ -12,7 +12,6 @@ type Database struct {
 	sqlite SQLite
 	Engine string
 }
-
 type Attachment struct { //we can move this as long as it isn't defined in a package that imports database
 	FileUrl     string
 	ContentType string
