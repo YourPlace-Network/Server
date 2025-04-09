@@ -91,11 +91,12 @@ func SetupRoutes(router *gin.Engine, database *db.Database, title string, favico
 		if err != nil {
 			core.LogWarn("Could not write the ico file: " + err.Error())
 		}
-		host.CreateShortcut(port)
+		host.CreateShortcut(port)          // Create a shortcut for the YourPlace server
 		if host.InstallHelper() == false { // Install the YourPlace helper
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "error installing helper"})
 			return
 		}
+
 		installedDate := strconv.FormatUint(core.GetTimestamp(), 10)
 		database.MetaUpdateValue("installedDate", installedDate)
 

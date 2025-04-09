@@ -428,6 +428,15 @@ func IsAllZeros(data []byte) bool {
 	}
 	return true
 }
+func IsHttpProtocol(url string) bool {
+	lowerURL := strings.ToLower(url)
+	if strings.HasPrefix(lowerURL, "https:") {
+		return true
+	} else if strings.HasPrefix(lowerURL, "http:") {
+		return true
+	}
+	return false
+}
 func IsNewerVersion(current, latest string) bool {
 	current = strings.TrimPrefix(current, "v") // drop any 'v' prefix if present
 	latest = strings.TrimPrefix(latest, "v")

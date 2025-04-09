@@ -13,6 +13,7 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             offcanvas: document.querySelectorAll('.offcanvas')! as NodeListOf<Element>,
             menuLoginBtn: document.getElementById("menuLoginBtn")! as HTMLButtonElement,
             menuAvatar: document.getElementById("menuAvatar")! as HTMLImageElement,
+            menuSettingsLink: document.getElementById("menuSettingsLink")! as HTMLAnchorElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
             gatewayMode: document.getElementById("gatewayMode")! as HTMLInputElement,
         }
@@ -65,6 +66,16 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             e.stopPropagation();
             toggleAvatarBtn().then();
             toggleLoginBtn().then();
+        });
+        DOM.htmlMenu.addEventListener("focusin", (e) => {
+            //e.preventDefault();
+            //e.stopPropagation();
+            console.log("focusin");
+            if (DOM.gatewayMode.value == "true") {
+                DOM.menuSettingsLink.style.display = "none";
+            } else {
+                DOM.menuSettingsLink.style.display = "block";
+            }
         });
 
         toggleAvatarBtn().then();
