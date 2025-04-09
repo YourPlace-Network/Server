@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func MentalHealthRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte) {
+func MentalHealthRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, gateway bool) {
 	router.GET("/mentalHealth", func(c *gin.Context) {
 		authenticated := false
 		authCookie, err := c.Request.Cookie("yp_auth")
@@ -18,6 +18,7 @@ func MentalHealthRoutes(router *gin.Engine, title string, database *db.Database,
 			"title":                 title,
 			"pageName":              "mentalHealth",
 			"isCookieAuthenticated": authenticated,
+			"gatewayMode":           gateway,
 		})
 	})
 }

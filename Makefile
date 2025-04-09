@@ -21,7 +21,7 @@ else
 	NPX="$(shell which npx)"
 endif
 
-# --- Code Update Commands --- #
+# --- Update Commands --- #
 npm_update:
 	npm install -g npm-check-updates
 	ncu -u
@@ -30,10 +30,11 @@ npm_update:
 go_update:
 	go get -u ./...
 
-# --- Build Setup Commands --- #
+# --- Setup Commands --- #
 clean:
 ifeq ($(DETECTED_OS),Windows_NT)
 	-powershell -Command "Get-Process -Name 'YourPlace' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue | Out-Null"
+	-powershell -Command "Get-Process -Name 'YourPlace-$(VERSION)' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue | Out-Null"
 	-powershell -Command "Get-Process -Name 'YourPlaceHelper' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue | Out-Null"
 	-powershell -Command "Get-Process -Name 'YourPlaceIpfs' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue | Out-Null"
 	-powershell -Command "Get-Process -Name 'YourPlaceFfmpeg' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue | Out-Null"
@@ -64,14 +65,12 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force }"
 	powershell -Command "if (-not (Test-Path '$(GOTMPDIR)')) { New-Item -ItemType Directory -Path '$(GOTMPDIR)' -Force }"
 	powershell -Command "New-Item -ItemType File -Path 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
-	# powershell -ExecutionPolicy Bypass -File $(PACKAGER)
+	powershell -ExecutionPolicy Bypass -File resources\windows\helper_build_setup.ps1
 	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlaceHelper.exe helper\helper_win.go
 	powershell -Command "Copy-Item -Path 'target\YourPlaceHelper.exe' -Destination 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
 	$(NPX) webpack --config "src\typescript\webpack.prod.js"
-	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlace-$(VERSION).exe main.go
-	resources\windows\upx.exe -o target\YourPlace-$(VERSION).exe target\YourPlace.exe
-	#powershell -Command "Remove-Item -Path 'target\YourPlace.exe' -Force"
-	#powershell -Command "Remove-Item -Path 'target\YourPlaceHelper.exe' -Force"
+	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlace.exe main.go
+	resources\windows\upx.exe -f -o target\YourPlace-$(VERSION).exe target\YourPlace.exe
 else ifeq ($(DETECTED_OS),Darwin)
 	$(NPX) webpack --config src/typescript/webpack.prod.js
 	mkdir -p src/core/host/bin/helper/osx/
@@ -89,15 +88,11 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force }"
 	powershell -Command "if (-not (Test-Path '$(GOTMPDIR)')) { New-Item -ItemType Directory -Path '$(GOTMPDIR)' -Force }"
 	powershell -Command "New-Item -ItemType File -Path 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
-	powershell -ExecutionPolicy Bypass -File $(PACKAGER)
+	powershell -ExecutionPolicy Bypass -File resources\windows\helper_build_setup.ps1
 	go build -ldflags "-s -w" -o target\YourPlaceHelper.exe helper\helper_win.go
 	powershell -Command "Copy-Item -Path 'target\YourPlaceHelper.exe' -Destination 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
 	$(NPX) webpack --config "src\typescript\webpack.prod.js"
-	go generate
-	go build -ldflags "-s -w" -o target\YourPlace.exe main.go
-	resources\windows\upx.exe -o target\YourPlace-$(VERSION).exe target\YourPlace.exe
-	powershell -Command "Remove-Item -Path 'target\YourPlace.exe' -Force"
-	powershell -Command "Remove-Item -Path 'target\YourPlaceHelper.exe' -Force"
+	go build -ldflags "-s -w" -o target\YourPlace-$(VERSION).exe main.go
 else ifeq ($(DETECTED_OS),Darwin)
 	$(NPX) webpack --config src/typescript/webpack.prod.js
 	mkdir -p src/core/host/bin/helper/osx/
@@ -129,10 +124,10 @@ endif
 # --- Run Commands --- #
 run:
 ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlace.exe
+	target\\YourPlace-$(VERSION).exe
 else ifeq ($(DETECTED_OS),Darwin)
 	rm -rf ~/YourPlace/debug
-	./target/YourPlace
+	./target/YourPlace-$(VERSION)
 endif
 
 dbg_run:
@@ -146,9 +141,9 @@ endif
 
 dbg_gateway_run:
 ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlace.exe -d=true -u=false -g=true
+	target\\YourPlace-$(VERSION).exe -d=true -u=false -g=true
 else ifeq ($(DETECTED_OS),Darwin)
-	./target/YourPlace -d=true -u=false -g=true
+	./target/YourPlace-$(VERSION) -d=true -u=false -g=true
 	# open ./target/YourPlace.app --args "-d=true -u=false"
 endif
 

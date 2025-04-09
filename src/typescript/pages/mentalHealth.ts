@@ -748,6 +748,9 @@ const tips = [
     "Propaganda purposefully doesn't want you to have a balanced perspective on life and world events. Whenever something is \"the worst/best thing to ever happen\" then you know someone's trying to play you - and every politician does this",
     "Are you leaders pushing for real reform, or are they talking about irrelevant side-topics?",
     "Generosity can become an overindulgence. If you start taking and borrowing money that you don't have, then generosity can become a vice",
+    "It's much easier to find people who are wrong about everything, than to find one's who are right about everything",
+    "If you find someone you totally hate and hear them about about an \"evil ex\", you can usually hit up the ex and find a new friend in them",
+    "Contrarians are just conformists, but like in the opposite direction",
 
 
 

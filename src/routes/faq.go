@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func FAQRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte) {
+func FAQRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, gateway bool) {
 	router.GET("/faq", func(c *gin.Context) {
 		authenticated := false
 		authCookie, err := c.Request.Cookie("yp_auth")
@@ -21,6 +21,7 @@ func FAQRoutes(router *gin.Engine, title string, database *db.Database, cryptoSe
 			"pageName":              "faq",
 			"csrfToken":             token,
 			"isCookieAuthenticated": authenticated,
+			"gatewayMode":           gateway,
 		})
 	})
 }

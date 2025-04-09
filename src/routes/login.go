@@ -20,7 +20,7 @@ type TxnLoginNonce struct {
 	Expiration string `json:"expiration" binding:"required"`
 }
 
-func LoginRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, domain string, installed bool) {
+func LoginRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, domain string, installed bool, gateway bool) {
 	router.GET("/logout", func(c *gin.Context) {
 		cookie, err := c.Request.Cookie("yp_auth")
 		if err == nil {
@@ -33,9 +33,10 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 	router.GET("/login", func(c *gin.Context) {
 		csrfToken := csrf.Token(c.Request)
 		c.HTML(http.StatusOK, "src/templates/pages/login.tmpl", gin.H{
-			"title":     title,
-			"pageName":  "login",
-			"csrfToken": csrfToken,
+			"title":       title,
+			"pageName":    "login",
+			"csrfToken":   csrfToken,
+			"gatewayMode": gateway,
 		})
 	})
 	router.GET("/login/check", func(c *gin.Context) {
