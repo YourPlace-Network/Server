@@ -116,7 +116,7 @@ func main() {
 	}
 	defer host.ReleaseMutex()
 	if host.IsAdmin() {
-		core.LogFatal("YourPlace must not be run as an administrator")
+		core.LogWarn("YourPlace is running as an administrator - Not recommended")
 	}
 
 	host.DeleteAll(host.GetInstallDir() + "yourplace.version")
@@ -127,7 +127,6 @@ func main() {
 	if host.PreInstall(favicon) != true {
 		core.LogFatal("Pre-install setup failed")
 	}
-	host.CreateShortcut(port)
 
 	// --- Database --- //
 	core.LogDebug("Initializing database")
@@ -298,7 +297,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	routes.NotFoundRoutes(router, title, gateway)
 	routes.HomeRoutes(router, title, favicon, installed, database, cryptoSeed, gateway)
 	routes.FAQRoutes(router, title, database, cryptoSeed, gateway)
-	routes.SettingsRoutes(router, title, database, _blockchain, cryptoSeed, gateway)
+	routes.SettingsRoutes(router, title, database, _blockchain, cryptoSeed, gateway, ipfs)
 	routes.LoginRoutes(router, title, database, cryptoSeed, domain, installed, gateway)
 	if !installed {
 		routes.SetupRoutes(router, database, title, favicon, port)

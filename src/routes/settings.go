@@ -4,6 +4,7 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/host"
+	"YourPlace/src/core/network"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,7 @@ import (
 	"time"
 )
 
-func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool) {
+func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool, ipfs *network.IPFS) {
 	defaultUploadDirectory := host.GetDataDir() + "upload" + host.PathSeparator
 
 	router.GET("/settings", func(c *gin.Context) { // Settings View
@@ -29,6 +30,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"pageName":              "settings",
 			"csrfToken":             token,
 			"isCookieAuthenticated": authenticated,
+			"gatewayMode":           gateway,
 		})
 	})
 	router.GET("/settings/uploadDirectory", func(c *gin.Context) { // Get file upload directory
@@ -398,8 +400,13 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning URL or Key"})
 			return
 		}
+		url := payload.PinningURL
+		if !security.IsHttpProtocol(payload.PinningURL) {
+			url = "https://" + url
+		}
 		host.AddSecret("ipfsPinningKey", security.SanitizeNonPrintable(payload.PinningKey))
-		database.SettingsUpdateValue("ipfsPinningURL", payload.PinningURL)
+		database.SettingsUpdateValue("ipfsPinningURL", url)
+		ipfs.IPFSAddRemotePinning("ipfsPinning", url, payload.PinningKey)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "IPFS URL and Key saved"})
 	})
 }

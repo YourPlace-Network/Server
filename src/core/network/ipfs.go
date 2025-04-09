@@ -127,6 +127,10 @@ func (node *IPFS) IPFSAddFile(path string) (string, error) { // Adds & pins file
 	if err != nil {
 		return "", _core.LogErrorReturn("Could not get file from IPFS for upload verification: " + err.Error())
 	}
+	err = node.IPFSPinFile(cid)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not pin file to IPFS: " + err.Error())
+	}
 	return cid, nil
 }
 func (node *IPFS) IPFSDownloadFile(cid string, path string) error { // Downloads a file or directory from IPFS to local file system
@@ -197,6 +201,28 @@ func (node *IPFS) IPNSSearchName(name string) ([]string, error) {
 	} else {
 		return resolvedArray, nil
 	}
+}
+func (node *IPFS) IPFSAddRemotePinning(name string, url string, key string) {
+	requestString := "http://127.0.0.1:42425/api/v0/pin/remote/service/add?arg=" + name + "&arg=" + url + "&arg=" + key
+	response, err := HttpPost(requestString)
+	if err != nil {
+		_core.LogDebug("Could not add IPFS pinning service: " + err.Error() + " - " + response)
+		return
+	}
+	_core.LogDebug("Added IPFS pinning service: " + response)
+}
+func (node *IPFS) IPFSPinFile(cid string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cidPath, err := ipfspath.NewPath(cid)
+	if err != nil {
+		return _core.LogErrorReturn("Could not create IPFS path from CID: " + err.Error())
+	}
+	err = node.rpcNode.Pin().Add(ctx, cidPath)
+	if err != nil {
+		return _core.LogErrorReturn("Could not pin file to IPFS: " + err.Error())
+	}
+	return nil
 }
 func UpdateIPFSConfig(port uint64) {
 	path := host.GetDataDir() + ".ipfs" + host.PathSeparator + "config"

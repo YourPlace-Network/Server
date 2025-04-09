@@ -2,6 +2,7 @@ package network
 
 import (
 	"YourPlace/src/core"
+	"YourPlace/src/core/security"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -15,6 +16,9 @@ import (
 func HttpGet(url string, timeout uint64) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
+	if !security.IsValidURL(url) {
+		return "", core.LogErrorReturn("Invalid URL")
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", core.LogErrorReturn("Could not create request")
@@ -101,6 +105,9 @@ func HttpPostJson(url string, buffer bytes.Buffer) (string, error) {
 	return string(body), nil
 }
 func HttpPost(url string) (string, error) {
+	if !security.IsValidURL(url) {
+		return "", core.LogErrorReturn("Invalid URL")
+	}
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return "", core.LogWarningReturn("Could not create HTTP request: " + err.Error())

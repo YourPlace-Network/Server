@@ -1,4 +1,3 @@
-
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss";
 import "../../scss/pages/settings.scss";
@@ -8,7 +7,7 @@ import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError, LogInfo} from "../util/log";
 import {createPopper, type Instance} from "@popperjs/core";
 import {ShowDialogModal, ShowDialogModalHTML,} from "../components/modalDialog";
-import {ShowModalYesNo, ShowModalYesNoHTML} from "../components/modalYesNo";
+import {ShowModalYesNoHTML} from "../components/modalYesNo";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {ShowSavedToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
@@ -486,7 +485,8 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.indexerOnBatteryCheckbox!.addEventListener("change", setIndexerOnBattery);
         DOM.retestPortsBtn!.addEventListener("click", getNetworkPorts);
         DOM.pinataLI!.addEventListener("click", function(e) {
-            ShowDialogModalHTML("Please create an account and secret from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your \"<b>Gateway URL</b>\" and \"<b>JWT (secret access token)</b>\" to the IPFS Pinning settings page");
+            DOM.ipfsPinningURL.value = "https://api.pinata.cloud/psa";
+            ShowDialogModalHTML("Please create an account and secret from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your \"<b>JWT (secret access token)</b>\" to the IPFS Pinning settings page");
         });
         DOM.web3LI!.addEventListener("click", function(e) {
             DOM.ipfsPinningURL.value = "https://api.web3.storage";
