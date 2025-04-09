@@ -212,6 +212,7 @@ func (node *IPFS) IPFSAddRemotePinning(name string, url string, key string) {
 	_core.LogDebug("Added IPFS pinning service: " + response)
 }
 func (node *IPFS) IPFSPinFile(cid string) error {
+	return nil // todo fix this
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cidPath, err := ipfspath.NewPath(cid)
