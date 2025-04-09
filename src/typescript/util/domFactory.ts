@@ -1,14 +1,13 @@
 import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
+import "../../scss/components/imageLoader.scss";
 import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
 import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml, HashString} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
 import bootstrap from "bootstrap";
+import {LogInfo} from "./log";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {// returns a post div element when given a post's data set profile to true if calling from a users profile
-    function hasAttachments(): boolean {
-        return "attachments" in postData;
-    }
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
     let postAddress = document.createElement("input") as HTMLInputElement;
@@ -108,7 +107,9 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     postHeaderDiv.appendChild(ellipsesDiv);
     postDiv.appendChild(postTextDiv);
     postDiv.appendChild(embedDiv);
-    if (hasAttachments()) {
+    if ("attachments" in postData) {
+        let attachmentDiv = document.createElement("div") as HTMLDivElement;
+        attachmentDiv.classList.add("postCardAttachmentDiv");
         let attachmentElements: HTMLElement[] = [];
         for (let i = 0; i < postData.attachments.length; i ++) {
             let attachment = postData.attachments[i];
@@ -118,20 +119,33 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
             if (fileUrl.startsWith("ipfs://")) {
                 fileUrl = CIDToSubdomainURL(fileUrl);
             }
-            switch (mimeTypePrefix) {
-                case "image":
+            switch (mimeType) {
+                case "image/jpeg":
+                case "image/png":
+                case "image/webp":
+                case "image/gif":
                     let image = document.createElement("img") as HTMLImageElement;
                     image.src = fileUrl;
+                    let imageLoader = await CreateImageLoader(image);
                     if (postData.attachments.length === 1) {
-                        postDiv.appendChild(image);
+                        imageLoader.classList.add("postAttachment");
+                        attachmentDiv.appendChild(imageLoader);
+                        postDiv.appendChild(attachmentDiv);
                     }else {
-                        attachmentElements.push(image);
+                        attachmentElements.push(imageLoader);
                     }
+                    break;
+                default:
+                    LogInfo("unsupported attachment type");
+                    break;
             }
         }
         if (postData.attachments.length > 1) {
             let attachmentCarousel = await CreateCarousel(attachmentElements);
-            postDiv.appendChild(attachmentCarousel);
+            let carouselInnerDiv = attachmentCarousel.children[1] as HTMLDivElement;
+            carouselInnerDiv.classList.add("postAttachment");
+            attachmentDiv.appendChild(attachmentCarousel);
+            postDiv.appendChild(attachmentDiv);
         }
     }
     postDiv.appendChild(reactionDiv);
@@ -289,4 +303,42 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
     carouselDiv.appendChild(previousButton);
     carouselDiv.appendChild(nextButton);
     return carouselDiv;
+}
+export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDivElement> {
+    const imageLoader = document.createElement("div") as HTMLDivElement;
+    imageLoader.classList.add("image-container");
+    const spinner = document.createElement("div") as HTMLDivElement;
+    spinner.classList.add("spinner-border", "text-primary", "spinner-div");
+    spinner.setAttribute("role", "status");
+    imageLoader.style.paddingTop = "56.25%"
+    image.style.opacity = "0";
+    image.style.width = "100%";
+    image.style.height = "auto";
+    image.style.display = "block";
+    image.style.objectFit = "contain";
+    image.style.borderRadius = "inherit";
+    imageLoader.appendChild(spinner);
+    imageLoader.appendChild(image);
+    const timeout = window.setTimeout(() => {
+        if (!image.complete) {
+            spinner.remove();
+            image.style.opacity = "1";
+            image.src = "/static/image/imagefail.png";
+        }
+    }, 10000);
+    image.onload = () => {
+        clearTimeout(timeout);
+        spinner.remove();
+        image.style.opacity = "1";
+        imageLoader.style.removeProperty("padding-top");
+    };
+    image.onerror = () => {
+        clearTimeout(timeout);
+        spinner.remove();
+        image.src = "/static/image/imagefail.png";
+        image.style.opacity = "1";
+        imageLoader.style.removeProperty("padding-top");
+
+    }
+    return imageLoader
 }
