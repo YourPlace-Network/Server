@@ -1240,8 +1240,11 @@ func (db *SQLite) FileAdd(fileUUID string, extension string, path string, unsafe
 	}
 }
 func (db *SQLite) IPFSAdd(fileUUID string, cid string) {
-	// todo
-	core.LogDebug("IPFSAdd() not implemented yet")
+	query := "INSERT INTO ipfsFiles (fileUUID, cid, addedDate) VALUES (?, ?, ?) ON CONFLICT DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, fileUUID, cid, core.GetTimestamp())
+	if err != nil {
+		core.LogError("Could not add the IPFS CID to the database: " + err.Error())
+	}
 }
 
 // --- Indexer Functions --- //
