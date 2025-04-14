@@ -24,15 +24,10 @@ func Headers(port int) gin.HandlerFunc {
 		}
 
 		// Handle regular requests
-		if origin == "" || strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "http://127.0.0.1") {
-			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
-			c.Header("Access-Control-Allow-Credentials", "true")
-		} else {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{})
-			return
-		}
+		c.Header("Access-Control-Allow-Origin", origin)
+		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
+		c.Header("Access-Control-Allow-Credentials", "true")
 
 		// Global security headers
 		//ipfsApiPort := strconv.Itoa(port + 1)

@@ -53,7 +53,7 @@ var helperBin []byte
 var helperVersion []byte
 
 const (
-	PathSeparator          = string('\\')
+	PathSeparator          = string(os.PathSeparator)
 	PathListSeparator      = string(';')
 	PowershellRunner       = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	BinaryExtension        = ".exe"
@@ -1286,6 +1286,7 @@ func HelperCall(action string) (string, error) {
 			resultsCh <- result{"", core.LogErrorReturn("Failed to decode response: " + err.Error())}
 			return
 		}
+		core.LogDebug("Helper Response: " + response)
 		resultsCh <- result{response, nil}
 	}()
 	// Wait for either completion or timeout

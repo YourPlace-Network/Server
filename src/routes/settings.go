@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/host"
@@ -15,7 +16,7 @@ import (
 	"time"
 )
 
-func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool, ipfs *network.IPFS) {
+func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool, ipfs *network.IPFS, debug bool) {
 	defaultUploadDirectory := host.GetDataDir() + "upload" + host.PathSeparator
 
 	router.GET("/settings", func(c *gin.Context) { // Settings View
@@ -135,12 +136,21 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 	})
 	router.GET("/settings/indexer/status", func(c *gin.Context) {
-		blockchain.IndexerMutex.Lock()
-		status := blockchain.IsIndexing
-		blockchain.IndexerMutex.Unlock()
+		baseUUID := database.IndexerGetJobUUID("base")
+		baseIndexerStatus := database.IndexerGetJobStatus(baseUUID)
 		c.SecureJSON(http.StatusOK, gin.H{
-			"status":     "success",
-			"isIndexing": status,
+			"status": baseIndexerStatus,
+		})
+	})
+	router.GET("/settings/indexer/running", func(c *gin.Context) {
+		indexerRunning := database.SettingsGetValue("indexerRunning")
+		core.LogInfo("Indexer running: " + indexerRunning)
+		indexerRunningBool := false
+		if indexerRunning == "true" {
+			indexerRunningBool = true
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"indexerRunning": indexerRunningBool,
 		})
 	})
 	router.GET("/settings/indexer/onBattery", func(c *gin.Context) {
@@ -156,7 +166,10 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	router.GET("/settings/content/ipfsPinning", func(c *gin.Context) {
 		pinningURL := database.SettingsGetValue("ipfsPinningURL")
 		pinningKey := host.GetSecret("ipfsPinningKey")
-		pinningKeyMasked := security.MaskToken(pinningKey)
+		pinningKeyMasked := ""
+		if len(pinningKey) > 0 {
+			pinningKeyMasked = "**********"
+		}
 		c.SecureJSON(http.StatusOK, gin.H{
 			"pinningURL": pinningURL,
 			"pinningKey": pinningKeyMasked,
@@ -178,6 +191,32 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"headBlock":     headBlock,
 			"latestBlock":   latestBlock,
 		})
+	})
+	router.GET("/settings/server/debug", func(c *gin.Context) {
+		c.SecureJSON(http.StatusOK, gin.H{
+			"debug": debug,
+		})
+	})
+	router.GET("/settings/server/version", func(c *gin.Context) {
+		version := host.GetServerVersion()
+		helperVersion, err := host.HelperCall("version")
+		core.LogDebug("Helper version in route: " + helperVersion)
+		if err != nil {
+			core.LogError("Error getting helper version: " + err.Error())
+			helperVersion = "?"
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"version":       version,
+			"helperVersion": helperVersion,
+		})
+	})
+	router.GET("/settings/server/logs/view", func(c *gin.Context) {
+		log, logPath := core.LogRead(200, 3)
+		if log == "" || logPath == "" {
+			log = "No logs available"
+			logPath = ""
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"logs": log, "logPath": logPath})
 	})
 
 	router.POST("/settings/uploadDirectory", func(c *gin.Context) {
@@ -342,10 +381,18 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/indexer/stop", func(c *gin.Context) {
+		database.SettingsUpdateValue("indexerRunning", "false")
 		blockchain.IndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{
 			"status":  "success",
 			"message": "Indexer stopped",
+		})
+	})
+	router.POST("/settings/indexer/start", func(c *gin.Context) {
+		database.SettingsUpdateValue("indexerRunning", "true")
+		c.SecureJSON(http.StatusOK, gin.H{
+			"status":  "success",
+			"message": "Indexer started",
 		})
 	})
 	router.POST("/settings/indexer/onBattery", func(c *gin.Context) {
@@ -367,13 +414,17 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/database/exportSnapshot", func(c *gin.Context) {
-		exportPath := host.GetDataDir() + "yourplace.db.snapshot"
-		err := database.ExportSnapshot(exportPath)
+		importDB := host.GetDataDir() + "yourplace.db"
+		exportDB := host.GetDataDir() + "yourplace.db.snapshot"
+		host.DeleteIfExists(exportDB)
+		host.CopyFile(importDB, exportDB)
+		err := db.SanitizeDatabase(exportDB)
 		if err != nil {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "failed", "error": err.Error()})
+			core.LogDebug("Error sanitizing database: " + err.Error())
+			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "failure"})
 			return
 		}
-		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportPath})
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportDB})
 	})
 	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
 		importPath := host.GetDataDir() + "yourplace.db.snapshot"

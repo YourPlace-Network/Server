@@ -180,6 +180,7 @@ func handleIPCConnection(handle windows.Handle) {
 		go stop()
 		response = "ok - stopping"
 	case "version":
+		LogInfo("YourPlace Version: " + version)
 		response = version
 	default:
 		LogInfo("Unknown Action")

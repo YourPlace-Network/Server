@@ -1,5 +1,7 @@
 # TERMS OF SERVICE
 
+**Last Updated: April 12, 2025**
+
 ## 1. INTRODUCTION
 
 These Terms of Service ("Terms") govern your access to and use of the distributed social media application ("Application"), an open-source software provided by YourPlace Inc. ("Company," "we," or "us"), a company registered in the Cayman Islands.
@@ -12,18 +14,19 @@ The Application is a free, open-source distributed social media platform that op
 
 - Fully hosted and controlled by you, the user
 - Designed to operate across multiple blockchain networks
-- Dependent on user-established third-party blockchain nodes
+- Dependent on user-established third-party blockchain and IPFS nodes
 - Capable of delivering automatic updates by default
 
 ## 3. USER REQUIREMENTS AND RESPONSIBILITIES
 
 You acknowledge and agree that:
 
-- You are solely responsible for setting up and maintaining any third-party blockchain nodes required for the Application to function
+- You are solely responsible for setting up and maintaining any third-party blockchain and IPFS nodes required for the Application to function
 - You are responsible for all data transmitted through your instance of the Application
 - You will comply with all applicable laws and regulations when using the Application
 - You will not use the Application for any illegal or unauthorized purpose
 - You are responsible for maintaining the security of your private keys, passwords, and any other access credentials
+- You are over the age of 13 and have the legal capacity to enter into these Terms
 
 ## 4. LICENSING
 
@@ -115,6 +118,20 @@ If you create or use plugins for the Application:
 
 The Company respects the intellectual property rights of others and expects users to do the same. If you believe that your copyrighted work has been copied in a way that constitutes copyright infringement, please submit a notification according to the Digital Millennium Copyright Act (DMCA) by providing our copyright agent with the required information as specified on our website.
 
+## 12. DATA COLLECTION AND ANALYTICS
+
+The Company may collect anonymous usage statistics, performance metrics, and profiling information from your use of the Application for the purpose of improving the Application's functionality, performance, and user experience. This data collection may include, but is not limited to:
+
+- Application performance metrics
+- Feature usage patterns
+- Error and crash reports
+- System configuration information
+- User interaction patterns
+
+All data collection will be conducted in accordance with our Privacy Policy. You acknowledge and agree that such data collection is necessary for the ongoing development and improvement of the Application. The Company will not collect personally identifiable information without your explicit consent and will use industry-standard security measures to protect all collected data.
+
+You may opt out of non-essential data collection through the Application settings, though some basic performance and error data may still be collected to ensure proper functioning of the Application.
+
 ## 12. GOVERNING LAW
 
 These Terms and any disputes arising out of or related to these Terms or the Application shall be governed by and construed in accordance with the laws of the Cayman Islands, without regard to its conflict of law principles.
@@ -131,5 +148,3 @@ If any provision of these Terms is held to be unenforceable or invalid, such pro
 
 If you have any questions about these Terms, please contact us at:
 [help@yourplace.network](mailto:help@yourplace.network)
-
-Last Updated: March, 14 2025

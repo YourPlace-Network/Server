@@ -50,7 +50,7 @@ var (
 )
 
 const (
-	PathSeparator     = string('/')
+	PathSeparator     = string(os.PathSeparator)
 	PathListSeparator = string(':')
 	BinaryExtension   = ""
 	HelperSocketAddr  = "/tmp/YourPlaceHelper.sock"

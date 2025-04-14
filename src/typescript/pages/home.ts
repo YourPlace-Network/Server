@@ -1,5 +1,3 @@
-import {CIDToSubdomainURL} from "../util/ipfs";
-
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/pages/home.scss";
 import "../components/addPost";
@@ -8,6 +6,7 @@ import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
 import {HttpGetJson} from "../util/network";
 import {IsValidHttpUrl, XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName} from "../util/blockchain/wallet";
+import {CIDToSubdomainURL} from "../util/ipfs";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}

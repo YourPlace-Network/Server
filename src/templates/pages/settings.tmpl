@@ -5,152 +5,137 @@
 {{template "modalYesNo" .}}
 {{template "toast" .}}
     <div class="container-fluid">
-        <!--<div class="row">
-            <div class="col-sm-2"></div>
-            <div class="col-sm-8 centerColumn">
-                <div class="accordion accordion-flush" id="demoAccordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingTwo">
-                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
-                                <b>Demo</b>
-                            </button>
-                        </h2>
-                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#demoAccordion">
-                            <div class="accordion-body">
-                                <p>body div</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-sm-2"></div>
-        </div>-->
-
-        <!-- Content -->
         <div class="row">
             <div class="col-sm-2"></div>
             <div class="col-sm-8 centerColumn">
-                <div class="accordion accordion-flush" id="settingsAccordion">
+                <div class="accordion accordion-flush" id="settingsAccordion"> <!-- Settings Accordion -->
+                    <!-- Content -->
                     <div class="accordion-item">
-                        <h2 class="accordion-header" id="contentHeading">
-                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#content" aria-expanded="true" aria-controls="content">
-                                <b>Content</b>
+                        <h2 class="accordion-header" id="headingContent">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseContent" aria-expanded="false" aria-controls="collapseContent">
+                                <i class="bi bi-postcard"></i><b>Content</b>
                             </button>
                         </h2>
-                        <div id="content" class="accordion-collapse collapse" aria-labelledby="contentHeading" data-bs-parent="#settingsAccordion">
+                        <div id="collapseContent" class="accordion-collapse collapse" aria-labelledby="headingContent" data-bs-parent="#settingsAccordion">
                             <div class="accordion-body">
-                                <div id="uploadDirectoryDiv">
-                                    <label for="uploadDirectory" class="form-label">File Upload Directory</label>
-                                    <div class="input-group mb-3">
-                                        <input type="text" class="form-control" id="uploadDirectory">
-                                    </div>
-                                    <div>
-                                        <button class="btn btn-primary" id="defaultUploadDirectoryBtn">Default</button>
-                                        <button class="btn btn-primary" id="saveUploadDirectoryBtn">Save</button>
-                                    </div>
-                                </div>
-
-                                <hr>
-
-                                <div id="ipfsPinningDiv">
-                                    <label for="ipfsPinningForm" class="form-label">IPFS File Pinning</label>
-                                    <a href="/faq#collapseSlow" target="_blank" id="ipfsHelpLink"><i class="bi bi-question-circle" id="ipfsHelp" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" data-bs-delay="0" title="Use an IPFS pinning service to accelerate your uploaded files (recommended)"></i></a>
-                                    <div class="input-group mb-3" id="ipfsPinningForm">
-                                        <input type="text" class="form-control" id="ipfsPinningURL" placeholder="Pinning URL">
-                                        <button class="btn btn-outline-secondary dropdown-toggle" id="ipfsPinningUrlBtn" type="button" data-bs-toggle="dropdown" aria-expanded="false"></button>
-                                        <ul class="dropdown-menu dropdown-menu-end" id="ipfsPinningUrlUL">
-                                            <li class="ipfsPinningLI" id="pinataLI"><img src="/static/image/pinata.svg" class="ipfsPinningIcon">Pinata.cloud</li>
-                                            <li class="ipfsPinningLI" id="web3LI"><img src="/static/image/web3storage.svg" class="ipfsPinningIcon">web3.storage</li>
-                                            <li class="ipfsPinningLI" id="filebaseLI"><img src="/static/image/filebase.svg" class="ipfsPinningIcon">Filebase</li>
-                                            <!--<li class="ipfsPinningLI" id="eternumLI"><img src="/static/image/eternum.png" class="ipfsPinningIcon">Eternum.io</li>-->
-                                        </ul>
-                                        <input type="text" class="form-control" id="ipfsPinningKey" placeholder="Secret Access Token">
-                                    </div>
-                                    <div>
-                                        <button class="btn btn-primary" id="saveIpfsPinningBtn">Save</button>
-                                    </div>
-                                    <div id="ipfsNodeLinkDiv">
-                                        <a id="ipfsNodeLink" href="http://localhost:42425/webui" target="_blank"><img src="/static/image/ipfs.svg" alt="ipfs" id="ipfsSvg"><span>IPFS Node Management</span></a>
-                                    </div>
-                                </div>
-
-                                <!-- Artificial Intelligence -->
-                                <div class="row" id="aiRow">
-                                    <div class="col-sm-12 centerColumn">
-                                        <div class="accordion accordion-flush" id="aiAccordion">
-                                            <div class="accordion-item">
-                                                <h2 class="accordion-header" id="headingAi">
-                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAi" aria-expanded="false" aria-controls="collapseAi">
-                                                        <b>Artificial Intelligence</b>
-                                                    </button>
-                                                </h2>
-                                                <div id="collapseAi" class="accordion-collapse collapse" aria-labelledby="headingAi" data-bs-parent="#aiAccordion">
-                                                    <div class="accordion-body">
-                                                        <div class="form-check form-switch">
-                                                            <input class="form-check-input" type="checkbox" id="spiceometerCheck">
-                                                            <label class="form-check-label" for="spiceometerCheck">Spice-o-Meter 🌶️ Rate the spiciness of your post</label>
-                                                        </div>
-                                                        <div id="ollamaCheckDiv">
-                                                            <div id="ollamaTrafficLight" class="redLight"></div><div id="OllamaStatusLabel">Ollama Status</div>
-                                                        </div>
-                                                        <div id="ollamaModelDiv">
-                                                            <div id="ollamaModelTrafficLight" class="redLight"></div><div id="ollamaModelLabel">Model Downloaded</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                <div class="accordion" id="contentItemsAccordion"> <!-- Content Items Accordion -->
+                                    <div class="accordion-item" id="filesDiv">
+                                        <h2 class="accordion-header" id="headingFiles">
+                                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFiles" aria-expanded="false" aria-controls="collapseFiles">
+                                                <b><i class="bi bi-floppy"></i><span>Files</span></b>
+                                            </button>
+                                        </h2>
+                                        <div id="collapseFiles" class="accordion-collapse collapse" data-bs-parent="#contentItemsAccordion">
+                                            <div class="accordion-body">
+                                            <label for="uploadDirectory" class="form-label">Upload Directory</label>
+                                            <div class="input-group mb-3">
+                                                <input type="text" class="form-control" id="uploadDirectory">
                                             </div>
+                                            <div>
+                                                <button class="btn btn-primary" id="defaultUploadDirectoryBtn">Default</button>
+                                                <button class="btn btn-primary" id="saveUploadDirectoryBtn">Save</button>
+                                            </div>
+                                        </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="accordion-item" id="ipfsPinningDiv">
+                                        <h2 class="accordion-header" id="headingIpfsPinning">
+                                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseIpfsPinning" aria-expanded="false" aria-controls="collapseIpfsPinning">
+                                                <b><i class="bi bi-diagram-3"></i><span>IPFS</span></b>
+                                            </button>
+                                        </h2>
+                                        <div id="collapseIpfsPinning" class="accordion-collapse collapse" data-bs-parent="#contentItemsAccordion">
+                                            <div class="accordion-body">
+                                            <label for="ipfsPinningForm" class="form-label">File Pinning</label>
+                                            <a href="/faq#collapseSlow" target="_blank" id="ipfsHelpLink"><i class="bi bi-question-circle" id="ipfsHelp" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" data-bs-delay="0" title="Use an IPFS pinning service to accelerate your uploaded files (recommended)"></i></a>
+                                            <div class="input-group mb-3" id="ipfsPinningForm">
+                                                <input type="text" class="form-control" id="ipfsPinningURL" placeholder="Pinning URL">
+                                                <button class="btn btn-outline-secondary dropdown-toggle" id="ipfsPinningUrlBtn" type="button" data-bs-toggle="dropdown" aria-expanded="false"></button>
+                                                <ul class="dropdown-menu dropdown-menu-end" id="ipfsPinningUrlUL">
+                                                    <li class="ipfsPinningLI" id="pinataLI"><img src="/static/image/pinata.svg" class="ipfsPinningIcon">Pinata.cloud</li>
+                                                </ul>
+                                                <input type="text" class="form-control" id="ipfsPinningKey" placeholder="Secret Access Token">
+                                            </div>
+                                            <div>
+                                                <button class="btn btn-primary" id="saveIpfsPinningBtn">Save</button>
+                                            </div>
+                                            <div id="ipfsNodeLinkDiv">
+                                                <a id="ipfsNodeLink" href="http://localhost:42425/webui" target="_blank"><img src="/static/image/ipfs.svg" alt="ipfs" id="ipfsSvg"><span>IPFS Node Management</span></a>
+                                            </div>
+                                        </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="accordion-item" id="databaseManagementDiv">
+                                        <h2 class="accordion-header" id="headingDatabaseManagement">
+                                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDatabaseManagement" aria-expanded="false" aria-controls="collapseDatabaseManagement">
+                                                <b><i class="bi bi-database"></i><span>Database Management</span></b>
+                                            </button>
+                                        </h2>
+                                        <div id="collapseDatabaseManagement" class="accordion-collapse collapse" data-bs-parent="#contentItemsAccordion">
+                                            <div class="accordion-body">
+                                            <div id="databaseManagementForm">
+                                                <button class="btn btn-primary" id="databaseExportSnapshotBtn">Export Snapshot</button>
+                                                <button class="btn btn-primary" id="databaseImportSnapshotBtn">Import Snapshot</button>
+                                            </div>
+                                        </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="accordion-item" id="aiDiv">
+                                        <h2 class="accordion-header" id="headingAi">
+                                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAi" aria-expanded="false" aria-controls="collapseAi">
+                                                <b><i class="bi bi-robot"></i><span>Artificial Intelligence</span></b>
+                                            </button>
+                                        </h2>
+                                        <div id="collapseAi" class="accordion-collapse collapse" data-bs-parent="#contentItemsAccordion">
+                                            <div class="accordion-body">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="spiceometerCheck">
+                                                <label class="form-check-label" for="spiceometerCheck">Spice-o-Meter 🌶️ Rate the spiciness of your post</label>
+                                            </div>
+                                            <div id="ollamaCheckDiv">
+                                                <div id="ollamaTrafficLight" class="redLight"></div><div id="OllamaStatusLabel">Ollama Status</div>
+                                            </div>
+                                            <div id="ollamaModelDiv">
+                                                <div id="ollamaModelTrafficLight" class="redLight"></div><div id="ollamaModelLabel">Model Downloaded</div>
+                                            </div>
+                                        </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-sm-2"></div>
-        </div>
-
-        <!-- Privacy -->
-        <div class="row">
-            <div class="col-sm-2"></div>
-            <div class="col-sm-8 centerColumn">
-                <div class="accordion accordion-flush" id="privacyAccordion">
+                    <!-- Privacy -->
                     <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingTwo">
-                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
-                                <b>Privacy</b>
+                        <h2 class="accordion-header" id="headingPrivacy">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePrivacy" aria-expanded="false" aria-controls="collapsePrivacy">
+                                <i class="bi bi-shield-lock"></i><b>Privacy</b>
                             </button>
                         </h2>
-                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#privacyAccordion">
+                        <div id="collapsePrivacy" class="accordion-collapse collapse" aria-labelledby="headingPrivacy" data-bs-parent="#settingsAccordion">
                             <div class="accordion-body">
-                                <div class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="right" title="Coming Soon!">
+                                <div class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="left" title="Coming Soon!">
                                     <input class="form-check-input" type="checkbox" id="privateProfileCheck" disabled>
                                     <label class="form-check-label" for="privateProfileCheck">Private Profile</label>
                                 </div>
-                                <div class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="right" title="Coming Soon!">
+                                <div class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="left" title="Coming Soon!">
                                     <input class="form-check-input" type="checkbox" id="defaultSavedPostsCheck" checked disabled>
                                     <label class="form-check-label" for="defaultSavedPostsCheck">Default To Saved Posts</label>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-sm-2"></div>
-        </div>
-
-        <!-- Networking -->
-        <div class="row">
-            <div class="col-sm-2"></div>
-            <div class="col-sm-8 centerColumn">
-                <div class="accordion accordion-flush" id="networkingAccordion">
+                    <!-- Networking -->
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingNetworking">
-                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#networking" aria-expanded="true" aria-controls="networking">
-                                <b>Networking</b>
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNetworking" aria-expanded="false" aria-controls="collapseNetworking">
+                                <i class="bi bi-wifi"></i><span><b>Networking</b></span>
                             </button>
                         </h2>
-                        <div id="networking" class="accordion-collapse collapse" aria-labelledby="headingNetworking" data-bs-parent="#networkingAccordion">
+                        <div id="collapseNetworking" class="accordion-collapse collapse" aria-labelledby="headingNetworking" data-bs-parent="#settingsAccordion">
                             <div class="accordion-body">
                                 <p>Certain network ports must be open on your router for YourPlace to fully function</p>
                                 <div id="yourplaceTrafficLight"></div><div id="connectivityStatusLabel"> = YourPlace Port (42424)</div><br>
@@ -159,30 +144,28 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-sm-2"></div>
-        </div>
-
-        <!-- Blockchain -->
-        <div class="row">
-            <div class="col-sm-2"></div>
-            <div class="col-sm-8 centerColumn">
-                <div class="accordion accordion-flush" id="blockchainAccordion">
+                    <!-- Blockchain -->
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingBlockchain">
                             <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBlockchain" aria-expanded="false" aria-controls="collapseBlockchain">
-                                <b>Blockchain</b>
+                                <i class="bi bi-link-45deg"></i><b><span>Blockchain</span></b>
                             </button>
                         </h2>
-                        <div id="collapseBlockchain" class="accordion-collapse collapse" aria-labelledby="headingBlockchain" data-bs-parent="#blockchainAccordion">
+                        <div id="collapseBlockchain" class="accordion-collapse collapse" aria-labelledby="headingBlockchain" data-bs-parent="#settingsAccordion">
                             <div class="accordion-body">
                                 <div class="row">
-                                    <div class="col-sm-13" id="blockchainGlobalSettingsDiv">
+                                    <div class="col-sm-8" id="blockchainGlobalSettingsDiv">
+                                        <div class="form-check form-switch" id="indexerRun">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="indexerRunCheckbox">
+                                            <label class="form-check-label" for="indexerRunCheckbox">Run Indexer</label>
+                                        </div>
                                         <div class="form-check form-switch" id="indexerOnBatterySwitch">
                                             <input class="form-check-input" type="checkbox" role="switch" id="indexerOnBatteryCheckbox">
                                             <label class="form-check-label" for="indexerOnBatteryCheckbox">Run Indexer On Battery</label>
                                         </div>
+                                    </div>
+                                    <div class="col-sm-5" id="indexerStatusDiv">
+                                        <span>Indexer Status: </span><span id="indexerStatusText">stopped</span>
                                     </div>
                                 </div>
 
@@ -246,7 +229,7 @@
                                             <div class="accordion-item">
                                                 <h2 class="accordion-header" id="headingBase">
                                                     <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBase" aria-expanded="false" aria-controls="collapseBase">
-                                                        <b>Base</b>
+                                                        <img src="/static/image/coinbase-base.svg" class="settingsBlockchainImg" alt=""><b>Base</b>
                                                     </button>
                                                 </h2>
                                                 <div id="collapseBase" class="accordion-collapse collapse" aria-labelledby="headingBase" data-bs-parent="#baseAccordion">
@@ -315,6 +298,52 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Server Info -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingServerInfo">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseServerInfo" aria-expanded="false" aria-controls="collapseServerInfo">
+                                <i class="bi bi-info-circle"></i><b><span>Server Info</span></b>
+                            </button>
+                        </h2>
+                        <div id="collapseServerInfo" class="accordion-collapse collapse" aria-labelledby="headingServerInfo" data-bs-parent="#settingsAccordion">
+                            <div class="accordion-body" id="serverInfoAccordionBody">
+                                <div class="container">
+                                    <div class="row">
+                                        <div id="switchCol" class="col">
+                                            <div class="form-check form-switch" id="serverDebugMode">
+                                                <input class="form-check-input" type="checkbox" role="switch" id="serverDebugModeCheckbox">
+                                                <label class="form-check-label" for="serverDebugModeCheckbox">Debug Mode</label>
+                                            </div>
+                                        </div>
+
+                                        <div id="serverUpdateDiv" class="col">
+                                            <button class="btn btn-primary btn-outline-secondary" id="serverUpdateBtn" type="button"><i class="bi bi-cloud-download"></i><span>Check For Updates</span></button>
+                                        </div>
+
+                                        <div id="versionCol" class="col">
+                                            <div id="serverVersionDiv">
+                                                <span id="serverVersionLabel">Server Version:</span>
+                                                <span id="serverVersionText">?</span>
+                                            </div>
+                                            <div id="helperVersionDiv">
+                                                <span id="helperVersionLabel">Helper Version:</span>
+                                                <span id="helperVersionText">?</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <hr>
+
+                                    <div class="row align-items-start">
+                                    <div id="logsDiv">
+                                        <button class="btn btn-primary btn-outline-secondary" id="serverLogsViewBtn" type="button">View Logs</button>
+                                        <div id="logsView" class="hidden"></div>
+                                    </div>
+                                </div>
                                 </div>
                             </div>
                         </div>

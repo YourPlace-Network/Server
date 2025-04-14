@@ -65,6 +65,7 @@ func main() {
 	time.Sleep(3 * time.Second)          // Sleep for 1 second to allow the previous instance to close
 	logFile := core.LogInit("yourplace") // Initialize the logger
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
+	core.LogDebug("Runtime User: " + host.GetUsername())
 
 	// --- Command Line Arguments --- //
 	var hexString string // Crypto seed hex encoded
@@ -268,14 +269,9 @@ func PostServerRun(database *db.Database) {
 	}
 }
 func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, logFile *os.File) {
-	//if debug {
-	//	gin.SetMode(gin.DebugMode)
-	//	gin.DefaultWriter = io.MultiWriter(logFile, os.Stdout)
-	//} else {
 	gin.SetMode(gin.ReleaseMode)
-	//}
 	router := gin.Default()
-	router.Use(gin.Logger())
+	router.Use(gin.Logger()) // Attach default logger which prints to stdout
 	router.Use(CustomGinRecovery())
 	router.Use(middleware.CORSMiddleware(port))
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
@@ -297,7 +293,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	routes.NotFoundRoutes(router, title, gateway)
 	routes.HomeRoutes(router, title, favicon, installed, database, cryptoSeed, gateway)
 	routes.FAQRoutes(router, title, database, cryptoSeed, gateway)
-	routes.SettingsRoutes(router, title, database, _blockchain, cryptoSeed, gateway, ipfs)
+	routes.SettingsRoutes(router, title, database, _blockchain, cryptoSeed, gateway, ipfs, debug)
 	routes.LoginRoutes(router, title, database, cryptoSeed, domain, installed, gateway)
 	if !installed {
 		routes.SetupRoutes(router, database, title, favicon, port)

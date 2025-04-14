@@ -14,12 +14,14 @@ button.accordion-button {
 .accordion, .accordion-item {
   width: 100%;
 }
-.accordion-button.button, {
+.accordion-button.button {
   background-color: map.get(global.$colors, "secondary");
   color: map.get(global.$colors, "text");
 }
 .accordion-body, .accordion-collapse {
   width: 100%;
+  padding-left: 2em;
+  padding-right: 2em;
 }
 .redLight {
   background-color: hsla(0, 50%, 50%, 1);
@@ -29,6 +31,9 @@ button.accordion-button {
 }
 .greenLight {
   background-color: hsla(125, 70%, 45%, 1);
+}
+i.bi {
+  padding-right: .6em;
 }
 #ollamaCheckDiv {
   float: left;
@@ -84,13 +89,6 @@ button.accordion-button {
   margin: 0 0 10px 10px;
   width: 100px;
 }
-#savedUploadDirectorySuccess {
-  display: none;
-  position: relative;
-  float: left;
-  margin: 6px 0 10px 10px;
-  font-weight: bold;
-}
 #ipfsPinningUrlUL {
   background-color: global.$secondary;
 }
@@ -139,19 +137,25 @@ button.accordion-button {
   position: relative;
   top: -0.05em;
 }
-#aiRow {
-  margin-top: 1.5em;
-}
 #aiModelDropdown {
   margin-top: 20px;
 }
 #blockchainGlobalSettingsDiv {
   padding-bottom: 1em;
 }
-#baseFullNodeDataDirectoryDiv {
-  display: none;
+#indexerStatusDiv {
+  float: right;
+  width: 10em;
+  height: 5em;
+  text-align: center;
+}
+.settingsBlockchainImg {
+  width: 2em;
+  height: 1em;
+  padding-right: 0.5em;
 }
 #baseFullNodeDataDirectoryDiv {
+  display: none;
   padding-top: 10px;
   padding-left: 45px;
 }
@@ -189,4 +193,32 @@ button.accordion-button {
 }
 #postHistoryDays {
   max-width: 110px;
+}
+#serverInfoAccordionBody {
+  padding: 0;
+}
+#serverVersionDiv {
+  float: right;
+  position: relative;
+}
+#helperVersionDiv {
+  float: right;
+  position: relative;
+}
+#serverUpdateDiv {
+  width: 100%;
+  text-align: center;
+}
+#serverUpdateBtn {
+    position: relative;
+}
+#serverLogsViewBtn {
+  margin: 1em 0 1em 0;
+}
+#logsView {
+  padding: 0.5em;
+  border: 1px solid global.$text;
+  border-radius: 1em;
+  white-space: pre;
+  text-wrap: wrap;
 }

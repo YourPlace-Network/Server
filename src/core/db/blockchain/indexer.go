@@ -22,7 +22,7 @@ import (
 // Job States - Running, Complete, Failed, Pending
 
 const reportInterval = 5000 // print progress every # of blocks
-const saveInterval = 1000   // save progress every # of blocks
+const saveInterval = 100    // save progress every # of blocks
 const throttleOffset = 5    // How many blocks to subtract from the throttle limit to allow for the front-end to make calls without getting rate-limited
 
 var (
@@ -47,6 +47,11 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 		IsIndexing = false
 		IndexerMutex.Unlock()
 	}()
+
+	indexerRunning := database.SettingsGetValue("indexerRunning") // Check if the indexer is globally enabled
+	if indexerRunning != "true" {
+		return // bail out
+	}
 
 	uuid := database.IndexerGetJobUUID(chainName) // Lookup the UUID of the blockchain job
 	if uuid == "" {                               // If no job exists, create one
