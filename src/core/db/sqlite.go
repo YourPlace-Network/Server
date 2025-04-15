@@ -203,7 +203,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 	tables := map[string]string{
 		"meta":               "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
 		"settings":           "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
-		"files":              "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, extension TEXT, path TEXT, unsafeNameB64 TEXT, size INTEGER, addedDate INTEGER)",
+		"files":              "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, unsafeNameB64 TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileUrl TEXT, txHash TEXT, ffmpegStatus TEXT)",
 		"postsBackfill":      "CREATE TABLE IF NOT EXISTS postsBackfill (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER)",
 		"authNonce":          "CREATE TABLE IF NOT EXISTS authNonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
 		"authExpired":        "CREATE TABLE IF NOT EXISTS authExpired (uuid TEXT PRIMARY KEY, status TEXT)",
@@ -1285,7 +1285,7 @@ func (db *SQLite) FileAdd(fileUUID string, extension string, path string, unsafe
 	}
 }
 func (db *SQLite) IPFSAdd(fileUUID string, cid string) {
-	query := "INSERT INTO ipfsFiles (fileUUID, cid, addedDate) VALUES (?, ?, ?) ON CONFLICT DO NOTHING"
+	query := "INSERT INTO files (fileUUID, cid, addedDate) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET "
 	_, err := db.runParamSQLUpdate(query, fileUUID, cid, core.GetTimestamp())
 	if err != nil {
 		core.LogError("Could not add the IPFS CID to the database: " + err.Error())
