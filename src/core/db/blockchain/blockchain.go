@@ -14,7 +14,7 @@ type Blockchain struct {
 
 var DefaultBlockchainNodes = map[string][]string{
 	// blockchain: {rpcURL, rateLimit}
-	"base": {"https://mainnet.base.org", "10"},
+	"base": {"https://mainnet.base.org", "5"},
 }
 
 func (blockchain *Blockchain) Init(database *db.Database) {
