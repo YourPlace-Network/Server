@@ -683,18 +683,13 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			core.LogDebug("Post Action: " + action)
 			switch actionPostfix {
 			case "":
-				postText, ok := payloadObject["p"]
-				if !ok {
-					core.LogDebug("Post Action: no p in payload")
+				if !handlePostTransaction(payloadObject, database, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
 					break
 				}
-				postTextStr, ok := postText.(string)
-				if !ok {
-					core.LogDebug("failed to convert post text to string")
+			case "a":
+				if !handlePostTransactionAttachment(payloadObject, database, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
 					break
 				}
-				database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
-				break
 			}
 			break
 		case 'r': // Reply Actions
@@ -861,4 +856,58 @@ func IndexerStop() {
 		indexerCancel = make(chan bool, 1)
 		indexerCancel <- true
 	}
+}
+
+// --- Transaction Parsing Functions --- //
+func handlePostTransaction(payloadObject map[string]interface{}, database *db.Database, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+	postText, ok := payloadObject["p"]
+	if !ok {
+		core.LogDebug("Post Action: no p in payload")
+		return false
+	}
+	postTextStr, ok := postText.(string)
+	if !ok {
+		core.LogDebug("Failed to convert post text to string")
+		return false
+	}
+	database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
+	return true
+}
+func handlePostTransactionAttachment(payloadObject map[string]interface{}, database *db.Database, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+	postText, ok1 := payloadObject["p"]
+	attachmentsRaw, ok2 := payloadObject["a"]
+	if !ok1 || !ok2 {
+		core.LogDebug("Post attach action missing required fields")
+		return false
+	}
+	postTextStr, ok1 := postText.(string)
+	attachmentsArray, ok2 := attachmentsRaw.([]interface{}) // ensures array json format for the array containing all attachments
+	if !ok1 || !ok2 {
+		core.LogDebug("Post attach action fields are not properly typed")
+		return false
+	}
+	parsedAttachments := []db.Attachment{}
+	for _, attachment := range attachmentsArray {
+		attachmentArray, ok := attachment.([]interface{}) //ensures array json format for each individual attachment
+		if !ok {
+			core.LogDebug("Post attach action fields are not array")
+			return false
+		}
+		parsedURL, okURL := attachmentArray[0].(string)
+		parsedMimeType, okMimeType := attachmentArray[1].(string)
+		sizeFloat, okSize := attachmentArray[2].(float64)
+		if !okURL || !okMimeType || !okSize {
+			core.LogDebug("Post attach array values are not properly typed")
+			return false
+		}
+		sizeUint := uint64(sizeFloat)
+		parsedAttachment := db.Attachment{
+			FileURL:  parsedURL,
+			MimeType: parsedMimeType,
+			FileSize: sizeUint,
+		}
+		parsedAttachments = append(parsedAttachments, parsedAttachment)
+	}
+	database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber, parsedAttachments)
+	return true
 }

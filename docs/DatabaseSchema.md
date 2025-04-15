@@ -33,10 +33,6 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **fileURL** - TEXT
   * **txHash** - TEXT
   * **source** - TEXT
-* **ipfsFiles** - Files that the user uploads to IPFS
-  * **fileUUID** - TEXT (Primary Key)
-  * **cid** - TEXT
-  * **addedDate** - INTEGER (Unix timestamp)
 * **postsBackfill** - Status of backfill jobs running on the server
   * **uuid** - TEXT (Primary Key)
   * **blockchain** - TEXT
@@ -68,14 +64,6 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **timestamp** - INTEGER (Unix timestamp)
   * **data** - TEXT
   * **blockNumber** - INTEGER
-* **onchain_attachment** - Files that the user uploads to a post
-  * **txHash** - TEXT (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
-  * **address** - TEXT
-  * **name** - TEXT
-  * **contentType** - TEXT
-  * **size** - INTEGER
-  * **timestamp** - INTEGER (Unix timestamp)
 * **onchain_meta** - Metadata about profiles and their server
   * **blockchain** - TEXT (Primary Key)
   * **address** - TEXT (Primary Key)
