@@ -13,9 +13,9 @@ type Database struct {
 	Engine string
 }
 type Attachment struct { //we can move this as long as it isn't defined in a package that imports database
-	FileUrl     string
-	ContentType string
-	FileSize    uint64
+	FileURL  string
+	MimeType string
+	FileSize uint64
 }
 
 func (db *Database) Init(path string, engine string) {
@@ -175,10 +175,10 @@ func (db *Database) AuthGetServerOwnerAddress() string {
 }
 
 // --- Files Functions --- //
-func (db *Database) FileAdd(fileUUID string, extension string, path string, unsafeNameB64 string, size int64) {
+func (db *Database) FileAdd(fileUUID string, mimeType string, unsafeNameB64 string, size int64) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.FileAdd(fileUUID, extension, path, unsafeNameB64, size)
+		db.sqlite.FileAdd(fileUUID, mimeType, unsafeNameB64, size)
 	}
 }
 func (db *Database) IPFSAdd(fileUUID string, cid string) {

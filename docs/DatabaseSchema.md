@@ -32,6 +32,7 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **cid** - TEXT
   * **fileURL** - TEXT
   * **txHash** - TEXT
+  * **source** - TEXT
 * **ipfsFiles** - Files that the user uploads to IPFS
   * **fileUUID** - TEXT (Primary Key)
   * **cid** - TEXT
