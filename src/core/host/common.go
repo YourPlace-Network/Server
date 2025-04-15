@@ -441,6 +441,9 @@ func PreInstall(favicon []byte) bool {
 	if !InstallAutorun() {
 		_core.LogWarn("Could not install YourPlace Autorun")
 	}
+	if !InstallHelper() {
+		_core.LogWarn("Could not install YourPlace Helper")
+	}
 	return true
 }
 func InstallServerBinary() bool {

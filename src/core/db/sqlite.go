@@ -204,7 +204,6 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"meta":               "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
 		"settings":           "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
 		"files":              "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, extension TEXT, path TEXT, unsafeNameB64 TEXT, size INTEGER, addedDate INTEGER)",
-		"ipfsFiles":          "CREATE TABLE IF NOT EXISTS ipfsFiles (fileUUID TEXT PRIMARY KEY, cid TEXT, addedDate INTEGER)",
 		"postsBackfill":      "CREATE TABLE IF NOT EXISTS postsBackfill (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER)",
 		"authNonce":          "CREATE TABLE IF NOT EXISTS authNonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
 		"authExpired":        "CREATE TABLE IF NOT EXISTS authExpired (uuid TEXT PRIMARY KEY, status TEXT)",
@@ -734,6 +733,39 @@ func (db *SQLite) Ping() bool {
 }
 func (db *SQLite) Close() error {
 	return db.database.Close()
+}
+func SanitizeSQLiteDatabase(path string) error {
+	// This function resets certain elements in the YourPlace database snapshot to get it back to a clean and updated state. Useful for "catch-up" jobs
+
+	// Resolve the user data directory without creating import cycles with the host package name
+	userDir, err := os.UserHomeDir()
+	if err != nil {
+		return core.LogErrorReturn("Could not get home directory: " + err.Error())
+	}
+	dataDir := userDir + string(os.PathSeparator) + "YourPlace" + string(os.PathSeparator)
+	// Connecting to the database file to sanitize
+	if path == dataDir+"yourplace.db" {
+		return core.LogErrorReturn("Cannot sanitize the main database")
+	}
+	database, err := sql.Open("sqlite", path)
+	if err != nil || database == nil {
+		return core.LogErrorReturn("Could not open sqlite db: " + err.Error())
+	}
+	// Scrub it clean
+	queries := []string{"TRUNCATE TABLE IF EXISTS authExpired",
+		"TRUNCATE TABLE IF EXISTS authNonce",
+		"TRUNCATE TABLE IF EXISTS loginNonce",
+		"TRUNCATE TABLE IF EXISTS files",
+		"TRUNCATE TABLE IF EXISTS meta",
+		"TRUNCATE TABLE IF EXISTS settings",
+	}
+	for _, query := range queries {
+		_, err = database.Exec(query)
+		if err != nil {
+			return core.LogErrorReturn("Could not sanitize sqlite db: " + err.Error())
+		}
+	}
+	return nil
 }
 
 // --- Metadata & Settings Functions --- //

@@ -5,10 +5,14 @@ YourPlace is a distributed social media platform that is designed to give comple
 
 The core of YourPlace is a network of self-hosted servers called "places." You can keep your place on your laptop, a cloud server, a 3rd party service, or wherever you can run a PC.
 
-Places are owned and managed by a blockchain wallet address. They serve as a hub into your social life. Servers are where you host your profile, read other peoples posts, and share your content. YourPlace servers act on your behalf to manage your entire web2 and web3 social media life.
+Places are owned and managed by a blockchain wallet address. They serve as a hub into your social life. Servers are where you host your profile, read other peoples posts, and share your content. YourPlace servers act on your behalf to manage your entire social media life.
+
 
 ### Running YourPlace
+
 Download the YourPlace binary for your OS and run it.
+
+Please see our [Terms of Service](https://github.com/YourPlace-Network/Server/blob/main/TOS.md) and [Privacy Policy](https://github.com/YourPlace-Network/Server/blob/main/PRIVACY.md) for more information on your responsibilities as a user and how we handle your data.
 
 ### [⬇️ DOWNLOAD NOW ⬇️](https://YourPlace.network/download)
 
@@ -17,7 +21,10 @@ Upon first run, YourPlace will open up a local setup page which will guide you t
 Desktop shortcuts will be created after install, or you can visit the [main local interface](http://localhost:42424/) running on your PC.
 
 ### Building
-Install Make, Go and Node.js on your system. Then run the command
+
+YourPlace server builds on Windows x64, OSX Apple Silicon, and coming soon: Linux x64
+
+Install [Make](https://www.gnu.org/software/make/), [Go](https://go.dev) and [Node.js](https://nodejs.org) on your system. Then run the command
 
 `make clean install build`
 
@@ -27,6 +34,4 @@ To run a build with debugging enabled, run the command
 
 Output YourPlace binary will be in the `target/` directory
 
-Builds on Windows x64, OSX Apple Silicon, and coming soon: Linux x64
-
-See the Makefile for more build targets
+See the [Makefile](https://github.com/YourPlace-Network/Server/blob/main/Makefile) for more build targets

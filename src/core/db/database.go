@@ -40,6 +40,7 @@ func (db *Database) SetDefaults() {
 	defaults := map[string]string{
 		"historyDays":      "90",
 		"indexerOnBattery": "false",
+		"indexerRunning":   "true",
 		"badbitsEnabled":   "true",
 	}
 	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
@@ -109,6 +110,9 @@ func (db *Database) Ping() bool {
 		return db.sqlite.Ping()
 	}
 	return false
+}
+func SanitizeDatabase(path string) error {
+	return SanitizeSQLiteDatabase(path)
 }
 
 // --- Auth Functions --- //

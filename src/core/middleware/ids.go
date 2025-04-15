@@ -65,7 +65,7 @@ func DnsRebindingMiddleware(allowedHosts []string) gin.HandlerFunc {
 			}
 		}
 		if !valid {
-			c.AbortWithStatus(http.StatusForbidden)
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "sketchy ua"})
 			return
 		}
 		c.Next()

@@ -33,11 +33,16 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             baseURL: document.getElementById("baseURL")! as HTMLInputElement,
             baseIndexerResetBtn: document.getElementById("baseIndexerResetBtn")! as HTMLButtonElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
+            databaseExportSnapshotBtn: document.getElementById("databaseExportSnapshotBtn")! as HTMLButtonElement,
+            databaseImportSnapshotBtn: document.getElementById("databaseImportSnapshotBtn")! as HTMLButtonElement,
             defaultBaseURLBtn: document.getElementById("defaultBaseURLBtn")! as HTMLButtonElement,
             defaultUploadDirectoryBtn: document.getElementById("defaultUploadDirectoryBtn")! as HTMLButtonElement,
+            helperVersionText: document.getElementById("helperVersionText")! as HTMLSpanElement,
             indexerServer: document.getElementById("indexerServer")! as HTMLInputElement,
             indexerToken: document.getElementById("indexerToken")! as HTMLInputElement,
             indexerOnBatteryCheckbox: document.getElementById("indexerOnBatteryCheckbox")! as HTMLInputElement,
+            indexerRunCheckbox: document.getElementById("indexerRunCheckbox")! as HTMLInputElement,
+            indexerStatusText: document.getElementById("indexerStatusText")! as HTMLSpanElement,
             ollamaTrafficLight: document.getElementById("ollamaTrafficLight")! as HTMLDivElement,
             ollamaModelTrafficLight: document.getElementById("ollamaModelTrafficLight")! as HTMLDivElement,
             postHistoryDays: document.getElementById("postHistoryDays")! as HTMLInputElement,
@@ -52,10 +57,14 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             ipfsPinningURL: document.getElementById("ipfsPinningURL")! as HTMLInputElement,
             ipfsPinningKey: document.getElementById("ipfsPinningKey")! as HTMLInputElement,
             pinataLI: document.getElementById("pinataLI")! as HTMLLIElement,
-            web3LI: document.getElementById("web3LI")! as HTMLLIElement,
-            //eternumLI: document.getElementById("eternumLI")! as HTMLLIElement,
-            filebaseLi: document.getElementById("filebaseLI")! as HTMLLIElement,
             saveIpfsPinningBtn: document.getElementById("saveIpfsPinningBtn")! as HTMLButtonElement,
+            contentAccordion: document.getElementById("contentAccordion")! as HTMLDivElement,
+            privacyAccordion: document.getElementById("privacyAccordion")! as HTMLDivElement,
+            networkingAccordion: document.getElementById("networkingAccordion")! as HTMLDivElement,
+            blockchainAccordion: document.getElementById("blockchainAccordion")! as HTMLDivElement,
+            serverVersionText: document.getElementById("serverVersionText")! as HTMLSpanElement,
+            serverLogsViewBtn: document.getElementById("serverLogsViewBtn")! as HTMLButtonElement,
+            logsView: document.getElementById("logsView")! as HTMLDivElement,
         }
         let popperInstance: Instance | null = null;
 
@@ -75,8 +84,11 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                     getOllamaEnabled(),
                     getOllamaModelEnabled(),
                     getIndexerOnBattery(),
+                    getIndexerRunning(),
+                    getIndexerStatus(),
                     getNetworkPorts(),
                     getIpfsPinning(),
+                    getServerVersion(),
                 ]);
             } catch (error) {
                 LogError("Error initializing settings page: " + error);
@@ -85,7 +97,8 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             ExpandAccordionByHash();
 
             /* Cron Jobs */
-            setInterval(getBaseIndexerProgress, 120000);
+            setInterval(getBaseIndexerProgress, 300000); // 5 minutes
+            setInterval(getIndexerStatus, 6000); // 1 minute
         }
 
         /* Getting Current Settings Values */
@@ -199,7 +212,41 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 DOM.indexerOnBatteryCheckbox.checked = false;
             }
         }
+        async function getIndexerRunning() {
+            let response = await HttpGetJson("/settings/indexer/running");
+            if (response[0] === 200) {
+                DOM.indexerRunCheckbox.checked = response[1].indexerRunning;
+                DOM.indexerOnBatteryCheckbox.disabled = false;
+            }
+        }
+        async function getIndexerStatus() {
+            let response = await HttpGetJson("/settings/indexer/status");
+            if (response[0] === 200) {
+                let status = DOMPurify.sanitize(response[1].status);
+                if (status == "running") {
+                    DOM.indexerStatusText.textContent = "Running"
+                    DOM.indexerStatusText.style.color = "green";
+                } else if (status == "complete") {
+                    DOM.indexerStatusText.textContent = "Complete"
+                    DOM.indexerStatusText.style.color = "green";
+                } else if (status == "failed" || status == "stopped") {
+                    DOM.indexerStatusText.textContent = "Stopped / Failed"
+                    DOM.indexerStatusText.style.color = "#D3D3D3";
+                } else {
+                    DOM.indexerStatusText.textContent = status;
+                    DOM.indexerStatusText.style.color = "yellow";
+                }
+            } else {
+                LogError("Indexer Status Error");
+            }
+        }
         async function getNetworkPorts() {
+            DOM.retestPortsBtn.textContent = "";
+            DOM.retestPortsBtn.classList.add("spinner-border");
+            DOM.ipfsTrafficLight.classList.remove("greenLight");
+            DOM.ipfsTrafficLight.classList.remove("redLight");
+            DOM.yourplaceTrafficLight.classList.remove("greenLight");
+            DOM.yourplaceTrafficLight.classList.remove("redLight");
             let response = await HttpGetJson("https://yourplace.network/ports");
             if (response[0] === 200) {
                 if (response[1].port_4001) {
@@ -224,6 +271,8 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 DOM.ipfsTrafficLight.classList.add("redLight");
                 LogError("Failed to check network ports");
             }
+            DOM.retestPortsBtn.classList.remove("spinner-border");
+            DOM.retestPortsBtn.textContent = "Retest Ports";
         }
         async function getIpfsPinning() {
             let response = await HttpGetJson("/settings/content/ipfsPinning");
@@ -232,6 +281,26 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 DOM.ipfsPinningKey.value = response[1].pinningKey;
             } else {
                 ShowDialogModal("Failed to get IPFS Pinning settings");
+            }
+        }
+        async function getServerVersion() {
+            let response = await HttpGetJson("/settings/server/version");
+            if (response[0] === 200) {
+                DOM.serverVersionText.textContent = response[1].version;
+                DOM.helperVersionText.textContent = response[1].helperVersion;
+            } else {
+                ShowDialogModal("Failed to get server version");
+            }
+        }
+        async function getServerLogs() {
+            DOM.logsView.textContent = "";
+            let response = await HttpGetJson("/settings/server/logs/view");
+            if (response[0] === 200) {
+                //ShowDialogModalHTML(response[1].logs);
+                DOM.logsView.textContent = response[1].logs;
+                DOM.logsView.classList.remove("hidden");
+            } else {
+                ShowDialogModal("Failed to get server logs");
             }
         }
 
@@ -379,6 +448,25 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 }
             }
         }
+        async function setIndexerRunning() {
+            if (DOM.indexerRunCheckbox.checked) {
+                let response = await HttpPostJson("/settings/indexer/start", {indexerRun: DOM.indexerRunCheckbox.checked}, DOM.csrfToken.value);
+                if (response[0] === 200) {
+                    LogInfo(response[1].status);
+                    DOM.indexerOnBatteryCheckbox.disabled = false;
+                } else {
+                    LogError("Indexer Run Error");
+                }
+            } else {
+                let response = await HttpPostJson("/settings/indexer/stop", {indexerRun: DOM.indexerRunCheckbox.checked}, DOM.csrfToken.value);
+                if (response[0] === 200) {
+                    LogInfo(response[1].status);
+                    DOM.indexerOnBatteryCheckbox.disabled = true;
+                } else {
+                    LogError("Indexer Stop Error");
+                }
+            }
+        }
         async function setIndexerOnBattery() {
             let response = await HttpPostJson("/settings/indexer/onBattery",
                 {indexerOnBattery: DOM.indexerOnBatteryCheckbox.checked}, DOM.csrfToken.value);
@@ -395,6 +483,28 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 pinningKey: DOM.ipfsPinningKey.value,
             }
             let response = await HttpPostJson("/settings/content/ipfsPinning", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                ShowSavedToast();
+            } else {
+                ShowDialogModal(response[1].status);
+            }
+        }
+        async function setDatabaseExportSnapshot() {
+            const data = {
+                snapshot: "export",
+            }
+            let response = await HttpPostJson("/settings/server/databaseSnapshot", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                ShowSavedToast();
+            } else {
+                ShowDialogModal(response[1].status);
+            }
+        }
+        async function setDatabaseImportSnapshot() {
+            const data = {
+                snapshot: "import",
+            }
+            let response = await HttpPostJson("/settings/server/databaseSnapshot", data, DOM.csrfToken.value);
             if (response[0] === 200) {
                 ShowSavedToast();
             } else {
@@ -482,22 +592,16 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.saveUploadDirectoryBtn!.addEventListener("click", setUploadDirectory);
         DOM.savePostHistoryDaysBtn!.addEventListener("click", setPostHistoryDays);
         DOM.spiceometerCheck!.addEventListener("change", setSpiceometer);
+        DOM.indexerRunCheckbox!.addEventListener("change", setIndexerRunning);
         DOM.indexerOnBatteryCheckbox!.addEventListener("change", setIndexerOnBattery);
         DOM.retestPortsBtn!.addEventListener("click", getNetworkPorts);
         DOM.pinataLI!.addEventListener("click", function(e) {
             DOM.ipfsPinningURL.value = "https://api.pinata.cloud/psa";
-            ShowDialogModalHTML("Please create an account and secret from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your \"<b>JWT (secret access token)</b>\" to the IPFS Pinning settings page");
+            DOM.ipfsPinningKey.value = "";
+            ShowDialogModalHTML("Please create an account and an <b>API Key</b> from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your <b>JWT (secret access token)</b> to the IPFS Pinning settings page");
         });
-        DOM.web3LI!.addEventListener("click", function(e) {
-            DOM.ipfsPinningURL.value = "https://api.web3.storage";
-            ShowDialogModalHTML("Please create an account and secret from <a href='https://web3.storage/' target='_blank'>Web3.Storage here</a><br><br>Then add your \"<b>Secret Access Token</b>\" to the IPFS Pinning settings page");
-        });
-        DOM.filebaseLi!.addEventListener("click", function(e) {
-            DOM.ipfsPinningURL.value = "https://api.filebase.io/v1/ipfs";
-            ShowDialogModalHTML("Please create an account at <a href='https://console.filebase.com/' target='_blank'>Filebase here</a><br><br>Then create a Bucket and generate a \"<b>Token</b>\" for that bucket, and add it to the IPFS Pinning settings page");
-        });
-        //DOM.eternumLI!.addEventListener("click", function(e) {});
         DOM.saveIpfsPinningBtn.addEventListener("click", setIPFSPinning);
+        DOM.serverLogsViewBtn.addEventListener("click", getServerLogs);
 
         init().then();
     }
