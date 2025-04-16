@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/network"
@@ -35,7 +34,6 @@ func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, p
 			return
 		}
 		fileHash := database.GetFileHashFromUUID(payload.FileUUID)
-		core.LogInfo("file hash: " + fileHash)
 		uploadDirectory := security.SanitizePathTraversal(database.SettingsGetValue("uploadDirectory"))
 		if !strings.HasSuffix(uploadDirectory, host.PathSeparator) {
 			uploadDirectory = uploadDirectory + host.PathSeparator
