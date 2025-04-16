@@ -193,7 +193,7 @@ function sanitizeStyle(styleAttr: string): string {
     }
     return sanitizedDeclarations.join("; ");
 }
-export async function HashString (input: string): Promise<string> {
+export async function HashString (input: string): Promise<string> { //TODO: Use UUID instead for element IDs
     const buffer = new TextEncoder().encode(input); // generates hash buffer from string
     const hash = await crypto.subtle.digest("SHA-256", buffer); // hashes the buffer
     const hashArray = Array.from(new Uint8Array(hash)); // converts hash to Uint8Array
