@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain.Blockchain) { //TODO: lookups by basename
+func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain.Blockchain) {
 	router.GET("/s/", func(c *gin.Context) {
 		query := c.Query("q")
 		printableQuery := security.SanitizeNonPrintable(query)

@@ -263,7 +263,7 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
     let nextButton = document.createElement("a") as HTMLAnchorElement;
     let nextIcon = document.createElement("span") as HTMLSpanElement;
     const elementsString = elements.map(el => el.outerHTML).join("");
-    const elementsHash = await HashString(elementsString);
+    const elementsHash = await HashString(elementsString); //TODO: change to UUID
     carouselDiv.classList.add("carousel", "slide");
     carouselDiv.id = elementsHash;
     carouselList.classList.add("carousel-indicators");

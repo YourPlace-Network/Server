@@ -45,6 +45,7 @@ func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, p
 		extension, err := host.GetFileExtenstion(uploadDirectory, fileHash)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error getting file extension"})
+			return
 		}
 		ipfsPath := uploadDirectory + fileHash + extension
 		cid, err := ipfs.IPFSAddFile(ipfsPath)
