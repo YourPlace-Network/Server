@@ -95,7 +95,9 @@ func GetFileType(path string) (string, string) {
 		return string(TypeUnknown), mimeTypes[TypeUnknown]
 	}
 	detectedType := TypeUnknown
-	switch ext := filepath.Ext(path); ext {
+	extUpper := filepath.Ext(path)
+	ext := strings.ToLower(extUpper)
+	switch ext {
 	case ".avi":
 		detectedType = TypeAVI
 	case ".jpg", ".jpeg":

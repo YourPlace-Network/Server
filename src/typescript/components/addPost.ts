@@ -32,7 +32,7 @@ import tinymce from "tinymce/tinymce";
         interface fileData {
             uuid: string;
             pathOnDisk: string;
-            extension: string;
+            mimeType: string;
             encodedUnsafeName: string;
             size: string;
             fileUrl?: string;
@@ -107,7 +107,7 @@ import tinymce from "tinymce/tinymce";
             for (let i = 0; i < uploadedFiles.length; i++){
                 let file = uploadedFiles[i];
                 let url = file.fileUrl;
-                let mimeType = extensionToMimeType(file.extension);
+                let mimeType = file.mimeType;
                 if (mimeType == null) {return}
                 let size = file.size;
                 if (typeof url === "string" && mimeType !== "" && size !== ""){
