@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/glebarez/go-sqlite"
+	"github.com/google/uuid"
 	"io"
 	"os"
 	"regexp"
@@ -203,7 +204,8 @@ func (db *SQLite) createTables(ctx context.Context) error {
 	tables := map[string]string{
 		"meta":          "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
-		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, unsafeNameB64 TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, txHash TEXT, source TEXT)",
+		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, unsafeNameB64 TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
+		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT)",
 		"postsBackfill": "CREATE TABLE IF NOT EXISTS postsBackfill (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER)",
 		"authNonce":     "CREATE TABLE IF NOT EXISTS authNonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
 		"authExpired":   "CREATE TABLE IF NOT EXISTS authExpired (uuid TEXT PRIMARY KEY, status TEXT)",
@@ -248,6 +250,8 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 		"onchain_block",
 		"onchain_follow",
 		"postsBackfill",
+		"file_txn_hash",
+		"files",
 	}
 	// Create buffer to hold the serialized data
 	var buffer bytes.Buffer
@@ -1029,23 +1033,23 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 			core.LogError(err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT contentType, size, fileUrl FROM files WHERE txHash = ?"
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
 		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash)
 		if err != nil {
 			core.LogError("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
 		}
 		defer rowsAttachments.Close()
 		for rowsAttachments.Next() {
-			var contentType string
+			var mimeType string
 			var size uint64
 			var fileUrl string
-			err := rowsAttachments.Scan(&contentType, &size, &fileUrl)
+			err := rowsAttachments.Scan(&mimeType, &size, &fileUrl)
 			if err != nil {
 				core.LogError("Could parse rows for post attachment: " + err.Error())
 				break // bail rowsAttachments for loop
 			}
 			sizeString := strconv.FormatUint(size, 10)
-			attachment := []string{fileUrl, contentType, sizeString}
+			attachment := []string{fileUrl, mimeType, sizeString}
 			attachments = append(attachments, attachment)
 		}
 		post := map[string]interface{}{
@@ -1121,7 +1125,7 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 			core.LogError("Could not scan database rows: " + err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT mimeType, size, fileURL FROM files WHERE txHash = ?"
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
 		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
 		if err != nil {
 			core.LogError("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
@@ -1285,11 +1289,30 @@ func (db *SQLite) FileAdd(fileUUID string, mimeType string, unsafeNameB64 string
 	}
 }
 func (db *SQLite) IPFSAdd(fileUUID string, cid string) {
-	query := "INSERT INTO files (fileUUID, cid, addedDate) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET "
-	_, err := db.runParamSQLUpdate(query, fileUUID, cid, core.GetTimestamp())
+	query := "UPDATE files SET cid = ? WHERE fileUUID = ?"
+	_, err := db.runParamSQLUpdate(query, cid, fileUUID)
 	if err != nil {
 		core.LogError("Could not add the IPFS CID to the database: " + err.Error())
 	}
+}
+func (db *SQLite) GetAttachmentUUIDs(txHash string) []string {
+	var uuids []string
+	rows, err := db.runParamSQLSelect("SELECT fileUUID FROM file_txn_hash WHERE txHash = ?", txHash)
+	if err != nil {
+		core.LogError("Could not get the attachment UUIDs from the database: " + err.Error())
+		return []string{}
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var fileUUID string
+		err = rows.Scan(&fileUUID)
+		if err != nil {
+			core.LogError("Could not get the attachment UUIDs from the database: " + err.Error())
+			return []string{}
+		}
+		uuids = append(uuids, fileUUID)
+	}
+	return uuids
 }
 
 // --- Indexer Functions --- //
@@ -1445,13 +1468,45 @@ func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, t
 	}
 	for _, attachment := range attachments {
 		fileURL := attachment.FileURL
+		fileUUID := uuid.New().String()
+		cid := ""
+		if strings.HasPrefix(fileURL, "ipfs://") {
+			cid = strings.TrimPrefix(fileURL, "ipfs://")
+		}
 		mimeType := attachment.MimeType
 		size := attachment.FileSize
-		query2 := "INSERT INTO files (txHash, blockchain, address, mimeType, size, fileURL) VALUES (?, ?, ?, ?, ?, ?)"
-		_, err = db.runParamSQLUpdate(query2, txHash, blockchain, toAddr, mimeType, size, fileURL)
+		var existingFileUUID string
+		if fileURL != "" || cid != "" {
+			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
+			if err != nil {
+				core.LogError("Could not check for existing file: " + err.Error())
+				continue
+			}
+
+			if rows.Next() {
+				err = rows.Scan(&existingFileUUID)
+				if err != nil {
+					rows.Close()
+					core.LogError("Could not scan existing file UUID: " + err.Error())
+					continue
+				}
+			}
+			rows.Close()
+		}
+		if existingFileUUID != "" {
+			fileUUID = existingFileUUID
+		} else {
+			insertFileQuery := "INSERT INTO files (fileUUID, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?)"
+			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, mimeType, size, timestamp, cid, fileURL, "onchain")
+			if err != nil {
+				core.LogError("Could not insert file record: " + err.Error())
+				continue
+			}
+		}
+		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash) VALUES (?, ?)"
+		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash)
 		if err != nil {
-			core.LogError("Could not tokenize the attachment in the database: " + err.Error())
-			return
+			core.LogError("Could not link file to transaction: " + err.Error())
 		}
 	}
 }
