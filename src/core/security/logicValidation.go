@@ -600,6 +600,12 @@ func SanitizeNonPrintable(payload string) string {
 	}
 	return string(result)
 }
+func SanitizeBOM(payload string) string {
+	bom := []byte{0xEF, 0xBB, 0xBF}
+	bytesInput := []byte(payload)
+	bytesInput = bytes.TrimPrefix(bytesInput, bom)
+	return string(bytesInput)
+}
 func SanitizeReservedTLDs(payload string) string {
 	reservedTLDs := []string{"local", "localhost", "onion", "base.eth", "eth", "algo"}
 	cleanPayload := ""

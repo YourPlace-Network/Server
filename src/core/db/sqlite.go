@@ -249,6 +249,8 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 		"onchain_block",
 		"onchain_follow",
 		"postsBackfill",
+		"files_txn_hash",
+		"files",
 	}
 	// Create buffer to hold the serialized data
 	var buffer bytes.Buffer

@@ -765,7 +765,7 @@ const tips = [
     "Don't give advice that you're not even willing to *try* to follow. Noone can follow 100% of the advice on this page, so don't get yourself down if you fall short",
     "When communicating with another person, that person is using 0 to 100 % of good-faith with you. During conversation, you need to figure out what percent that is, and then adjust accordingly",
     "Everybody is a hypocrite sometimes. Just try to minimize those instances and strive to do better in the future",
-
+    "Mercy for the attacker is tyranny for the victim",
 
 ];
 

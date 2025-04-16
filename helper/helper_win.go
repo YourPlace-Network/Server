@@ -48,7 +48,7 @@ var (
 const (
 	pipeName        = `\\.\pipe\yourplacehelper`
 	serviceName     = "YourPlaceHelper"
-	version         = "0.0.2"
+	version         = "0.0.1"
 	MB_YESNO        = 0x00000004
 	MB_ICONQUESTION = 0x00000020
 	IDYES           = 6
