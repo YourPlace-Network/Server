@@ -1146,7 +1146,6 @@ func InstallHelper() bool {
 	helperPath := GetInstallDir() + binary
 	if helperBin == nil {
 		core.LogError("Helper binary not embedded")
-		Shutdown(1)
 		return false
 	}
 	// Ensure install directory exists
@@ -1156,14 +1155,15 @@ func InstallHelper() bool {
 		core.LogError("Failed to create install directory: " + err.Error())
 		return false
 	}
-	// Check if helper needs update by comparing binary contents
-	installedHelperVersionBytes, _ := os.ReadFile(GetInstallDir() + "helper.version")
+	// Check if helper needs update by comparing version numbers
+	reportedVersion, _ := HelperCall("version")
+	embeddedVersion := string(helperVersion)
+	embeddedVersion = security.SanitizeNonPrintable(embeddedVersion)
 	needsUpdate := false
-	if !bytes.Equal(installedHelperVersionBytes, helperVersion) {
+	if core.CompareVersionString(embeddedVersion, reportedVersion) {
+		core.LogDebug("Helper needs update")
 		needsUpdate = true
 	}
-	//needsUpdate := !IsEmbeddedFileEqual(helperBin, helperPath)
-	core.LogDebug("Helper needs update: " + strconv.FormatBool(needsUpdate))
 	// If helper is running and needs update, stop it first
 	if needsUpdate && DoesProcExist(binary) {
 		_, err = HelperCall("stop")
@@ -1213,7 +1213,7 @@ func InstallHelper() bool {
 		time.Sleep(5) // Wait for helper to start and UAC prompt
 	}
 	// Verify helper is running and responding
-	core.LogDebug("Verifying installation - Waiting for helper to start")
+	core.LogDebug("Verifying helper installation - Waiting for it to start")
 	deadline := time.Now().Add(120 * time.Second)
 	for time.Now().Before(deadline) {
 		// Check process
@@ -1286,7 +1286,6 @@ func HelperCall(action string) (string, error) {
 			resultsCh <- result{"", core.LogErrorReturn("Failed to decode response: " + err.Error())}
 			return
 		}
-		core.LogDebug("Helper Response: " + response)
 		resultsCh <- result{response, nil}
 	}()
 	// Wait for either completion or timeout

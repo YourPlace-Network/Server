@@ -40,6 +40,7 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	-powershell -Command "Get-Process -Name 'YourPlaceFfmpeg' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue | Out-Null"
 	-powershell -Command "if (Test-Path 'target') { Remove-Item -Recurse -Force 'target' | Out-Null }"
 	-powershell -Command "if (Test-Path '$(HELPER)') { Remove-Item -Force '$(HELPER)' | Out-Null }"
+	-powershell -Command "if (Test-Path 'src\core\host\bin\helper\win\helper.version') { Remove-Item -Force 'src\core\host\bin\helper\win\helper.version' | Out-Null }"
 	-powershell -Command "if (Test-Path 'rsrc_windows_amd64.syso') { Remove-Item -Force 'rsrc_windows_amd64.syso' | Out-Null }"
 	go clean
 else ifeq ($(DETECTED_OS),Darwin)
@@ -48,6 +49,7 @@ else ifeq ($(DETECTED_OS),Darwin)
 	-pkill -f YourPlaceIpfs 2>/dev/null || true
 	-pkill -f YourPlaceFfmpeg 2>/dev/null || true
 	rm -rf target 2>/dev/null || true
+	rm -rf src/core/host/bin/helper/osx/* 2>/dev/null || true
 	go clean
 endif
 
