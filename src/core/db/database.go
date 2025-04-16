@@ -175,10 +175,10 @@ func (db *Database) AuthGetServerOwnerAddress() string {
 }
 
 // --- Files Functions --- //
-func (db *Database) FileAdd(fileUUID string, mimeType string, unsafeNameB64 string, size int64) {
+func (db *Database) FileAdd(fileUUID string, fileHash string, mimeType string, unsafeNameB64 string, size int64) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.FileAdd(fileUUID, mimeType, unsafeNameB64, size)
+		db.sqlite.FileAdd(fileUUID, fileHash, mimeType, unsafeNameB64, size)
 	}
 }
 func (db *Database) IPFSAdd(fileUUID string, cid string) {
@@ -186,6 +186,13 @@ func (db *Database) IPFSAdd(fileUUID string, cid string) {
 	case "sqlite":
 		db.sqlite.IPFSAdd(fileUUID, cid)
 	}
+}
+func (db *Database) GetFileHashFromUUID(fileUUID string) string {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetFileHashFromUUID(fileUUID)
+	}
+	return ""
 }
 
 // --- Indexer Functions --- //

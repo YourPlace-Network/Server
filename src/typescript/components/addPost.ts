@@ -96,7 +96,7 @@ import tinymce from "tinymce/tinymce";
         async function prepareAttachedPost() {
             let csrfToken = DOM.csrfToken.value;
             for (let i = 0; i < uploadedFiles.length; i++){
-                let cid = await AddFileToIPFS(uploadedFiles[i].pathOnDisk, csrfToken);
+                let cid = await AddFileToIPFS(uploadedFiles[i].uuid, csrfToken);
                 let cidString = cid?.toString()
                 if (cidString === undefined || !IsValidIpfsCid(cidString)) {
                     return

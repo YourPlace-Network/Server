@@ -73,7 +73,7 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 			}
 			encodedUnsafeName := security.Base64Encode(file.Filename)
 			_, mimeType := security.GetFileType(finalFilePath)
-			database.FileAdd(fileUUID, mimeType, encodedUnsafeName, file.Size)
+			database.FileAdd(fileUUID, fileHash, mimeType, encodedUnsafeName, file.Size)
 			fileData := map[string]interface{}{
 				"uuid":              fileUUID,
 				"pathOnDisk":        finalFilePath,

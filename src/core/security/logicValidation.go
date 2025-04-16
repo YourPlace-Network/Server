@@ -61,6 +61,7 @@ func GetFileType(path string) (string, string) {
 		TypeELF     FileType = "elf"
 		TypePDF     FileType = "pdf"
 		TypeMP3     FileType = "mp3"
+		TypeWEBP    FileType = "webp"
 	)
 	var mimeTypes = map[FileType]string{
 		TypeUnknown: "application/octet-stream",
@@ -75,6 +76,7 @@ func GetFileType(path string) (string, string) {
 		TypeELF:     "application/x-executable",
 		TypePDF:     "application/pdf",
 		TypeMP3:     "audio/mpeg",
+		TypeWEBP:    "image/webp",
 	}
 	var fileSignatures = map[FileType][][]byte{
 		TypeAVI:  {{0x52, 0x49, 0x46, 0x46}},
@@ -120,8 +122,16 @@ func GetFileType(path string) (string, string) {
 		detectedType = TypeELF
 	case ".mp3":
 		detectedType = TypeMP3
+	case ".webp":
+		detectedType = TypeWEBP
 	default:
 		detectedType = TypeUnknown
+	}
+	if ext == ".webp" && len(data) >= 12 {
+		if bytes.Equal(data[0:4], []byte{0x52, 0x49, 0x46, 0x46}) &&
+			bytes.Equal(data[8:12], []byte{0x57, 0x45, 0x42, 0x50}) {
+			return string(TypeWEBP), mimeTypes[TypeWEBP]
+		}
 	}
 	for fileType, signatures := range fileSignatures {
 		for _, signature := range signatures {

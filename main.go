@@ -65,7 +65,7 @@ func main() {
 	time.Sleep(3 * time.Second)          // Sleep for 1 second to allow the previous instance to close
 	logFile := core.LogInit("yourplace") // Initialize the logger
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
-	core.LogDebug("Runtime User: " + host.GetUsername())
+	//core.LogDebug("Runtime User: " + host.GetUsername())
 
 	// --- Command Line Arguments --- //
 	var hexString string // Crypto seed hex encoded

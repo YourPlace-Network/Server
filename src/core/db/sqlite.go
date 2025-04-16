@@ -1281,9 +1281,9 @@ func (db *SQLite) AuthGetServerOwnerAddress() string {
 }
 
 // --- File & IPFS Functions --- //
-func (db *SQLite) FileAdd(fileUUID string, mimeType string, unsafeNameB64 string, size int64) {
-	query := "INSERT INTO files (fileUUID, mimeType, unsafeNameB64, size, addedDate) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, fileUUID, mimeType, unsafeNameB64, size, core.GetTimestamp())
+func (db *SQLite) FileAdd(fileUUID string, fileHash string, mimeType string, unsafeNameB64 string, size int64) {
+	query := "INSERT INTO files (fileUUID, fileHash, mimeType, unsafeNameB64, size, addedDate) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, fileUUID, fileHash, mimeType, unsafeNameB64, size, core.GetTimestamp())
 	if err != nil {
 		core.LogError("Could not add the file to the database: " + err.Error())
 	}
@@ -1295,24 +1295,23 @@ func (db *SQLite) IPFSAdd(fileUUID string, cid string) {
 		core.LogError("Could not add the IPFS CID to the database: " + err.Error())
 	}
 }
-func (db *SQLite) GetAttachmentUUIDs(txHash string) []string {
-	var uuids []string
-	rows, err := db.runParamSQLSelect("SELECT fileUUID FROM file_txn_hash WHERE txHash = ?", txHash)
+func (db *SQLite) GetFileHashFromUUID(uuid string) string {
+	rows, err := db.runParamSQLSelect("SELECT fileHash FROM files WHERE fileUUID = ?", uuid)
 	if err != nil {
-		core.LogError("Could not get the attachment UUIDs from the database: " + err.Error())
-		return []string{}
+		core.LogError("Could not get the hash from the UUID: " + err.Error())
+		return ""
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var fileUUID string
-		err = rows.Scan(&fileUUID)
+		var fileHash string
+		err = rows.Scan(&fileHash)
 		if err != nil {
-			core.LogError("Could not get the attachment UUIDs from the database: " + err.Error())
-			return []string{}
+			core.LogError("Could not get the hash from the UUID: " + err.Error())
+			return ""
 		}
-		uuids = append(uuids, fileUUID)
+		return fileHash
 	}
-	return uuids
+	return ""
 }
 
 // --- Indexer Functions --- //
@@ -1482,16 +1481,14 @@ func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, t
 				core.LogError("Could not check for existing file: " + err.Error())
 				continue
 			}
-
+			defer rows.Close()
 			if rows.Next() {
 				err = rows.Scan(&existingFileUUID)
 				if err != nil {
-					rows.Close()
 					core.LogError("Could not scan existing file UUID: " + err.Error())
 					continue
 				}
 			}
-			rows.Close()
 		}
 		if existingFileUUID != "" {
 			fileUUID = existingFileUUID

@@ -1,12 +1,15 @@
 package routes
 
 import (
+	"YourPlace/src/core"
 	"YourPlace/src/core/db"
+	"YourPlace/src/core/host"
 	"YourPlace/src/core/network"
 	"YourPlace/src/core/security"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, port int) {
@@ -23,7 +26,7 @@ func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, p
 	router.POST("/ipfs/add/", func(c *gin.Context) {
 		// Take a file path (generated from POST /files/upload) and add it to IPFS + pin it and return the CID
 		type Payload struct {
-			FilePath string `json:"filePath" required:"true"`
+			FileUUID string `json:"fileUUID" required:"true"`
 		}
 		var payload Payload
 		err := c.BindJSON(&payload)
@@ -31,11 +34,27 @@ func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, p
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid file UUID JSON"})
 			return
 		}
-		cid, err := ipfs.IPFSAddFile(payload.FilePath)
+		fileHash := database.GetFileHashFromUUID(payload.FileUUID)
+		core.LogInfo("file hash: " + fileHash)
+		uploadDirectory := security.SanitizePathTraversal(database.SettingsGetValue("uploadDirectory"))
+		if !strings.HasSuffix(uploadDirectory, host.PathSeparator) {
+			uploadDirectory = uploadDirectory + host.PathSeparator
+		}
+		if !host.DoesExist(uploadDirectory) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Upload directory does not exist"})
+			return
+		}
+		extension, err := host.GetFileExtenstion(uploadDirectory, fileHash)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error getting file extension"})
+		}
+		ipfsPath := uploadDirectory + fileHash + extension
+		cid, err := ipfs.IPFSAddFile(ipfsPath)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "IPFS Add Error: " + err.Error()})
 			return
 		}
+		database.IPFSAdd(payload.FileUUID, cid)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "cid": cid})
 		return
 	})

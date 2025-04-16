@@ -66,6 +66,25 @@ func GetCPUVendor() string {
 	}
 	return "unknown"
 }
+func GetFileExtenstion(directory string, fileName string) (string, error) {
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		_core.LogError("Could not read directory: " + directory + ": " + err.Error())
+		return "", _core.LogErrorReturn("Could not read directory: " + directory + ": " + err.Error())
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		nameFromDisk := entry.Name()
+		extension := filepath.Ext(nameFromDisk)
+		nameWithoutExtension := nameFromDisk[:len(nameFromDisk)-len(extension)]
+		if nameWithoutExtension == fileName {
+			return extension, nil
+		}
+	}
+	return "", _core.LogErrorReturn("could not get file extension")
+}
 func DoesExist(path string) bool {
 	fileInfo, err := os.Stat(path)
 	if err == nil { // the file can be opened
