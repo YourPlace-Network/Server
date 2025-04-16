@@ -1,9 +1,11 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
+import {IsValidIpfsCid} from "../util/security";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
+import {extensionToMimeType} from "../util/mimeTypes";
 import {UploadFile} from "../util/files";
-import {Sleep} from "../util/time";
+import {AddFileToIPFS} from "../util/ipfs";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 import tinymce from "tinymce/tinymce";
 
@@ -20,11 +22,21 @@ import tinymce from "tinymce/tinymce";
             fileInput: document.getElementById("file")! as HTMLInputElement,
             spiceometerDiv: document.getElementById("spiceometerDiv")! as HTMLDivElement,
             spiceometerText: document.getElementById("spiceometerText")! as HTMLDivElement,
+            csrfToken: document.getElementById("csrfToken") as HTMLInputElement,
         }
         let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
         let postObj = {postText: "", fileHash: "", status: "", cid: "", extension: ""}
         let addPostModal = new window.bootstrap.Modal(DOM.addPostModal, {});
+        let uploadedFiles: fileData[] = [];
+        interface fileData {
+            uuid: string;
+            pathOnDisk: string;
+            mimeType: string;
+            encodedUnsafeName: string;
+            size: string;
+            fileUrl?: string;
+        }
 
         tinymce.init({
             selector: "#addPostText",
@@ -71,10 +83,7 @@ import tinymce from "tinymce/tinymce";
                 hideModal();
                 return;
             }
-            console.log("post payload");
-            console.log(payload);
-            // If there is a file attached, upload it first
-            if (postObj.fileHash !== "") {
+            if (Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
                 postObj.postText = payload;
                 await prepareAttachedPost();
             } else {
@@ -85,24 +94,30 @@ import tinymce from "tinymce/tinymce";
             tinymce.get("addPostText")!.setContent("");
         }
         async function prepareAttachedPost() {
-            let ipfsIndex = ""
-            if (postObj.status == "transcoding" || postObj.status == "initialized") {
-                for (let i = 0; i < 100; i++) {
-                    let data = await checkVideoStatus(postObj.fileHash);
-                    if (data.fileStatus == "complete") {
-                        postObj.cid = data.cid;
-                        ipfsIndex = postObj.cid + "/" + postObj.fileHash + ".m3u8";
-                        break;
-                    }
-                    await Sleep(10000);
+            let csrfToken = DOM.csrfToken.value;
+            for (let i = 0; i < uploadedFiles.length; i++){
+                let cid = await AddFileToIPFS(uploadedFiles[i].uuid, csrfToken);
+                let cidString = cid?.toString()
+                if (cidString === undefined || !IsValidIpfsCid(cidString)) {
+                    return
                 }
-
-            } else {
-                ipfsIndex = postObj.cid + postObj.extension
+                uploadedFiles[i].fileUrl = "ipfs://" + cidString;
             }
-            let attachments: string[] = [ipfsIndex];
+            let attachments: string[][] = [];
+            for (let i = 0; i < uploadedFiles.length; i++){
+                let file = uploadedFiles[i];
+                let url = file.fileUrl;
+                let mimeType = file.mimeType;
+                if (mimeType == null) {return}
+                let size = file.size;
+                if (typeof url === "string" && mimeType !== "" && size !== ""){
+                    let attachment = [url, mimeType, size];
+                    attachments.push(attachment);
+                } else return
+            }
             WalletSubmitPostAttach(postObj.postText, attachments);
             clearPostObj();
+            uploadedFiles = [];
         }
         function clearPostObj() {
             postObj.postText = "";
@@ -111,23 +126,19 @@ import tinymce from "tinymce/tinymce";
             postObj.status = "";
         }
         async function uploadFile() {
-            // todo: not used right now. Needs better tinymce integration. Allow for future drag & drop upload too
-            let fileInput = DOM.fileInput
+            // todo: Needs better tinymce integration. Allow for future drag & drop upload too
+            let fileInput = DOM.fileInput;
             let fileList = fileInput.files;
             if (fileList == null) {
                 return;
             }
-            let file = fileList[0];
             let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
             // Show some loading indication
             DOM.uploadFileButton.disabled = true;
             DOM.uploadFileButton.textContent = "Uploading...";
 
-            let [status, data] = await UploadFile(file, csrfToken);
-            postObj.status = data.fileStatus;
-            postObj.fileHash = data.hash;
-            postObj.cid = data.cid;
-            postObj.extension = data.extension;
+            let [status, data] = await UploadFile(fileList, csrfToken);
+            uploadedFiles = data.data;
 
             // Reset UI after upload
             DOM.uploadFileButton.disabled = false;
@@ -181,9 +192,14 @@ import tinymce from "tinymce/tinymce";
             checkSpiciness().then();
         };
         const debounceHandler = debounce(handleInput, 2000);
+        function clickFileInput() {
+            DOM.fileInput.click();
+        }
 
         DOM.addPostButton.addEventListener("click", showModal);
         DOM.submitPostButton.addEventListener("click", submitPost);
+        DOM.uploadFileButton.addEventListener("click", clickFileInput);
+        DOM.fileInput.addEventListener("change", uploadFile);
         document.addEventListener("focusin", (e) => { // Prevent Bootstrap dialog from blocking focusin, thus breaking tinymce
             if (e.target instanceof Element && e.target.closest(".tox-tinymce-aux, .moxman-window, .tam-assetmanager-root") !== null) {
                 e.stopImmediatePropagation();

@@ -43,12 +43,18 @@ export async function HttpPostJson(url: string, payload: any, csrfToken: string)
     }
     return [response.status, await response.json()];
 }
-export async function HttpPostFile(url: string, file: File, csrfToken: string): Promise<[number, any]> {
+export async function HttpPostFile(url: string, file: File | FileList, csrfToken: string): Promise<[number, any]> {
     if (csrfToken == null || csrfToken == "") {
         return [400, {"status": "Invalid CSRF Token"}];
     }
     let formData = new FormData();
-    formData.append("file", file);
+    if (file instanceof FileList) {
+        for (let i = 0; i < file.length; i++) {
+            formData.append("file", file[i]);
+        }
+    } else {
+        formData.append("file", file);
+    }
     const options = {
         method: "POST",
         cache: "no-store",

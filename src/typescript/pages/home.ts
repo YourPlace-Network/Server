@@ -43,7 +43,7 @@ import {CIDToSubdomainURL} from "../util/ipfs";
 
             // Create all cards with placeholder data first
             for (let i = 0; i < results.length; i++) {
-                if (results[i].type == "post") {
+                if (results[i].resultType == "post") {
                     results[i].author = "Loading...";
                     results[i].avatarSrc = "/static/image/avatar.png";
                     let postDiv = await CreatePostCard(results[i]);
@@ -52,7 +52,7 @@ import {CIDToSubdomainURL} from "../util/ipfs";
                     }
                     pendingCards.push(postDiv);
                     DOM.resultsDiv.appendChild(postDiv);
-                } else if (results[i].type == "profile") {
+                } else if (results[i].resultType == "profile") {
                     results[i].name = "loading...";
                     results[i].avatarSrc = "/static/image/avatar.png";
                     let profileDiv = await CreateProfileCard(results[i]);

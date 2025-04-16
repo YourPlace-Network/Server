@@ -23,7 +23,7 @@ import (
 
 const reportInterval = 5000 // print progress every # of blocks
 const saveInterval = 100    // save progress every # of blocks
-const throttleOffset = 5    // How many blocks to subtract from the throttle limit to allow for the front-end to make calls without getting rate-limited
+const throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make calls without getting rate-limited
 
 var (
 	indexerCancel chan bool
@@ -209,10 +209,12 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					return
 				default:
 					if elem.Error != nil {
-						core.LogDebug("Could not get block data 2: " + elem.Error.Error())
+						core.LogDebug("Could not get block data 2.0: " + elem.Error.Error())
 						rpcErrorCount++
 						backoff := rpcErrorCount + 1
-						time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
+						sleepTime := time.Duration(backoff) * time.Second
+						core.LogDebug("Backing off for " + sleepTime.String())
+						time.Sleep(sleepTime) // exponential backoff
 						if rpcErrorCount >= 120 {
 							database.IndexerUpdateJobStatus(uuid, "failed")
 							return
@@ -357,7 +359,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 					return
 				default:
 					if elem.Error != nil {
-						//core.LogDebug("Could not get block data 2, backing off: " + elem.Error.Error())
+						core.LogDebug("Could not get block data 2.1, backing off: " + elem.Error.Error())
 						rpcErrorCount++
 						backoff := rpcErrorCount + 1
 						time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
@@ -489,7 +491,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 					return
 				default:
 					if elem.Error != nil {
-						//core.LogDebug("Could not get block data 2, backing off: " + elem.Error.Error())
+						core.LogDebug("Could not get block data 2.2, backing off: " + elem.Error.Error())
 						rpcErrorCount++
 						backoff := rpcErrorCount + 1
 						time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
@@ -681,18 +683,13 @@ func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			core.LogDebug("Post Action: " + action)
 			switch actionPostfix {
 			case "":
-				postText, ok := payloadObject["p"]
-				if !ok {
-					core.LogDebug("Post Action: no p in payload")
+				if !handlePostTransaction(payloadObject, database, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
 					break
 				}
-				postTextStr, ok := postText.(string)
-				if !ok {
-					core.LogDebug("failed to convert post text to string")
+			case "a":
+				if !handlePostTransactionAttachment(payloadObject, database, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
 					break
 				}
-				database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
-				break
 			}
 			break
 		case 'r': // Reply Actions
@@ -859,4 +856,58 @@ func IndexerStop() {
 		indexerCancel = make(chan bool, 1)
 		indexerCancel <- true
 	}
+}
+
+// --- Transaction Parsing Functions --- //
+func handlePostTransaction(payloadObject map[string]interface{}, database *db.Database, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+	postText, ok := payloadObject["p"]
+	if !ok {
+		core.LogDebug("Post Action: no p in payload")
+		return false
+	}
+	postTextStr, ok := postText.(string)
+	if !ok {
+		core.LogDebug("Failed to convert post text to string")
+		return false
+	}
+	database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
+	return true
+}
+func handlePostTransactionAttachment(payloadObject map[string]interface{}, database *db.Database, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+	postText, ok1 := payloadObject["p"]
+	attachmentsRaw, ok2 := payloadObject["a"]
+	if !ok1 || !ok2 {
+		core.LogDebug("Post attach action missing required fields")
+		return false
+	}
+	postTextStr, ok1 := postText.(string)
+	attachmentsArray, ok2 := attachmentsRaw.([]interface{}) // ensures array json format for the array containing all attachments
+	if !ok1 || !ok2 {
+		core.LogDebug("Post attach action fields are not properly typed")
+		return false
+	}
+	parsedAttachments := []db.Attachment{}
+	for _, attachment := range attachmentsArray {
+		attachmentArray, ok := attachment.([]interface{}) //ensures array json format for each individual attachment
+		if !ok {
+			core.LogDebug("Post attach action fields are not array")
+			return false
+		}
+		parsedURL, okURL := attachmentArray[0].(string)
+		parsedMimeType, okMimeType := attachmentArray[1].(string)
+		sizeFloat, okSize := attachmentArray[2].(float64)
+		if !okURL || !okMimeType || !okSize {
+			core.LogDebug("Post attach array values are not properly typed")
+			return false
+		}
+		sizeUint := uint64(sizeFloat)
+		parsedAttachment := db.Attachment{
+			FileURL:  parsedURL,
+			MimeType: parsedMimeType,
+			FileSize: sizeUint,
+		}
+		parsedAttachments = append(parsedAttachments, parsedAttachment)
+	}
+	database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber, parsedAttachments)
+	return true
 }

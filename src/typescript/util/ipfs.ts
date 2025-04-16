@@ -5,8 +5,8 @@ import {LogError, LogInfo} from "./log";
 
 const IPFS_PUBLIC_GATEWAY = "dweb.link";
 
-export async function AddFileToIPFS(filePath: string, csrfToken: string): Promise<CID | null> {
-    let response = await HttpPostJson("/ipfs/add", {"filePath": filePath}, csrfToken);
+export async function AddFileToIPFS(fileUUID: string, csrfToken: string): Promise<CID | null> {
+    let response = await HttpPostJson("/ipfs/add", {"fileUUID": fileUUID}, csrfToken);
     if (response[0] === 200) {
         return stringToCID(response[1].cid);
     }

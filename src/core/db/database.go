@@ -12,6 +12,11 @@ type Database struct {
 	sqlite SQLite
 	Engine string
 }
+type Attachment struct { //we can move this as long as it isn't defined in a package that imports database
+	FileURL  string
+	MimeType string
+	FileSize uint64
+}
 
 func (db *Database) Init(path string, engine string) {
 	validEngines := []string{"sqlite"}
@@ -170,10 +175,10 @@ func (db *Database) AuthGetServerOwnerAddress() string {
 }
 
 // --- Files Functions --- //
-func (db *Database) FileAdd(fileUUID string, extension string, path string, unsafeNameB64 string, size int64) {
+func (db *Database) FileAdd(fileUUID string, fileHash string, mimeType string, unsafeNameB64 string, size int64) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.FileAdd(fileUUID, extension, path, unsafeNameB64, size)
+		db.sqlite.FileAdd(fileUUID, fileHash, mimeType, unsafeNameB64, size)
 	}
 }
 func (db *Database) IPFSAdd(fileUUID string, cid string) {
@@ -181,6 +186,13 @@ func (db *Database) IPFSAdd(fileUUID string, cid string) {
 	case "sqlite":
 		db.sqlite.IPFSAdd(fileUUID, cid)
 	}
+}
+func (db *Database) GetFileHashFromUUID(fileUUID string) string {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetFileHashFromUUID(fileUUID)
+	}
+	return ""
 }
 
 // --- Indexer Functions --- //
@@ -263,10 +275,10 @@ func (db *Database) OnchainP(txHash string, blockchain string, fromAddr string, 
 		db.sqlite.OnchainP(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
 	}
 }
-func (db *Database) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
+func (db *Database) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64, attachments []Attachment) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.OnchainPA(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
+		db.sqlite.OnchainPA(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber, attachments)
 	}
 }
 func (db *Database) OnchainMN(blockchain string, address string, name string, timestamp uint64) {

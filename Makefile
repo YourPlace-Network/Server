@@ -18,7 +18,7 @@ else
 	GO=$(shell which go)
 	NODE=$(shell which node)
 	NPM=$(shell which npm)
-	NPX=$(shell which npx)
+	NPX="$(shell which npx)"
 endif
 
 # --- Update Commands --- #

@@ -83,6 +83,15 @@ ul.ellipsesMenu {
   padding: 7px;
   text-align: center;
 }
+.postCardAttachmentDiv{
+  padding: 1em 5em 1em 4.7em;
+}
+.postCardAttachmentImage{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
 .postCardEmbedDiv {
   margin: 0;
   padding: 0;
@@ -101,4 +110,8 @@ ul.ellipsesMenu {
   padding: 0 0 1em 0;
   max-width: 35em;
   height: 20em;
+}
+.postAttachment {
+  border-radius: 2em;
+  margin-right: 5em !important;
 }

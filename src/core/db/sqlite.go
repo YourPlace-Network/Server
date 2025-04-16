@@ -11,9 +11,11 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/glebarez/go-sqlite"
+	"github.com/google/uuid"
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -200,15 +202,15 @@ func (db *SQLite) withTransaction(fn func(*sql.Tx) error) error {
 func (db *SQLite) createTables(ctx context.Context) error {
 	// Tables schema map
 	tables := map[string]string{
-		"meta":               "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
-		"settings":           "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
-		"files":              "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, extension TEXT, path TEXT, unsafeNameB64 TEXT, size INTEGER, addedDate INTEGER)",
-		"postsBackfill":      "CREATE TABLE IF NOT EXISTS postsBackfill (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER)",
-		"authNonce":          "CREATE TABLE IF NOT EXISTS authNonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
-		"authExpired":        "CREATE TABLE IF NOT EXISTS authExpired (uuid TEXT PRIMARY KEY, status TEXT)",
-		"loginNonce":         "CREATE TABLE IF NOT EXISTS loginNonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
-		"onchain_post":       "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', toAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', blockNumber INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
-		"onchain_attachment": "CREATE TABLE IF NOT EXISTS onchain_attachment (txHash TEXT, blockchain TEXT, address TEXT DEFAULT '', name TEXT DEFAULT '', contentType TEXT DEFAULT '', size INTEGER DEFAULT 0, timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+		"meta":          "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
+		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
+		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, unsafeNameB64 TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
+		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT)",
+		"postsBackfill": "CREATE TABLE IF NOT EXISTS postsBackfill (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER)",
+		"authNonce":     "CREATE TABLE IF NOT EXISTS authNonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
+		"authExpired":   "CREATE TABLE IF NOT EXISTS authExpired (uuid TEXT PRIMARY KEY, status TEXT)",
+		"loginNonce":    "CREATE TABLE IF NOT EXISTS loginNonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
+		"onchain_post":  "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', toAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', blockNumber INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', birthdate INTEGER DEFAULT NULL, server TEXT DEFAULT '', " +
 			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, address TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
@@ -244,12 +246,11 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 	// Tables to export
 	tables := []string{
 		"onchain_post",
-		"onchain_attachment",
 		"onchain_meta",
 		"onchain_block",
 		"onchain_follow",
 		"postsBackfill",
-		"files_txn_hash",
+		"file_txn_hash",
 		"files",
 	}
 	// Create buffer to hold the serialized data
@@ -1017,19 +1018,39 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 }
 func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[string]interface{} {
 	var posts []map[string]interface{}
-	rows, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddress = LOWER (?) AND blockchain = ? ORDER BY timestamp DESC", address, blockchain)
+	rowsPosts, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddress = LOWER (?) AND blockchain = ? ORDER BY timestamp DESC", address, blockchain)
 	if err != nil {
 		core.LogError("Could not get user posts from database: " + err.Error())
 		return nil
 	}
-	defer rows.Close()
-	for rows.Next() {
+	defer rowsPosts.Close()
+	for rowsPosts.Next() {
 		var timestamp uint64
 		var txHash, payload, parent string
-		err := rows.Scan(&txHash, &parent, &timestamp, &payload)
+		var attachments [][]string
+		err := rowsPosts.Scan(&txHash, &parent, &timestamp, &payload)
 		if err != nil {
 			core.LogError(err.Error())
 			return nil
+		}
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
+		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash)
+		if err != nil {
+			core.LogError("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
+		}
+		defer rowsAttachments.Close()
+		for rowsAttachments.Next() {
+			var mimeType string
+			var size uint64
+			var fileUrl string
+			err := rowsAttachments.Scan(&mimeType, &size, &fileUrl)
+			if err != nil {
+				core.LogError("Could parse rows for post attachment: " + err.Error())
+				break // bail rowsAttachments for loop
+			}
+			sizeString := strconv.FormatUint(size, 10)
+			attachment := []string{fileUrl, mimeType, sizeString}
+			attachments = append(attachments, attachment)
 		}
 		post := map[string]interface{}{
 			"resultType": "profile post",
@@ -1039,6 +1060,9 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 			"payload":    payload,
 			"blockchain": blockchain,
 			"address":    address,
+		}
+		if attachments != nil { // Adds attachment field only if attachments exist for this post
+			post["attachments"] = attachments
 		}
 		posts = append(posts, post)
 	}
@@ -1095,10 +1119,30 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 	for rows.Next() {
 		var timestamp uint64
 		var txHash, parentHash, payload, blockchain, address string
+		var attachments [][]string
 		err := rows.Scan(&txHash, &parentHash, &timestamp, &payload, &address, &blockchain)
 		if err != nil {
 			core.LogError("Could not scan database rows: " + err.Error())
 			return nil
+		}
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
+		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
+		if err != nil {
+			core.LogError("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
+		}
+		defer rowsAttachments.Close()
+		for rowsAttachments.Next() {
+			var mimeType string
+			var size uint64
+			var fileURL string
+			err := rowsAttachments.Scan(&mimeType, &size, &fileURL)
+			if err != nil {
+				core.LogError("Could parse rows for post attachment: " + err.Error())
+				break // bail rowsAttachments for loop
+			}
+			sizeString := strconv.FormatUint(size, 10)
+			attachment := []string{fileURL, mimeType, sizeString}
+			attachments = append(attachments, attachment)
 		}
 		post := map[string]interface{}{
 			"resultType": "post",
@@ -1108,6 +1152,9 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 			"timestamp":  timestamp,
 			"payload":    payload,
 			"parentHash": parentHash,
+		}
+		if attachments != nil {
+			post["attachments"] = attachments
 		}
 		posts = append(posts, post)
 	}
@@ -1234,19 +1281,37 @@ func (db *SQLite) AuthGetServerOwnerAddress() string {
 }
 
 // --- File & IPFS Functions --- //
-func (db *SQLite) FileAdd(fileUUID string, extension string, path string, unsafeNameB64 string, size int64) {
-	query := "INSERT INTO files (fileUUID, extension, path, unsafeNameB64, size, addedDate) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, fileUUID, extension, path, unsafeNameB64, size, core.GetTimestamp())
+func (db *SQLite) FileAdd(fileUUID string, fileHash string, mimeType string, unsafeNameB64 string, size int64) {
+	query := "INSERT INTO files (fileUUID, fileHash, mimeType, unsafeNameB64, size, addedDate) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, fileUUID, fileHash, mimeType, unsafeNameB64, size, core.GetTimestamp())
 	if err != nil {
 		core.LogError("Could not add the file to the database: " + err.Error())
 	}
 }
 func (db *SQLite) IPFSAdd(fileUUID string, cid string) {
-	query := "INSERT INTO ipfsFiles (fileUUID, cid, addedDate) VALUES (?, ?, ?) ON CONFLICT DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, fileUUID, cid, core.GetTimestamp())
+	query := "UPDATE files SET cid = ? WHERE fileUUID = ?"
+	_, err := db.runParamSQLUpdate(query, cid, fileUUID)
 	if err != nil {
 		core.LogError("Could not add the IPFS CID to the database: " + err.Error())
 	}
+}
+func (db *SQLite) GetFileHashFromUUID(uuid string) string {
+	rows, err := db.runParamSQLSelect("SELECT fileHash FROM files WHERE fileUUID = ?", uuid)
+	if err != nil {
+		core.LogError("Could not get the hash from the UUID: " + err.Error())
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var fileHash string
+		err = rows.Scan(&fileHash)
+		if err != nil {
+			core.LogError("Could not get the hash from the UUID: " + err.Error())
+			return ""
+		}
+		return fileHash
+	}
+	return ""
 }
 
 // --- Indexer Functions --- //
@@ -1393,17 +1458,53 @@ func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, to
 		core.LogError("Could not tokenize the post in the database: " + err.Error())
 	}
 }
-func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
+func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64, attachments []Attachment) {
 	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
 	if err != nil {
 		core.LogError("Could not tokenize the post in the database: " + err.Error())
 		return
 	}
-	query2 := "INSERT INTO attachment (txHash, blockchain, address, name, contentType, size) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err = db.runParamSQLUpdate(query2, txHash, blockchain, toAddr)
-	if err != nil {
-		core.LogError("Could not tokenize the attachment in the database: " + err.Error())
+	for _, attachment := range attachments {
+		fileURL := attachment.FileURL
+		fileUUID := uuid.New().String()
+		cid := ""
+		if strings.HasPrefix(fileURL, "ipfs://") {
+			cid = strings.TrimPrefix(fileURL, "ipfs://")
+		}
+		mimeType := attachment.MimeType
+		size := attachment.FileSize
+		var existingFileUUID string
+		if fileURL != "" || cid != "" {
+			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
+			if err != nil {
+				core.LogError("Could not check for existing file: " + err.Error())
+				continue
+			}
+			defer rows.Close()
+			if rows.Next() {
+				err = rows.Scan(&existingFileUUID)
+				if err != nil {
+					core.LogError("Could not scan existing file UUID: " + err.Error())
+					continue
+				}
+			}
+		}
+		if existingFileUUID != "" {
+			fileUUID = existingFileUUID
+		} else {
+			insertFileQuery := "INSERT INTO files (fileUUID, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?)"
+			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, mimeType, size, timestamp, cid, fileURL, "onchain")
+			if err != nil {
+				core.LogError("Could not insert file record: " + err.Error())
+				continue
+			}
+		}
+		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash) VALUES (?, ?)"
+		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash)
+		if err != nil {
+			core.LogError("Could not link file to transaction: " + err.Error())
+		}
 	}
 }
 func (db *SQLite) OnchainMN(blockchain string, address string, name string, timestamp uint64) {

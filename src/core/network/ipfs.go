@@ -212,6 +212,7 @@ func (node *IPFS) IPFSAddRemotePinning(name string, url string, key string) {
 	_core.LogDebug("Added IPFS pinning service: " + response)
 }
 func (node *IPFS) IPFSPinFile(cid string) error {
+	return nil // todo fix this
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cidPath, err := ipfspath.NewPath(cid)
@@ -293,7 +294,7 @@ func createMFSDirectory(port uint64, path string) error {
 	}
 	return nil
 }
-func copyToMFS(source, destination string, port uint64) error {
+func copyToMFS(source, destination string, port uint64) error { //todo: handle existing file being reuploaded
 	_url := fmt.Sprintf("http://127.0.0.1:%d/api/v0/files/cp?arg=%s&arg=%s", port, source, destination)
 	resp, err := http.Post(_url, "application/json", nil)
 	if err != nil {

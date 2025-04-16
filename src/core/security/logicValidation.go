@@ -43,7 +43,7 @@ func CheckPasswordComplexity(password string) (bool, error) {
 		return true, nil
 	}
 }
-func GetFileType(path string) string {
+func GetFileType(path string) (string, string) {
 	// Checks if the file is actually the type it claims to be
 	// Returns (true, "filetype") if the file is the type it claims to be
 	// https://en.wikipedia.org/wiki/List_of_file_signatures & https://www.garykessler.net/library/file_sigs.html
@@ -61,7 +61,23 @@ func GetFileType(path string) string {
 		TypeELF     FileType = "elf"
 		TypePDF     FileType = "pdf"
 		TypeMP3     FileType = "mp3"
+		TypeWEBP    FileType = "webp"
 	)
+	var mimeTypes = map[FileType]string{
+		TypeUnknown: "application/octet-stream",
+		TypeAVI:     "video/x-msvideo",
+		TypeJPEG:    "image/jpeg",
+		TypePNG:     "image/png",
+		TypeGIF:     "image/gif",
+		TypeMP4:     "video/mp4",
+		TypeMKV:     "video/x-matroska",
+		TypeMOV:     "video/quicktime",
+		TypeMZ:      "application/x-msdownload",
+		TypeELF:     "application/x-executable",
+		TypePDF:     "application/pdf",
+		TypeMP3:     "audio/mpeg",
+		TypeWEBP:    "image/webp",
+	}
 	var fileSignatures = map[FileType][][]byte{
 		TypeAVI:  {{0x52, 0x49, 0x46, 0x46}},
 		TypeJPEG: {{0xFF, 0xD8, 0xFF}},
@@ -78,10 +94,12 @@ func GetFileType(path string) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		core.LogError("Failed to read file: " + err.Error())
-		return string(TypeUnknown)
+		return string(TypeUnknown), mimeTypes[TypeUnknown]
 	}
 	detectedType := TypeUnknown
-	switch ext := filepath.Ext(path); ext {
+	extUpper := filepath.Ext(path)
+	ext := strings.ToLower(extUpper)
+	switch ext {
 	case ".avi":
 		detectedType = TypeAVI
 	case ".jpg", ".jpeg":
@@ -104,20 +122,28 @@ func GetFileType(path string) string {
 		detectedType = TypeELF
 	case ".mp3":
 		detectedType = TypeMP3
+	case ".webp":
+		detectedType = TypeWEBP
 	default:
 		detectedType = TypeUnknown
+	}
+	if ext == ".webp" && len(data) >= 12 {
+		if bytes.Equal(data[0:4], []byte{0x52, 0x49, 0x46, 0x46}) &&
+			bytes.Equal(data[8:12], []byte{0x57, 0x45, 0x42, 0x50}) {
+			return string(TypeWEBP), mimeTypes[TypeWEBP]
+		}
 	}
 	for fileType, signatures := range fileSignatures {
 		for _, signature := range signatures {
 			if bytes.HasPrefix(data, signature) {
 				if fileType == detectedType {
-					return string(fileType)
+					return string(fileType), mimeTypes[fileType]
 				}
 			}
 		}
 
 	}
-	return string(TypeUnknown)
+	return string(TypeUnknown), mimeTypes[TypeUnknown]
 }
 func IsInParentDirectory(parent string, child string) bool {
 	parent, err := filepath.Abs(parent)
@@ -405,7 +431,7 @@ func IsVideo(filename string) bool {
 	if filepath.Ext(filename) == ".mov" {
 		fileType = "mov"
 	} else {
-		fileType = GetFileType(filename)
+		fileType, _ = GetFileType(filename)
 	}
 	switch fileType {
 	case "avi":

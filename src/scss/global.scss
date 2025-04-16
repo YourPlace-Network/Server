@@ -41,7 +41,8 @@ $accordion-button-focus-box-shadow: none;
 $accordion-border-width: 0px;
 $tooltip-color: map.get($colors, "text");
 $btn-border-width: 0px;
-
+$carousel-control-color: map.get($colors, "quaternary");
+$carousel-indicator-active-bg: map.get($colors, "quaternary");
 @import "~bootstrap/scss/bootstrap";
 @import "~bootstrap-icons/font/bootstrap-icons.css";
 
@@ -173,4 +174,7 @@ footer {
 }
 .shaded {
   background-color: map-get($colors, "secondary");
+}
+.carousel-indicators [data-bs-target] {
+  font-size: 0;
 }

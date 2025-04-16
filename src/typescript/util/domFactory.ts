@@ -1,9 +1,13 @@
 import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
+import "../../scss/components/imageLoader.scss";
 import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
-import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml} from "./security";
+import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml, HashString} from "./security";
+import {CIDToSubdomainURL} from "./ipfs";
+import bootstrap from "bootstrap";
+import {LogInfo} from "./log";
 
-export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data set profile to true if calling from a users profile
+export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {// returns a post div element when given a post's data set profile to true if calling from a users profile
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
     let postAddress = document.createElement("input") as HTMLInputElement;
@@ -32,7 +36,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     postDiv.classList.add("postCard");
     postID.type = "hidden";
     postID.classList.add("postCardID");
-    postID.value = XSSSanitizeValue(postData.txHash);
+    postID.value = postData.txHash;
     postBlockchain.type = "hidden";
     postBlockchain.classList.add("postCardBlockchain");
     postBlockchain.value = XSSSanitizeValue(postData.blockchain);
@@ -40,12 +44,10 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     postAddress.classList.add("postCardAddress");
     postAddress.value = XSSSanitizeValue(postData.address);
     avatarDiv.classList.add("postCardAvatar");
-    let blockchain = postData.blockchain;
-    let address = postData.address;
-    if (postData.resultType != "profile post" && IsValidBlockchain(blockchain) && IsValidAddress(address, blockchain)) {
+    if (postData.resultType != "profile post" && IsValidBlockchain(postData.blockchain) && IsValidAddress(postData.address, postData.blockchain)) {
         avatarDiv.classList.add("clickable");
-        avatarDiv.addEventListener('click', () => {
-            window.location.replace("/p/" + blockchain + "/" + address);
+        avatarDiv.addEventListener("click", () => {
+            window.location.replace("/p/" + postData.blockchain + "/" + postData.address);
         });
     }
     avatarImg.classList.add("postCardAvatar");
@@ -105,8 +107,48 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     postHeaderDiv.appendChild(ellipsesDiv);
     postDiv.appendChild(postTextDiv);
     postDiv.appendChild(embedDiv);
+    if ("attachments" in postData) {
+        let attachmentDiv = document.createElement("div") as HTMLDivElement;
+        attachmentDiv.classList.add("postCardAttachmentDiv");
+        let attachmentElements: HTMLElement[] = [];
+        for (let i = 0; i < postData.attachments.length; i ++) {
+            let attachment = postData.attachments[i];
+            let mimeType = attachment[1];
+            let mimeTypePrefix = mimeType.split("/")[0];
+            let fileUrl = attachment[0];
+            if (fileUrl.startsWith("ipfs://")) {
+                fileUrl = CIDToSubdomainURL(fileUrl);
+            }
+            switch (mimeType) {
+                case "image/jpeg":
+                case "image/png":
+                case "image/webp":
+                case "image/gif":
+                    let image = document.createElement("img") as HTMLImageElement;
+                    image.src = fileUrl;
+                    let imageLoader = await CreateImageLoader(image);
+                    if (postData.attachments.length === 1) {
+                        imageLoader.classList.add("postAttachment");
+                        attachmentDiv.appendChild(imageLoader);
+                        postDiv.appendChild(attachmentDiv);
+                    }else {
+                        attachmentElements.push(imageLoader);
+                    }
+                    break;
+                default:
+                    LogInfo("unsupported attachment type");
+                    break;
+            }
+        }
+        if (postData.attachments.length > 1) {
+            let attachmentCarousel = await CreateCarousel(attachmentElements);
+            let carouselInnerDiv = attachmentCarousel.children[1] as HTMLDivElement;
+            carouselInnerDiv.classList.add("postAttachment");
+            attachmentDiv.appendChild(attachmentCarousel);
+            postDiv.appendChild(attachmentDiv);
+        }
+    }
     postDiv.appendChild(reactionDiv);
-
     // Embed Rich Media
     const urlRegex = /(https:\/\/[^\s]+)/g;
     let postText = postData.payload;
@@ -211,4 +253,92 @@ function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
     iframe.setAttribute("loading", "lazy");
     iframe.setAttribute("credentialless", "");
     return iframe;
+}
+export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> {// Creates carousel element for attachments
+    let carouselDiv = document.createElement("div") as HTMLDivElement;
+    let carouselList = document.createElement("ol") as HTMLOListElement;
+    let carouselInnerDiv = document.createElement("div") as HTMLDivElement;
+    let previousButton = document.createElement("a") as HTMLAnchorElement;
+    let previousIcon = document.createElement("span") as HTMLSpanElement;
+    let nextButton = document.createElement("a") as HTMLAnchorElement;
+    let nextIcon = document.createElement("span") as HTMLSpanElement;
+    const elementsString = elements.map(el => el.outerHTML).join("");
+    const elementsHash = await HashString(elementsString); //TODO: change to UUID
+    carouselDiv.classList.add("carousel", "slide");
+    carouselDiv.id = elementsHash;
+    carouselList.classList.add("carousel-indicators");
+    carouselInnerDiv.classList.add("carousel-inner");
+    previousButton.classList.add("carousel-control-prev");
+    previousButton.href = "#" + elementsHash;
+    previousButton.role = "button";
+    previousButton.setAttribute("data-bs-slide", "prev");
+    previousIcon.classList.add("carousel-control-prev-icon");
+    previousIcon.ariaHidden = "true";
+    nextButton.classList.add("carousel-control-next");
+    nextButton.href = "#" + elementsHash;
+    nextButton.role = "button";
+    nextButton.setAttribute("data-bs-slide", "next");
+    nextIcon.classList.add("carousel-control-next-icon");
+    nextIcon.ariaHidden = "true";
+    for (let i = 0; i < elements.length; i++) {
+        let element = elements[i];
+        let selector = document.createElement("li") as HTMLLIElement;
+        let item = document.createElement("div") as HTMLDivElement;
+        if (i == 0) {
+            selector.classList.add("active");
+            item.classList.add("active");
+        }
+        selector.setAttribute("data-bs-target", "#" + elementsHash);
+        selector.setAttribute("data-bs-slide-to", i.toString());
+        item.classList.add("carousel-item");
+        element.classList.add("d-block", "w-100");
+        item.appendChild(element);
+        previousButton.appendChild(previousIcon);
+        nextButton.appendChild(nextIcon);
+        carouselList.appendChild(selector);
+        carouselInnerDiv.appendChild(item);
+    }
+    carouselDiv.appendChild(carouselList);
+    carouselDiv.appendChild(carouselInnerDiv);
+    carouselDiv.appendChild(previousButton);
+    carouselDiv.appendChild(nextButton);
+    return carouselDiv;
+}
+export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDivElement> {
+    const imageLoader = document.createElement("div") as HTMLDivElement;
+    imageLoader.classList.add("image-container");
+    const spinner = document.createElement("div") as HTMLDivElement;
+    spinner.classList.add("spinner-border", "text-primary", "spinner-div");
+    spinner.setAttribute("role", "status");
+    imageLoader.style.paddingTop = "56.25%"
+    image.style.opacity = "0";
+    image.style.width = "100%";
+    image.style.height = "auto";
+    image.style.display = "block";
+    image.style.objectFit = "contain";
+    image.style.borderRadius = "inherit";
+    imageLoader.appendChild(spinner);
+    imageLoader.appendChild(image);
+    const timeout = window.setTimeout(() => {
+        if (!image.complete) {
+            spinner.remove();
+            image.style.opacity = "1";
+            image.src = "/static/image/imagefail.png";
+        }
+    }, 10000);
+    image.onload = () => {
+        clearTimeout(timeout);
+        spinner.remove();
+        image.style.opacity = "1";
+        imageLoader.style.removeProperty("padding-top");
+    };
+    image.onerror = () => {
+        clearTimeout(timeout);
+        spinner.remove();
+        image.src = "/static/image/imagefail.png";
+        image.style.opacity = "1";
+        imageLoader.style.removeProperty("padding-top");
+
+    }
+    return imageLoader
 }

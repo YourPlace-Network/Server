@@ -3,7 +3,7 @@ import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {ethers} from "ethers";
 import {YP} from "../../services/yourplace";
-import {createPublicClient, http, parseEther, UserRejectedRequestError} from "viem";
+import {createPublicClient, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
 import {normalize as viemNormalize} from "viem/ens";
 import {base as viemBase} from "viem/chains";
 import {connect as wagmiConnect, createConfig, createStorage, disconnect, getConnections, getEnsAvatar, type GetEnsAvatarReturnType, http as wagmiHttp, readContract, sendTransaction, signMessage} from "@wagmi/core";
@@ -11,6 +11,7 @@ import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
 import {IsValidBaseAddress} from "../security";
 import {getName} from "@coinbase/onchainkit/identity";
+import {Sleep} from "../time";
 
 // ---------- Global Variables ---------- //
 export const mainnetBase = {
@@ -40,20 +41,20 @@ async function initBaseWallet() {
     if (baseInit) { return; }
     try {
         viemClient = createPublicClient({
-            transport: http(mainnetBase.rpcUrl!),
+            transport: viemHttp(mainnetBase.rpcUrl!, {retryCount: 10, retryDelay: 1000}),
             chain: viemBase
         });
         wagmiConfig = createConfig({
             chains: [wagmiBase],
             connectors: [coinbaseWallet({
                 appName: metadataYourPlace.name,
-                appLogoUrl: metadataYourPlace.icons[0],
+                appLogoUrl: metadataYourPlace.icons[1],
                 preference: {
                     options: "eoaOnly"
                 },
             })],
             transports: {
-                [wagmiBase.id]: wagmiHttp(),
+                [wagmiBase.id]: wagmiHttp(mainnetBase.rpcUrl!, {retryCount: 10, retryDelay: 1000}),
             },
             storage: createStorage({
                 key: "yourplace",
@@ -244,7 +245,7 @@ export async function baseSubmitPost(payload: string) {
     const txnID = await baseTxn(address, jsonData);
     return txnID;
 }
-export async function baseSubmitPostAttach(payload: string, attach: string[]) {
+export async function baseSubmitPostAttach(payload: string, attach: string[][]) {
     let address = GetAddress()!;
     let jsonData = YP.postAttach(payload, attach);
     return await baseTxn(address, jsonData);
@@ -291,7 +292,9 @@ export async function baseGetENSText(_address: string, key: string): Promise<str
     if (viemClient === null || !viemClient || !baseInit) {
         await initBaseWallet();
     }
+    await Sleep(250);
     let baseName = await baseGetName(_address);
+    await Sleep(500);
     let textRecord = await viemClient!.getEnsText({
         name: baseName,
         key: key,
