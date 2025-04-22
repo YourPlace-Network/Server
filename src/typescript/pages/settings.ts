@@ -6,7 +6,12 @@ import DOMPurify from "dompurify";
 import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError, LogInfo} from "../util/log";
 import {createPopper, type Instance} from "@popperjs/core";
-import {ShowDialogModal, ShowDialogModalHTML,} from "../components/modalDialog";
+import {
+    DisableDialogModalOkBtn,
+    EnableDialogModalOkBtn,
+    ShowDialogModal,
+    ShowDialogModalHTML,
+} from "../components/modalDialog";
 import {ShowModalYesNoHTML} from "../components/modalYesNo";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {ShowSavedToast} from "../components/toast";
@@ -298,13 +303,16 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             }
         }
         async function getServerUpdates() {
-            await getServerVersion();
-            let serverVersion = DOM.serverVersionText.textContent;
+            let serverVersion = await getServerVersion();
             let response = await HttpGetJson("https://yourplace.network/version");
             if (response[0] === 200) {
                 let latestVersion = response[1].version;
+                LogInfo("Latest YourPlace version: " + latestVersion);
+                LogInfo("Current YourPlace version: " + serverVersion);
                 if (serverVersion !== latestVersion) {
+                    DisableDialogModalOkBtn();
                     ShowDialogModalHTML("Newer YourPlace version available. Click <a href='https://yourplace.network/download' target='_blank'>here to update</a>");
+                    EnableDialogModalOkBtn();
                 } else {
                     ShowDialogModal("Your server is up to date!");
                 }
@@ -312,13 +320,15 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 ShowDialogModal("Failed to get server version");
             }
         }
-        async function getServerVersion() {
+        async function getServerVersion(): Promise<string> {
             let response = await HttpGetJson("/settings/server/version");
             if (response[0] === 200) {
                 DOM.serverVersionText.textContent = response[1].version;
                 DOM.helperVersionText.textContent = response[1].helperVersion;
+                return response[1].version;
             } else {
                 ShowDialogModal("Failed to get server version");
+                return "";
             }
         }
         async function getServerLogs() {

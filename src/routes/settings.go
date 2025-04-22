@@ -200,7 +200,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	router.GET("/settings/server/version", func(c *gin.Context) {
 		version := host.GetServerVersion()
 		helperVersion, err := host.HelperCall("version")
-		core.LogDebug("Helper version in route: " + helperVersion)
 		if err != nil {
 			core.LogError("Error getting helper version: " + err.Error())
 			helperVersion = "?"
