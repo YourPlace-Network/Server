@@ -26,7 +26,7 @@ type Base struct {
 	RpcUrl             string
 	RpcClient          *rpc.Client
 	EarliestBlock      big.Int
-	EnsClient          *ethclient.Client
+	EthClient          *ethclient.Client
 	EnsResolverAddress string
 }
 type loggingTransport struct {
@@ -49,12 +49,15 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func (base *Base) Init(database *db.Database) {
+	if base.RpcClient != nil { // close previous connection if it exists
+		base.RpcClient.Close()
+	}
 	base.MainnetChainId = 8453
 	base.Name = "Base"
 	base.Currency = "ETH"
 	base.ExplorerUrl = "https://etherscan.io"
-	base.RpcUrl = database.SettingsGetValue("baseURL")
 	base.EnsResolverAddress = "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD"
+	base.RpcUrl = database.SettingsGetValue("baseURL")
 	if base.RpcUrl == "" {
 		base.RpcUrl = DefaultBlockchainNodes["base"][0] // fallback to Coinbase public nodes
 		database.SettingsUpdateValue("baseURL", base.RpcUrl)
@@ -65,19 +68,15 @@ func (base *Base) Init(database *db.Database) {
 	}
 	rpcClient, err := rpc.DialOptions(context.Background(), base.RpcUrl, rpc.WithHTTPClient(httpClient))
 	if err != nil {
-		core.LogError("Could not connect to Base RPC: " + err.Error())
+		core.LogError("Could not connect to Base HTTPS RPC: " + err.Error())
 		return
 	}
 	defer rpcClient.Close()
 	base.RpcClient = rpcClient
 	base.EarliestBlock = BaseGetEarliestBlock() // Earliest block where YourPlace existed on-chain
-	ensClient, err := ethclient.Dial(base.RpcUrl)
-	if err != nil {
-		core.LogError("Could not connect to ENS Base RPC: " + err.Error())
-		return
-	}
-	defer ensClient.Close()
-	base.EnsClient = ensClient
+	ethClient := ethclient.NewClient(base.RpcClient)
+	defer ethClient.Close()
+	base.EthClient = ethClient
 }
 func (base *Base) GetBalance(address string) (big.Int, error) {
 	core.LogDebug("base.GetBalance(): Getting Base balance for address: " + address)
@@ -111,7 +110,7 @@ func (base *Base) GetPriceUSD() float64 {
 }
 func (base *Base) GetENSNames(address string) ([]string, error) {
 	commonAddress := common.HexToAddress(address)
-	reverse, err := ens.ReverseResolve(base.EnsClient, commonAddress)
+	reverse, err := ens.ReverseResolve(base.EthClient, commonAddress)
 	if err != nil {
 		return nil, core.LogWarningReturn("Could not get Base ENS names: " + err.Error())
 	}
@@ -119,7 +118,7 @@ func (base *Base) GetENSNames(address string) ([]string, error) {
 }
 func (base *Base) GetENSAddresses(name string) ([]string, error) {
 	resolverAddr := common.HexToAddress(base.EnsResolverAddress)
-	resolver, err := ens.NewResolverAt(base.EnsClient, name, resolverAddr)
+	resolver, err := ens.NewResolverAt(base.EthClient, name, resolverAddr)
 	if err != nil {
 		return nil, core.LogErrorReturn("Could not get Base ENS resolver: " + err.Error())
 	}

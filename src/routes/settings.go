@@ -460,4 +460,17 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		ipfs.IPFSAddRemotePinning("ipfsPinning", url, payload.PinningKey)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "IPFS URL and Key saved"})
 	})
+	router.POST("/settings/server/debug", func(c *gin.Context) {
+		type Payload struct {
+			Debug bool `json:"debug" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid debug mode JSON"})
+			return
+		}
+		host.SetDebugMode(payload.Debug)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
 }

@@ -62,6 +62,8 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             privacyAccordion: document.getElementById("privacyAccordion")! as HTMLDivElement,
             networkingAccordion: document.getElementById("networkingAccordion")! as HTMLDivElement,
             blockchainAccordion: document.getElementById("blockchainAccordion")! as HTMLDivElement,
+            serverDebugModeCheckbox: document.getElementById("serverDebugModeCheckbox")! as HTMLInputElement,
+            serverUpdateBtn: document.getElementById("serverUpdateBtn")! as HTMLButtonElement,
             serverVersionText: document.getElementById("serverVersionText")! as HTMLSpanElement,
             serverLogsViewBtn: document.getElementById("serverLogsViewBtn")! as HTMLButtonElement,
             logsView: document.getElementById("logsView")! as HTMLDivElement,
@@ -88,6 +90,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                     getIndexerStatus(),
                     getNetworkPorts(),
                     getIpfsPinning(),
+                    getDebugMode(),
                     getServerVersion(),
                 ]);
             } catch (error) {
@@ -281,6 +284,32 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 DOM.ipfsPinningKey.value = response[1].pinningKey;
             } else {
                 ShowDialogModal("Failed to get IPFS Pinning settings");
+            }
+        }
+        async function getDebugMode() {
+            let response = await HttpGetJson("/settings/server/debug");
+            DOM.serverDebugModeCheckbox.checked = false;
+            if (response[0] === 200) {
+                if (response[1].debug) {
+                    DOM.serverDebugModeCheckbox.checked = true;
+                }
+            } else {
+                ShowDialogModal("Failed to get server debug mode");
+            }
+        }
+        async function getServerUpdates() {
+            await getServerVersion();
+            let serverVersion = DOM.serverVersionText.textContent;
+            let response = await HttpGetJson("https://yourplace.network/version");
+            if (response[0] === 200) {
+                let latestVersion = response[1].version;
+                if (serverVersion !== latestVersion) {
+                    ShowDialogModalHTML("Newer YourPlace version available. Click <a href='https://yourplace.network/download' target='_blank'>here to update</a>");
+                } else {
+                    ShowDialogModal("Your server is up to date!");
+                }
+            } else {
+                ShowDialogModal("Failed to get server version");
             }
         }
         async function getServerVersion() {
@@ -511,6 +540,13 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 ShowDialogModal(response[1].status);
             }
         }
+        async function setDebugMode() {
+            const data = {
+                debug: DOM.serverDebugModeCheckbox.checked,
+            }
+            let response = await HttpPostJson("/settings/server/debug", data, DOM.csrfToken.value);
+            ShowSavedToast(); // todo: need a more graceful exit, as the server may restart at this point
+        }
 
         /* Throttle Slider */
         const getThumbElement = (): HTMLElement => {
@@ -601,6 +637,8 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             ShowDialogModalHTML("Please create an account and an <b>API Key</b> from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your <b>JWT (secret access token)</b> to the IPFS Pinning settings page");
         });
         DOM.saveIpfsPinningBtn.addEventListener("click", setIPFSPinning);
+        DOM.serverDebugModeCheckbox.addEventListener("change", setDebugMode);
+        DOM.serverUpdateBtn.addEventListener("click", getServerUpdates);
         DOM.serverLogsViewBtn.addEventListener("click", getServerLogs);
 
         init().then();

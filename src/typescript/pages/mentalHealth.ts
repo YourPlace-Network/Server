@@ -766,6 +766,16 @@ const tips = [
     "When communicating with another person, that person is using 0 to 100 % of good-faith with you. During conversation, you need to figure out what percent that is, and then adjust accordingly",
     "Everybody is a hypocrite sometimes. Just try to minimize those instances and strive to do better in the future",
     "Mercy for the attacker is tyranny for the victim",
+    "In the professional world, nobody is gonna teach it to you. When you hear a process or term you don't know, you have two options: if it's the right moment you can ask, or you can note it down and research it later. Just don't allow unknown information to fully pass you by",
+    "Sometimes ministers can be the biggest devils - beware the false prophet",
+    "Don't confuse the loudest for the majority",
+    "Make sure that you're not terminally online",
+    "A few outliers does not invalidate generally good advice. People who do that, are just being smug",
+    "Don't fall for so much rage bait",
+    "If you're a guest, don't be overly disagreeable, because you won't be a a guest there again",
+    "Doing something big means that some things will go wrong",
+
+
 
 ];
 

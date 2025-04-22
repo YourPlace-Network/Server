@@ -21,6 +21,25 @@ import (
 	"time"
 )
 
+func IsDebugMode() bool {
+	if GetEnvVar("YourPlaceDebug") == "true" || DoesExist(GetDataDir()+"debug") {
+		return true
+	}
+	return false
+}
+func SetDebugMode(status bool) {
+	if status {
+		if !IsDebugMode() {
+			CreateFile("", GetDataDir()+"debug")
+			Restart()
+		}
+	} else {
+		if IsDebugMode() {
+			DeleteIfExists(GetDataDir() + "debug")
+			Restart()
+		}
+	}
+}
 func GetServerVersion() string {
 	content, err := os.ReadFile(GetInstallDir() + "yourplace.version")
 	if err != nil {

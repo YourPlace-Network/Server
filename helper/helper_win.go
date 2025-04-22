@@ -48,7 +48,7 @@ var (
 const (
 	pipeName        = `\\.\pipe\yourplacehelper`
 	serviceName     = "YourPlaceHelper"
-	version         = "0.0.1"
+	version         = "0.0.2"
 	MB_YESNO        = 0x00000004
 	MB_ICONQUESTION = 0x00000020
 	IDYES           = 6
@@ -330,6 +330,7 @@ func update() bool {
 }
 func restart() bool {
 	LogDebug("Restarting YourPlace Server")
+	// Kill running YourPlace processes
 	for _, proc := range []string{"YourPlace", "YourPlaceIpfs", "YourPlaceFfmpeg"} {
 		procName := proc + host.BinaryExtension
 		if host.DoesProcExist(procName) {
@@ -347,6 +348,7 @@ func restart() bool {
 		}
 	}
 	time.Sleep(2 * time.Second)
+	// Restart YourPlace executable
 	execPath := host.GetInstallDir() + "YourPlace" + host.BinaryExtension
 	for attempt := 1; attempt <= 10; attempt++ {
 		err := host.RunAsUser(execPath)

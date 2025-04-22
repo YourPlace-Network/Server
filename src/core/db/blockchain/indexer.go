@@ -24,6 +24,7 @@ import (
 const reportInterval = 5000 // print progress every # of blocks
 const saveInterval = 100    // save progress every # of blocks
 const throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make calls without getting rate-limited
+const batchSizeLimit = 44   // The maximum number of blocks to fetch in a single batch RPC call
 
 var (
 	indexerCancel chan bool
@@ -126,7 +127,8 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 	targetEarliestBlockBigInt := big.NewInt(int64(targetEarliestBlock))
 	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
-	batchSize := big.NewInt(int64(baseThrottle - throttleOffset))
+	core.LogDebug("Base Throttle: " + strconv.Itoa(baseThrottle))
+	batchSize := calculateOptimalBatchSize(baseThrottle)
 	core.LogDebug("Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
@@ -140,7 +142,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := rate.NewLimiter(rate.Limit(1), 1)               // 1 request per second (1 request = 1 batch of blocks)
+	rateLimiter := configureRateLimiter(baseThrottle, batchSize)   // Configure rate limiter based on throttle and batch size
 	batchStartBlock := new(big.Int).Set(targetEarliestBlockBigInt) // Start at the earliest block
 	core.LogDebug("Batch Start Block: " + batchStartBlock.String())
 	txnCount := 0
@@ -277,7 +279,8 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 	targetEarliestBlockBigInt := targetEarliestBlock
 	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
-	batchSize := big.NewInt(int64(baseThrottle - throttleOffset))
+	core.LogDebug("Base Throttle: " + strconv.Itoa(baseThrottle))
+	batchSize := calculateOptimalBatchSize(baseThrottle)
 	core.LogDebug("Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	core.LogDebug("Block Count: " + blockCount.String())
@@ -291,10 +294,10 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := rate.NewLimiter(rate.Limit(1), 1) // 1 request per second (1 request = 1 batch of blocks)
-	batchStartBlock := targetLatestBlock             // Start at the latest block
-	txnCount := 0                                    // Count the number of transactions processed
-	blockIndex := batchStartBlock                    // Running tally of the current block
+	rateLimiter := configureRateLimiter(baseThrottle, batchSize) // Configure rate limiter based on throttle and batch size
+	batchStartBlock := targetLatestBlock                         // Start at the latest block
+	txnCount := 0                                                // Count the number of transactions processed
+	blockIndex := batchStartBlock                                // Running tally of the current block
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		select {
@@ -410,7 +413,8 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 	database.IndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
 	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
-	batchSize := big.NewInt(int64(baseThrottle - throttleOffset))
+	core.LogDebug("Base Throttle: " + strconv.Itoa(baseThrottle))
+	batchSize := calculateOptimalBatchSize(baseThrottle)
 	core.LogDebug("Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, &targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
@@ -424,10 +428,10 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := rate.NewLimiter(rate.Limit(1), 1) // 1 request per second (1 request = 1 batch of blocks)
-	batchStartBlock := targetLatestBlock             // Start at the latest block
-	txnCount := 0                                    // Count the number of transactions processed
-	blockIndex := batchStartBlock                    // Running tally of the current block
+	rateLimiter := configureRateLimiter(baseThrottle, batchSize) // Configure rate limiter based on throttle and batch size
+	batchStartBlock := targetLatestBlock                         // Start at the latest block
+	txnCount := 0                                                // Count the number of transactions processed
+	blockIndex := batchStartBlock                                // Running tally of the current block
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		select {
@@ -559,7 +563,7 @@ func DispatchTransaction(database *db.Database, block map[string]interface{}, tr
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
 		core.LogDebug("YourPlace Transaction Found: " + txHash)
 		//database.IndexerAddPost(txHash, "base", fromAddr, toAddr, parentTxHash, amountInt, timestamp, decodedDataStr, blockIndex.Uint64())
-		TokenizeYourPlaceTransaction(database, "base", transaction, timestamp, blockIndex.Uint64())
+		tokenizeYourPlaceTransaction(database, "base", transaction, timestamp, blockIndex.Uint64())
 		return 0
 	} else {
 		return 1
@@ -610,7 +614,7 @@ func IndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.I
 		progressMade = new(big.Int).Sub(targetLatestBlock, blockIndex)
 	}
 	core.LogDebug("progress made: " + progressMade.String())
-	progressPercent := CalculatePercentage(totalRange, progressMade)
+	progressPercent := calculatePercentage(totalRange, progressMade)
 	core.LogDebug("progress: " + progressPercent + " %")
 	progressRemaining := new(big.Int).Sub(totalRange, progressMade)
 	core.LogDebug("progress remaining: " + progressRemaining.String())
@@ -620,8 +624,9 @@ func IndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.I
 		batchesRemaining.Add(batchesRemaining, big.NewInt(1))
 	}
 	core.LogDebug("batches remaining: " + batchesRemaining.String())
+	core.LogDebug("batch size: " + batchSize.String())
 }
-func CalculatePercentage(totalRange *big.Int, index *big.Int) string {
+func calculatePercentage(totalRange *big.Int, index *big.Int) string {
 	if totalRange.Sign() == 0 {
 		return big.NewInt(0).String()
 	}
@@ -631,7 +636,25 @@ func CalculatePercentage(totalRange *big.Int, index *big.Int) string {
 	percentage.Div(percentage, totalRange)
 	return percentage.String()
 }
-func TokenizeYourPlaceTransaction(database *db.Database, blockchain string, transaction map[string]interface{}, timestamp uint64, blockNumber uint64) {
+func calculateOptimalBatchSize(throttleValue int) *big.Int { // Function to calculate the optimal batch size based on throttle and batch size limit
+	throttleBasedLimit := throttleValue - throttleOffset
+	if throttleBasedLimit <= 0 {
+		throttleBasedLimit = 1
+	}
+	effectiveBatchSize := throttleBasedLimit
+	if effectiveBatchSize > batchSizeLimit {
+		effectiveBatchSize = batchSizeLimit
+	}
+	return big.NewInt(int64(effectiveBatchSize))
+}
+func configureRateLimiter(throttleValue int, batchSize *big.Int) *rate.Limiter { // Function to configure rate limiter based on throttle and batch size
+	requestsPerSecond := float64(throttleValue) / float64(batchSize.Int64())
+	if requestsPerSecond < 1.0 {
+		requestsPerSecond = 1.0 // Minimum of 1 request per second
+	}
+	return rate.NewLimiter(rate.Limit(requestsPerSecond), 1)
+}
+func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, transaction map[string]interface{}, timestamp uint64, blockNumber uint64) {
 	// Pattern-based tokenization and database storage of YourPlace transactions
 	data := transaction["input"].(string)[2:]       // get data from the transaction & drop the '0x' prefix
 	decodedDataBytes, err := hex.DecodeString(data) // hex decode data
