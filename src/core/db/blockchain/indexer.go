@@ -23,17 +23,21 @@ import (
 
 const reportInterval = 5000 // print progress every # of blocks
 const saveInterval = 100    // save progress every # of blocks
-const throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make calls without getting rate-limited
-const batchSizeLimit = 44   // The maximum number of blocks to fetch in a single batch RPC call
+const throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
+const batchSizeLimit = 40   // The maximum number of blocks to fetch in a single batch RPC call
 
 var (
 	indexerCancel chan bool
 	IndexerMutex  sync.Mutex
 	IsIndexing    bool
+	_Blockchain   *Blockchain
+	_Database     *db.Database
 )
 
 // --- Indexer Main Method --- //
 func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) {
+	_Blockchain = blockchain
+	_Database = database
 	// Handle indexer mutex and exit channel
 	indexerCancel = make(chan bool, 1)
 	IndexerMutex.Lock()
@@ -49,16 +53,16 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 		IndexerMutex.Unlock()
 	}()
 
-	indexerRunning := database.SettingsGetValue("indexerRunning") // Check if the indexer is globally enabled
+	indexerRunning := _Database.SettingsGetValue("indexerRunning") // Check if the indexer is globally enabled
 	if indexerRunning != "true" {
 		return // bail out
 	}
 
-	uuid := database.IndexerGetJobUUID(chainName) // Lookup the UUID of the blockchain job
-	if uuid == "" {                               // If no job exists, create one
-		uuid = CreateIndexerJob(database, chainName)
+	uuid := _Database.IndexerGetJobUUID(chainName) // Lookup the UUID of the blockchain job
+	if uuid == "" {                                // If no job exists, create one
+		uuid = CreateIndexerJob(chainName)
 	}
-	databaseStatus := database.IndexerGetJobStatus(uuid) // Get the status of the job
+	databaseStatus := _Database.IndexerGetJobStatus(uuid) // Get the status of the job
 	// ---- Job Status Dispatch ---- //
 	if databaseStatus == "running" { // Only 1 post caching job running at a time
 		return // bail out
@@ -67,7 +71,7 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 	core.LogDebug("--- IndexerFetchData(): Fetching posts for " + chainName + " ---")
 	switch blockchain.Base.RpcUrl { // Set throttle defaults for known public nodes
 	case DefaultBlockchainNodes["base"][0]:
-		database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1]) // default rate limit for default nodes
+		_Database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1]) // default rate limit for default nodes
 	}
 	baseLatestBlock, err := blockchain.GetLatestBlock("base")  // Get the latest block number from the blockchain RPC node
 	if err != nil || baseLatestBlock.Cmp(big.NewInt(0)) == 0 { // Error checking the latest block number we got from the RPC node
@@ -76,12 +80,12 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 	}
 	core.LogDebug("Base Latest Block: " + baseLatestBlock.String())
 	baseEarliestBlock := blockchain.GetEarliestBlock("base") // Get the earliest block number that a YourPlace post existed (YourPlace genesis block)
-	databaseHeadBlock := database.IndexerGetHeadBlock(uuid)  // Get the head block from the database (latest block processed)
+	databaseHeadBlock := _Database.IndexerGetHeadBlock(uuid) // Get the head block from the database (latest block processed)
 	core.LogDebug("Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
-	databaseTailBlock := database.IndexerGetTailBlock(uuid)                       // Get the tail block from the database (earliest block processed)
+	databaseTailBlock := _Database.IndexerGetTailBlock(uuid)                      // Get the tail block from the database (earliest block processed)
 	if databaseTailBlock < baseEarliestBlock.Uint64() && databaseTailBlock != 0 { // Check that the tail block is ahead of the earliest block
 		core.LogDebug("Database tail block is too far back - resetting to EarliestBlock")
-		database.IndexerUpdateTailBlock(uuid, baseEarliestBlock.Uint64()) // If not, reset the tail block to the earliest block
+		_Database.IndexerUpdateTailBlock(uuid, baseEarliestBlock.Uint64()) // If not, reset the tail block to the earliest block
 		databaseTailBlock = baseEarliestBlock.Uint64()
 	}
 	core.LogDebug("Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
@@ -90,32 +94,32 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 	switch databaseStatus { // Post fill job dispatch, based on last job status
 	case "pending":
 		core.LogDebug("Starting pending job from the beginning")
-		IndexerBaseFullFill(database, blockchain.Base, uuid, baseLatestBlock)
+		IndexerBaseFullFill(blockchain.Base, uuid, baseLatestBlock)
 	case "failed":
 		core.LogDebug("Restarting failed job from where it left off")
 		if databaseTailBlock == 0 { // If a full fill job started, but failed before the tail block was written, start all over
-			IndexerRestartJobs(database, chainName)
-			IndexerBaseFullFill(database, blockchain.Base, uuid, baseLatestBlock)
+			IndexerRestartJobs(_Database, chainName)
+			IndexerBaseFullFill(blockchain.Base, uuid, baseLatestBlock)
 			return
 		}
 		if databaseTailBlock > baseEarliestBlock.Uint64() { // if a backfill job failed, restart it
-			IndexerBaseBackFill(database, blockchain.Base, uuid, baseLatestBlock)
+			IndexerBaseBackFill(blockchain.Base, uuid, baseLatestBlock)
 		} else { // if a front fill job failed, restart it
-			IndexerBaseFrontFill(database, blockchain.Base, uuid, baseLatestBlock)
+			IndexerBaseFrontFill(blockchain.Base, uuid, baseLatestBlock)
 		}
 	case "complete": // If everything is backfilled, then just process the newest blocks
 		core.LogDebug("Last job completed successfully. Getting new blocks")
-		IndexerBaseFrontFill(database, blockchain.Base, uuid, baseLatestBlock)
+		IndexerBaseFrontFill(blockchain.Base, uuid, baseLatestBlock)
 	}
 }
 
 // --- Base Indexer Functions --- //
-func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLatestBlock *big.Int) {
+func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	// (old) head block <----- latest block (starting traversal @ latest block)
 	// head block -----> latest block (starting traversal @ head block)
 	core.LogDebug("--- IndexerBaseFrontFill()")
-	database.IndexerUpdateJobStatus(uuid, "running")
-	headBlock := database.IndexerGetHeadBlock(uuid)
+	_Database.IndexerUpdateJobStatus(uuid, "running")
+	headBlock := _Database.IndexerGetHeadBlock(uuid)
 	if headBlock <= 0 {
 		core.LogWarn("IndexerBaseFrontFill(): Head block is <= 0 - aborting")
 		return
@@ -125,8 +129,8 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 	core.LogDebug("Target Latest Block: " + targetLatestBlock.String())
 	core.LogDebug("Target Earliest Block: " + strconv.Itoa(int(targetEarliestBlock)))
 	targetEarliestBlockBigInt := big.NewInt(int64(targetEarliestBlock))
-	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
-	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
+	databaseHistoryDaysInt, _ := strconv.Atoi(_Database.SettingsGetValue("historyDays"))
+	baseThrottle, _ := strconv.Atoi(_Database.SettingsGetValue("baseThrottle"))
 	core.LogDebug("Base Throttle: " + strconv.Itoa(baseThrottle))
 	batchSize := calculateOptimalBatchSize(baseThrottle)
 	core.LogDebug("Batch Size: " + batchSize.String())
@@ -153,7 +157,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 		select {
 		case <-indexerCancel:
 			core.LogDebug("Indexer job cancelled in frontfill during batch loop")
-			database.IndexerUpdateJobStatus(uuid, "failed")
+			_Database.IndexerUpdateJobStatus(uuid, "failed")
 			return
 		default:
 			_ = rateLimiter.Wait(context.Background())
@@ -186,7 +190,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 			select {
 			case <-indexerCancel:
 				core.LogDebug("Indexer cancelled in frontfill during RPC call")
-				database.IndexerUpdateJobStatus(uuid, "failed")
+				_Database.IndexerUpdateJobStatus(uuid, "failed")
 				return
 			default:
 				err := base.RpcClient.BatchCallContext(context.Background(), batch)
@@ -196,7 +200,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					backoff := rpcErrorCount + 1
 					time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
 					if rpcErrorCount >= 120 {
-						database.IndexerUpdateJobStatus(uuid, "failed")
+						_Database.IndexerUpdateJobStatus(uuid, "failed")
 						return
 					}
 					goto BATCHRPCCALL
@@ -207,7 +211,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 				select {
 				case <-indexerCancel:
 					core.LogDebug("Indexer cancelled in frontfill during batch processing")
-					database.IndexerUpdateJobStatus(uuid, "failed")
+					_Database.IndexerUpdateJobStatus(uuid, "failed")
 					return
 				default:
 					if elem.Error != nil {
@@ -218,7 +222,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 						core.LogDebug("Backing off for " + sleepTime.String())
 						time.Sleep(sleepTime) // exponential backoff
 						if rpcErrorCount >= 120 {
-							database.IndexerUpdateJobStatus(uuid, "failed")
+							_Database.IndexerUpdateJobStatus(uuid, "failed")
 							return
 						}
 						goto BATCHRPCCALL
@@ -227,7 +231,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					transactions := block["transactions"].([]interface{})
 					for _, txn := range transactions {
 						transaction := txn.(map[string]interface{})
-						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
+						ret := DispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
 						if ret == 1 || ret == 2 {
 							continue
 						}
@@ -241,7 +245,7 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
-						database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
+						_Database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
 					}
 				}
 			}
@@ -249,17 +253,17 @@ func IndexerBaseFrontFill(database *db.Database, base *Base, uuid string, baseLa
 		}
 	}
 	core.LogDebug("Completed Front Fill - Updating Head Block: " + blockIndex.String())
-	database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
-	database.IndexerUpdateJobStatus(uuid, "complete")
+	_Database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
+	_Database.IndexerUpdateJobStatus(uuid, "complete")
 }
-func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLatestBlock *big.Int) {
+func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	// earliest block <----- tail block (starting traversal @ tail block)—
 	core.LogDebug("--- IndexerBaseBackFill()")
-	database.IndexerUpdateJobStatus(uuid, "running")
-	databaseTailBlock := big.NewInt(int64(database.IndexerGetTailBlock(uuid)))
+	_Database.IndexerUpdateJobStatus(uuid, "running")
+	databaseTailBlock := big.NewInt(int64(_Database.IndexerGetTailBlock(uuid)))
 	if databaseTailBlock.Cmp(big.NewInt(0)) == 0 { // if databaseTailBlock = 0, then the job is new
 		core.LogDebug("Database Tail Block is 0 - setting to Head Block")
-		headBlockInt := database.IndexerGetHeadBlock(uuid)
+		headBlockInt := _Database.IndexerGetHeadBlock(uuid)
 		databaseTailBlock = big.NewInt(int64(headBlockInt))
 		core.LogDebug("Database Tail Block: " + databaseTailBlock.String())
 	}
@@ -267,7 +271,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 	targetEarliestBlock := &base.EarliestBlock
 	if targetLatestBlock.Cmp(targetEarliestBlock) == 0 {
 		core.LogDebug("Target latest block is equal to target earliest block - completing")
-		database.IndexerUpdateJobStatus(uuid, "complete")
+		_Database.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	if targetLatestBlock.Int64() == 0 { // if targetLatestBlock = 0, then the job is new
@@ -277,8 +281,8 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 	core.LogDebug("Target Latest Block: " + targetLatestBlock.String())
 	core.LogDebug("Target Earliest Block: " + targetEarliestBlock.String())
 	targetEarliestBlockBigInt := targetEarliestBlock
-	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
-	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
+	databaseHistoryDaysInt, _ := strconv.Atoi(_Database.SettingsGetValue("historyDays"))
+	baseThrottle, _ := strconv.Atoi(_Database.SettingsGetValue("baseThrottle"))
 	core.LogDebug("Base Throttle: " + strconv.Itoa(baseThrottle))
 	batchSize := calculateOptimalBatchSize(baseThrottle)
 	core.LogDebug("Batch Size: " + batchSize.String())
@@ -303,7 +307,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 		select {
 		case <-indexerCancel:
 			core.LogDebug("Indexer cancelled in backfill during batch loop")
-			database.IndexerUpdateJobStatus(uuid, "failed")
+			_Database.IndexerUpdateJobStatus(uuid, "failed")
 			return
 		default:
 			_ = rateLimiter.Wait(context.Background())
@@ -336,7 +340,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 			select {
 			case <-indexerCancel:
 				core.LogDebug("Indexer cancelled in backfill during RPC call")
-				database.IndexerUpdateJobStatus(uuid, "failed")
+				_Database.IndexerUpdateJobStatus(uuid, "failed")
 				return
 			default:
 				err := base.RpcClient.BatchCallContext(context.Background(), batch)
@@ -347,7 +351,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 					time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
 					if rpcErrorCount >= 120 {
 						//core.LogDebug("Base Backfill failed too many times: " + err.Error())
-						database.IndexerUpdateJobStatus(uuid, "failed")
+						_Database.IndexerUpdateJobStatus(uuid, "failed")
 						return
 					}
 					goto BATCHRPCCALL
@@ -358,7 +362,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 				select {
 				case <-indexerCancel:
 					core.LogDebug("Indexer cancelled in backfill during batch processing")
-					database.IndexerUpdateJobStatus(uuid, "failed")
+					_Database.IndexerUpdateJobStatus(uuid, "failed")
 					return
 				default:
 					if elem.Error != nil {
@@ -367,7 +371,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 						backoff := rpcErrorCount + 1
 						time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
 						if rpcErrorCount >= 120 {
-							database.IndexerUpdateJobStatus(uuid, "failed")
+							_Database.IndexerUpdateJobStatus(uuid, "failed")
 							return
 						}
 						goto BATCHRPCCALL
@@ -376,7 +380,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 					transactions := block["transactions"].([]interface{})
 					for _, txn := range transactions { // Loop through transactions in the block
 						transaction := txn.(map[string]interface{})
-						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
+						ret := DispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
 						if ret == 1 || ret == 2 { // skip transactions that are not valid YP posts
 							continue
 						}
@@ -390,7 +394,7 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
-						database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
+						_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
 					}
 				}
 			}
@@ -398,21 +402,21 @@ func IndexerBaseBackFill(database *db.Database, base *Base, uuid string, baseLat
 		}
 	}
 	core.LogDebug("Completed Back Fill - Updating Tail Block: " + blockIndex.String())
-	database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
-	database.IndexerUpdateJobStatus(uuid, "complete")
+	_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
+	_Database.IndexerUpdateJobStatus(uuid, "complete")
 }
-func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLatestBlock *big.Int) {
+func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	// earliest block <----- latest block (starting traversal @ latest block)
 	core.LogDebug("--- IndexerBaseFullFill()")
-	database.IndexerUpdateJobStatus(uuid, "running")
+	_Database.IndexerUpdateJobStatus(uuid, "running")
 	targetLatestBlock := baseLatestBlock
 	core.LogDebug("Target Latest Block: " + targetLatestBlock.String())
 	targetEarliestBlock := BaseGetEarliestBlock()
 	core.LogDebug("Target Earliest Block: " + targetEarliestBlock.String())
 	targetEarliestBlockBigInt := targetEarliestBlock
-	database.IndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
-	databaseHistoryDaysInt, _ := strconv.Atoi(database.SettingsGetValue("historyDays"))
-	baseThrottle, _ := strconv.Atoi(database.SettingsGetValue("baseThrottle"))
+	_Database.IndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
+	databaseHistoryDaysInt, _ := strconv.Atoi(_Database.SettingsGetValue("historyDays"))
+	baseThrottle, _ := strconv.Atoi(_Database.SettingsGetValue("baseThrottle"))
 	core.LogDebug("Base Throttle: " + strconv.Itoa(baseThrottle))
 	batchSize := calculateOptimalBatchSize(baseThrottle)
 	core.LogDebug("Batch Size: " + batchSize.String())
@@ -437,7 +441,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 		select {
 		case <-indexerCancel:
 			core.LogDebug("Indexer cancelled in fullfill during batch loop")
-			database.IndexerUpdateJobStatus(uuid, "failed")
+			_Database.IndexerUpdateJobStatus(uuid, "failed")
 			return
 		default:
 			_ = rateLimiter.Wait(context.Background())
@@ -470,7 +474,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 			select {
 			case <-indexerCancel:
 				core.LogDebug("Indexer cancelled in fullfill during RPC call")
-				database.IndexerUpdateJobStatus(uuid, "failed")
+				_Database.IndexerUpdateJobStatus(uuid, "failed")
 				return
 			default:
 				err := base.RpcClient.BatchCallContext(context.Background(), batch)
@@ -480,7 +484,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 					backoff := rpcErrorCount + 1
 					time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
 					if rpcErrorCount >= 120 {
-						database.IndexerUpdateJobStatus(uuid, "failed")
+						_Database.IndexerUpdateJobStatus(uuid, "failed")
 						return
 					}
 					goto BATCHRPCCALL
@@ -491,7 +495,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 				select {
 				case <-indexerCancel:
 					core.LogDebug("Indexer cancelled in fullfill during batch processing")
-					database.IndexerUpdateJobStatus(uuid, "failed")
+					_Database.IndexerUpdateJobStatus(uuid, "failed")
 					return
 				default:
 					if elem.Error != nil {
@@ -500,7 +504,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 						backoff := rpcErrorCount + 1
 						time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
 						if rpcErrorCount >= 120 {
-							database.IndexerUpdateJobStatus(uuid, "failed")
+							_Database.IndexerUpdateJobStatus(uuid, "failed")
 							return
 						}
 						goto BATCHRPCCALL
@@ -509,7 +513,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 					transactions := block["transactions"].([]interface{})
 					for _, txn := range transactions { // Loop through transactions in the block
 						transaction := txn.(map[string]interface{})
-						ret := DispatchTransaction(database, block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
+						ret := DispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
 						if ret == 1 || ret == 2 { // skip transactions that are not valid YP posts
 							continue
 						}
@@ -523,7 +527,7 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
-						database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
+						_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
 					}
 				}
 			}
@@ -531,12 +535,12 @@ func IndexerBaseFullFill(database *db.Database, base *Base, uuid string, baseLat
 		}
 	}
 	core.LogDebug("Completed Full Fill - Updating Tail Block: " + blockIndex.String())
-	database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
-	database.IndexerUpdateJobStatus(uuid, "complete")
+	_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
+	_Database.IndexerUpdateJobStatus(uuid, "complete")
 }
 
 // --- Helper Functions --- //
-func DispatchTransaction(database *db.Database, block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string) int {
+func DispatchTransaction(block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string) int {
 	// ret 0 == success == transaction was a YP txn and was processed
 	// ret 1 == skipped == transaction was not a YP txn
 	// ret 2 == expired == transaction is older than the cached history limit
@@ -562,8 +566,8 @@ func DispatchTransaction(database *db.Database, block map[string]interface{}, tr
 	}
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
 		core.LogDebug("YourPlace Transaction Found: " + txHash)
-		//database.IndexerAddPost(txHash, "base", fromAddr, toAddr, parentTxHash, amountInt, timestamp, decodedDataStr, blockIndex.Uint64())
-		tokenizeYourPlaceTransaction(database, "base", transaction, timestamp, blockIndex.Uint64())
+		//_Database.IndexerAddPost(txHash, "base", fromAddr, toAddr, parentTxHash, amountInt, timestamp, decodedDataStr, blockIndex.Uint64())
+		tokenizeYourPlaceTransaction("base", transaction, timestamp, blockIndex.Uint64())
 		return 0
 	} else {
 		return 1
@@ -574,31 +578,31 @@ func IsTimestampExpired(databaseHistoryDaysInt int64, timestamp int64) bool {
 	diff := now.Sub(time.Unix(timestamp, 0))
 	return diff > time.Duration(databaseHistoryDaysInt)*24*time.Hour
 }
-func ClearOldCachedPosts(database *db.Database) {
+func ClearOldCachedPosts(__database *db.Database) {
 	// todo
 	// Clear cached transactions that are older than configured (expired) cached post history limit
 	// Only clear posts from backfill jobs where the address is "*" - do not clear cached posts for a specific address
-	//historyDays := database.SettingsGetValue("historyDays")
+	//historyDays := __database.SettingsGetValue("historyDays")
 	// todo - get all posts older than the calculated history days, and delete them
 }
-func CreateIndexerJob(database *db.Database, blockchain string) string {
+func CreateIndexerJob(blockchain string) string {
 	uuid := security.UUID()
-	database.IndexerCreateJob(uuid, blockchain)
+	_Database.IndexerCreateJob(uuid, blockchain)
 	return uuid
 }
-func StartupIndexerCleanup(database *db.Database) {
+func StartupIndexerCleanup() {
 	// Check for any failed or hung backfill jobs. Only runs once on startup
-	runningJobsUUIDs := database.IndexerGetRunningJobsUUIDs()
+	runningJobsUUIDs := _Database.IndexerGetRunningJobsUUIDs()
 	if len(runningJobsUUIDs) > 0 { // If any running jobs exist, reset them to 'pending'
 		for _, uuid := range runningJobsUUIDs {
-			database.IndexerUpdateJobStatus(uuid, "failed")
+			_Database.IndexerUpdateJobStatus(uuid, "failed")
 		}
 	}
 }
-func IndexerRestartJobs(database *db.Database, blockchain string) {
+func IndexerRestartJobs(__database *db.Database, blockchain string) {
 	// set any indexer jobs to "failed" that were left in a "running" state from a crashed server
-	jobUUID := database.IndexerGetJobUUID(blockchain)
-	database.IndexerUpdateJobStatus(jobUUID, "failed")
+	jobUUID := __database.IndexerGetJobUUID(blockchain)
+	__database.IndexerUpdateJobStatus(jobUUID, "failed")
 }
 func IndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, traversalDirection string) {
 	core.LogDebug("------------------------")
@@ -654,7 +658,7 @@ func configureRateLimiter(throttleValue int, batchSize *big.Int) *rate.Limiter {
 	}
 	return rate.NewLimiter(rate.Limit(requestsPerSecond), 1)
 }
-func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, transaction map[string]interface{}, timestamp uint64, blockNumber uint64) {
+func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]interface{}, timestamp uint64, blockNumber uint64) {
 	// Pattern-based tokenization and database storage of YourPlace transactions
 	data := transaction["input"].(string)[2:]       // get data from the transaction & drop the '0x' prefix
 	decodedDataBytes, err := hex.DecodeString(data) // hex decode data
@@ -706,11 +710,11 @@ func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 			core.LogDebug("Post Action: " + action)
 			switch actionPostfix {
 			case "":
-				if !handlePostTransaction(payloadObject, database, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
+				if !handlePostTransaction(payloadObject, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
 					break
 				}
 			case "a":
-				if !handlePostTransactionAttachment(payloadObject, database, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
+				if !handlePostTransactionAttachment(payloadObject, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
 					break
 				}
 			}
@@ -743,7 +747,7 @@ func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 				if fromAddress == addressStr && blockchain == blockchainStr { // Ignore self-follow attempts (follower count fraud)
 					break
 				}
-				database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
+				_Database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
 				break
 			}
 			break
@@ -762,7 +766,7 @@ func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 					break
 				}
 				nameStr = security.SanitizeNonPrintable(payloadObject["n"].(string))
-				database.OnchainMN(blockchain, fromAddress, nameStr, timestamp)
+				_Database.OnchainMN(blockchain, fromAddress, nameStr, timestamp)
 				break
 			case "a":
 				avatar, ok1 := payloadObject["a"]
@@ -777,7 +781,7 @@ func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 				}
 				avatarStr = security.SanitizeNonPrintable(avatarStr)
 				if security.IsValidURL(avatarStr) || security.IsValidCID(avatarStr) {
-					database.OnchainMA(blockchain, fromAddress, avatarStr, timestamp)
+					_Database.OnchainMA(blockchain, fromAddress, avatarStr, timestamp)
 				}
 				break
 			case "b":
@@ -793,7 +797,7 @@ func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 				}
 				bannerStr = security.SanitizeNonPrintable(bannerStr)
 				if security.IsValidURL(bannerStr) || security.IsValidCID(bannerStr) {
-					database.OnchainMB(blockchain, fromAddress, bannerStr, timestamp)
+					_Database.OnchainMB(blockchain, fromAddress, bannerStr, timestamp)
 				}
 				break
 			case "bd":
@@ -813,7 +817,7 @@ func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 					break
 				}
 				if security.IsValidBirthDate(birthdateInt) {
-					database.OnchainMBD(blockchain, fromAddress, uint64(birthdateInt), timestamp)
+					_Database.OnchainMBD(blockchain, fromAddress, uint64(birthdateInt), timestamp)
 				}
 				break
 			case "l":
@@ -828,7 +832,7 @@ func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 					break
 				}
 				locationStr = security.SanitizeNonPrintable(locationStr)
-				database.OnchainML(blockchain, fromAddress, locationStr, timestamp)
+				_Database.OnchainML(blockchain, fromAddress, locationStr, timestamp)
 				break
 			case "w":
 				website, ok1 := payloadObject["w"]
@@ -843,7 +847,7 @@ func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 				}
 				websiteStr = security.SanitizeNonPrintable(websiteStr)
 				if security.IsValidURL(websiteStr) && len(websiteStr) > 0 {
-					database.OnchainMW(blockchain, fromAddress, websiteStr, timestamp)
+					_Database.OnchainMW(blockchain, fromAddress, websiteStr, timestamp)
 				}
 				break
 			case "d":
@@ -859,7 +863,7 @@ func tokenizeYourPlaceTransaction(database *db.Database, blockchain string, tran
 				}
 				descriptionStr = security.SanitizeNonPrintable(descriptionStr)
 				if len(descriptionStr) > 0 {
-					database.OnchainMD(blockchain, fromAddress, descriptionStr, timestamp)
+					_Database.OnchainMD(blockchain, fromAddress, descriptionStr, timestamp)
 				}
 				break
 			}
@@ -882,7 +886,7 @@ func IndexerStop() {
 }
 
 // --- Transaction Parsing Functions --- //
-func handlePostTransaction(payloadObject map[string]interface{}, database *db.Database, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+func handlePostTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	postText, ok := payloadObject["p"]
 	if !ok {
 		core.LogDebug("Post Action: no p in payload")
@@ -893,10 +897,10 @@ func handlePostTransaction(payloadObject map[string]interface{}, database *db.Da
 		core.LogDebug("Failed to convert post text to string")
 		return false
 	}
-	database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
+	_Database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
 	return true
 }
-func handlePostTransactionAttachment(payloadObject map[string]interface{}, database *db.Database, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	postText, ok1 := payloadObject["p"]
 	attachmentsRaw, ok2 := payloadObject["a"]
 	if !ok1 || !ok2 {
@@ -931,6 +935,6 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, datab
 		}
 		parsedAttachments = append(parsedAttachments, parsedAttachment)
 	}
-	database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber, parsedAttachments)
+	_Database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber, parsedAttachments)
 	return true
 }

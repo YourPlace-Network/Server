@@ -48,7 +48,7 @@ var (
 const (
 	pipeName        = `\\.\pipe\yourplacehelper`
 	serviceName     = "YourPlaceHelper"
-	version         = "0.0.2"
+	version         = "0.0.3"
 	MB_YESNO        = 0x00000004
 	MB_ICONQUESTION = 0x00000020
 	IDYES           = 6
@@ -82,18 +82,14 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "install":
-			LogInfo("Installing YourPlace Helper")
 			install()
 			os.Exit(0)
 		case "uninstall":
-			LogInfo("Uninstalling YourPlace")
 			uninstall()
 			os.Exit(0)
 		case "version":
-			fmt.Println(version)
 			os.Exit(0)
 		case "restart":
-			LogInfo("Restarting YourPlace")
 			restart()
 			os.Exit(0)
 		default:
@@ -164,23 +160,18 @@ func handleIPCConnection(handle windows.Handle) {
 	case "ping":
 		response = "pong"
 	case "restart":
-		LogInfo("YourPlace Restarting")
 		go restart()
 		response = "ok - restarting"
 	case "uninstall":
-		LogInfo("YourPlace Uninstalling")
 		go uninstall()
 		response = "ok - uninstalling"
 	case "update":
-		LogInfo("YourPlace Updating")
 		go update()
 		response = "ok - updating"
 	case "stop":
-		LogInfo("Stopping YourPlace Helper")
 		go stop()
 		response = "ok - stopping"
 	case "version":
-		LogInfo("YourPlace Version: " + version)
 		response = version
 	default:
 		LogInfo("Unknown Action")
