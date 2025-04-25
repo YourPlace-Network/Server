@@ -784,8 +784,8 @@ const tips = [
 
     function main() {
         let DOM = {
-            pauseButton: document.getElementById("pauseBtn")! as HTMLButtonElement,
-            pauseButtonImg: document.getElementById("pauseBtnImg")! as HTMLElement,
+            pause: document.getElementById("pause")! as HTMLButtonElement,
+            play: document.getElementById("play")! as HTMLButtonElement,
             tipDiv: document.getElementById("tip")! as HTMLDivElement,
             refreshBtn: document.getElementById("refreshBtn")! as HTMLButtonElement,
             emergencyBtn: document.getElementById("emergencyBtn")! as HTMLButtonElement,
@@ -828,22 +828,15 @@ const tips = [
                 "<br>&emsp;<b>Veterans Crisis Line:</b> <a href='tel:18002738255' class='obviousLink'>1-800-273-8255 <i class='bi bi-telephone-outbound-fill'></i></a> Press 1"
             );
         }
-        function pauseToggle() {
-            let pausedClass = "bi-pause-circle-fill"
-            let playClass = "bi-play-circle-fill"
-            if (!paused) {
-                LogInfo("paused");
-                clearInterval(intervalId);
-                paused = true;
-                DOM.pauseButtonImg.classList.remove(pausedClass);
-                DOM.pauseButtonImg.classList.add(playClass);
-            } else {
-                LogInfo("unpaused");
-                intervalId = setInterval(reload, intervalTimeout);
-                paused = false;
-                DOM.pauseButtonImg.classList.remove(playClass);
-                DOM.pauseButtonImg.classList.add(pausedClass);
-            }
+        function pause() {
+            LogInfo("Pause");
+            clearInterval(intervalId);
+            paused = true;
+        }
+        function play() {
+            LogInfo("Play");
+            intervalId = setInterval(reload, intervalTimeout);
+            paused = false;
         }
 
         intervalId = setInterval(reload, intervalTimeout);
@@ -853,8 +846,9 @@ const tips = [
             reload();
             intervalId = setInterval(reload, intervalTimeout);
         });
-        DOM.pauseButton.addEventListener("click", pauseToggle);
         DOM.tipDiv.innerHTML = tips.at(randomInt(tips.length))!;
         DOM.emergencyBtn.addEventListener("click", emergency);
+        DOM.pause.addEventListener("click", pause);
+        DOM.play.addEventListener("click", play);
     }
 })();

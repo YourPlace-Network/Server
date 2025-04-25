@@ -38,78 +38,30 @@ var (
 func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) {
 	_Blockchain = blockchain
 	_Database = database
-	// Handle indexer mutex and exit channel
-	indexerCancel = make(chan bool, 1)
-	IndexerMutex.Lock()
-	if IsIndexing {
-		IndexerMutex.Unlock()
-		return // Already running
-	}
-	IsIndexing = true
-	IndexerMutex.Unlock()
-	defer func() { // Cleanup mutex when we're done
-		IndexerMutex.Lock()
-		IsIndexing = false
-		IndexerMutex.Unlock()
-	}()
-
-	indexerRunning := _Database.SettingsGetValue("indexerRunning") // Check if the indexer is globally enabled
-	if indexerRunning != "true" {
-		return // bail out
-	}
-
-	uuid := _Database.IndexerGetJobUUID(chainName) // Lookup the UUID of the blockchain job
-	if uuid == "" {                                // If no job exists, create one
-		uuid = CreateIndexerJob(chainName)
-	}
-	databaseStatus := _Database.IndexerGetJobStatus(uuid) // Get the status of the job
-	// ---- Job Status Dispatch ---- //
-	if databaseStatus == "running" { // Only 1 post caching job running at a time
-		return // bail out
-	}
-
-	core.LogDebug("--- IndexerFetchData(): Fetching posts for " + chainName + " ---")
-	switch blockchain.Base.RpcUrl { // Set throttle defaults for known public nodes
-	case DefaultBlockchainNodes["base"][0]:
-		_Database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1]) // default rate limit for default nodes
-	}
-	baseLatestBlock, err := blockchain.GetLatestBlock("base")  // Get the latest block number from the blockchain RPC node
-	if err != nil || baseLatestBlock.Cmp(big.NewInt(0)) == 0 { // Error checking the latest block number we got from the RPC node
-		core.LogError("Could not get Base latest block number - Will try again on next indexer run")
-		return // bail out
-	}
-	core.LogDebug("Base Latest Block: " + baseLatestBlock.String())
-	baseEarliestBlock := blockchain.GetEarliestBlock("base") // Get the earliest block number that a YourPlace post existed (YourPlace genesis block)
-	databaseHeadBlock := _Database.IndexerGetHeadBlock(uuid) // Get the head block from the database (latest block processed)
-	core.LogDebug("Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
-	databaseTailBlock := _Database.IndexerGetTailBlock(uuid)                      // Get the tail block from the database (earliest block processed)
-	if databaseTailBlock < baseEarliestBlock.Uint64() && databaseTailBlock != 0 { // Check that the tail block is ahead of the earliest block
-		core.LogDebug("Database tail block is too far back - resetting to EarliestBlock")
-		_Database.IndexerUpdateTailBlock(uuid, baseEarliestBlock.Uint64()) // If not, reset the tail block to the earliest block
-		databaseTailBlock = baseEarliestBlock.Uint64()
-	}
-	core.LogDebug("Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
-	core.LogDebug("Base Earliest Block: " + baseEarliestBlock.String())
-
+	databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock := indexerPreflight(chainName)
+	if uuid == "" || databaseStatus == "" {
+		return
+	} // bail out if the preflight bails out
+	_ = databaseHeadBlock   // todo - placeholder for head block use later on
 	switch databaseStatus { // Post fill job dispatch, based on last job status
 	case "pending":
 		core.LogDebug("Starting pending job from the beginning")
-		IndexerBaseFullFill(blockchain.Base, uuid, baseLatestBlock)
+		IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock)
 	case "failed":
 		core.LogDebug("Restarting failed job from where it left off")
 		if databaseTailBlock == 0 { // If a full fill job started, but failed before the tail block was written, start all over
 			IndexerRestartJobs(_Database, chainName)
-			IndexerBaseFullFill(blockchain.Base, uuid, baseLatestBlock)
+			IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock)
 			return
 		}
-		if databaseTailBlock > baseEarliestBlock.Uint64() { // if a backfill job failed, restart it
-			IndexerBaseBackFill(blockchain.Base, uuid, baseLatestBlock)
+		if databaseTailBlock > chainEarliestBlock.Uint64() { // if a backfill job failed, restart it
+			IndexerBaseBackFill(blockchain.Base, uuid, chainLatestBlock)
 		} else { // if a front fill job failed, restart it
-			IndexerBaseFrontFill(blockchain.Base, uuid, baseLatestBlock)
+			IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock)
 		}
 	case "complete": // If everything is backfilled, then just process the newest blocks
 		core.LogDebug("Last job completed successfully. Getting new blocks")
-		IndexerBaseFrontFill(blockchain.Base, uuid, baseLatestBlock)
+		IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock)
 	}
 }
 
@@ -231,7 +183,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 					transactions := block["transactions"].([]interface{})
 					for _, txn := range transactions {
 						transaction := txn.(map[string]interface{})
-						ret := DispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
+						ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
 						if ret == 1 || ret == 2 {
 							continue
 						}
@@ -241,7 +193,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 					mod := big.NewInt(0)
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndex, batchSize, "forward")
+						indexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndex, batchSize, "forward")
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
@@ -380,7 +332,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 					transactions := block["transactions"].([]interface{})
 					for _, txn := range transactions { // Loop through transactions in the block
 						transaction := txn.(map[string]interface{})
-						ret := DispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
+						ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
 						if ret == 1 || ret == 2 { // skip transactions that are not valid YP posts
 							continue
 						}
@@ -390,7 +342,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 					mod := big.NewInt(0)                                     // Send a status update
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
+						indexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
@@ -513,7 +465,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 					transactions := block["transactions"].([]interface{})
 					for _, txn := range transactions { // Loop through transactions in the block
 						transaction := txn.(map[string]interface{})
-						ret := DispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
+						ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
 						if ret == 1 || ret == 2 { // skip transactions that are not valid YP posts
 							continue
 						}
@@ -523,7 +475,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 					mod := big.NewInt(0)                                     // Send a status update
 					mod.Mod(blockIndex, big.NewInt(reportInterval))
 					if mod.Sign() == 0 {
-						IndexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
+						indexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
 					}
 					mod.Mod(blockIndex, big.NewInt(saveInterval))
 					if mod.Sign() == 0 {
@@ -540,7 +492,59 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 }
 
 // --- Helper Functions --- //
-func DispatchTransaction(block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string) int {
+func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint64, *big.Int) {
+	// Handle indexer mutex and exit channel
+	indexerCancel = make(chan bool, 1)
+	IndexerMutex.Lock()
+	if IsIndexing {
+		IndexerMutex.Unlock()
+		return "", "", nil, 0, 0, nil // Already running
+	}
+	IsIndexing = true
+	IndexerMutex.Unlock()
+	defer func() { // Cleanup mutex when we're done
+		IndexerMutex.Lock()
+		IsIndexing = false
+		IndexerMutex.Unlock()
+	}()
+	indexerRunning := _Database.SettingsGetValue("indexerRunning") // Check if the indexer is globally enabled
+	if indexerRunning != "true" {
+		return "", "", nil, 0, 0, nil // bail out
+	}
+	uuid := _Database.IndexerGetJobUUID(chainName) // Lookup the UUID of the blockchain job
+	if uuid == "" {                                // If no job exists, create one
+		uuid = createIndexerJob(chainName)
+	}
+	databaseStatus := _Database.IndexerGetJobStatus(uuid) // Get the status of the job
+	// ---- Job Status Dispatch ---- //
+	if databaseStatus == "running" { // Only 1 post caching job running at a time
+		return "", "", nil, 0, 0, nil // bail out
+	}
+	switch _Blockchain.Base.RpcUrl { // Set throttle defaults for known public nodes
+	case DefaultBlockchainNodes["base"][0]:
+		_Database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1]) // default rate limit for default nodes
+	}
+	chainLatestBlock, err := _Blockchain.GetLatestBlock(chainName) // Get the latest block number from the blockchain RPC node
+	if err != nil || chainLatestBlock.Cmp(big.NewInt(0)) == 0 {    // Error checking the latest block number we got from the RPC node
+		core.LogError("Could not get Base latest block number - Will try again on next indexer run")
+		return "", "", nil, 0, 0, nil // bail out
+	}
+	chainEarliestBlock := _Blockchain.GetEarliestBlock(chainName)                  // Get the earliest block number that a YourPlace post existed (YourPlace genesis block)
+	databaseHeadBlock := _Database.IndexerGetHeadBlock(uuid)                       // Get the head block from the database (latest block processed)
+	databaseTailBlock := _Database.IndexerGetTailBlock(uuid)                       // Get the tail block from the database (earliest block processed)
+	if databaseTailBlock < chainEarliestBlock.Uint64() && databaseTailBlock != 0 { // Check that the tail block is ahead of the earliest block
+		core.LogDebug("Database tail block is too far back - resetting to EarliestBlock")
+		_Database.IndexerUpdateTailBlock(uuid, chainEarliestBlock.Uint64()) // If not, reset the tail block to the earliest block
+		databaseTailBlock = chainEarliestBlock.Uint64()
+	}
+	core.LogDebug("--- IndexerFetchData(): Fetching posts for " + chainName + " ---")
+	core.LogDebug("Chain Latest Block: " + chainLatestBlock.String())
+	core.LogDebug("Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
+	core.LogDebug("Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
+	core.LogDebug("Chain Earliest Block: " + chainEarliestBlock.String())
+	return databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock
+}
+func dispatchTransaction(block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string) int {
 	// ret 0 == success == transaction was a YP txn and was processed
 	// ret 1 == skipped == transaction was not a YP txn
 	// ret 2 == expired == transaction is older than the cached history limit
@@ -561,7 +565,7 @@ func DispatchTransaction(block map[string]interface{}, transaction map[string]in
 	//parentTxHash := "" // todo - figure out comment logic hierarchy
 	timestampHexStr := block["timestamp"].(string)[2:]
 	timestamp, _ := strconv.ParseUint(timestampHexStr, 16, 64)
-	if IsTimestampExpired(int64(*databaseHistoryDaysInt), int64(timestamp)) { // skip transactions older than the cached history limit
+	if isTimestampExpired(int64(*databaseHistoryDaysInt), int64(timestamp)) { // skip transactions older than the cached history limit
 		return 2
 	}
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
@@ -573,38 +577,17 @@ func DispatchTransaction(block map[string]interface{}, transaction map[string]in
 		return 1
 	}
 }
-func IsTimestampExpired(databaseHistoryDaysInt int64, timestamp int64) bool {
+func isTimestampExpired(databaseHistoryDaysInt int64, timestamp int64) bool {
 	now := time.Now()
 	diff := now.Sub(time.Unix(timestamp, 0))
 	return diff > time.Duration(databaseHistoryDaysInt)*24*time.Hour
 }
-func ClearOldCachedPosts(__database *db.Database) {
-	// todo
-	// Clear cached transactions that are older than configured (expired) cached post history limit
-	// Only clear posts from backfill jobs where the address is "*" - do not clear cached posts for a specific address
-	//historyDays := __database.SettingsGetValue("historyDays")
-	// todo - get all posts older than the calculated history days, and delete them
-}
-func CreateIndexerJob(blockchain string) string {
+func createIndexerJob(blockchain string) string {
 	uuid := security.UUID()
 	_Database.IndexerCreateJob(uuid, blockchain)
 	return uuid
 }
-func StartupIndexerCleanup() {
-	// Check for any failed or hung backfill jobs. Only runs once on startup
-	runningJobsUUIDs := _Database.IndexerGetRunningJobsUUIDs()
-	if len(runningJobsUUIDs) > 0 { // If any running jobs exist, reset them to 'pending'
-		for _, uuid := range runningJobsUUIDs {
-			_Database.IndexerUpdateJobStatus(uuid, "failed")
-		}
-	}
-}
-func IndexerRestartJobs(__database *db.Database, blockchain string) {
-	// set any indexer jobs to "failed" that were left in a "running" state from a crashed server
-	jobUUID := __database.IndexerGetJobUUID(blockchain)
-	__database.IndexerUpdateJobStatus(jobUUID, "failed")
-}
-func IndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, traversalDirection string) {
+func indexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, traversalDirection string) {
 	core.LogDebug("------------------------")
 	core.LogDebug("index: " + blockIndex.String())
 	core.LogDebug("target latest: " + targetLatestBlock.String())
@@ -874,6 +857,19 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 			core.LogError("Unknown YourPlace transaction action: " + action)
 		}
 	}
+}
+
+// --- Global Helper Functions --- //
+func IndexerClearOldCachedPosts(__database *db.Database) {
+	// Clear cached transactions that are older than configured (expired) cached post history limit
+	// Only clear posts from backfill jobs where the address is "*" - do not clear cached posts for a specific address
+	//historyDays := __database.SettingsGetValue("historyDays")
+	// todo - get all posts older than the calculated history days, and delete them
+}
+func IndexerRestartJobs(__database *db.Database, blockchain string) {
+	// set any indexer jobs to "failed" that were left in a "running" state from a crashed server
+	jobUUID := __database.IndexerGetJobUUID(blockchain)
+	__database.IndexerUpdateJobStatus(jobUUID, "failed")
 }
 func IndexerStop() {
 	IndexerMutex.Lock()

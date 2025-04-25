@@ -366,9 +366,9 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 	})
 	// ------- Blockchain Indexer ------- //
 	if indexer {
-		blockchain.ClearOldCachedPosts(database)
+		blockchain.IndexerClearOldCachedPosts(database)
 		c.AddFunc("@every 60m", func() { // clean out the cached posts
-			blockchain.ClearOldCachedPosts(database)
+			blockchain.IndexerClearOldCachedPosts(database)
 		})
 		blockchain.IndexerRestartJobs(database, "base") // set any jobs to "failed" that were left hanging on startup
 		c.AddFunc("@every 1m", func() {
