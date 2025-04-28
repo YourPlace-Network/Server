@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -256,10 +255,6 @@ func GetPID(processName string) uint32 {
 }
 func GetAppDataDir() string {
 	return "C:\\Users\\" + GetUsername() + "\\AppData\\"
-}
-func GetUsername() string {
-	currentUser, _ := user.Current()
-	return currentUser.Username
 }
 func KillProcess(processName string) bool {
 	RunShellCommand("C:\\Windows\\system32\\taskkill.exe /F /T /IM " + processName)

@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -84,6 +85,10 @@ func GetCPUVendor() string {
 		return "arm"
 	}
 	return "unknown"
+}
+func GetUsername() string {
+	currentUser, _ := user.Current()
+	return currentUser.Username
 }
 func GetFileExtenstion(directory string, fileName string) (string, error) {
 	entries, err := os.ReadDir(directory)
