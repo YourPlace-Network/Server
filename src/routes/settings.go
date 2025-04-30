@@ -200,7 +200,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	router.GET("/settings/server/version", func(c *gin.Context) {
 		version := host.GetServerVersion()
 		helperVersion, err := host.HelperCall("version")
-		core.LogDebug("Helper version in route: " + helperVersion)
 		if err != nil {
 			core.LogError("Error getting helper version: " + err.Error())
 			helperVersion = "?"
@@ -212,6 +211,14 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.GET("/settings/server/logs/view", func(c *gin.Context) {
 		log, logPath := core.LogRead(200, 3)
+		if log == "" || logPath == "" {
+			log = "No logs available"
+			logPath = ""
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"logs": log, "logPath": logPath})
+	})
+	router.GET("/settings/helper/logs/view", func(c *gin.Context) {
+		log, logPath := core.LogReadHelper(200, 3)
 		if log == "" || logPath == "" {
 			log = "No logs available"
 			logPath = ""
@@ -459,5 +466,18 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		database.SettingsUpdateValue("ipfsPinningURL", url)
 		ipfs.IPFSAddRemotePinning("ipfsPinning", url, payload.PinningKey)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "IPFS URL and Key saved"})
+	})
+	router.POST("/settings/server/debug", func(c *gin.Context) {
+		type Payload struct {
+			Debug bool `json:"debug" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid debug mode JSON"})
+			return
+		}
+		host.SetDebugMode(payload.Debug)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 }

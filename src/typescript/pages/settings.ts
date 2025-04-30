@@ -6,7 +6,12 @@ import DOMPurify from "dompurify";
 import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError, LogInfo} from "../util/log";
 import {createPopper, type Instance} from "@popperjs/core";
-import {ShowDialogModal, ShowDialogModalHTML,} from "../components/modalDialog";
+import {
+    DisableDialogModalOkBtn,
+    EnableDialogModalOkBtn,
+    ShowDialogModal,
+    ShowDialogModalHTML,
+} from "../components/modalDialog";
 import {ShowModalYesNoHTML} from "../components/modalYesNo";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {ShowSavedToast} from "../components/toast";
@@ -62,6 +67,8 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             privacyAccordion: document.getElementById("privacyAccordion")! as HTMLDivElement,
             networkingAccordion: document.getElementById("networkingAccordion")! as HTMLDivElement,
             blockchainAccordion: document.getElementById("blockchainAccordion")! as HTMLDivElement,
+            serverDebugModeCheckbox: document.getElementById("serverDebugModeCheckbox")! as HTMLInputElement,
+            serverUpdateBtn: document.getElementById("serverUpdateBtn")! as HTMLButtonElement,
             serverVersionText: document.getElementById("serverVersionText")! as HTMLSpanElement,
             serverLogsViewBtn: document.getElementById("serverLogsViewBtn")! as HTMLButtonElement,
             logsView: document.getElementById("logsView")! as HTMLDivElement,
@@ -88,6 +95,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                     getIndexerStatus(),
                     getNetworkPorts(),
                     getIpfsPinning(),
+                    getDebugMode(),
                     getServerVersion(),
                 ]);
             } catch (error) {
@@ -283,13 +291,44 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 ShowDialogModal("Failed to get IPFS Pinning settings");
             }
         }
-        async function getServerVersion() {
+        async function getDebugMode() {
+            let response = await HttpGetJson("/settings/server/debug");
+            DOM.serverDebugModeCheckbox.checked = false;
+            if (response[0] === 200) {
+                if (response[1].debug) {
+                    DOM.serverDebugModeCheckbox.checked = true;
+                }
+            } else {
+                ShowDialogModal("Failed to get server debug mode");
+            }
+        }
+        async function getServerUpdates() {
+            let serverVersion = await getServerVersion();
+            let response = await HttpGetJson("https://yourplace.network/version");
+            if (response[0] === 200) {
+                let latestVersion = response[1].version;
+                LogInfo("Latest YourPlace version: " + latestVersion);
+                LogInfo("Current YourPlace version: " + serverVersion);
+                if (serverVersion !== latestVersion) {
+                    DisableDialogModalOkBtn();
+                    ShowDialogModalHTML("Newer YourPlace version available. Click <a href='https://yourplace.network/download' target='_blank'>here to update</a>");
+                    EnableDialogModalOkBtn();
+                } else {
+                    ShowDialogModal("Your server is up to date!");
+                }
+            } else {
+                ShowDialogModal("Failed to get server version");
+            }
+        }
+        async function getServerVersion(): Promise<string> {
             let response = await HttpGetJson("/settings/server/version");
             if (response[0] === 200) {
                 DOM.serverVersionText.textContent = response[1].version;
                 DOM.helperVersionText.textContent = response[1].helperVersion;
+                return response[1].version;
             } else {
                 ShowDialogModal("Failed to get server version");
+                return "";
             }
         }
         async function getServerLogs() {
@@ -511,6 +550,13 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 ShowDialogModal(response[1].status);
             }
         }
+        async function setDebugMode() {
+            const data = {
+                debug: DOM.serverDebugModeCheckbox.checked,
+            }
+            let response = await HttpPostJson("/settings/server/debug", data, DOM.csrfToken.value);
+            ShowSavedToast(); // todo: need a more graceful exit, as the server may restart at this point
+        }
 
         /* Throttle Slider */
         const getThumbElement = (): HTMLElement => {
@@ -601,6 +647,8 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             ShowDialogModalHTML("Please create an account and an <b>API Key</b> from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your <b>JWT (secret access token)</b> to the IPFS Pinning settings page");
         });
         DOM.saveIpfsPinningBtn.addEventListener("click", setIPFSPinning);
+        DOM.serverDebugModeCheckbox.addEventListener("change", setDebugMode);
+        DOM.serverUpdateBtn.addEventListener("click", getServerUpdates);
         DOM.serverLogsViewBtn.addEventListener("click", getServerLogs);
 
         init().then();

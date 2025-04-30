@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -195,7 +194,11 @@ func Update() bool {
 }
 func Restart() {
 	core.LogInfo("Restarting YourPlace Server")
-	_, _ = HelperCall("restart")
+	_, err := HelperCall("restart")
+	if err != nil {
+		core.LogError("Could not restart YourPlace: " + err.Error())
+		return
+	}
 	Shutdown(0)
 }
 func CreateShortcut(port int) {
@@ -252,10 +255,6 @@ func GetPID(processName string) uint32 {
 }
 func GetAppDataDir() string {
 	return "C:\\Users\\" + GetUsername() + "\\AppData\\"
-}
-func GetUsername() string {
-	currentUser, _ := user.Current()
-	return currentUser.Username
 }
 func KillProcess(processName string) bool {
 	RunShellCommand("C:\\Windows\\system32\\taskkill.exe /F /T /IM " + processName)
@@ -1218,7 +1217,7 @@ func InstallHelper() bool {
 	for time.Now().Before(deadline) {
 		// Check process
 		if !DoesProcExist(binary) {
-			core.LogDebug("Process not yet running")
+			core.LogDebug("Helper process not yet running")
 			time.Sleep(2 * time.Second)
 			continue
 		}

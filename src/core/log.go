@@ -28,6 +28,7 @@ var (
 	logger      *log.Logger
 	loggerMutex sync.Mutex
 	currentFile *os.File
+	helperFile  *os.File
 )
 
 func rotateLogFile(baseFilePath string) (*os.File, error) {
@@ -83,7 +84,7 @@ func checkRotate() error {
 func LogInit(name string) *os.File {
 	user, _ := os.UserHomeDir()
 	logDir := filepath.Join(user, "YourPlace")
-	_ = os.MkdirAll(logDir, 0755)
+
 	logPath := filepath.Join(logDir, name+".log")
 	file, err := rotateLogFile(logPath)
 	if err != nil {
@@ -91,6 +92,15 @@ func LogInit(name string) *os.File {
 		return nil
 	}
 	currentFile = file
+
+	helperPath := filepath.Join(logDir, name+"helper.log")
+	_file, err := rotateLogFile(helperPath)
+	if err != nil {
+		LogError("Failed to rotate helper log file: " + err.Error())
+		return nil
+	}
+	helperFile = _file
+
 	logger = log.New(file, "", log.Ldate|log.Ltime)
 	return file
 }
@@ -140,8 +150,53 @@ func LogWarningReturn(message string) error {
 	LogWarn(message)
 	return errors.New(message)
 }
-func LogRead(lines int, newlineFlag int) (string, string) { // Return the latest X lines from the log file
-	// newLineFlag: 1=<br>, 2=\n, 3=\r\n
+func LogRead(lines int, newlineFlag int) (string, string) { // Return the latest X lines from the log file - newLineFlag: 1=<br>, 2=\n, 3=\r\n
+	newline := ""
+	switch newlineFlag {
+	case 1:
+		newline = "<br>"
+	case 2:
+		newline = "\n"
+	case 3:
+		newline = "\r\n"
+	}
+	file, err := os.Open(currentFile.Name())
+	if err != nil {
+		LogError("Failed to open log file: " + err.Error())
+		return "", ""
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	buffer := make([]string, lines)
+	position := 0
+	lineCount := 0
+	for scanner.Scan() {
+		buffer[position] = scanner.Text()
+		position = (position + 1) % lines
+		lineCount++
+	}
+	err = scanner.Err()
+	if err != nil {
+		LogError("Failed to read log file: " + err.Error())
+		return "", ""
+	}
+	var result strings.Builder
+	if lineCount < lines {
+		for i := lineCount - 1; i >= 0; i-- {
+			result.WriteString(buffer[i])
+			result.WriteString(newline)
+		}
+	} else {
+		// We have at least 'lines' lines, so we need to arrange them in order
+		for i := lines - 1; i >= 0; i-- {
+			idx := (position + i) % lines
+			result.WriteString(buffer[idx])
+			result.WriteString(newline)
+		}
+	}
+	return result.String(), currentFile.Name()
+}
+func LogReadHelper(lines int, newlineFlag int) (string, string) { // Return the latest X lines from the helper log file - newLineFlag: 1=<br>, 2=\n, 3=\r\n
 	newline := ""
 	switch newlineFlag {
 	case 1:

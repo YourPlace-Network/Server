@@ -29,7 +29,7 @@ const tips = [
     "If someone truthfully states the status-quo and it sounds ridiculous, then that's not necessarily the fault of the person who stated it",
     "The first person to drop a personal attack in a debate, looses",
     "Beware logical fallacies",
-    "What makes sex not rape? - Consent<br><br>What makes a job not slavery? - Consent<br><br>What makes a transaction not a robbery? - Consent",
+    "What makes sex not assault? - Consent<br><br>What makes a job not slavery? - Consent<br><br>What makes a transaction not a robbery? - Consent",
     "Healthy diet is a healthy mind",
     "For important decisions, especially around health and money, always get at least two opinions from professionals",
     "Debt is a thief that steals from the future",
@@ -587,7 +587,7 @@ const tips = [
     "Protect your head - helmets, mental health, eye/ear protection, brushing teeth, etc.",
     "Be careful when using your phone around roads and train tracks. One mistake or trip on a curb, and you're under a vehicle",
     "Never trust drug dealers. They will poison you for profit",
-    "Don't hook up with people who are under the influence. They could easily claim rape, and be right",
+    "Don't hook up with people who are under the influence. They could easily claim assault, and be right",
     "DUIs aren't worth it. Better to just sleep it off, get a taxi, or call a sober friend to take you home",
     "Don't lean back in chairs that weren't designed for it. It can easily slip, you hit your head, and you can die",
     "If you're driving, that text message can wait",
@@ -766,6 +766,16 @@ const tips = [
     "When communicating with another person, that person is using 0 to 100 % of good-faith with you. During conversation, you need to figure out what percent that is, and then adjust accordingly",
     "Everybody is a hypocrite sometimes. Just try to minimize those instances and strive to do better in the future",
     "Mercy for the attacker is tyranny for the victim",
+    "In the professional world, nobody is gonna teach it to you. When you hear a process or term you don't know, you have two options: if it's the right moment you can ask, or you can note it down and research it later. Just don't allow unknown information to fully pass you by",
+    "Sometimes ministers can be the biggest devils - beware the false prophet",
+    "Don't confuse the loudest for the majority",
+    "Make sure that you're not terminally online",
+    "A few outliers does not invalidate generally good advice. People who do that, are just being smug",
+    "Don't fall for so much rage bait",
+    "If you're a guest, don't be overly disagreeable, because you won't be a a guest there again",
+    "Doing something big means that some things will go wrong",
+
+
 
 ];
 
@@ -774,8 +784,8 @@ const tips = [
 
     function main() {
         let DOM = {
-            pauseButton: document.getElementById("pauseBtn")! as HTMLButtonElement,
-            pauseButtonImg: document.getElementById("pauseBtnImg")! as HTMLElement,
+            pause: document.getElementById("pause")! as HTMLButtonElement,
+            play: document.getElementById("play")! as HTMLButtonElement,
             tipDiv: document.getElementById("tip")! as HTMLDivElement,
             refreshBtn: document.getElementById("refreshBtn")! as HTMLButtonElement,
             emergencyBtn: document.getElementById("emergencyBtn")! as HTMLButtonElement,
@@ -818,22 +828,15 @@ const tips = [
                 "<br>&emsp;<b>Veterans Crisis Line:</b> <a href='tel:18002738255' class='obviousLink'>1-800-273-8255 <i class='bi bi-telephone-outbound-fill'></i></a> Press 1"
             );
         }
-        function pauseToggle() {
-            let pausedClass = "bi-pause-circle-fill"
-            let playClass = "bi-play-circle-fill"
-            if (!paused) {
-                LogInfo("paused");
-                clearInterval(intervalId);
-                paused = true;
-                DOM.pauseButtonImg.classList.remove(pausedClass);
-                DOM.pauseButtonImg.classList.add(playClass);
-            } else {
-                LogInfo("unpaused");
-                intervalId = setInterval(reload, intervalTimeout);
-                paused = false;
-                DOM.pauseButtonImg.classList.remove(playClass);
-                DOM.pauseButtonImg.classList.add(pausedClass);
-            }
+        function pause() {
+            LogInfo("Pause");
+            clearInterval(intervalId);
+            paused = true;
+        }
+        function play() {
+            LogInfo("Play");
+            intervalId = setInterval(reload, intervalTimeout);
+            paused = false;
         }
 
         intervalId = setInterval(reload, intervalTimeout);
@@ -843,8 +846,9 @@ const tips = [
             reload();
             intervalId = setInterval(reload, intervalTimeout);
         });
-        DOM.pauseButton.addEventListener("click", pauseToggle);
         DOM.tipDiv.innerHTML = tips.at(randomInt(tips.length))!;
         DOM.emergencyBtn.addEventListener("click", emergency);
+        DOM.pause.addEventListener("click", pause);
+        DOM.play.addEventListener("click", play);
     }
 })();

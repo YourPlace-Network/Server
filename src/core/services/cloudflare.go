@@ -4,28 +4,43 @@ import (
 	"YourPlace/src/core"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
 type DNSUpdate struct {
-	comment string
-	content string
-	name    string
-	proxied bool
-	tags    []string
-	ttl     int32
+	Comment string   `json:"comment"`
+	Content string   `json:"content"`
+	Name    string   `json:"name"`
+	Proxied bool     `json:"proxied"`
+	Tags    []string `json:"tags"`
+	Ttl     uint32   `json:"ttl"`
+	Type    string   `json:"type"`
 }
 
-func updateDNSRecord(email string, key string, domainName string) {
-	obj := DNSUpdate{comment: "Domain verification record", content: PublicIP(), name: domainName, tags: []string{"owner:YourPlace"}, ttl: 3600}
-	jsonObj, err := json.Marshal(obj)
+func CloudflareDDNSUpdate() {
+
+	//CloudflareUpdateDNSRecord()
+}
+
+func CloudflareUpdateDNSRecord(email, key, domainName, zoneID, recordID string) { // https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/edit/
+	publicIP := PublicIP()
+	dnsRecord := DNSUpdate{
+		Comment: "Domain verification record",
+		Content: publicIP,
+		Name:    domainName,
+		Proxied: false,
+		Tags:    []string{"owner:YourPlace"},
+		Ttl:     60,
+		Type:    "A",
+	}
+	jsonObj, err := json.Marshal(dnsRecord)
 	if err != nil {
 		core.LogError("Could not update Cloudflare DNS record: " + err.Error())
 		return
 	}
-	request, err := http.NewRequest(http.MethodPut,
-		"https://api.cloudflare.com/client/v4/zones/zone_identifier/dns_records/identifier",
-		bytes.NewBuffer(jsonObj))
+	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/zones/%s/dns_records/%s", zoneID, recordID)
+	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonObj))
 	if err != nil {
 		core.LogError("Could not update Cloudflare DNS record: " + err.Error())
 		return
@@ -45,28 +60,3 @@ func updateDNSRecord(email string, key string, domainName string) {
 		return
 	}
 }
-
-/*
-
-func GetLatestRelease(projectPath string) (bool, string) {
-	url := security.SanitizeURL("https", "github.com", projectPath+"/release/latest")
-	if !security.IsValidURL(url) {
-		return false, ""
-	}
-	resp, err := http.Get(url)
-	if err != nil {
-		print(err)
-		return false, ""
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		print(err)
-		return false, ""
-	}
-	fmt.Print(string(body))
-	//todo
-	return false, ""
-}
-
-*/

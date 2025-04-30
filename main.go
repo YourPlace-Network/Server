@@ -65,7 +65,7 @@ func main() {
 	time.Sleep(3 * time.Second)          // Sleep for 1 second to allow the previous instance to close
 	logFile := core.LogInit("yourplace") // Initialize the logger
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
-	//core.LogDebug("Runtime User: " + host.GetUsername())
+	core.LogDebug("Runtime User: " + host.GetUsername())
 
 	// --- Command Line Arguments --- //
 	var hexString string // Crypto seed hex encoded
@@ -86,11 +86,12 @@ func main() {
 		indexer = false
 	}
 	if debug || host.DoesExist(host.GetDataDir()+"debug") { // Run in debug mode
-		debug = true
 		core.LogInfo("Running in debug mode")
+		debug = true
 		host.SetEnvVar("YourPlaceDebug", "true")
 	} else {
 		host.DeleteEnvVar("YourPlaceDebug")
+		host.DeleteIfExists(host.GetDataDir() + "debug")
 	}
 	if gateway { // Run as a gateway
 		core.LogInfo("Running as a gateway")
@@ -215,7 +216,7 @@ func main() {
 	host.Shutdown(0)
 }
 
-// ---------- Startup Functions ---------- //
+// ---------- Startup / Server Functions ---------- //
 func staticFS() http.FileSystem {
 	// https://github.com/gin-contrib/static/issues/19#issuecomment-963604838
 	sub, err := fs.Sub(wwwFS, "src/www")
@@ -270,8 +271,14 @@ func PostServerRun(database *db.Database) {
 }
 func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, logFile *os.File) {
 	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
-	router.Use(gin.Logger()) // Attach default logger which prints to stdout
+	router := gin.New()
+	router.RedirectTrailingSlash = true
+	if gateway {
+		router.TrustedPlatform = gin.PlatformCloudflare
+	} else {
+		_ = router.SetTrustedProxies(nil)
+	}
+	//router.Use(gin.Logger()) // Attach default logger which prints to stdout
 	router.Use(CustomGinRecovery())
 	router.Use(middleware.CORSMiddleware(port))
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
@@ -357,16 +364,11 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 	c.AddFunc("@every 1m", func() {
 		database.AuthExpireLoginNonce()
 	})
-	// ------- Send Google Analytics Event ------- //
-	/*services.SendGoogleAnalyticsEvent("YourPlace", "YourPlace", "YourPlace")
-	c.AddFunc("@every 12h", func() {
-		services.SendGoogleAnalyticsEvent("YourPlace", "YourPlace", "YourPlace")
-	})*/
 	// ------- Blockchain Indexer ------- //
 	if indexer {
-		blockchain.ClearOldCachedPosts(database)
+		blockchain.IndexerClearOldCachedPosts(database)
 		c.AddFunc("@every 60m", func() { // clean out the cached posts
-			blockchain.ClearOldCachedPosts(database)
+			blockchain.IndexerClearOldCachedPosts(database)
 		})
 		blockchain.IndexerRestartJobs(database, "base") // set any jobs to "failed" that were left hanging on startup
 		c.AddFunc("@every 1m", func() {

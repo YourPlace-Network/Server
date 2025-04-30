@@ -5,14 +5,17 @@
         <div class="row" id="row1">
             <div class="col-sm-2"></div>
             <div class="col-sm-8" id="centerColumn">
-                <button class="btn btn-primary grow centered" id="emergencyBtn">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
+                <button class="btn btn-primary grow centered mentalHealthBtn" id="emergencyBtn" data-bs-toggle="tooltip" data-bs-custom-class="custom-tooltip" title="Emergency">
+                    <i class="bi bi-exclamation-triangle-fill mentalHealthBtnIcon"></i>
                 </button>
-                <button class="btn btn-primary grow centered" id="pauseBtn">
-                    <i class="bi bi-pause-circle-fill" id="pauseBtnImg"></i>
+                <button class="btn btn-primary grow centered mentalHealthBtn" id="play" data-bs-toggle="tooltip" data-bs-custom-class="custom-tooltip" title="Play">
+                    <i class="bi bi-play-circle-fill mentalHealthBtnIcon" id="playBtnImg"></i>
                 </button>
-                <button class="btn btn-primary grow centered" id="refreshBtn">
-                    <i class="bi bi-arrow-clockwise"></i>
+                <button class="btn btn-primary grow centered mentalHealthBtn" id="pause" data-bs-toggle="tooltip" data-bs-custom-class="custom-tooltip" title="Pause">
+                    <i class="bi bi-pause-circle-fill mentalHealthBtnIcon" id="pauseBtnImg"></i>
+                </button>
+                <button class="btn btn-primary grow centered mentalHealthBtn" id="refreshBtn" data-bs-toggle="tooltip" data-bs-custom-class="custom-tooltip" title="Reload">
+                    <i class="bi bi-arrow-clockwise mentalHealthBtnIcon"></i>
                 </button>
                 <div id="tip" class="centered"></div>
             </div>

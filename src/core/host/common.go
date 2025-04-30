@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -21,6 +22,25 @@ import (
 	"time"
 )
 
+func IsDebugMode() bool {
+	if GetEnvVar("YourPlaceDebug") == "true" || DoesExist(GetDataDir()+"debug") {
+		return true
+	}
+	return false
+}
+func SetDebugMode(status bool) {
+	if status {
+		if !IsDebugMode() {
+			CreateFile("", GetDataDir()+"debug")
+			Restart()
+		}
+	} else {
+		if IsDebugMode() {
+			DeleteIfExists(GetDataDir() + "debug")
+			Restart()
+		}
+	}
+}
 func GetServerVersion() string {
 	content, err := os.ReadFile(GetInstallDir() + "yourplace.version")
 	if err != nil {
@@ -65,6 +85,10 @@ func GetCPUVendor() string {
 		return "arm"
 	}
 	return "unknown"
+}
+func GetUsername() string {
+	currentUser, _ := user.Current()
+	return currentUser.Username
 }
 func GetFileExtenstion(directory string, fileName string) (string, error) {
 	entries, err := os.ReadDir(directory)
