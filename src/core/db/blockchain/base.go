@@ -49,7 +49,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func (base *Base) Init(database *db.Database) {
-	if base.RpcClient != nil { // close previous connection if it exists
+	if base.RpcClient != nil { // close the previous connection if it exists
 		base.RpcClient.Close()
 	}
 	base.MainnetChainId = 8453

@@ -3,14 +3,14 @@ import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {ethers} from "ethers";
 import {YP} from "../../services/yourplace";
-import {createPublicClient, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
+import {createPublicClient, http as viemHttp, parseEther, UserRejectedRequestError, defineChain} from "viem";
 import {normalize as viemNormalize} from "viem/ens";
 import {base as viemBase} from "viem/chains";
 import {connect as wagmiConnect, createConfig, createStorage, disconnect, getConnections, getEnsAvatar, type GetEnsAvatarReturnType, http as wagmiHttp, readContract, sendTransaction, signMessage} from "@wagmi/core";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
 import {IsValidBaseAddress} from "../security";
-import {getName} from "@coinbase/onchainkit/identity";
+import {getName as cbGetName} from "@coinbase/onchainkit/identity";
 import {Sleep} from "../time";
 
 // ---------- Global Variables ---------- //
@@ -42,7 +42,7 @@ async function initBaseWallet() {
     try {
         viemClient = createPublicClient({
             transport: viemHttp(mainnetBase.rpcUrl!, {retryCount: 10, retryDelay: 1000}),
-            chain: viemBase
+            chain: defineChain(viemBase)
         });
         wagmiConfig = createConfig({
             chains: [wagmiBase],
@@ -282,7 +282,7 @@ export async function baseGetAvatar(address: string) {
     }
 }
 export async function baseGetName(_address: string): Promise<string> {
-    const name = await getName({address: _address as `0x${string}`, chain: viemBase});
+    const name = await cbGetName({address: _address as `0x${string}`, chain: viemBase});
     if (name) {
         return name.toString();
     }
