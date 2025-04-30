@@ -4,10 +4,9 @@ import "../../scss/components/imageLoader.scss";
 import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
 import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml, HashString} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
-import bootstrap from "bootstrap";
 import {LogInfo} from "./log";
 
-export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {// returns a post div element when given a post's data set profile to true if calling from a users profile
+export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {// returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
     let postAddress = document.createElement("input") as HTMLInputElement;
@@ -44,7 +43,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     postAddress.classList.add("postCardAddress");
     postAddress.value = XSSSanitizeValue(postData.address);
     avatarDiv.classList.add("postCardAvatar");
-    if (postData.resultType != "profile post" && IsValidBlockchain(postData.blockchain) && IsValidAddress(postData.address, postData.blockchain)) {
+    if (postData.resultType != "profile post" && IsValidBlockchain(postData.blockchain) && IsValidAddress(postData.address, postData.blockchain)) { // makes a post card avatar a clickable link to its authors profile
         avatarDiv.classList.add("clickable");
         avatarDiv.addEventListener("click", () => {
             window.location.replace("/p/" + postData.blockchain + "/" + postData.address);
@@ -107,11 +106,11 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
     postHeaderDiv.appendChild(ellipsesDiv);
     postDiv.appendChild(postTextDiv);
     postDiv.appendChild(embedDiv);
-    if ("attachments" in postData) {
+    if ("attachments" in postData) { // attachment handling
         let attachmentDiv = document.createElement("div") as HTMLDivElement;
         attachmentDiv.classList.add("postCardAttachmentDiv");
         let attachmentElements: HTMLElement[] = [];
-        for (let i = 0; i < postData.attachments.length; i ++) {
+        for (let i = 0; i < postData.attachments.length; i ++) { // creates proper element for each attachment
             let attachment = postData.attachments[i];
             let mimeType = attachment[1];
             let mimeTypePrefix = mimeType.split("/")[0];
@@ -141,6 +140,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {//
             }
         }
         if (postData.attachments.length > 1) {
+            LogInfo("attachments for loop")
             let attachmentCarousel = await CreateCarousel(attachmentElements);
             let carouselInnerDiv = attachmentCarousel.children[1] as HTMLDivElement;
             carouselInnerDiv.classList.add("postAttachment");
@@ -254,7 +254,7 @@ function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
     iframe.setAttribute("credentialless", "");
     return iframe;
 }
-export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> {// Creates carousel element for attachments
+export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> {// Creates carousel div element when passed an array of any elements
     let carouselDiv = document.createElement("div") as HTMLDivElement;
     let carouselList = document.createElement("ol") as HTMLOListElement;
     let carouselInnerDiv = document.createElement("div") as HTMLDivElement;
@@ -262,20 +262,19 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
     let previousIcon = document.createElement("span") as HTMLSpanElement;
     let nextButton = document.createElement("a") as HTMLAnchorElement;
     let nextIcon = document.createElement("span") as HTMLSpanElement;
-    const elementsString = elements.map(el => el.outerHTML).join("");
-    const elementsHash = await HashString(elementsString); //TODO: change to UUID
+    const elementsUUID = crypto.randomUUID();
     carouselDiv.classList.add("carousel", "slide");
-    carouselDiv.id = elementsHash;
+    carouselDiv.id = elementsUUID;
     carouselList.classList.add("carousel-indicators");
     carouselInnerDiv.classList.add("carousel-inner");
     previousButton.classList.add("carousel-control-prev");
-    previousButton.href = "#" + elementsHash;
+    previousButton.href = "#" + elementsUUID;
     previousButton.role = "button";
     previousButton.setAttribute("data-bs-slide", "prev");
     previousIcon.classList.add("carousel-control-prev-icon");
     previousIcon.ariaHidden = "true";
     nextButton.classList.add("carousel-control-next");
-    nextButton.href = "#" + elementsHash;
+    nextButton.href = "#" + elementsUUID;
     nextButton.role = "button";
     nextButton.setAttribute("data-bs-slide", "next");
     nextIcon.classList.add("carousel-control-next-icon");
@@ -288,7 +287,7 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
             selector.classList.add("active");
             item.classList.add("active");
         }
-        selector.setAttribute("data-bs-target", "#" + elementsHash);
+        selector.setAttribute("data-bs-target", "#" + elementsUUID);
         selector.setAttribute("data-bs-slide-to", i.toString());
         item.classList.add("carousel-item");
         element.classList.add("d-block", "w-100");
@@ -304,7 +303,7 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
     carouselDiv.appendChild(nextButton);
     return carouselDiv;
 }
-export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDivElement> {
+export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDivElement> { // Adds an image to a div that displays /www/image/imagefail.png if the image fails to load
     const imageLoader = document.createElement("div") as HTMLDivElement;
     imageLoader.classList.add("image-container");
     const spinner = document.createElement("div") as HTMLDivElement;

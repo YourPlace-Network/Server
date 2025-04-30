@@ -1289,8 +1289,9 @@ func (db *SQLite) FileAdd(fileUUID string, fileHash string, mimeType string, uns
 	}
 }
 func (db *SQLite) IPFSAdd(fileUUID string, cid string) {
-	query := "UPDATE files SET cid = ? WHERE fileUUID = ?"
-	_, err := db.runParamSQLUpdate(query, cid, fileUUID)
+	fileURL := "ipfs://" + cid
+	query := "UPDATE files SET cid = ?, fileURL = ? WHERE fileUUID = ?"
+	_, err := db.runParamSQLUpdate(query, cid, fileURL, fileUUID)
 	if err != nil {
 		core.LogError("Could not add the IPFS CID to the database: " + err.Error())
 	}
