@@ -6,7 +6,7 @@ import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEH
 import {CIDToSubdomainURL} from "./ipfs";
 import {LogInfo} from "./log";
 
-export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {// returns a post div element when given a post's data
+export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
     let postAddress = document.createElement("input") as HTMLInputElement;
@@ -180,7 +180,7 @@ export async function CreateProfileCard (profileData: any): Promise<HTMLDivEleme
     let identityDiv = document.createElement("div") as HTMLDivElement; //append to profile div 2nd
     let avatarImg = document.createElement("img") as HTMLImageElement; // append to avatar div
     let nameDiv = document.createElement("div") as HTMLDivElement; // append to identity div 1st
-    let addressDiv = document.createElement("div") as HTMLDivElement;// append to identity div 2nd
+    let addressDiv = document.createElement("div") as HTMLDivElement; // append to identity div 2nd
     let addressInput = document.createElement("input") as HTMLInputElement;
     let descriptionDiv = document.createElement("div") as HTMLDivElement; //append to profile div 3rd
     let profileBlockchain = document.createElement("input") as HTMLInputElement;
@@ -254,7 +254,7 @@ function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
     iframe.setAttribute("credentialless", "");
     return iframe;
 }
-export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> {// Creates carousel div element when passed an array of any elements
+export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> { // Creates carousel div element when passed an array of any elements
     let carouselDiv = document.createElement("div") as HTMLDivElement;
     let carouselList = document.createElement("ol") as HTMLOListElement;
     let carouselInnerDiv = document.createElement("div") as HTMLDivElement;
