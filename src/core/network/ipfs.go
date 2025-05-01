@@ -113,7 +113,11 @@ func (node *IPFS) IPFSAddFile(path string) (string, error) { // Adds & pins file
 	// Use HTTP API to add file to IPFS virtual file system (MFS)
 	err = copyToMFS(ipfsFilePath, mfsFilePath, node.port)
 	if err != nil {
-		return "", _core.LogErrorReturn("Could not create MFS symlink: " + err.Error())
+		if strings.Contains(err.Error(), "directory already has entry by that name") {
+			_core.LogInfo("duplicate file detected in MFS: " + path)
+		} else {
+			return "", _core.LogErrorReturn("Could not create MFS symlink: " + err.Error())
+		}
 	}
 	// Verify the file was properly added and is retrievable
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
