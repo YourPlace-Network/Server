@@ -140,7 +140,6 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
             }
         }
         if (postData.attachments.length > 1) {
-            LogInfo("attachments for loop")
             let attachmentCarousel = await CreateCarousel(attachmentElements);
             let carouselInnerDiv = attachmentCarousel.children[1] as HTMLDivElement;
             carouselInnerDiv.classList.add("postAttachment");
