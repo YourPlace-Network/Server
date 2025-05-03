@@ -2,9 +2,10 @@ import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
 import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
-import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml, HashString} from "./security";
+import {IsValidBlockchain, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
 import {LogInfo} from "./log";
+
 // signing test
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
@@ -339,4 +340,11 @@ export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDi
 
     }
     return imageLoader
+}
+export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElement> {
+    const previewDiv = document.createElement("div") as HTMLDivElement;
+    previewDiv.classList.add("attachment-grid-item");
+    previewDiv.textContent = XSSSanitizeValue(file.name);
+    return previewDiv;
+
 }
