@@ -344,7 +344,7 @@ export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDi
 }
 export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElement> {
     const previewDiv = document.createElement("div") as HTMLDivElement;
-    const icon = document.createElement("i")as HTMLElement;
+    const icon = document.createElement("i") as HTMLElement;
     const fileNameText = document.createElement("span") as HTMLSpanElement;
     const extension = path.extname(file.name);
     const iconType = getFileIcon(extension);
