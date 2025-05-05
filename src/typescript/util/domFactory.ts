@@ -2,9 +2,11 @@ import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
 import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
-import {IsValidBlockchain, XSSSanitizeUrl, XSSSanitizeValue, XSSSanitizeTinyMCEHtml, HashString} from "./security";
+import {IsValidBlockchain, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
 import {LogInfo} from "./log";
+import {getFileIcon} from "./files";
+import path from "path";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
@@ -339,4 +341,17 @@ export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDi
 
     }
     return imageLoader
+}
+export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElement> {
+    const previewDiv = document.createElement("div") as HTMLDivElement;
+    const icon = document.createElement("i") as HTMLElement;
+    const fileNameText = document.createElement("span") as HTMLSpanElement;
+    const extension = path.extname(file.name);
+    const iconType = getFileIcon(extension);
+    icon.classList.add("icon", "attachmentIcon", iconType);
+    previewDiv.classList.add("attachmentGridItem");
+    fileNameText.textContent = file.name;
+    previewDiv.appendChild(icon);
+    previewDiv.appendChild(fileNameText);
+    return previewDiv;
 }

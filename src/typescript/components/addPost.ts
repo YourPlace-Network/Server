@@ -3,7 +3,7 @@ import "../../scss/components/addPost.scss";
 import {IsValidIpfsCid} from "../util/security";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
-import {extensionToMimeType} from "../util/mimeTypes";
+import {CreateAttachmentPreview} from "../util/domFactory";
 import {UploadFile} from "../util/files";
 import {AddFileToIPFS} from "../util/ipfs";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
@@ -23,6 +23,7 @@ import tinymce from "tinymce/tinymce";
             spiceometerDiv: document.getElementById("spiceometerDiv")! as HTMLDivElement,
             spiceometerText: document.getElementById("spiceometerText")! as HTMLDivElement,
             csrfToken: document.getElementById("csrfToken") as HTMLInputElement,
+            attachmentDiv: document.getElementById("postAttachDiv")! as HTMLDivElement,
         }
         let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
@@ -136,7 +137,10 @@ import tinymce from "tinymce/tinymce";
             // Show some loading indication
             DOM.uploadFileButton.disabled = true;
             DOM.uploadFileButton.textContent = "Uploading...";
-
+            for (const file of fileList) {
+                const previewElement = await CreateAttachmentPreview(file);
+                DOM.attachmentDiv.appendChild(previewElement);
+            }
             let [status, data] = await UploadFile(fileList, csrfToken);
             uploadedFiles = data.data;
 
