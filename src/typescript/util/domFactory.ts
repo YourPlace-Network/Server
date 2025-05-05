@@ -8,7 +8,6 @@ import {LogInfo} from "./log";
 import {getFileIcon} from "./files";
 import path from "path";
 
-// signing test
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
