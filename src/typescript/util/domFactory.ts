@@ -349,11 +349,10 @@ export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElemen
     const fileNameText = document.createElement("span") as HTMLSpanElement;
     const extension = path.extname(file.name);
     const iconType = getFileIcon(extension);
-    icon.classList.add("icon", "attachment-icon", iconType);
-    previewDiv.classList.add("attachment-grid-item");
-    fileNameText.textContent = XSSSanitizeValue(file.name);
+    icon.classList.add("icon", "attachmentIcon", iconType);
+    previewDiv.classList.add("attachmentGridItem");
+    fileNameText.textContent = file.name;
     previewDiv.appendChild(icon);
     previewDiv.appendChild(fileNameText);
     return previewDiv;
-
 }

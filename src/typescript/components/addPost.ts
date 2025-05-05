@@ -1,11 +1,9 @@
-import {CreateAttachmentPreview} from "../util/domFactory";
-
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
 import {IsValidIpfsCid} from "../util/security";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
-import {extensionToMimeType} from "../util/mimeTypes";
+import {CreateAttachmentPreview} from "../util/domFactory";
 import {UploadFile} from "../util/files";
 import {AddFileToIPFS} from "../util/ipfs";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
