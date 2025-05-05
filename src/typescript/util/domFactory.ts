@@ -5,6 +5,8 @@ import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} f
 import {IsValidBlockchain, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
 import {LogInfo} from "./log";
+import {getFileIcon} from "./files";
+import path from "path";
 
 // signing test
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
@@ -343,8 +345,15 @@ export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDi
 }
 export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElement> {
     const previewDiv = document.createElement("div") as HTMLDivElement;
+    const icon = document.createElement("i")as HTMLElement;
+    const fileNameText = document.createElement("span") as HTMLSpanElement;
+    const extension = path.extname(file.name);
+    const iconType = getFileIcon(extension);
+    icon.classList.add("icon", "attachment-icon", iconType);
     previewDiv.classList.add("attachment-grid-item");
-    previewDiv.textContent = XSSSanitizeValue(file.name);
+    fileNameText.textContent = XSSSanitizeValue(file.name);
+    previewDiv.appendChild(icon);
+    previewDiv.appendChild(fileNameText);
     return previewDiv;
 
 }
