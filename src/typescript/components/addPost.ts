@@ -1,8 +1,7 @@
-import {base64decode} from "byte-base64";
-
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
 import {IsValidIpfsCid} from "../util/security";
+import {base64decode} from "byte-base64";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
 import {CreateAttachmentPreview} from "../util/domFactory";
