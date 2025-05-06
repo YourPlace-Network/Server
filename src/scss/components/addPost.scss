@@ -53,7 +53,7 @@
 .removeIcon {
   font-size: 1em;
   color: global.$secondary;
-  -webkit-text-stroke-width: .1em;
+  -webkit-text-stroke-width: 0.1em;
 
 }
 .removeButton {
@@ -66,8 +66,8 @@
   background: transparent;
   border: none;
   position: absolute;
-  top: .5em;
-  right: .5em;
+  top: 0.5em;
+  right: 0.5em;
   display: flex;
 }
 .removeButton:hover {
