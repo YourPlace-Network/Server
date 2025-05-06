@@ -351,7 +351,6 @@ export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElemen
     const extension = path.extname(file.name);
     const iconType = getFileIcon(extension);
     previewDiv.setAttribute("id", XSSSanitizeValue(file.name));
-    previewDiv.id = XSSSanitizeValue(file.name);
     removeButton.classList.add("removeButton");
     removeIcon.classList.add("bi", "bi-x-lg", "removeIcon");
     icon.classList.add("icon", "attachmentIcon", iconType);
