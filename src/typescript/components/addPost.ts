@@ -146,10 +146,10 @@ import tinymce from "tinymce/tinymce";
                 const fileNameElement = previewElement.querySelector(".fileNameSpan")! as HTMLSpanElement;
                 const removeButton = previewElement.querySelector(".removeButton") as HTMLButtonElement;
                 const fileName = fileNameElement.textContent!;
-                removeButton.onclick = () => {
+                removeButton.addEventListener("click", function () {
                     removedFiles.push(fileName);
                     previewElement.remove();
-                };
+                })
                 DOM.attachmentDiv.appendChild(previewElement);
             }
             let [status, data] = await UploadFile(fileList, csrfToken);
