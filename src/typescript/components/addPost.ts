@@ -1,6 +1,7 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
 import {IsValidIpfsCid} from "../util/security";
+import {base64decode} from "byte-base64";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
 import {CreateAttachmentPreview} from "../util/domFactory";
@@ -30,6 +31,7 @@ import tinymce from "tinymce/tinymce";
         let postObj = {postText: "", fileHash: "", status: "", cid: "", extension: ""}
         let addPostModal = new window.bootstrap.Modal(DOM.addPostModal, {});
         let uploadedFiles: fileData[] = [];
+        let removedFiles: string[] = [];
         interface fileData {
             uuid: string;
             pathOnDisk: string;
@@ -84,12 +86,14 @@ import tinymce from "tinymce/tinymce";
                 hideModal();
                 return;
             }
+            stripRemovedAttachments();
             if (Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
                 postObj.postText = payload;
                 await prepareAttachedPost();
             } else {
                 await WalletSubmitPost(payload);
             }
+            clearPostObj();
             hideModal();
             DOM.spiceometerText.innerText = "";
             tinymce.get("addPostText")!.setContent("");
@@ -117,8 +121,8 @@ import tinymce from "tinymce/tinymce";
                 } else return
             }
             WalletSubmitPostAttach(postObj.postText, attachments);
-            clearPostObj();
             uploadedFiles = [];
+            removedFiles = [];
         }
         function clearPostObj() {
             postObj.postText = "";
@@ -139,6 +143,13 @@ import tinymce from "tinymce/tinymce";
             DOM.uploadFileButton.textContent = "Uploading...";
             for (const file of fileList) {
                 const previewElement = await CreateAttachmentPreview(file);
+                const fileNameElement = previewElement.querySelector(".fileNameSpan")! as HTMLSpanElement;
+                const removeButton = previewElement.querySelector(".removeButton") as HTMLButtonElement;
+                const fileName = fileNameElement.textContent!;
+                removeButton.addEventListener("click", function () {
+                    removedFiles.push(fileName);
+                    previewElement.remove();
+                })
                 DOM.attachmentDiv.appendChild(previewElement);
             }
             let [status, data] = await UploadFile(fileList, csrfToken);
@@ -180,6 +191,9 @@ import tinymce from "tinymce/tinymce";
                 chilies += "🌶️";
             }
             DOM.spiceometerText.innerText = chilies;
+        }
+        function stripRemovedAttachments() {
+            uploadedFiles = uploadedFiles.filter(file => !removedFiles.includes(base64decode(file.encodedUnsafeName)));
         }
         function debounce<T extends (...args: any[]) => void>(func: T, delay: number): (...args: Parameters<T>) => void {
             let timeoutId: number;
