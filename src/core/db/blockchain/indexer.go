@@ -21,10 +21,12 @@ import (
 // 0 --- Earliest --- Tail --- Head --- Latest
 // Job States - Running, Complete, Failed, Pending
 
-const reportInterval = 5000 // print progress every # of blocks
-const saveInterval = 100    // save progress every # of blocks
-const throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
-const batchSizeLimit = 40   // The maximum number of blocks to fetch in a single batch RPC call
+const (
+	reportInterval = 5000 // print progress every # of blocks
+	saveInterval   = 100  // save progress every # of blocks
+	throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
+	batchSizeLimit = 10   // The maximum number of blocks to fetch in a single batch RPC call
+)
 
 var (
 	indexerCancel chan bool
@@ -40,8 +42,8 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 	_Database = database
 	databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock := indexerPreflight(chainName)
 	if uuid == "" || databaseStatus == "" {
-		return
-	} // bail out if the preflight bails out
+		return // bail out if the preflight bails out
+	}
 	_ = databaseHeadBlock   // todo - placeholder for head block use later on
 	switch databaseStatus { // Post fill job dispatch, based on last job status
 	case "pending":
@@ -64,6 +66,9 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 		IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock)
 	}
 }
+
+// --- Indexer Dispatch Functions --- //
+func indexerFrontFillDispatch() {}
 
 // --- Base Indexer Functions --- //
 func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
@@ -168,16 +173,10 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 				default:
 					if elem.Error != nil {
 						core.LogDebug("Could not get block data 2.0: " + elem.Error.Error())
-						rpcErrorCount++
-						backoff := rpcErrorCount + 1
-						sleepTime := time.Duration(backoff) * time.Second
-						core.LogDebug("Backing off for " + sleepTime.String())
-						time.Sleep(sleepTime) // exponential backoff
-						if rpcErrorCount >= 120 {
-							_Database.IndexerUpdateJobStatus(uuid, "failed")
-							return
-						}
-						goto BATCHRPCCALL
+						println(elem.Method)
+						println(elem.Args)
+						println(elem.Error)
+						println(elem.Result)
 					}
 					block := *elem.Result.(*map[string]interface{})
 					transactions := block["transactions"].([]interface{})
@@ -210,7 +209,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 }
 func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	// earliest block <----- tail block (starting traversal @ tail block)—
-	core.LogDebug("--- IndexerBaseBackFill()")
+	core.LogDebug("--- IndexerBaseBackFill() ---")
 	_Database.IndexerUpdateJobStatus(uuid, "running")
 	databaseTailBlock := big.NewInt(int64(_Database.IndexerGetTailBlock(uuid)))
 	if databaseTailBlock.Cmp(big.NewInt(0)) == 0 { // if databaseTailBlock = 0, then the job is new
@@ -275,84 +274,36 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 			for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
 				batchBlockNumbers = append(batchBlockNumbers, *j)
 			}
-			// Create the batch RPC call
-			var batch []rpc.BatchElem
-			for _, blockNumber := range batchBlockNumbers {
-				blockNumberHex := "0x" + blockNumber.Text(16)
-				request := rpc.BatchElem{
-					Method: "eth_getBlockByNumber",
-					Args:   []interface{}{blockNumberHex, true},
-					Result: &map[string]interface{}{},
-				}
-				batch = append(batch, request)
-			}
 			// Make the RPC call
-			rpcErrorCount := 0
-		BATCHRPCCALL:
-			select {
-			case <-indexerCancel:
-				core.LogDebug("Indexer cancelled in backfill during RPC call")
-				_Database.IndexerUpdateJobStatus(uuid, "failed")
-				return
-			default:
-				err := base.RpcClient.BatchCallContext(context.Background(), batch)
-				if err != nil {
-					//core.LogDebug("Could not get block data 1, backing off: " + err.Error())
-					rpcErrorCount++
-					backoff := rpcErrorCount + 1
-					time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
-					if rpcErrorCount >= 120 {
-						//core.LogDebug("Base Backfill failed too many times: " + err.Error())
-						_Database.IndexerUpdateJobStatus(uuid, "failed")
-						return
+			blocks := rpcBatchGetBlockByNumber(base, batchBlockNumbers) // Returns an array of blocks
+			// Loop through blocks
+			for _, block := range blocks {
+				transactions := block["transactions"].([]interface{})
+				// Loop through transactions in the block
+				for _, txn := range transactions {
+					transaction := txn.(map[string]interface{})                                                 // Get a handle on the transaction
+					ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base") // Dispatch the transaction to the database
+					if ret == 1 || ret == 2 {                                                                   // Skip transactions that are not valid YP posts
+						continue
 					}
-					goto BATCHRPCCALL
+					txnCount++ // We finished processing a transaction
 				}
 			}
-
-			for _, elem := range batch { // Loop through each block in the batch response
-				select {
-				case <-indexerCancel:
-					core.LogDebug("Indexer cancelled in backfill during batch processing")
-					_Database.IndexerUpdateJobStatus(uuid, "failed")
-					return
-				default:
-					if elem.Error != nil {
-						core.LogDebug("Could not get block data 2.1, backing off: " + elem.Error.Error())
-						rpcErrorCount++
-						backoff := rpcErrorCount + 1
-						time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
-						if rpcErrorCount >= 120 {
-							_Database.IndexerUpdateJobStatus(uuid, "failed")
-							return
-						}
-						goto BATCHRPCCALL
-					}
-					block := *elem.Result.(*map[string]interface{})
-					transactions := block["transactions"].([]interface{})
-					for _, txn := range transactions { // Loop through transactions in the block
-						transaction := txn.(map[string]interface{})
-						ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
-						if ret == 1 || ret == 2 { // skip transactions that are not valid YP posts
-							continue
-						}
-						txnCount++
-					}
-					blockIndex = new(big.Int).Sub(blockIndex, big.NewInt(1)) // decrement the block index
-					mod := big.NewInt(0)                                     // Send a status update
-					mod.Mod(blockIndex, big.NewInt(reportInterval))
-					if mod.Sign() == 0 {
-						indexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
-					}
-					mod.Mod(blockIndex, big.NewInt(saveInterval))
-					if mod.Sign() == 0 {
-						_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
-					}
-				}
+			// Decrement the block index
+			blockIndex = new(big.Int).Sub(blockIndex, big.NewInt(1))
+			// Send a status update
+			mod := big.NewInt(0)
+			mod.Mod(blockIndex, big.NewInt(reportInterval))
+			if mod.Sign() == 0 {
+				indexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
 			}
-			batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize)
+			mod.Mod(blockIndex, big.NewInt(saveInterval))
+			if mod.Sign() == 0 {
+				_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
+			}
 		}
 	}
+	batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize)
 	core.LogDebug("Completed Back Fill - Updating Tail Block: " + blockIndex.String())
 	_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
 	_Database.IndexerUpdateJobStatus(uuid, "complete")
@@ -384,7 +335,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := configureRateLimiter(baseThrottle, batchSize) // Configure rate limiter based on throttle and batch size
+	rateLimiter := configureRateLimiter(baseThrottle, batchSize) // Configure a rate limiter based on throttle and batch size
 	batchStartBlock := targetLatestBlock                         // Start at the latest block
 	txnCount := 0                                                // Count the number of transactions processed
 	blockIndex := batchStartBlock                                // Running tally of the current block
@@ -451,15 +402,11 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 					return
 				default:
 					if elem.Error != nil {
-						core.LogDebug("Could not get block data 2.2, backing off: " + elem.Error.Error())
-						rpcErrorCount++
-						backoff := rpcErrorCount + 1
-						time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
-						if rpcErrorCount >= 120 {
-							_Database.IndexerUpdateJobStatus(uuid, "failed")
-							return
-						}
-						goto BATCHRPCCALL
+						core.LogDebug("Could not get block data 2.2: " + elem.Error.Error())
+						println(elem.Method)
+						println(elem.Args)
+						println(elem.Error)
+						println(elem.Result)
 					}
 					block := *elem.Result.(*map[string]interface{})
 					transactions := block["transactions"].([]interface{})
@@ -490,6 +437,11 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
 	_Database.IndexerUpdateJobStatus(uuid, "complete")
 }
+
+// --- Algorand Indexer Functions --- //
+func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.Int) {}
+func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.Int)  {}
+func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.Int)  {}
 
 // --- Helper Functions --- //
 func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint64, *big.Int) {
@@ -569,9 +521,8 @@ func dispatchTransaction(block map[string]interface{}, transaction map[string]in
 		return 2
 	}
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
-		core.LogDebug("YourPlace Transaction Found: " + txHash)
-		//_Database.IndexerAddPost(txHash, "base", fromAddr, toAddr, parentTxHash, amountInt, timestamp, decodedDataStr, blockIndex.Uint64())
-		tokenizeYourPlaceTransaction("base", transaction, timestamp, blockIndex.Uint64())
+		core.LogDebug("YourPlace transaction found on " + blockchain + ": " + txHash)
+		tokenizeYourPlaceTransaction(blockchain, transaction, timestamp, blockIndex.Uint64())
 		return 0
 	} else {
 		return 1
@@ -857,6 +808,71 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 			core.LogError("Unknown YourPlace transaction action: " + action)
 		}
 	}
+}
+func rpcBatchGetBlockByNumber(base *Base, batchBlockNumbers []big.Int) []map[string]interface{} {
+	// Get the necessary variables
+	uuid := _Database.IndexerGetJobUUID("base")
+	// Create the batch RPC call
+	var batch []rpc.BatchElem
+	for _, blockNumber := range batchBlockNumbers {
+		blockNumberHex := "0x" + blockNumber.Text(16)
+		request := rpc.BatchElem{
+			Method: "eth_getBlockByNumber",
+			Args:   []interface{}{blockNumberHex, true},
+			Result: &map[string]interface{}{},
+		}
+		batch = append(batch, request)
+	}
+	// Make the RPC call
+	rpcErrorCount := 0
+	var transactions []interface{}
+	var blocks []map[string]interface{}
+BATCHRPCCALL:
+	select {
+	case <-indexerCancel:
+		core.LogDebug("Indexer cancelled in backfill during RPC call")
+		_Database.IndexerUpdateJobStatus(uuid, "failed")
+		return nil
+	default:
+		err := base.RpcClient.BatchCallContext(context.Background(), batch)
+		if err != nil {
+			core.LogDebug("Could not perform RPC call from rpcBatchGetBlockByNumber, backing off: " + err.Error())
+			rpcErrorCount++
+			backoff := rpcErrorCount + 1
+			time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
+			if rpcErrorCount >= 120 {
+				core.LogDebug("Base Backfill failed too many times: " + err.Error())
+				_Database.IndexerUpdateJobStatus(uuid, "failed")
+				return nil
+			}
+			goto BATCHRPCCALL
+		}
+	}
+	i := 0
+	for _, elem := range batch { // Loop through each block in the batch response
+		select {
+		case <-indexerCancel:
+			core.LogDebug("Indexer cancelled in backfill during batch processing")
+			_Database.IndexerUpdateJobStatus(uuid, "failed")
+			return nil
+		default:
+			if elem.Error != nil {
+				core.LogDebug("Could not get block data from rpcBatchGetBlockByNumber: " + elem.Error.Error())
+				core.LogDebug("index: " + batchBlockNumbers[i].String())
+				core.LogDebug("method: " + elem.Method)
+				println("Args: ", elem.Args)
+				core.LogDebug("error: " + elem.Error.Error())
+				println("result: ", elem.Result)
+			}
+			block := *elem.Result.(*map[string]interface{})
+			//transactions = block["transactions"].([]interface{})
+			// logic break
+			blocks = append(blocks, block)
+		}
+		i++
+	}
+	_ = transactions // debug place holder
+	return blocks
 }
 
 // --- Global Helper Functions --- //

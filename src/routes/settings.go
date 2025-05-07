@@ -480,4 +480,22 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		host.SetDebugMode(payload.Debug)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
+	router.POST("/settings/uninstall", func(c *gin.Context) {
+		type Payload struct {
+			UploadFiles    bool `json:"uploadFiles" required:"true"`
+			BlockchainData bool `json:"blockchainData" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid uninstall JSON"})
+			return
+		}
+		uninstalled := host.UnInstall(payload.UploadFiles, payload.BlockchainData)
+		if uninstalled {
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "message": "Uninstalling YourPlace. Please wait..."})
+		} else {
+			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "failed"})
+		}
+	})
 }

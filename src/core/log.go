@@ -31,90 +31,31 @@ var (
 	helperFile  *os.File
 )
 
-func rotateLogFile(baseFilePath string) (*os.File, error) {
-	if currentFile != nil { // Close existing file if open
-		_ = currentFile.Close()
-	}
-	// Check if the current log file exists and its size
-	info, err := os.Stat(baseFilePath)
-	if err == nil && info.Size() >= maxFileSize {
-		// Rotate existing backup files
-		for i := maxBackups - 1; i >= 0; i-- {
-			oldPath := fmt.Sprintf("%s.%d", baseFilePath, i)
-			newPath := fmt.Sprintf("%s.%d", baseFilePath, i+1)
-			// Remove the oldest backup if it exists
-			if i == maxBackups-1 {
-				_ = os.Remove(oldPath)
-			}
-			// Rename existing backups
-			_, err = os.Stat(oldPath)
-			if err == nil {
-				_ = os.Rename(oldPath, newPath)
-			}
-		}
-		// Rename current log file to .1
-		_ = os.Rename(baseFilePath, baseFilePath+".1")
-	}
-	// Open/Create new log file
-	file, err := os.OpenFile(baseFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		return nil, err
-	}
-	return file, nil
-}
-func checkRotate() error {
-	if currentFile == nil {
-		return errors.New("log file not initialized")
-	}
-	info, err := os.Stat(currentFile.Name())
-	if err != nil {
-		return fmt.Errorf("failed to get log file info: %w", err)
-	}
-	if info.Size() >= maxFileSize {
-		file, _err := rotateLogFile(currentFile.Name())
-		if _err != nil {
-			return fmt.Errorf("failed to rotate log file: %w", _err)
-		}
-		currentFile = file
-		logger = log.New(file, "", log.Ldate|log.Ltime)
-	}
-	return nil
-}
-
 func LogInit(name string) *os.File {
 	user, _ := os.UserHomeDir()
 	logDir := filepath.Join(user, "YourPlace")
-
-	logPath := filepath.Join(logDir, name+".log")
-	file, err := rotateLogFile(logPath)
+	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
-		LogError("Failed to rotate log file: " + err.Error())
-		return nil
+		log.Fatal("Failed to create log directory: " + err.Error())
+	}
+	logPath := filepath.Join(logDir, name+".log")
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal("Error opening log file: " + err.Error())
 	}
 	currentFile = file
-
-	helperPath := filepath.Join(logDir, name+"helper.log")
-	_file, err := rotateLogFile(helperPath)
-	if err != nil {
-		LogError("Failed to rotate helper log file: " + err.Error())
-		return nil
-	}
-	helperFile = _file
-
 	logger = log.New(file, "", log.Ldate|log.Ltime)
 	return file
 }
 func LogInfo(message string) {
 	loggerMutex.Lock()
 	defer loggerMutex.Unlock()
-	_ = checkRotate()
 	_, _ = fmt.Fprintf(os.Stdout, "%s[INFO]%s %s\n", colorBlue, colorNone, message)
 	logger.Printf("[INFO] %s\n", message)
 }
 func LogDebug(message string) {
 	loggerMutex.Lock()
 	defer loggerMutex.Unlock()
-	_ = checkRotate()
 	if os.Getenv("YourPlaceDebug") == "true" {
 		_, _ = fmt.Fprintf(os.Stdout, "%s[DEBUG]%s %s\n", colorPurple, colorNone, message)
 		logger.Printf("[DEBUG] %s\n", message)
@@ -123,24 +64,27 @@ func LogDebug(message string) {
 func LogWarn(message string) {
 	loggerMutex.Lock()
 	defer loggerMutex.Unlock()
-	_ = checkRotate()
 	_, _ = fmt.Fprintf(os.Stdout, "%s[WARN]%s %s\n", colorYellow, colorNone, message)
 	logger.Printf("[WARN] %s\n", message)
 }
 func LogError(message string) {
 	loggerMutex.Lock()
 	defer loggerMutex.Unlock()
-	_ = checkRotate()
 	_, _ = fmt.Fprintf(os.Stdout, "%s[ERROR]%s %s\n", colorRed, colorNone, message)
 	logger.Printf("[ERROR] %s\n", message)
 }
 func LogFatal(message string) {
 	loggerMutex.Lock()
 	defer loggerMutex.Unlock()
-	_ = checkRotate()
 	_, _ = fmt.Fprintf(os.Stdout, "%s[FATAL]%s %s\n", colorRed, colorNone, message)
 	logger.Printf("[FATAL] %s\n", message)
 	os.Exit(1)
+}
+func LogLevel(level, message string) {
+	loggerMutex.Lock()
+	defer loggerMutex.Unlock()
+	_, _ = fmt.Fprintf(os.Stdout, "%s[%s]%s %s\n", colorCyan, level, colorNone, message)
+	logger.Printf("[%s] %s\n", level, message)
 }
 func LogErrorReturn(message string) error {
 	LogError(message)
@@ -197,6 +141,9 @@ func LogRead(lines int, newlineFlag int) (string, string) { // Return the latest
 	return result.String(), currentFile.Name()
 }
 func LogReadHelper(lines int, newlineFlag int) (string, string) { // Return the latest X lines from the helper log file - newLineFlag: 1=<br>, 2=\n, 3=\r\n
+	user, _ := os.UserHomeDir()
+	logDir := filepath.Join(user, "YourPlace")
+	logPath := filepath.Join(logDir, "yourplacehelper.log")
 	newline := ""
 	switch newlineFlag {
 	case 1:
@@ -206,7 +153,7 @@ func LogReadHelper(lines int, newlineFlag int) (string, string) { // Return the 
 	case 3:
 		newline = "\r\n"
 	}
-	file, err := os.Open(currentFile.Name())
+	file, err := os.Open(logPath)
 	if err != nil {
 		LogError("Failed to open log file: " + err.Error())
 		return "", ""

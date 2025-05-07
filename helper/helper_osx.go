@@ -118,13 +118,13 @@ func handleConnection(conn net.Conn) {
 		}
 	case "uninstall":
 		log.Println("Received uninstall request")
-		err = uninstallYourPlace()
+		err = uninstallYourPlace(true, false)
 		if err != nil {
 			response.Status = "failed"
 			response.Message = "could not uninstall yourplace: " + err.Error()
 		} else {
 			response.Status = "success"
-			response.Message = "uninstalled"
+			response.Message = "ok - uninstalling"
 		}
 	default:
 		log.Println("Received unknown method")
@@ -211,7 +211,7 @@ func stopYourPlaceServer() error {
 	}
 	return nil
 }
-func uninstallYourPlace() error {
+func uninstallYourPlace(keepUpload, keepBlockchain bool) error {
 	if os.Geteuid() != 0 {
 		return LogErrorReturn("Helper is not root, so we can't uninstall YourPlace")
 	}

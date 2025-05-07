@@ -140,7 +140,13 @@ a {
 .disabled-link {
   pointer-events: none;
   cursor: not-allowed;
-  //opacity: 0.6;
+  opacity: 0.6;
+  color: #888888;
+  user-select: none;
+}
+.pageHeader {
+  text-align: center;
+  margin-top: 1em;
 }
 footer {
   flex-shrink: 0;

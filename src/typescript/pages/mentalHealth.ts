@@ -774,6 +774,7 @@ const tips = [
     "Don't fall for so much rage bait",
     "If you're a guest, don't be overly disagreeable, because you won't be a a guest there again",
     "Doing something big means that some things will go wrong",
+    "There's nothing that radicalizes people more than unfairness and double-standards. Even monkeys can sense unfairness",
 
 
 

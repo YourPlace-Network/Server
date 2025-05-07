@@ -64,6 +64,7 @@ var (
 func main() {
 	time.Sleep(3 * time.Second)          // Sleep for 1 second to allow the previous instance to close
 	logFile := core.LogInit("yourplace") // Initialize the logger
+	host.ShowSplashScreen()              // Show loading splash screen
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
 	core.LogDebug("Runtime User: " + host.GetUsername())
 
@@ -292,6 +293,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	router.Use(middleware.IdsMiddleware())
 	router.Use(middleware.RateLimitMiddleware())
 	router.Use(middleware.ContentTypeMiddleware())
+	router.Use(middleware.CacheControlMiddleware())
 	router.Use(middleware.BlockedContent(database))
 	router.Use(security.Headers(port))
 	LoadTemplates(router, templateFS, "src/templates/*tmpl")
