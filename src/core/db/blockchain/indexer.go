@@ -737,7 +737,6 @@ func rpcBatchGetBlockByNumber(base *Base, batchBlockNumbers []big.Int) []map[str
 	}
 	// Make the RPC call
 	rpcErrorCount := 0
-	var transactions []interface{}
 	var blocks []map[string]interface{}
 BATCHRPCCALL:
 	select {
@@ -773,16 +772,13 @@ BATCHRPCCALL:
 				core.LogDebug("index: " + batchBlockNumbers[i].String())
 				core.LogDebug("method: " + elem.Method)
 				println("Args: ", elem.Args)
-				core.LogDebug("error: " + elem.Error.Error())
 				println("result: ", elem.Result)
 			}
 			block := *elem.Result.(*map[string]interface{})
-			//transactions = block["transactions"].([]interface{})
 			blocks = append(blocks, block)
 		}
 		i++
 	}
-	_ = transactions // debug place holder
 	return blocks
 }
 
