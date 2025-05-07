@@ -130,74 +130,31 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 			for j := new(big.Int).Set(batchStartBlock); j.Cmp(batchEndBlock) == -1; j = new(big.Int).Add(j, big.NewInt(1)) {
 				batchBlockNumbers = append(batchBlockNumbers, *j)
 			}
-			// Create the batch RPC call
-			var batch []rpc.BatchElem
-			for _, blockNumber := range batchBlockNumbers {
-				blockNumberHex := "0x" + blockNumber.Text(16)
-				request := rpc.BatchElem{
-					Method: "eth_getBlockByNumber",
-					Args:   []interface{}{blockNumberHex, true},
-					Result: &map[string]interface{}{},
-				}
-				batch = append(batch, request)
-			}
 			// Make the RPC call
-			rpcErrorCount := 0
-		BATCHRPCCALL:
-			select {
-			case <-indexerCancel:
-				core.LogDebug("Indexer cancelled in frontfill during RPC call")
-				_Database.IndexerUpdateJobStatus(uuid, "failed")
-				return
-			default:
-				err := base.RpcClient.BatchCallContext(context.Background(), batch)
-				if err != nil {
-					core.LogDebug("Could not get block data 1: " + err.Error())
-					rpcErrorCount++
-					backoff := rpcErrorCount + 1
-					time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
-					if rpcErrorCount >= 120 {
-						_Database.IndexerUpdateJobStatus(uuid, "failed")
-						return
+			blocks := rpcBatchGetBlockByNumber(base, batchBlockNumbers)
+			// Loop through blocks
+			for _, block := range blocks {
+				transactions := block["transactions"].([]interface{})
+				// Loop through transactions in the block
+				for _, txn := range transactions {
+					transaction := txn.(map[string]interface{})                                                 // Get a handle on the transaction
+					ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base") // Dispatch the transaction to the database
+					if ret == 1 || ret == 2 {                                                                   // Skip transactions that are not valid YP posts
+						continue
 					}
-					goto BATCHRPCCALL
+					txnCount++
 				}
-			}
-
-			for _, elem := range batch {
-				select {
-				case <-indexerCancel:
-					core.LogDebug("Indexer cancelled in frontfill during batch processing")
-					_Database.IndexerUpdateJobStatus(uuid, "failed")
-					return
-				default:
-					if elem.Error != nil {
-						core.LogDebug("Could not get block data 2.0: " + elem.Error.Error())
-						println(elem.Method)
-						println(elem.Args)
-						println(elem.Error)
-						println(elem.Result)
-					}
-					block := *elem.Result.(*map[string]interface{})
-					transactions := block["transactions"].([]interface{})
-					for _, txn := range transactions {
-						transaction := txn.(map[string]interface{})
-						ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
-						if ret == 1 || ret == 2 {
-							continue
-						}
-						txnCount++
-					}
-					blockIndex = new(big.Int).Add(blockIndex, big.NewInt(1))
-					mod := big.NewInt(0)
-					mod.Mod(blockIndex, big.NewInt(reportInterval))
-					if mod.Sign() == 0 {
-						indexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndex, batchSize, "forward")
-					}
-					mod.Mod(blockIndex, big.NewInt(saveInterval))
-					if mod.Sign() == 0 {
-						_Database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
-					}
+				// Increment the block index
+				blockIndex = new(big.Int).Add(blockIndex, big.NewInt(1))
+				// Send a status update
+				mod := big.NewInt(0)
+				mod.Mod(blockIndex, big.NewInt(reportInterval))
+				if mod.Sign() == 0 {
+					indexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndex, batchSize, "forward")
+				}
+				mod.Mod(blockIndex, big.NewInt(saveInterval))
+				if mod.Sign() == 0 {
+					_Database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
 				}
 			}
 			batchStartBlock = new(big.Int).Add(batchStartBlock, batchSize)
@@ -360,74 +317,29 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 			for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
 				batchBlockNumbers = append(batchBlockNumbers, *j)
 			}
-			// Create the batch RPC call
-			var batch []rpc.BatchElem
-			for _, blockNumber := range batchBlockNumbers {
-				blockNumberHex := "0x" + blockNumber.Text(16)
-				request := rpc.BatchElem{
-					Method: "eth_getBlockByNumber",
-					Args:   []interface{}{blockNumberHex, true},
-					Result: &map[string]interface{}{},
-				}
-				batch = append(batch, request)
-			}
 			// Make the RPC call
-			rpcErrorCount := 0
-		BATCHRPCCALL:
-			select {
-			case <-indexerCancel:
-				core.LogDebug("Indexer cancelled in fullfill during RPC call")
-				_Database.IndexerUpdateJobStatus(uuid, "failed")
-				return
-			default:
-				err := base.RpcClient.BatchCallContext(context.Background(), batch)
-				if err != nil {
-					//core.LogDebug("Could not get block data 1, backing off: " + err.Error())
-					rpcErrorCount++
-					backoff := rpcErrorCount + 1
-					time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
-					if rpcErrorCount >= 120 {
-						_Database.IndexerUpdateJobStatus(uuid, "failed")
-						return
+			blocks := rpcBatchGetBlockByNumber(base, batchBlockNumbers) // Returns an array of blocks
+			// Loop through blocks
+			for _, block := range blocks {
+				transactions := block["transactions"].([]interface{}) // Get the transactions from the block
+				// Loop through transactions in the block
+				for _, txn := range transactions {
+					transaction := txn.(map[string]interface{})                                                 // Get a handle on the transaction
+					ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base") // Dispatch the transaction to the database
+					if ret == 1 || ret == 2 {                                                                   // Skip transactions that are not valid YP posts
+						continue
 					}
-					goto BATCHRPCCALL
+					txnCount++
 				}
-			}
-
-			for _, elem := range batch { // Loop through each block in the batch response
-				select {
-				case <-indexerCancel:
-					core.LogDebug("Indexer cancelled in fullfill during batch processing")
-					_Database.IndexerUpdateJobStatus(uuid, "failed")
-					return
-				default:
-					if elem.Error != nil {
-						core.LogDebug("Could not get block data 2.2: " + elem.Error.Error())
-						println(elem.Method)
-						println(elem.Args)
-						println(elem.Error)
-						println(elem.Result)
-					}
-					block := *elem.Result.(*map[string]interface{})
-					transactions := block["transactions"].([]interface{})
-					for _, txn := range transactions { // Loop through transactions in the block
-						transaction := txn.(map[string]interface{})
-						ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base")
-						if ret == 1 || ret == 2 { // skip transactions that are not valid YP posts
-							continue
-						}
-						txnCount++
-					}
-					blockIndex = new(big.Int).Sub(blockIndex, big.NewInt(1)) // decrement the block index
-					mod := big.NewInt(0)                                     // Send a status update
-					mod.Mod(blockIndex, big.NewInt(reportInterval))
-					if mod.Sign() == 0 {
-						indexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
-					}
-					mod.Mod(blockIndex, big.NewInt(saveInterval))
-					if mod.Sign() == 0 {
-						_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
-					}
+				blockIndex = new(big.Int).Sub(blockIndex, big.NewInt(1)) // Decrement the block index
+				mod := big.NewInt(0)                                     // Send a status update
+				mod.Mod(blockIndex, big.NewInt(reportInterval))
+				if mod.Sign() == 0 {
+					indexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
+				}
+				mod.Mod(blockIndex, big.NewInt(saveInterval))
+				if mod.Sign() == 0 {
+					_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
 				}
 			}
 			batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize)
@@ -830,7 +742,7 @@ func rpcBatchGetBlockByNumber(base *Base, batchBlockNumbers []big.Int) []map[str
 BATCHRPCCALL:
 	select {
 	case <-indexerCancel:
-		core.LogDebug("Indexer cancelled in backfill during RPC call")
+		core.LogDebug("Indexer cancelled during batch RPC call")
 		_Database.IndexerUpdateJobStatus(uuid, "failed")
 		return nil
 	default:
@@ -838,7 +750,7 @@ BATCHRPCCALL:
 		if err != nil {
 			core.LogDebug("Could not perform RPC call from rpcBatchGetBlockByNumber, backing off: " + err.Error())
 			rpcErrorCount++
-			backoff := rpcErrorCount + 1
+			backoff := (rpcErrorCount + 1) * 2
 			time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
 			if rpcErrorCount >= 120 {
 				core.LogDebug("Base Backfill failed too many times: " + err.Error())
@@ -866,7 +778,6 @@ BATCHRPCCALL:
 			}
 			block := *elem.Result.(*map[string]interface{})
 			//transactions = block["transactions"].([]interface{})
-			// logic break
 			blocks = append(blocks, block)
 		}
 		i++
