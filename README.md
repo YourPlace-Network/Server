@@ -1,6 +1,6 @@
 # YourPlace
 ## Distributed Social Media
-### [⬇️ DOWNLOAD NOW ⬇️](https://YourPlace.network/download)
+### [➡️ DOWNLOAD NOW ⬅️](https://YourPlace.network/download)
 #### ⚠️ Code In Development - Expect Small Bugs ⚠️
 YourPlace is a distributed social media platform that is designed to give complete sovereignty back to users. You own your content creation, publishing, consumption and follower relationships.
 

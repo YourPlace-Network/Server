@@ -1,10 +1,10 @@
 # PRIVACY POLICY
 
-**Last Updated: April 12, 2025**
+**Last Updated: May 7, 2025**
 
 ## 1. INTRODUCTION
 
-This Privacy Policy ("Policy") explains how YourPlace Inc. ("Company," "we," or "us") collects, uses, and shares information about you when you use our distributed social media application ("Application"), at https://YourPlace.network, or interact with any of our services.
+This Privacy Policy ("Policy") explains how YourPlace Inc. ("Company," "we," "our," or "us") collects, uses, and shares information about you when you use our distributed social media application ("Application"), at https://YourPlace.network, or interact with any of our services.
 
 Your privacy is important to us. This Policy is designed to help you understand what information we collect, why we collect it, and how you can update, manage, and delete your information.
 
@@ -53,7 +53,7 @@ We may share your information with third-party vendors, service providers, and c
 
 ### 4.3 Legal Requirements
 
-We may disclose your information if required to do so by law or in response to valid requests by public authorities (e.g., a court or government agency) or if we believe in good faith that disclosure is necessary to protect our rights, your safety, or the safety of others.
+We may disclose your information if required to do so by law or in response to valid requests by public authorities (e.g., a court or government agency), or if we believe in good faith that disclosure is necessary to protect our rights, your safety, or the safety of others.
 
 ### 4.4 Business Transfers
 
@@ -69,7 +69,7 @@ Despite our efforts to secure your information, no method of transmission over t
 
 ### 6.1 Access and Correction
 
-You may access and update your account information through the Application's settings or by contacting us. Due to the immutable nature of blockchain technology, some information may not be deletable once posted.
+You may access and update your account information through the Application's settings. Due to the immutable nature of blockchain technology and the caching protocol of IPFS, some information may not be deletable once posted.
 
 ### 6.2 Data Collection Opt-Out
 
@@ -85,7 +85,7 @@ Depending on your location, you may have certain rights regarding your personal 
 
 - Right to access information we hold about you
 - Right to rectification of inaccurate information
-- Right to erasure of your information (subject to blockchain limitations)
+- Right to erasure of your information (subject to network limitations)
 - Right to restrict processing of your information
 - Right to data portability
 - Right to object to processing of your information
@@ -94,7 +94,7 @@ To exercise any of these rights, please contact us using the information provide
 
 ## 7. CHILDREN'S PRIVACY
 
-The Application is not intended for individuals under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete such information.
+The Application is not intended for individuals under the age of 13. We do not knowingly collect personal information from children under the age of 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete such information and stop displaying the offending account on Company-owned domains.
 
 ## 8. INTERNATIONAL DATA TRANSFERS
 
