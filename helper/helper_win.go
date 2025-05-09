@@ -49,22 +49,19 @@ var (
 )
 
 const (
-	pipeName        = `\\.\pipe\yourplacehelper`
-	serviceName     = "YourPlaceHelper"
-	version         = "0.0.5"
-	MB_YESNO        = 0x00000004
-	MB_ICONQUESTION = 0x00000020
-	IDYES           = 6
-	colorRed        = "\033[1;31m"
-	colorYellow     = "\033[1;33m"
-	colorBlue       = "\033[1;34m"
-	colorPurple     = "\033[1;35m"
-	colorNone       = "\033[0m"
+	version     = "0.0.7"
+	serviceName = "YourPlaceHelper"
+	pipeName    = `\\.\pipe\yourplacehelper`
+	colorRed    = "\033[1;31m"
+	colorYellow = "\033[1;33m"
+	colorBlue   = "\033[1;34m"
+	colorPurple = "\033[1;35m"
+	colorNone   = "\033[0m"
 )
 
 func main() {
 	// Initialize the Windows Service
-	hwnd, _, _ := getConsoleWindow.Call() // Hide console window
+	hwnd, _, _ := getConsoleWindow.Call() // Hide the console window
 	if hwnd != 0 {
 		showWindow.Call(hwnd, syscall.SW_HIDE)
 	}
@@ -180,25 +177,31 @@ func handleIPCConnection(handle windows.Handle) {
 	case "ping":
 		response = "pong"
 	case "restart":
+		LogDebug("Restarting YourPlace Server")
 		go restart()
 		response = "ok - restarting"
 	case "uninstall":
+		LogInfo("Uninstalling YourPlace")
 		go uninstall(false, false)
 		response = "ok - uninstalling"
 	case "uninstall -keepUpload":
+		LogInfo("Uninstalling YourPlace")
 		go uninstall(true, false)
 		response = "ok - uninstalling"
 	case "uninstall -keepBlockchain":
+		LogInfo("Uninstalling YourPlace")
 		go uninstall(false, true)
 		response = "ok - uninstalling"
 	case "uninstall -keepUpload -keepBlockchain":
-		LogDebug("Uninstall YourPlace Keep Uploads and Blockchain")
+		LogInfo("Uninstalling YourPlace")
 		go uninstall(true, true)
 		response = "ok - uninstalling"
 	case "update":
+		LogInfo("Updating YourPlace Server")
 		go update()
 		response = "ok - updating"
 	case "stop":
+		LogInfo("Stopping YourPlace Server")
 		go stop()
 		response = "ok - stopping"
 	case "version":
@@ -212,6 +215,7 @@ func handleIPCConnection(handle windows.Handle) {
 
 // Service Actions
 func install() bool {
+	LogInfo("Installing YourPlace")
 	host.InstallScheduledTask(serviceName)
 	host.StartScheduledTask(serviceName)
 	registerFirewallRule(4002, "YourPlaceIPFS")
@@ -244,7 +248,6 @@ func uninstall(keepUploads, keepBlockchain bool) {
 	os.Exit(0)
 }
 func update() bool {
-	LogInfo("Updating YourPlace Server")
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
@@ -353,7 +356,6 @@ func update() bool {
 	return true
 }
 func restart() bool {
-	LogDebug("Restarting YourPlace Server")
 	// Kill running YourPlace processes
 	for _, proc := range []string{"YourPlace", "YourPlaceIpfs", "YourPlaceFfmpeg"} {
 		procName := proc + host.BinaryExtension
@@ -462,8 +464,8 @@ func showConfirmationDialog(title, message string) bool {
 	ret, _, _ := messageBox.Call(0,
 		uintptr(unsafe.Pointer(messagePtr)),
 		uintptr(unsafe.Pointer(titlePtr)),
-		uintptr(MB_YESNO|MB_ICONQUESTION))
-	return int(ret) == IDYES
+		uintptr(0x00000004|0x00000020)) // MB_YESNO = 0x00000004 | MB_ICONQUESTION = 0x00000020
+	return int(ret) == 6 // IDYES
 }
 func uninstallCleanupJob() {
 	folderPath := host.GetInstallDir()

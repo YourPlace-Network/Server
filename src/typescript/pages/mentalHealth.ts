@@ -775,6 +775,7 @@ const tips = [
     "If you're a guest, don't be overly disagreeable, because you won't be a a guest there again",
     "Doing something big means that some things will go wrong",
     "There's nothing that radicalizes people more than unfairness and double-standards. Even monkeys can sense unfairness",
+    "Confidence is the food of the wise man, and the liquor of the fool",
 
 
 

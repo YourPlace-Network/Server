@@ -1147,14 +1147,14 @@ func InstallHelper() bool {
 		core.LogError("Helper binary not embedded")
 		return false
 	}
-	// Ensure install directory exists
+	// Ensure the install directory exists
 	installDir := filepath.Dir(helperPath)
 	err := os.MkdirAll(installDir, 0755)
 	if err != nil {
 		core.LogError("Failed to create install directory: " + err.Error())
 		return false
 	}
-	// Check if helper needs update by comparing version numbers
+	// Check if the helper needs update by comparing version numbers
 	reportedVersion, _ := HelperCall("version")
 	embeddedVersion := string(helperVersion)
 	embeddedVersion = security.SanitizeNonPrintable(embeddedVersion)
@@ -1163,7 +1163,7 @@ func InstallHelper() bool {
 		core.LogDebug("Helper needs update")
 		needsUpdate = true
 	}
-	// If helper is running and needs update, stop it first
+	// If the helper is running and needs an update, stop it first
 	if needsUpdate && DoesProcExist(binary) {
 		_, err = HelperCall("stop")
 		if err == nil {
@@ -1182,7 +1182,7 @@ func InstallHelper() bool {
 			return false
 		}
 	}
-	// Update helper binary if needed
+	// Update the helper binary if needed
 	if needsUpdate {
 		// Write to temporary file first
 		tempPath := helperPath + ".tmp"
@@ -1211,7 +1211,7 @@ func InstallHelper() bool {
 		}
 		time.Sleep(5) // Wait for helper to start and UAC prompt
 	}
-	// Verify helper is running and responding
+	// Verify the helper is running and responding
 	core.LogDebug("Verifying helper installation - Waiting for it to start")
 	deadline := time.Now().Add(120 * time.Second)
 	for time.Now().Before(deadline) {
@@ -1232,7 +1232,7 @@ func InstallHelper() bool {
 			core.LogDebug("Helper installation verified successfully")
 			return true
 		} else {
-			core.LogDebug("Didn't get back helper ping/pong: " + response)
+			//core.LogDebug("Didn't get back helper ping/pong: " + response)
 		}
 		time.Sleep(time.Second)
 	}
@@ -1248,6 +1248,8 @@ func HelperCall(action string) (string, error) {
 	timeout := 10 * time.Second
 	if action == "ping" {
 		timeout = 2 * time.Second
+	} else if strings.HasPrefix(action, "uninstall") {
+		timeout = 180 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

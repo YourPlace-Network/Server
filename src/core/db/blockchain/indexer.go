@@ -502,7 +502,7 @@ func configureRateLimiter(throttleValue int, batchSize *big.Int) *rate.Limiter {
 	if requestsPerSecond < 1.0 {
 		requestsPerSecond = 1.0 // Minimum of 1 request per second
 	}
-	return rate.NewLimiter(rate.Limit(requestsPerSecond), 1)
+	return rate.NewLimiter(rate.Limit(requestsPerSecond), int(requestsPerSecond)+1)
 }
 func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]interface{}, timestamp uint64, blockNumber uint64) {
 	// Pattern-based tokenization and database storage of YourPlace transactions
@@ -752,7 +752,7 @@ BATCHRPCCALL:
 			backoff := (rpcErrorCount + 1) * 2
 			time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
 			if rpcErrorCount >= 120 {
-				core.LogDebug("Base Backfill failed too many times: " + err.Error())
+				core.LogDebug("Backfill failed too many times: " + err.Error())
 				_Database.IndexerUpdateJobStatus(uuid, "failed")
 				return nil
 			}
