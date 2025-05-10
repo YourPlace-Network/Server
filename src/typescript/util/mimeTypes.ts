@@ -26,6 +26,8 @@ const mimeTypes: Record<string, string> = { //These are the most common MIME typ
     ".mp3": "audio/mpeg",
     ".mp4": "video/mp4",
     ".mpeg": "video/mpeg",
+    ".mov": "video/quicktime",
+    ".mkv": "video/x-matroshka",
     ".oga": "audio/ogg",
     ".ogv": "video/ogg",
     ".png": "image/png",

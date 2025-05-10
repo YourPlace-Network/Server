@@ -5,8 +5,9 @@ import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} f
 import {IsValidBlockchain, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
 import {LogInfo} from "./log";
-import {getFileIcon} from "./files";
+import {getFileIcon, formatFileSize} from "./files";
 import path from "path";
+import {extensionToMimeType} from "./mimeTypes";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
@@ -137,7 +138,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     }
                     break;
                 default:
-                    LogInfo("unsupported attachment type");
+                    const attachmentCard = await CreateAttachmentCard(postData.attachments[i]);
                     break;
             }
         }
@@ -348,8 +349,8 @@ export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElemen
     const removeButton = document.createElement("button") as HTMLButtonElement;
     const removeIcon = document.createElement("i") as HTMLElement;
     const fileNameText = document.createElement("span") as HTMLSpanElement;
-    const extension = path.extname(file.name);
-    const iconType = getFileIcon(extension);
+    const mimeType = file.type;
+    const iconType = getFileIcon(mimeType);
     previewDiv.setAttribute("id", XSSSanitizeValue(file.name));
     removeButton.classList.add("removeButton");
     removeIcon.classList.add("bi", "bi-x-lg", "removeIcon");
@@ -362,4 +363,30 @@ export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElemen
     previewDiv.appendChild(icon);
     previewDiv.appendChild(fileNameText);
     return previewDiv;
+}
+export async function CreateAttachmentCard(attachment: any):Promise<HTMLDivElement> {// TODO: File names?
+    const attachmentCard = document.createElement("div") as HTMLDivElement;
+    const fileIcon = document.createElement("i") as HTMLElement;
+    const downloadAnchor = document.createElement("a") as HTMLAnchorElement;
+    const downloadButton = document.createElement("button") as HTMLButtonElement;
+    const downloadIcon = document.createElement("i") as HTMLElement;
+    const fileSizeSpan = document.createElement("span") as HTMLSpanElement;
+    const iconClass = getFileIcon(attachment[1]);
+    let attachmentURL: string;
+    fileIcon.classList.add("icon", "attachmentCardIcon", iconClass);
+    if (attachment[0].startsWith("ipfs://")) {
+        attachmentURL = CIDToSubdomainURL(attachment[0]);
+    } else {attachmentURL = attachment[0];}
+    downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
+    downloadAnchor.download = "";
+    const fileSize = await formatFileSize(attachment[2]);
+    fileSizeSpan.innerText = fileSize;
+    downloadButton.classList.add("downloadButton", "btn");
+    downloadIcon.classList.add("downloadIcon", "bi", "bi-download");
+    attachmentCard.appendChild(fileIcon);
+    attachmentCard.appendChild(fileSizeSpan);
+    attachmentCard.appendChild(downloadAnchor);
+    downloadAnchor.appendChild(downloadButton);
+    downloadButton.appendChild(downloadIcon);
+    return attachmentCard;
 }
