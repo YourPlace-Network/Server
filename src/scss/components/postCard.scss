@@ -89,7 +89,7 @@ ul.ellipsesMenu {
 .postCardAttachmentImage{
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
 }
 .postCardEmbedDiv {
@@ -112,6 +112,15 @@ ul.ellipsesMenu {
   height: 20em;
 }
 .postAttachment {
-  border-radius: 2em;
-  margin-right: 5em !important;
+  height: 100%;
+  width: 100%;
+}
+.attachmentDownloadGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 10em);
+  width: 100%;
+  background: global.$secondary;
+}
+.attachmentGridItem {
+  overflow: hidden;
 }

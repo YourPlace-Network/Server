@@ -29,14 +29,14 @@
   left: 45%;
   top: 20%;
 }
-.attachmentGrid {
+.attachmentPreviewGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 10em);
   gap: 1em;
   max-height: 15.5em;
   overflow: auto;
 }
-.attachmentGridItem {
+.attachmentUploadGridItem {
   display: flex;
   flex-direction: column;
   align-items: center;

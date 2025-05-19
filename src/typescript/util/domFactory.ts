@@ -112,7 +112,8 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     if ("attachments" in postData) { // attachment handling
         let attachmentDiv = document.createElement("div") as HTMLDivElement;
         attachmentDiv.classList.add("postCardAttachmentDiv");
-        let attachmentElements: HTMLElement[] = [];
+        let renderedAttachmentElements: HTMLElement[] = [];
+        let listedAttachmentElements: HTMLElement[] = [];
         for (let i = 0; i < postData.attachments.length; i ++) { // creates proper element for each attachment
             let attachment = postData.attachments[i];
             let mimeType = attachment[1];
@@ -131,24 +132,49 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     let imageLoader = await CreateImageLoader(image);
                     if (postData.attachments.length === 1) {
                         imageLoader.classList.add("postAttachment");
-                        attachmentDiv.appendChild(imageLoader);
-                        postDiv.appendChild(attachmentDiv);
+                        renderedAttachmentElements.push(imageLoader);
                     }else {
-                        attachmentElements.push(imageLoader);
+                        renderedAttachmentElements.push(imageLoader);
                     }
                     break;
                 default:
                     const attachmentCard = await CreateAttachmentCard(postData.attachments[i]);
+                    listedAttachmentElements.push(attachmentCard);
                     break;
             }
         }
-        if (postData.attachments.length > 1) {
-            let attachmentCarousel = await CreateCarousel(attachmentElements);
-            let carouselInnerDiv = attachmentCarousel.children[1] as HTMLDivElement;
-            carouselInnerDiv.classList.add("postAttachment");
-            attachmentDiv.appendChild(attachmentCarousel);
-            postDiv.appendChild(attachmentDiv);
+        const attachments = [...renderedAttachmentElements, ...listedAttachmentElements];
+        const chunkedAttachments: HTMLElement[][] = [];
+        const attachmentPages: HTMLElement[] = [];
+        for (let i = 0; i < attachments.length; i += 4) {
+            chunkedAttachments.push(attachments.slice(i, i + 4));
         }
+        for (let i = 0; i < chunkedAttachments.length; i++) {
+            switch (chunkedAttachments[i].length) {
+                case 1:
+                    attachmentPages.push(chunkedAttachments[i][0])
+                    break;
+                case 2:
+                    const pageOf2 = await grid2Attachments(chunkedAttachments[i]);
+                    attachmentPages.push(pageOf2);
+                    break;
+                case 3:
+                    const pageOf3 = await grid3Attachments(chunkedAttachments[i]);
+                    attachmentPages.push(pageOf3);
+                    break;
+                case 4:
+                    const pageOf4 = await grid4Attachments(chunkedAttachments[i]);
+                    attachmentPages.push(pageOf4);
+                    break;
+            }
+        }
+        if (attachmentPages.length === 1) {
+            attachmentDiv.appendChild(attachmentPages[0]);
+        } else {
+            const carousel = await CreateCarousel(attachmentPages);
+            attachmentDiv.appendChild(carousel);
+        }
+        postDiv.appendChild(attachmentDiv);
     }
     postDiv.appendChild(reactionDiv);
     // Embed Rich Media
@@ -320,24 +346,32 @@ export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDi
     image.style.borderRadius = "inherit";
     imageLoader.appendChild(spinner);
     imageLoader.appendChild(image);
+    let imageLoaded = false;
     const timeout = window.setTimeout(() => {
-        if (!image.complete) {
+        if (!imageLoaded) {
             spinner.remove();
             image.style.opacity = "1";
             image.src = "/static/image/imagefail.png";
+            image.style.objectFit = "contain";
+            image.style.height = "100%"
+            return imageLoader;
         }
     }, 10000);
     image.onload = () => {
+        imageLoaded = true;
         clearTimeout(timeout);
         spinner.remove();
         image.style.opacity = "1";
         imageLoader.style.removeProperty("padding-top");
     };
     image.onerror = () => {
+        imageLoaded = true;
         clearTimeout(timeout);
         spinner.remove();
         image.src = "/static/image/imagefail.png";
         image.style.opacity = "1";
+        image.style.objectFit = "contain";
+        image.style.height = "100%";
         imageLoader.style.removeProperty("padding-top");
 
     }
@@ -355,7 +389,7 @@ export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElemen
     removeButton.classList.add("removeButton");
     removeIcon.classList.add("bi", "bi-x-lg", "removeIcon");
     icon.classList.add("icon", "attachmentIcon", iconType);
-    previewDiv.classList.add("attachmentGridItem");
+    previewDiv.classList.add("attachmentUploadGridItem");
     fileNameText.classList.add("fileNameSpan");
     fileNameText.textContent = file.name;
     removeButton.appendChild(removeIcon);
@@ -377,7 +411,7 @@ export async function CreateAttachmentCard(attachment: any):Promise<HTMLDivEleme
     if (attachment[0].startsWith("ipfs://")) {
         attachmentURL = CIDToSubdomainURL(attachment[0]);
     } else {attachmentURL = attachment[0];}
-    downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
+    downloadAnchor.href = attachmentURL;
     downloadAnchor.download = "";
     const fileSize = await formatFileSize(attachment[2]);
     fileSizeSpan.innerText = fileSize;
@@ -389,4 +423,83 @@ export async function CreateAttachmentCard(attachment: any):Promise<HTMLDivEleme
     downloadAnchor.appendChild(downloadButton);
     downloadButton.appendChild(downloadIcon);
     return attachmentCard;
+}
+async function grid2Attachments(attachments: HTMLElement[]): Promise<HTMLDivElement> {
+    const container = document.createElement("div") as HTMLDivElement;
+    const row = document.createElement("div") as HTMLDivElement;
+    const column1 = document.createElement("div") as HTMLDivElement;
+    const column2 = document.createElement("div") as HTMLDivElement;
+    container.classList.add("container", "attachmentGrid");
+    row.classList.add("row");
+    column1.classList.add("col");
+    column1.style.borderTopLeftRadius = "1em";
+    column1.style.borderBottomLeftRadius = "1em";
+    column2.classList.add("col");
+    column2.style.borderTopRightRadius = "1em";
+    column2.style.borderBottomRightRadius = "1em";
+    column1.appendChild(attachments[0]);
+    column2.appendChild(attachments[1]);
+    row.appendChild(column1);
+    row.appendChild(column2);
+    container.appendChild(row);
+    return container;
+}
+async function grid3Attachments(attachments: HTMLElement[]): Promise<HTMLDivElement> {
+    const container = document.createElement("div") as HTMLDivElement;
+    const mainRow = document.createElement("div") as HTMLDivElement;
+    const column1 = document.createElement("div") as HTMLDivElement;
+    const column2 = document.createElement("div") as HTMLDivElement;
+    const subRow1 = document.createElement("div") as HTMLDivElement;
+    const subRow2 = document.createElement("div") as HTMLDivElement;
+    container.classList.add("container", "attachmentGrid");
+    column1.classList.add("col", "attachmentGridItem");
+    column1.style.borderTopLeftRadius = "1em";
+    column1.style.borderBottomLeftRadius = "1em";
+    column2.classList.add("col");
+    mainRow.classList.add("row");
+    subRow1.classList.add("row", "attachmentGridItem");
+    subRow1.style.borderTopRightRadius = "1em";
+    subRow2.classList.add("row", "attachmentGridItem");
+    subRow2.style.borderBottomRightRadius = "1em";
+    subRow2.style.paddingTop = "12px";
+    column1.appendChild(attachments[0]);
+    subRow1.appendChild(attachments[1]);
+    subRow2.appendChild(attachments[2]);
+    column2.appendChild(subRow1);
+    column2.appendChild(subRow2);
+    mainRow.appendChild(column1);
+    mainRow.appendChild(column2);
+    container.appendChild(mainRow);
+    return container;
+}
+async function grid4Attachments(attachments: HTMLElement[]): Promise<HTMLDivElement> {
+    const container = document.createElement("div") as HTMLDivElement;
+    const row1 = document.createElement("div") as HTMLDivElement;
+    const row2 = document.createElement("div") as HTMLDivElement;
+    const column1 = document.createElement("div") as HTMLDivElement;
+    const column2 = document.createElement("div") as HTMLDivElement;
+    const column3 = document.createElement("div") as HTMLDivElement;
+    const column4 = document.createElement("div") as HTMLDivElement;
+    container.classList.add("container", "attachmentGrid");
+    row1.classList.add("row");
+    row2.classList.add("row");
+    column1.classList.add("col", "attachmentGridItem");
+    column1.style.borderTopLeftRadius = "1em";
+    column2.classList.add("col", "attachmentGridItem");
+    column2.style.borderTopRightRadius = "1em";
+    column3.classList.add("col", "attachmentGridItem");
+    column3.style.borderBottomLeftRadius = "1em";
+    column4.classList.add("col", "attachmentGridItem");
+    column4.style.borderBottomRightRadius = "1em";
+    column1.appendChild(attachments[0]);
+    column2.appendChild(attachments[1]);
+    column3.appendChild(attachments[2]);
+    column4.appendChild(attachments[3]);
+    row1.appendChild(column1);
+    row1.appendChild(column2);
+    row2.appendChild(column3);
+    row2.appendChild(column4);
+    container.appendChild(row1);
+    container.appendChild(row2);
+    return container;
 }
