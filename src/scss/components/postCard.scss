@@ -123,4 +123,20 @@ ul.ellipsesMenu {
 }
 .attachmentGridItem {
   overflow: hidden;
+  aspect-ratio: 3/2;
+}
+.postAttachmentCarousel .carousel-indicators{
+  top: 100%;
+}
+.postAttachmentCarousel .prevIconDiv {
+  background: global.$secondary;
+  display: flex;
+  align-items: center;
+  height: 2.5rem;
+}
+.postAttachmentCarousel .nextIconDiv {
+  background: global.$secondary;
+  display: flex;
+  align-items: center;
+  height: 2.5rem;
 }
