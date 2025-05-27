@@ -269,16 +269,16 @@ func (db *Database) IndexerResetJobs(blockchain string) {
 }
 
 // --- Indexer Functions to Tokenize Onchain Posts --- //
-func (db *Database) OnchainP(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
+func (db *Database) OnchainP(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.OnchainP(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
+		db.sqlite.OnchainP(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
 	}
 }
-func (db *Database) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64, attachments []Attachment) {
+func (db *Database) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.OnchainPA(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber, attachments)
+		db.sqlite.OnchainPA(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, attachments)
 	}
 }
 func (db *Database) OnchainMN(blockchain string, address string, name string, timestamp uint64) {

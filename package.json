@@ -17,7 +17,6 @@
     "@magic-ext/algorand": "23.20.0",
     "@perawallet/connect": "1.4.2",
     "@solana/web3.js": "1.98.0",
-    "@txnlab/use-wallet-js": "3.0.0-alpha.16",
     "@types/bootstrap": "5.2.10",
     "@types/dompurify": "3.0.5",
     "@wagmi/chains": "1.8.0",
@@ -92,7 +91,7 @@
     "trim-newlines": "5.0.0",
     "ts-loader": "9.4.2",
     "typescript": "5.0.4",
-    "undici": "6.19.5",
+    "undici": "6.21.2",
     "url-parse": "1.5.10",
     "webpack-cli": "^5.1.1",
     "webpack-merge": "6.0.1"

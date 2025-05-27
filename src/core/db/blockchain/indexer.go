@@ -67,9 +67,6 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 	}
 }
 
-// --- Indexer Dispatch Functions --- //
-func indexerFrontFillDispatch() {}
-
 // --- Base Indexer Functions --- //
 func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	// (old) head block <----- latest block (starting traversal @ latest block)
@@ -816,7 +813,7 @@ func handlePostTransaction(payloadObject map[string]interface{}, txHash, blockch
 		core.LogDebug("Failed to convert post text to string")
 		return false
 	}
-	_Database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber)
+	_Database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr)
 	return true
 }
 func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
@@ -854,6 +851,6 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 		}
 		parsedAttachments = append(parsedAttachments, parsedAttachment)
 	}
-	_Database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, blockNumber, parsedAttachments)
+	_Database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, parsedAttachments)
 	return true
 }

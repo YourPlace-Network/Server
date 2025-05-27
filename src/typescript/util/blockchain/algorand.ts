@@ -1,6 +1,6 @@
 import {PeraWalletConnect} from "@perawallet/connect";
 import algosdk, {Algodv2, type CustomTokenHeader, Indexer} from "algosdk";
-import {WalletManager, WalletId, NetworkId} from "@txnlab/use-wallet-js";
+//import {WalletManager, WalletId, NetworkId} from "@txnlab/use-wallet-js";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {DisconnectWallet, GetAddress, GetWallet, ReconnectWallet} from "./wallet";
 import {YP} from "../../services/yourplace";
@@ -11,7 +11,7 @@ import {bytesToBase64} from "byte-base64";
 export let algod: Algodv2;
 export let indexer: Indexer;
 export let peraWallet = new PeraWalletConnect({shouldShowSignTxnToast: false, chainId: 416001});
-export let txnlabManager: WalletManager;
+//export let txnlabManager: WalletManager;
 let algoInitialized = false;
 
 let algodURL: string, algodToken: string; let indexerURL: string, indexerToken: string;

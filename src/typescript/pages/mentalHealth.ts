@@ -776,7 +776,14 @@ const tips = [
     "Doing something big means that some things will go wrong",
     "There's nothing that radicalizes people more than unfairness and double-standards. Even monkeys can sense unfairness",
     "Confidence is the food of the wise man, and the liquor of the fool",
-
+    "Don't get beaten down punching a wall",
+    "Some people are just a shinier cog in the machine. And if treated fairly by the machine, that can be a good existence for the cog",
+    "Yelling \"Don't touch me!\" at the police doesn't work. If they want to lay hands on you, they will",
+    "Don't ask AI anything about your relationship",
+    "There are two types of people: those who read the source material, and those who just listen to the talking heads",
+    "Making money in investments can be a good thing, but it can also be some of the least satisfying work",
+    "Protesting is never a reason to block traffic, hold someone hostage, trespass, or destroy property. At a certain point, you just become a terrorist",
+    "The headline is pretty much never enough information to get a full picture of what happened. And often times, you'll get the wrong picture",
 
 
 ];

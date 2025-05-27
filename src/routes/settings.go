@@ -325,7 +325,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Base throttle value"})
 			return
 		}
-		if !security.IsValidNumberRange(payload.Throttle, 0, 1000) {
+		if !security.IsValidNumberRange(payload.Throttle, 0, 10000) {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid throttle range"})
 			return
 		}

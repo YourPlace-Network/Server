@@ -210,7 +210,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"authNonce":     "CREATE TABLE IF NOT EXISTS authNonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
 		"authExpired":   "CREATE TABLE IF NOT EXISTS authExpired (uuid TEXT PRIMARY KEY, status TEXT)",
 		"loginNonce":    "CREATE TABLE IF NOT EXISTS loginNonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
-		"onchain_post":  "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', toAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', blockNumber INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+		"onchain_post":  "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', toAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
 		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', birthdate INTEGER DEFAULT NULL, server TEXT DEFAULT '', " +
 			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, address TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
@@ -1452,16 +1452,16 @@ func (db *SQLite) IndexerResetJobs(blockchain string) {
 }
 
 // --- Onchain Tokenized Functions --- //
-func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
-	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
+func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
+	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogError("Could not tokenize the post in the database: " + err.Error())
 	}
 }
-func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64, attachments []Attachment) {
-	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
+func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogError("Could not tokenize the post in the database: " + err.Error())
 		return

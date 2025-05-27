@@ -3,6 +3,7 @@ import {CID} from "multiformats/cid";
 import {isAddress} from "web3-validator";
 import DOMPurify from "dompurify";
 
+
 export function IsValidBlockchain(chain: string): boolean {
     const validChains = ["algo", "base", "eth", "sol"];
     return validChains.includes(chain);
@@ -102,7 +103,7 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
             "allow","loading","credentialless","class"],
         ADD_ATTR: ["target"],
         FORBID_TAGS: ["script","style","form","input","button","textarea","svg"],
-        FORBID_ATTR: ["onerror","onload","onclick","onmouseover","onmouseout"],
+        FORBID_ATTR: forbiddenAttributes([]),
         SANITIZE_DOM: true,
         FORCE_BODY: true,
         IN_PLACE: true,
@@ -115,7 +116,7 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
         ALLOW_DATA_ATTR: false,
     };
     DOMPurify.addHook("uponSanitizeElement", node => sanitizeIframe);
-    DOMPurify.addHook("uponSanitizeAttribute", function(node: Element, data: any) {
+    DOMPurify.addHook("uponSanitizeAttribute", function (node: Element, data: any) {
         const attributes = node.attributes;
         let styleValue: string | null = null;
         let styleAttrName: string | null = null;
@@ -140,6 +141,34 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
     DOMPurify.removeHook("uponSanitizeElement");
     DOMPurify.removeHook("beforeSanitizeAttributes");
     return sanitized;
+}
+function forbiddenAttributes(allowedAttrs: string[]): string[] {
+    let forbidAttributes = ["onafterprint","onafterscriptexecute","onanimationcancel","onanimationend","onanimationiteration",
+        "onanimationstart","onauxclick","onbeforecopy","onbeforecut","onbeforeinput","onbeforeprint","onbeforescriptexecute",
+        "onbeforetoggle","onbeforeunload","onbegin","onblur","oncancel","oncanplay","oncanplaythrough","onchange",
+        "onclick","onclose","oncontentvisibilityautostatechange","oncontentvisibilityautostatechange(hidden)",
+        "oncontextmenu","oncopy","oncuechange","oncut","ondblclick","ondrag","ondragend","ondragenter","ondragexit",
+        "ondragleave","ondragover","ondragstart","ondrop","ondurationchange","onend","onended","onerror","onfocus",
+        "onfocus(autofocus)","onfocusin","onfocusout","onformdata","onfullscreenchange","onhashchange","oninput",
+        "oninvalid","onkeydown","onkeypress","onkeyup","onload","onloadeddata","onloadedmetadata","onloadstart",
+        "onmessage","onmousedown","onmouseenter","onmouseleave","onmousemove","onmouseout","onmouseover","onmouseup",
+        "onmousewheel","onmozfullscreenchange","onpagehide","onpageshow","onpaste","onpause","onplay","onplaying",
+        "onpointercancel","onpointerdown","onpointerenter","onpointerleave","onpointermove","onpointerout","onpointerover",
+        "onpointerrawupdate","onpointerup","onpopstate","onprogress","onratechange","onrepeat","onreset","onresize",
+        "onscroll","onscrollend","onscrollsnapchange","onsearch","onseeked","onseeking","onselect","onselectionchange",
+        "onselectstart","onshow","onsubmit","onsuspend","ontimeupdate","ontoggle","ontoggle(popover)","ontouchend",
+        "ontouchmove","ontouchstart","ontransitioncancel","ontransitionend","ontransitionrun","ontransitionstart",
+        "onunhandledrejection","onunload","onvolumechange","onwaiting","onwaiting(loop)","onwebkitanimationend",
+        "onwebkitanimationiteration","onwebkitanimationstart","onwebkitfullscreenchange","onwebkitmouseforcechanged",
+        "onwebkitmouseforcedown","onwebkitmouseforceup","onwebkitmouseforcewillbegin","onwebkitplaybacktargetavailabilitychanged",
+        "onwebkitpresentationmodechanged","onwebkittransitionend","onwebkitwillrevealbottom","onwheel"] as string[];
+    for (let i = 0; i < allowedAttrs.length; i++) {
+        const attr = allowedAttrs[i].toLowerCase();
+        if (forbidAttributes.includes(attr)) {
+            forbidAttributes.splice(forbidAttributes.indexOf(attr), 1); // Remove the attribute from the list
+        }
+    }
+    return forbidAttributes;
 }
 function sanitizeIframe(node: Element, data: any) {
     const allowedIframeURLs: string[] = [
