@@ -128,7 +128,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                 case "image/gif":
                     let image = document.createElement("img") as HTMLImageElement;
                     image.src = fileUrl;
-                    image.classList.add("postAttachment")
+                    image.classList.add("postAttachment", "postCardAttachmentImage")
                     let imageLoader = await CreateImageLoader(image);
                     if (postData.attachments.length === 1) {
                         imageLoader.classList.add("postAttachment");
