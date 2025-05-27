@@ -133,7 +133,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     if (postData.attachments.length === 1) {
                         imageLoader.classList.add("postAttachment");
                         renderedAttachmentElements.push(imageLoader);
-                    }else {
+                    } else {
                         renderedAttachmentElements.push(imageLoader);
                     }
                     break;
