@@ -403,7 +403,7 @@ export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElemen
     previewDiv.appendChild(fileNameText);
     return previewDiv;
 }
-export async function CreateAttachmentCard(attachment: any):Promise<HTMLDivElement> {// TODO: File names?
+export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivElement> {// TODO: File names?
     const attachmentCard = document.createElement("div") as HTMLDivElement;
     const fileIcon = document.createElement("i") as HTMLElement;
     const downloadAnchor = document.createElement("a") as HTMLAnchorElement;
@@ -415,7 +415,9 @@ export async function CreateAttachmentCard(attachment: any):Promise<HTMLDivEleme
     fileIcon.classList.add("icon", "attachmentCardIcon", iconClass);
     if (attachment[0].startsWith("ipfs://")) {
         attachmentURL = CIDToSubdomainURL(attachment[0]);
-    } else {attachmentURL = attachment[0];}
+    } else {
+        attachmentURL = attachment[0];
+    }
     downloadAnchor.href = attachmentURL;
     downloadAnchor.download = "";
     const fileSize = await formatFileSize(attachment[2]);
