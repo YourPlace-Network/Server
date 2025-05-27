@@ -210,7 +210,18 @@ i.bi {
   text-align: center;
 }
 #serverUpdateBtn {
-    position: relative;
+  position: relative;
+  margin-top: 0.5em;
+}
+#serverUninstallBtn {
+  margin-top: 0.5em;
+}
+#uninstallTitle {
+  display: table;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 1.2em;
+  font-weight: bold;
 }
 #serverLogsViewBtn {
   margin: 1em 0 1em 0;

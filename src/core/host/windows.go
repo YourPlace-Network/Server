@@ -52,17 +52,16 @@ var helperBin []byte
 var helperVersion []byte
 
 const (
-	PathSeparator          = string(os.PathSeparator)
-	PathListSeparator      = string(';')
-	PowershellRunner       = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
-	BinaryExtension        = ".exe"
-	pipeName               = `\\.\pipe\yourplacehelper`
-	scPath                 = "C:\\Windows\\system32\\sc.exe"
-	cmdPath                = "C:\\Windows\\system32\\cmd.exe"
-	tasklistPath           = "C:\\Windows\\system32\\tasklist.exe"
-	protocolName           = "yourplace"
-	DownloadHost           = "https://yourplace.network"
-	STARTF_FORCEONFEEDBACK = 0x00000040
+	PathSeparator     = string(os.PathSeparator)
+	PathListSeparator = string(';')
+	PowershellRunner  = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+	BinaryExtension   = ".exe"
+	pipeName          = `\\.\pipe\yourplacehelper`
+	scPath            = "C:\\Windows\\system32\\sc.exe"
+	cmdPath           = "C:\\Windows\\system32\\cmd.exe"
+	tasklistPath      = "C:\\Windows\\system32\\tasklist.exe"
+	protocolName      = "yourplace"
+	DownloadHost      = "https://yourplace.network"
 )
 
 var (
@@ -600,6 +599,7 @@ func GetSecret(name string) string {
 	}
 	return string(cred.CredentialBlob)
 }
+func ShowSplashScreen() {}
 
 // ------ Scheduled Task Functions (Admin) ------ //
 func InstallScheduledTask(serviceName string) {
@@ -1147,14 +1147,14 @@ func InstallHelper() bool {
 		core.LogError("Helper binary not embedded")
 		return false
 	}
-	// Ensure install directory exists
+	// Ensure the install directory exists
 	installDir := filepath.Dir(helperPath)
 	err := os.MkdirAll(installDir, 0755)
 	if err != nil {
 		core.LogError("Failed to create install directory: " + err.Error())
 		return false
 	}
-	// Check if helper needs update by comparing version numbers
+	// Check if the helper needs update by comparing version numbers
 	reportedVersion, _ := HelperCall("version")
 	embeddedVersion := string(helperVersion)
 	embeddedVersion = security.SanitizeNonPrintable(embeddedVersion)
@@ -1163,7 +1163,7 @@ func InstallHelper() bool {
 		core.LogDebug("Helper needs update")
 		needsUpdate = true
 	}
-	// If helper is running and needs update, stop it first
+	// If the helper is running and needs an update, stop it first
 	if needsUpdate && DoesProcExist(binary) {
 		_, err = HelperCall("stop")
 		if err == nil {
@@ -1182,7 +1182,7 @@ func InstallHelper() bool {
 			return false
 		}
 	}
-	// Update helper binary if needed
+	// Update the helper binary if needed
 	if needsUpdate {
 		// Write to temporary file first
 		tempPath := helperPath + ".tmp"
@@ -1211,13 +1211,12 @@ func InstallHelper() bool {
 		}
 		time.Sleep(5) // Wait for helper to start and UAC prompt
 	}
-	// Verify helper is running and responding
+	// Verify the helper is running and responding
 	core.LogDebug("Verifying helper installation - Waiting for it to start")
 	deadline := time.Now().Add(120 * time.Second)
 	for time.Now().Before(deadline) {
 		// Check process
 		if !DoesProcExist(binary) {
-			core.LogDebug("Helper process not yet running")
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -1233,7 +1232,7 @@ func InstallHelper() bool {
 			core.LogDebug("Helper installation verified successfully")
 			return true
 		} else {
-			core.LogDebug("Unexpected response: " + response)
+			//core.LogDebug("Didn't get back helper ping/pong: " + response)
 		}
 		time.Sleep(time.Second)
 	}
@@ -1246,7 +1245,13 @@ func InstallHelper() bool {
 func HelperCall(action string) (string, error) {
 	core.LogDebug("Calling helper with action: " + action)
 	// Timeout for entire operation
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	timeout := 10 * time.Second
+	if action == "ping" {
+		timeout = 2 * time.Second
+	} else if strings.HasPrefix(action, "uninstall") {
+		timeout = 180 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	// Channel for results
 	type result struct {
@@ -1266,7 +1271,8 @@ func HelperCall(action string) (string, error) {
 			}
 			select {
 			case <-ctx.Done():
-				resultsCh <- result{"", core.LogErrorReturn("Context cancelled while attempting to open pipe")}
+				// Context cancelled while attempting to open pipe
+				resultsCh <- result{"", nil} // Don't throw an error, because sometimes a timeout is an expected result of a call
 				return
 			case <-time.After(2 * time.Second):
 			}
@@ -1290,7 +1296,8 @@ func HelperCall(action string) (string, error) {
 	// Wait for either completion or timeout
 	select {
 	case <-ctx.Done():
-		return "", core.LogErrorReturn("Helper call timed out")
+		// Helper call timeout
+		return "", nil // Don't throw an error, because sometimes a timeout is an expected result of a call
 	case res := <-resultsCh:
 		return res.response, res.err
 	}

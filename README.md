@@ -1,5 +1,6 @@
 # YourPlace
 ## Distributed Social Media
+### [➡️ DOWNLOAD NOW ⬅️](https://YourPlace.network/download)
 #### ⚠️ Code In Development - Expect Small Bugs ⚠️
 YourPlace is a distributed social media platform that is designed to give complete sovereignty back to users. You own your content creation, publishing, consumption and follower relationships.
 
@@ -8,19 +9,17 @@ The core of YourPlace is a network of self-hosted servers called "places." You c
 Places are owned and managed by a blockchain wallet address. They serve as a hub into your social life. Servers are where you host your profile, read other peoples posts, and share your content. YourPlace servers act on your behalf to manage your entire social media life.
 
 
-### Running YourPlace
+## Running YourPlace
 
 Download the YourPlace binary for your OS and run it.
 
 Please see our [Terms of Service](https://github.com/YourPlace-Network/Server/blob/main/TOS.md) and [Privacy Policy](https://github.com/YourPlace-Network/Server/blob/main/PRIVACY.md) for more information on your responsibilities as a user and how we handle your data.
 
-### [⬇️ DOWNLOAD NOW ⬇️](https://YourPlace.network/download)
-
 Upon first run, YourPlace will open up a local setup page which will guide you through the rest of the installation.
 
 Desktop shortcuts will be created after install, or you can visit the [main local interface](http://localhost:42424/) running on your PC.
 
-### Building
+## Building
 
 YourPlace server builds on Windows x64, OSX Apple Silicon, and coming soon: Linux x64
 
@@ -35,3 +34,13 @@ To run a build with debugging enabled, run the command
 Output YourPlace binary will be in the `target/` directory
 
 See the [Makefile](https://github.com/YourPlace-Network/Server/blob/main/Makefile) for more build targets
+
+## Uninstalling
+
+YourPlace uses the standard OS interface such as add/remove programs. But there is also an "Uninstall" button in [Settings > Server Info](http://localhost:42424/settings#serverInfo) that starts the same workflow
+
+You can manually uninstall YourPlace with dedicated uninstaller scripts that YourPlace drops. Run this as an administrator to remove all YourPlace files and folders from your system.
+
+`C:\ProgramData\YourPlace\uninstall.ps1` on Windows
+
+`/Library/Application Support/YourPlace/uninstall.sh` on OSX

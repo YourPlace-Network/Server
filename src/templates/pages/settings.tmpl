@@ -8,6 +8,7 @@
         <div class="row">
             <div class="col-sm-2"></div>
             <div class="col-sm-8 centerColumn">
+                <h2 class="pageHeader">⚙️ Settings</h2>
                 <div class="accordion accordion-flush" id="settingsAccordion"> <!-- Settings Accordion -->
                     <!-- Content -->
                     <div class="accordion-item">
@@ -260,15 +261,17 @@
                                                         <label for="baseThrottle" class="form-label" id="baseThrottleLabel">Server Throttle: <div id="baseThrottleNumber"></div> Requests-Per-Second</label>
                                                         <div class="input-group mb3">
                                                             <datalist id="baseThrottleMarkers">
-                                                                <option value="1" label="1"></option>
-                                                                <option value="25" label="25"></option>
+                                                                <option value="0" label="0"></option>
+                                                                <option value="10" label="10"></option>
                                                                 <option value="50" label="50"></option>
                                                                 <option value="100" label="100"></option>
-                                                                <option value="150" label="150"></option>
-                                                                <option value="200" label="200"></option>
                                                                 <option value="250" label="250"></option>
+                                                                <option value="500" label="500"></option>
+                                                                <option value="1000" label="1000"></option>
+                                                                <option value="2000" label="2000"></option>
+                                                                <option value="5000" label="5000"></option>
                                                             </datalist>
-                                                            <input type="range" class="form-range" id="baseThrottle" min="1" max="250" step="1" value="25" list="baseThrottleMarkers">
+                                                            <input type="range" class="form-range" id="baseThrottle" min="0" max="5000" step="10" value="10" list="baseThrottleMarkers">
                                                             <div id="baseThrottleTooltip" class="rangeTooltip" role="tooltip">
                                                                 <div class="throttle-tooltip-inner"></div>
                                                                 <div class="throttle-tooltip-arrow"></div>
@@ -305,11 +308,11 @@
                     <!-- Server Info -->
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingServerInfo">
-                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseServerInfo" aria-expanded="false" aria-controls="collapseServerInfo">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#serverInfo" aria-expanded="false" aria-controls="serverInfo">
                                 <i class="bi bi-info-circle"></i><b><span>Server Info</span></b>
                             </button>
                         </h2>
-                        <div id="collapseServerInfo" class="accordion-collapse collapse" aria-labelledby="headingServerInfo" data-bs-parent="#settingsAccordion">
+                        <div id="serverInfo" class="accordion-collapse collapse" aria-labelledby="headingServerInfo" data-bs-parent="#settingsAccordion">
                             <div class="accordion-body" id="serverInfoAccordionBody">
                                 <div class="container">
                                     <div class="row">
@@ -322,6 +325,7 @@
 
                                         <div id="serverUpdateDiv" class="col">
                                             <button class="btn btn-primary btn-outline-secondary" id="serverUpdateBtn" type="button"><i class="bi bi-cloud-download"></i><span>Check For Updates</span></button>
+                                            <button class="btn btn-primary btn-outline-secondary" id="serverUninstallBtn" type="button"><i class="bi bi-trash"></i><span>Uninstall</span></button>
                                         </div>
 
                                         <div id="versionCol" class="col">
@@ -339,11 +343,12 @@
                                     <hr>
 
                                     <div class="row align-items-start">
-                                    <div id="logsDiv">
-                                        <button class="btn btn-primary btn-outline-secondary" id="serverLogsViewBtn" type="button">View Logs</button>
-                                        <div id="logsView" class="hidden"></div>
+                                        <div id="logsDiv">
+                                            <button class="btn btn-primary btn-outline-secondary" id="serverLogsViewBtn" type="button">Server Logs</button>
+                                            <button class="btn btn-primary btn-outline-secondary" id="helperLogsViewBtn" type="button">Helper Logs</button>
+                                            <div id="logsView" class="hidden"></div>
+                                        </div>
                                     </div>
-                                </div>
                                 </div>
                             </div>
                         </div>

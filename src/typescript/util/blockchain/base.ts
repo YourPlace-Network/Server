@@ -10,7 +10,7 @@ import {connect as wagmiConnect, createConfig, createStorage, disconnect, getCon
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
 import {IsValidBaseAddress} from "../security";
-import {getName as cbGetName} from "@coinbase/onchainkit/identity";
+//import {getName as cbGetName} from "@coinbase/onchainkit/identity";
 import {Sleep} from "../time";
 
 // ---------- Global Variables ---------- //
@@ -282,10 +282,11 @@ export async function baseGetAvatar(address: string) {
     }
 }
 export async function baseGetName(_address: string): Promise<string> {
-    const name = await cbGetName({address: _address as `0x${string}`, chain: viemBase});
+    /*const name = await cbGetName({address: _address as `0x${string}`, chain: viemBase});
     if (name) {
         return name.toString();
-    }
+    }*/
+    console.log("baseGetName() not implemented");
     return "";
 }
 export async function baseGetENSText(_address: string, key: string): Promise<string> {

@@ -11,7 +11,6 @@ import (
 	"errors"
 	"io"
 	"io/fs"
-	"log"
 	"net"
 	"os"
 	"os/user"
@@ -149,7 +148,7 @@ func GetSelfBinPath() string {
 func DeleteAll(path string) {
 	err := os.RemoveAll(path)
 	if err != nil {
-		log.Fatalln("Could not delete: " + err.Error())
+		_core.LogDebug("Could not delete: " + err.Error())
 	}
 }
 func GetFileSize(path string) int64 {
@@ -532,8 +531,18 @@ func BackupData() bool {
 
 	return false // debug
 }
-func UnInstall() bool {
-	DeleteIfExists(GetInstallDir())
-	DeleteIfExists(GetDataDir())
-	return true
+func UnInstall(keepUploads, keepBlockchain bool) bool {
+	payload := "uninstall"
+	if keepUploads {
+		payload += " -keepUpload"
+	}
+	if keepBlockchain {
+		payload += " -keepBlockchain"
+	}
+	response, err := HelperCall(payload)
+	if err != nil {
+		_core.LogError("Could not call helper: " + err.Error())
+		return false
+	}
+	return response == "ok - uninstalling"
 }

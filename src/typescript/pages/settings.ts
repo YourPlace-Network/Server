@@ -69,8 +69,10 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             blockchainAccordion: document.getElementById("blockchainAccordion")! as HTMLDivElement,
             serverDebugModeCheckbox: document.getElementById("serverDebugModeCheckbox")! as HTMLInputElement,
             serverUpdateBtn: document.getElementById("serverUpdateBtn")! as HTMLButtonElement,
+            serverUninstallBtn: document.getElementById("serverUninstallBtn")! as HTMLButtonElement,
             serverVersionText: document.getElementById("serverVersionText")! as HTMLSpanElement,
             serverLogsViewBtn: document.getElementById("serverLogsViewBtn")! as HTMLButtonElement,
+            helperLogsViewBtn: document.getElementById("helperLogsViewBtn")! as HTMLButtonElement,
             logsView: document.getElementById("logsView")! as HTMLDivElement,
         }
         let popperInstance: Instance | null = null;
@@ -137,19 +139,30 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 let headBlock = response[1].headBlock;
                 let latestBlock = response[1].latestBlock;
                 LogInfo("Base Indexer Progress: " + earliestBlock + " " + tailBlock + " " + headBlock + " " + latestBlock);
+                // Handle invalid data
+                if (isNaN(earliestBlock) || isNaN(tailBlock) || isNaN(headBlock) || isNaN(latestBlock)) {
+                    console.error("Invalid Base indexer data received from server");
+                    return;
+                }
                 // Calculate the ranges
                 const totalRange = latestBlock - earliestBlock;
+                // Prevent division by zero
+                if (totalRange <= 0) {
+                    console.error("Invalid Base indexer block range: ", {earliestBlock, latestBlock});
+                    return;
+                }
                 const earliestToTailRange = tailBlock - earliestBlock;
                 const tailToHeadRange = headBlock - tailBlock;
                 const headToLatestRange = latestBlock - headBlock;
                 // Calculate percentages and round to nearest integer
-                const tailPercentage = Math.round((earliestToTailRange / totalRange) * 100);
-                const latestPercentage = Math.round((headToLatestRange / totalRange) * 100);
-                const cachedPercentage = 100 - (tailPercentage + latestPercentage);
+                const tailPercentage = Math.max(0, Math.min(100, Math.round((earliestToTailRange / totalRange) * 100)));
+                const latestPercentage = Math.max(0, Math.min(100, Math.round((headToLatestRange / totalRange) * 100)));
+                const cachedPercentage = Math.max(0, Math.min(100, 100 - (tailPercentage + latestPercentage)));
+                // Update DOM elements with the calculated values
                 DOM.baseIndexerProgressUncachedTail.style.width = tailPercentage + "%";
-                DOM.baseIndexerProgressUncachedTail.ariaValueNow = tailPercentage.toString();
+                DOM.baseIndexerProgressUncachedTail.setAttribute("aria-valuenow", tailPercentage.toString());
                 DOM.baseIndexerProgressCached.style.width = cachedPercentage + "%";
-                DOM.baseIndexerProgressCached.ariaValueNow = cachedPercentage.toString();
+                DOM.baseIndexerProgressCached.setAttribute("aria-valuenow", cachedPercentage.toString());
                 DOM.baseIndexerCachedPercent.textContent = cachedPercentage.toString() + "%";
                 if (cachedPercentage === 100) {
                     DOM.baseIndexerCachedPercent.classList.remove("progress-bar-animated");
@@ -161,7 +174,9 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                     DOM.baseIndexerProgressCached.classList.remove("bg-success");
                 }
                 DOM.baseIndexerProgressUncachedHead.style.width = latestPercentage + "%";
-                DOM.baseIndexerProgressUncachedHead.ariaValueNow = latestPercentage.toString();
+                DOM.baseIndexerProgressUncachedHead.setAttribute("aria-valuenow", latestPercentage.toString());
+            } else {
+                console.error("Failed to get Base indexer progress");
             }
         }
         async function getBaseThrottle() {
@@ -311,7 +326,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 LogInfo("Current YourPlace version: " + serverVersion);
                 if (serverVersion !== latestVersion) {
                     DisableDialogModalOkBtn();
-                    ShowDialogModalHTML("Newer YourPlace version available. Click <a href='https://yourplace.network/download' target='_blank'>here to update</a>");
+                    ShowDialogModalHTML("A newer YourPlace version is available. Click <a href='https://yourplace.network/download' target='_blank'>here to update</a>");
                     EnableDialogModalOkBtn();
                 } else {
                     ShowDialogModal("Your server is up to date!");
@@ -334,6 +349,17 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         async function getServerLogs() {
             DOM.logsView.textContent = "";
             let response = await HttpGetJson("/settings/server/logs/view");
+            if (response[0] === 200) {
+                //ShowDialogModalHTML(response[1].logs);
+                DOM.logsView.textContent = response[1].logs;
+                DOM.logsView.classList.remove("hidden");
+            } else {
+                ShowDialogModal("Failed to get server logs");
+            }
+        }
+        async function getHelperLogs() {
+            DOM.logsView.textContent = "";
+            let response = await HttpGetJson("/settings/helper/logs/view");
             if (response[0] === 200) {
                 //ShowDialogModalHTML(response[1].logs);
                 DOM.logsView.textContent = response[1].logs;
@@ -557,6 +583,32 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             let response = await HttpPostJson("/settings/server/debug", data, DOM.csrfToken.value);
             ShowSavedToast(); // todo: need a more graceful exit, as the server may restart at this point
         }
+        async function setUninstall() {
+            const uninstallHTML = "<span id=\"uninstallTitle\">Do you want to uninstall YourPlace? 🗑️</span><br>" +
+                "<div class=\"form-check form-switch uninstallCheck\">\n" +
+                "  <input class=\"form-check-input\" type=\"checkbox\" role=\"switch\" id=\"keepUploadFilesCheck\" checked>\n" +
+                "  <label class=\"form-check-label\" for=\"switchCheckDefault\">Keep Uploaded Files</label>\n" +
+                "</div>" +
+                "<div class=\"form-check form-switch uninstallCheck\">\n" +
+                "  <input class=\"form-check-input\" type=\"checkbox\" role=\"switch\" id=\"keepBlockchainDataCheck\">\n" +
+                "  <label class=\"form-check-label\" for=\"switchCheckDefault\">Keep Blockchain Data</label>\n" +
+                "</div>";
+            const confirmed = await ShowModalYesNoHTML(uninstallHTML);
+            if (confirmed) {
+                let keepUploadFiles = (document.getElementById("keepUploadFilesCheck") as HTMLInputElement).checked;
+                let keepBlockchainData = (document.getElementById("keepBlockchainDataCheck") as HTMLInputElement).checked;
+                let data = {
+                    uploadFiles: keepUploadFiles,
+                    blockchainData: keepBlockchainData,
+                }
+                let response = await HttpPostJson("/settings/uninstall", data, DOM.csrfToken.value);
+                if (response[0] === 200) {
+                    ShowDialogModal("Uninstalling YourPlace...");
+                } else {
+                    ShowDialogModal(response[1].message);
+                }
+            }
+        }
 
         /* Throttle Slider */
         const getThumbElement = (): HTMLElement => {
@@ -649,7 +701,9 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.saveIpfsPinningBtn.addEventListener("click", setIPFSPinning);
         DOM.serverDebugModeCheckbox.addEventListener("change", setDebugMode);
         DOM.serverUpdateBtn.addEventListener("click", getServerUpdates);
+        DOM.serverUninstallBtn.addEventListener("click", setUninstall);
         DOM.serverLogsViewBtn.addEventListener("click", getServerLogs);
+        DOM.helperLogsViewBtn.addEventListener("click", getHelperLogs);
 
         init().then();
     }

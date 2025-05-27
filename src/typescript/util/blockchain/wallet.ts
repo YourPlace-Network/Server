@@ -5,7 +5,7 @@ for the application. This code is stateful using localstorage to keep a few valu
     "accountAddress" = wallet address of the user
 */
 import {Transaction} from "algosdk";
-import {algoConnectSession, algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost, txnlabManager} from "./algorand";
+import {algoConnectSession, algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
 import {baseAuthLogin, baseConnectWallet, baseDisconnectWallet, baseFollowUser, baseGetAvatar, baseGetENSText, baseGetName, baseGetNFTs, baseIsWalletConnected, baseSetAvatar, baseSetBanner, baseSetBirthday, baseSetDescription, baseSetLocation, baseSetName, baseSetWebsite, baseSubmitPost, baseSubmitPostAttach, baseTxn, mainnetBase} from "./base";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidHttpUrl} from "../security";
 import {LogError, LogInfo} from "../log";

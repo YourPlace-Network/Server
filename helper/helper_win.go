@@ -28,8 +28,11 @@ import (
 	"unsafe"
 )
 
-//go:embed helper.manifest
+//go:embed resources/helper.manifest
 var manifest []byte // embed Windows manifest
+
+//go:embed resources/uninstall.ps1
+var uninstallScriptBytes []byte // embed uninstall script
 
 type HelperAction struct {
 	Type string `json:"type"`
@@ -46,22 +49,19 @@ var (
 )
 
 const (
-	pipeName        = `\\.\pipe\yourplacehelper`
-	serviceName     = "YourPlaceHelper"
-	version         = "0.0.3"
-	MB_YESNO        = 0x00000004
-	MB_ICONQUESTION = 0x00000020
-	IDYES           = 6
-	colorRed        = "\033[1;31m"
-	colorYellow     = "\033[1;33m"
-	colorBlue       = "\033[1;34m"
-	colorPurple     = "\033[1;35m"
-	colorNone       = "\033[0m"
+	version     = "0.0.7"
+	serviceName = "YourPlaceHelper"
+	pipeName    = `\\.\pipe\yourplacehelper`
+	colorRed    = "\033[1;31m"
+	colorYellow = "\033[1;33m"
+	colorBlue   = "\033[1;34m"
+	colorPurple = "\033[1;35m"
+	colorNone   = "\033[0m"
 )
 
 func main() {
 	// Initialize the Windows Service
-	hwnd, _, _ := getConsoleWindow.Call() // Hide console window
+	hwnd, _, _ := getConsoleWindow.Call() // Hide the console window
 	if hwnd != 0 {
 		showWindow.Call(hwnd, syscall.SW_HIDE)
 	}
@@ -82,14 +82,30 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "install":
+			LogInfo("Install YourPlace Helper Flag")
 			install()
 			os.Exit(0)
 		case "uninstall":
-			uninstall()
+			LogInfo("Uninstall YourPlace Complete Flag")
+			uninstall(false, false)
+			os.Exit(0)
+		case "uninstall -keepUpload":
+			LogInfo("Uninstall YourPlace Keep Uploads")
+			uninstall(true, false)
+			os.Exit(0)
+		case "uninstall -keepBlockchain":
+			LogInfo("Uninstall YourPlace Keep Blockchain")
+			uninstall(false, true)
+			os.Exit(0)
+		case "uninstall -keepUpload -keepBlockchain":
+			LogInfo("Uninstall YourPlace Keep Uploads and Blockchain")
+			uninstall(true, true)
 			os.Exit(0)
 		case "version":
+			LogInfo("YourPlace Helper Version: " + version)
 			os.Exit(0)
 		case "restart":
+			LogInfo("Restart YourPlace Server Flag")
 			restart()
 			os.Exit(0)
 		default:
@@ -156,19 +172,36 @@ func handleIPCConnection(handle windows.Handle) {
 		return
 	}
 	response := ""
+	LogInfo("Received action: " + action.Type)
 	switch action.Type {
 	case "ping":
 		response = "pong"
 	case "restart":
+		LogDebug("Restarting YourPlace Server")
 		go restart()
 		response = "ok - restarting"
 	case "uninstall":
-		go uninstall()
+		LogInfo("Uninstalling YourPlace")
+		go uninstall(false, false)
+		response = "ok - uninstalling"
+	case "uninstall -keepUpload":
+		LogInfo("Uninstalling YourPlace")
+		go uninstall(true, false)
+		response = "ok - uninstalling"
+	case "uninstall -keepBlockchain":
+		LogInfo("Uninstalling YourPlace")
+		go uninstall(false, true)
+		response = "ok - uninstalling"
+	case "uninstall -keepUpload -keepBlockchain":
+		LogInfo("Uninstalling YourPlace")
+		go uninstall(true, true)
 		response = "ok - uninstalling"
 	case "update":
+		LogInfo("Updating YourPlace Server")
 		go update()
 		response = "ok - updating"
 	case "stop":
+		LogInfo("Stopping YourPlace Server")
 		go stop()
 		response = "ok - stopping"
 	case "version":
@@ -182,6 +215,7 @@ func handleIPCConnection(handle windows.Handle) {
 
 // Service Actions
 func install() bool {
+	LogInfo("Installing YourPlace")
 	host.InstallScheduledTask(serviceName)
 	host.StartScheduledTask(serviceName)
 	registerFirewallRule(4002, "YourPlaceIPFS")
@@ -200,18 +234,20 @@ func install() bool {
 		return false
 	}
 }
-func uninstall() {
+func uninstall(keepUploads, keepBlockchain bool) {
 	host.StopScheduledTask(serviceName)
 	host.RemoveScheduledTask(serviceName)
 	host.KillProcess("YourPlace" + host.BinaryExtension)
 	host.KillProcess("YourPlaceIpfs" + host.BinaryExtension)
 	host.KillProcess("YourPlaceFfmpeg" + host.BinaryExtension)
+	removeFirewallRule(4002, "YourPlaceIPFS")
+	removeFirewallRule(42424, "YourPlace")
+	runPowershellUninstaller(keepUploads, keepBlockchain)
 	_ = removeUninstaller()
-	uninstallCleanupJob()
+	// uninstallCleanupJob() // try the scheduled task cleanup method
 	os.Exit(0)
 }
 func update() bool {
-	LogInfo("Updating YourPlace Server")
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
@@ -320,7 +356,6 @@ func update() bool {
 	return true
 }
 func restart() bool {
-	LogDebug("Restarting YourPlace Server")
 	// Kill running YourPlace processes
 	for _, proc := range []string{"YourPlace", "YourPlaceIpfs", "YourPlaceFfmpeg"} {
 		procName := proc + host.BinaryExtension
@@ -370,6 +405,12 @@ func haltRestarter(c *cron.Cron) {
 
 // Helper Functions
 func registerUninstaller() {
+	uninstallFolder := "C:\\ProgramData\\YourPlace"
+	host.CreateFolder(uninstallFolder)
+	uninstallBinary := uninstallFolder + host.PathSeparator + "uninstall.ps1"
+	host.DeleteIfExists(uninstallBinary)
+	host.WriteEmbeddedBinary(uninstallScriptBytes, uninstallBinary)
+
 	keyPath := "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\" + serviceName
 	key, _, err := registry.CreateKey(registry.LOCAL_MACHINE, keyPath, registry.ALL_ACCESS)
 	if err != nil {
@@ -382,7 +423,7 @@ func registerUninstaller() {
 	key.SetStringValue("DisplayIcon", host.GetInstallDir()+"favicon.ico")
 	key.SetStringValue("Publisher", "YourPlace Inc.")
 	key.SetStringValue("DisplayVersion", "1.0.0")
-	key.SetDWordValue("EstimatedSize", 1024) // estimated size in KB
+	key.SetDWordValue("EstimatedSize", 512000) // estimated size in KB
 	key.SetDWordValue("NoModify", 1)
 	key.SetDWordValue("NoRepair", 1)
 }
@@ -423,8 +464,8 @@ func showConfirmationDialog(title, message string) bool {
 	ret, _, _ := messageBox.Call(0,
 		uintptr(unsafe.Pointer(messagePtr)),
 		uintptr(unsafe.Pointer(titlePtr)),
-		uintptr(MB_YESNO|MB_ICONQUESTION))
-	return int(ret) == IDYES
+		uintptr(0x00000004|0x00000020)) // MB_YESNO = 0x00000004 | MB_ICONQUESTION = 0x00000020
+	return int(ret) == 6 // IDYES
 }
 func uninstallCleanupJob() {
 	folderPath := host.GetInstallDir()
@@ -551,6 +592,35 @@ func registerFirewallRule(port int, name string) {
 	}
 	return
 }
+func removeFirewallRule(port int, name string) {
+	LogDebug("Removing firewall rule: " + name)
+	baseParams := []string{ // common rule parameters
+		"advfirewall", "firewall", "delete", "rule",
+		fmt.Sprintf("name=%s", name),
+	}
+	configs := []struct {
+		protocol  string
+		direction string
+	}{
+		{"TCP", "in"},
+		{"TCP", "out"},
+		{"UDP", "in"},
+		{"UDP", "out"},
+	}
+	for _, config := range configs {
+		params := append([]string{}, baseParams...)
+		params = append(params,
+			fmt.Sprintf("protocol=%s", config.protocol),
+			fmt.Sprintf("dir=%s", config.direction))
+		cmd := exec.Command("netsh", params...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			LogError("Error removing firewall rule: " + string(output))
+		}
+	}
+	return
+}
 func isVersionUpdated() bool {
 	versionFile := host.GetInstallDir() + "helper.version"
 	if _, err := os.Stat(versionFile); err != nil {
@@ -563,16 +633,59 @@ func isVersionUpdated() bool {
 	versionStr := string(versionBytes)
 	return versionStr == version
 }
+func runPowershellUninstaller(keepUploads, keepBlockchain bool) {
+	LogDebug("Running PowerShell uninstaller")
+	scriptPath := "C:\\ProgramData\\YourPlace\\uninstall.ps1"
+	_, err := os.Stat(scriptPath)
+	if err != nil {
+		LogError("Uninstall script not found: " + err.Error())
+		return
+	}
+	args := []string{
+		"-NoProfile",
+		"-ExecutionPolicy", "Bypass",
+		"-WindowStyle", "Hidden",
+		"-File", scriptPath,
+	}
+	if keepUploads {
+		args = append(args, "-keepUpload")
+	}
+	if keepBlockchain {
+		args = append(args, "-keepBlockchain")
+	}
+	// Create the PowerShell process with proper flags to detach it
+	cmd := exec.Command("powershell.exe", args...)
+	LogDebug(cmd.Path)
+	// Use the Windows-specific CREATE_NEW_PROCESS_GROUP flag
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP | 0x00000008, // 0x00000008 is DETACHED_PROCESS
+		HideWindow:    true,
+	}
+	// Start the process (not cmd.Run() which would wait for completion)
+	err = cmd.Start()
+	if err != nil {
+		LogError("Error starting PowerShell process: " + err.Error())
+		return
+	}
+	// Immediately disconnect from the child process
+	err = cmd.Process.Release()
+	if err != nil {
+		LogError("Error releasing PowerShell process: " + err.Error())
+		return
+	}
+	LogInfo("Uninstall script started")
+}
 
 // Logging Functions
 func LogInit(name string) *os.File {
 	user, _ := os.UserHomeDir()
-	logDir := user + string(os.PathSeparator) + "YourPlace" + string(os.PathSeparator)
+	logDir := filepath.Join(user, "YourPlace")
+	logPath := filepath.Join(logDir, name+".log")
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		return nil
 	}
-	file, err := os.OpenFile(logDir+name+".log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println("Error opening log file: " + err.Error())
 		return nil

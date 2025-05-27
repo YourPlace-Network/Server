@@ -91,6 +91,9 @@ func (base *Base) GetBalance(address string) (big.Int, error) {
 func (base *Base) GetBlockNumber() (*big.Int, error) {
 	var result hexutil.Big
 	rpcError := 0
+	if base.RpcClient == nil {
+		return &big.Int{}, core.LogErrorReturn("Base RPC Client is nil")
+	}
 	for {
 		err := base.RpcClient.CallContext(context.Background(), &result, "eth_blockNumber")
 		if err != nil {
