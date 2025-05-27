@@ -139,6 +139,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     break;
                 default:
                     const attachmentCard = await CreateAttachmentCard(postData.attachments[i]);
+                    attachmentCard.classList.add("postAttachment");
                     listedAttachmentElements.push(attachmentCard);
                     break;
             }
@@ -152,7 +153,9 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
         for (let i = 0; i < chunkedAttachments.length; i++) {
             switch (chunkedAttachments[i].length) {
                 case 1:
-                    attachmentPages.push(chunkedAttachments[i][0])
+                    const attachment = chunkedAttachments[i][0];
+                    attachment.style.borderRadius = "1em";
+                    attachmentPages.push(attachment);
                     break;
                 case 2:
                     const pageOf2 = await grid2Attachments(chunkedAttachments[i]);
@@ -346,10 +349,7 @@ export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDi
     spinner.setAttribute("role", "status");
     imageLoader.style.paddingTop = "56.25%"
     image.style.opacity = "0";
-    image.style.width = "100%";
-    image.style.height = "100%";
     image.style.display = "block";
-    image.style.objectFit = "cover";
     image.style.borderRadius = "inherit";
     imageLoader.appendChild(spinner);
     imageLoader.appendChild(image);
