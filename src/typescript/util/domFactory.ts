@@ -2,7 +2,7 @@ import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
 import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
-import {IsValidBlockchain, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
+import {IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
 import {LogInfo} from "./log";
 import {getFileIcon, formatFileSize} from "./files";
@@ -138,9 +138,14 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     }
                     break;
                 default:
-                    const attachmentCard = await CreateAttachmentCard(postData.attachments[i]);
-                    attachmentCard.classList.add("postAttachment");
-                    listedAttachmentElements.push(attachmentCard);
+                    let attachmentCard = await CreateAttachmentCard(postData.attachments[i]).catch( e =>{
+                        return "failed"
+                    })
+                    if (attachmentCard !instanceof HTMLDivElement) {
+                        break;
+                    }
+                    (attachmentCard as unknown as HTMLDivElement).classList.add("postAttachment");
+                    listedAttachmentElements.push(attachmentCard as unknown as HTMLDivElement);
                     break;
             }
         }
@@ -417,6 +422,9 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
         attachmentURL = CIDToSubdomainURL(attachment[0]);
     } else {
         attachmentURL = attachment[0];
+    }
+    if (!IsValidURL(attachmentURL)) {
+        return Promise.reject("Invalid URL");
     }
     downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
     downloadAnchor.download = "";
