@@ -4,7 +4,7 @@ import "../components/addPost";
 import "../components/menu";
 import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
 import {HttpGetJson} from "../util/network";
-import {IsValidHttpUrl, XSSSanitizeUrl} from "../util/security";
+import {IsValidURL, XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName} from "../util/blockchain/wallet";
 import {CIDToSubdomainURL} from "../util/ipfs";
 
@@ -85,7 +85,7 @@ import {CIDToSubdomainURL} from "../util/ipfs";
                             const avatarAddress = response[1].avatarAddress.trim();
                             if (avatarAddress.length > 0) {
                                 const avatarURL = CIDToSubdomainURL(avatarAddress);
-                                if (IsValidHttpUrl(avatarURL)) {
+                                if (IsValidURL(avatarURL)) {
                                     avatar = new URL(avatarURL);
                                 } else {
                                     avatar = null;
