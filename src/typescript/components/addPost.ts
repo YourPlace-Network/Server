@@ -140,7 +140,6 @@ import tinymce from "tinymce/tinymce";
             let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
             // Show some loading indication
             DOM.uploadFileButton.disabled = true;
-            DOM.uploadFileButton.textContent = "Uploading...";
             for (const file of fileList) {
                 const previewElement = await CreateAttachmentPreview(file);
                 const fileNameElement = previewElement.querySelector(".fileNameSpan")! as HTMLSpanElement;
@@ -157,7 +156,6 @@ import tinymce from "tinymce/tinymce";
 
             // Reset UI after upload
             DOM.uploadFileButton.disabled = false;
-            DOM.uploadFileButton.textContent = "Attach File";
         }
         async function checkVideoStatus(fileHash: string) {
             let [status, data] = await HttpGetJson("/files/checkvideo/" + fileHash);

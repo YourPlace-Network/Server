@@ -83,13 +83,11 @@ ul.ellipsesMenu {
   padding: 7px;
   text-align: center;
 }
-.postCardAttachmentDiv{
+.postCardAttachmentDiv {
   padding: 1em 5em 1em 4.7em;
 }
-.postCardAttachmentImage{
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.postCardAttachmentImage {
+  object-fit: cover;
   object-position: center;
 }
 .postCardEmbedDiv {
@@ -112,6 +110,25 @@ ul.ellipsesMenu {
   height: 20em;
 }
 .postAttachment {
-  border-radius: 2em;
-  margin-right: 5em !important;
+  height: 100%;
+  width: 100%;
+  aspect-ratio: 3/2;
+}
+.attachmentGridItem {
+  overflow: hidden;
+}
+.postAttachmentCarousel .carousel-indicators {
+  top: 100%;
+}
+.postAttachmentCarousel .prevIconDiv {
+  background: global.$secondary;
+  display: flex;
+  align-items: center;
+  height: 2.5rem;
+}
+.postAttachmentCarousel .nextIconDiv {
+  background: global.$secondary;
+  display: flex;
+  align-items: center;
+  height: 2.5rem;
 }

@@ -3,26 +3,33 @@
         <div class="modal-content">
             <div class="modal-body">
                 <textarea id="addPostText" placeholder=" Tell the World! 🌎"></textarea>
-
                 <div id="addPostLinkPreview"></div>
-
-                <div id="addPostControls">
-                    <div class="form-check form-switch" id="savedPostCheckboxDiv" data-bs-toggle="tooltip" title="Save this post to the blockchain forever">
-                        <input class="form-check-input" type="checkbox" role="switch" id="savedPostCheckbox" checked disabled>
-                        <label class="form-check-label" for="savedPostCheckbox" id="savedPostCheckboxLabel">Save Post</label>
+                <div class="container-fluid" id="addPostControls">
+                    <div class="row">
+                        <div class="col" id="uploadBtnColumn">
+                            <button type="button" class="btn btn-primary" id="btnUploadFile" data-bs-toggle="tooltip" title="Attach a file to the post">
+                                <i class="bi bi-upload" id="uploadFileBtnImg"></i> Upload File</button>
+                            <input type="file" name="file" id="file" multiple hidden>
+                        </div>
+                        <div class="col" id="savePostColumn">
+                            <div class="form-check form-switch" id="savedPostCheckboxDiv" data-bs-toggle="tooltip" title="Save this post to the blockchain forever">
+                                <input class="form-check-input" type="checkbox" role="switch" id="savedPostCheckbox" checked disabled>
+                                <label class="form-check-label" for="savedPostCheckbox" id="savedPostCheckboxLabel">Save Post</label>
+                            </div>
+                        </div>
+                        <div class="col" id="postColumn">
+                            <div class="row justify-content-end" id="spiceometerRow">
+                                <div id="spiceometerDiv">
+                                    <p id="spiceometerText"></p>
+                                </div>
+                            </div>
+                            <div class="row justify-content-end" id="postBtnRow">
+                                <button type="button" class="btn btn-primary" id="submitPostButton">Post</button>
+                            </div>
+                        </div>
                     </div>
-
-                    <button type="button" class="btn btn-primary" id="btnUploadFile" data-bs-toggle="tooltip" title="Attach a file to the post">
-                        <i class="bi bi-cloud-upload" id="uploadFileBtnImg"></i>Upload File</button>
-                    <input type="file" name="file" id="file" multiple hidden>
-
-                    <div id="spiceometerDiv">
-                        <p id="spiceometerText"></p>
-                    </div>
-
-                    <button type="button" class="btn btn-primary" id="submitPostButton">Post</button>
                 </div>
-                <div id="postAttachDiv" class="attachmentGrid">
+                <div id="postAttachDiv" class="attachmentUploadGrid">
                 </div>
             </div>
         </div>
