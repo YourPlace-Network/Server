@@ -418,7 +418,7 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     } else {
         attachmentURL = attachment[0];
     }
-    downloadAnchor.href = attachmentURL;
+    downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
     downloadAnchor.download = "";
     const fileSize = await formatFileSize(attachment[2]);
     fileSizeSpan.innerText = fileSize;
