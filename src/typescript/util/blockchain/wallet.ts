@@ -7,7 +7,7 @@ for the application. This code is stateful using localstorage to keep a few valu
 import {Transaction} from "algosdk";
 import {algoConnectSession, algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
 import {baseAuthLogin, baseConnectWallet, baseDisconnectWallet, baseFollowUser, baseGetAvatar, baseGetENSText, baseGetName, baseGetNFTs, baseIsWalletConnected, baseSetAvatar, baseSetBanner, baseSetBirthday, baseSetDescription, baseSetLocation, baseSetName, baseSetWebsite, baseSubmitPost, baseSubmitPostAttach, baseTxn, mainnetBase} from "./base";
-import {IsValidAlgoAddress, IsValidBaseAddress, IsValidHttpUrl} from "../security";
+import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
 import {ShowDialogModal, ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
@@ -213,7 +213,7 @@ export async function WalletGetWebsite(chain?: string, address?: string): Promis
             if (!url.match(/^[a-zA-Z]+:\/\//)) {
                 url = `https://${url}`
             }
-            if (url == "" || !IsValidHttpUrl(url)) {
+            if (url == "" || !IsValidURL(url)) {
                 return null;
             }
             return new URL(url);

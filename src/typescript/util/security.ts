@@ -26,9 +26,18 @@ export function IsValidIpfsCid(cid: string): boolean {
         return false;
     }
 }
-export function IsValidHttpUrl(url: string): boolean {
+export function IsValidURL(url: string): boolean {
     try {
-        let urlObj = new URL(url);
+        if (url.startsWith("ipfs://")) { // check IPFS links
+            if (url.endsWith(".ipfs.localhost:42426")) { // allow local IPFS node links
+                let cid: string = url.substring("ipfs://".length, (url.length - ".ipfs.localhost:42426".length));
+                return IsValidIpfsCid(cid);
+            } else { // allow generic IPFS links with CID
+                let cid: string = url.substring("ipfs://".length);
+                return IsValidIpfsCid(cid);
+            }
+        }
+        let urlObj: URL = new URL(url);
         if (urlObj.protocol === "https:") { // allow external HTTPS links
             return true;
         }
@@ -38,7 +47,7 @@ export function IsValidHttpUrl(url: string): boolean {
     } catch (error) {
         return false;
     }
-    return false;
+    return false; // disallow everything else
 }
 export function IsValidYoutubeUrl(url: string): boolean {
     try {
@@ -55,7 +64,7 @@ export function IsValidYoutubeUrl(url: string): boolean {
     }
 }
 export function XSSSanitizeUrl(href: string): string {
-    if (IsValidHttpUrl(href)) {
+    if (IsValidURL(href)) {
         return href;
     }
     return "#";
@@ -71,11 +80,11 @@ export function XSSSanitizeTextUrl(payload: string): string {
     DOMPurify.addHook("beforeSanitizeAttributes", (node) => {
         if (node.nodeName === "A" && node.hasAttribute("href")) {
             const href = node.getAttribute("href");
-            if (href && !IsValidHttpUrl(href)) {
+            if (href && !IsValidURL(href)) {
                 node.remove();
             }
             // Add target="_blank" for external links
-            if (href && IsValidHttpUrl(href)) {
+            if (href && IsValidURL(href)) {
                 node.setAttribute("target", "_blank");
             }
         }

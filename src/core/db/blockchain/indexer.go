@@ -26,6 +26,7 @@ const (
 	saveInterval   = 100  // save progress every # of blocks
 	throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
 	batchSizeLimit = 10   // The maximum number of blocks to fetch in a single batch RPC call
+	workerCount    = 5    // Number of worker threads to use for processing batches
 )
 
 var (
@@ -100,65 +101,60 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := configureRateLimiter(baseThrottle, batchSize)   // Configure rate limiter based on throttle and batch size
+	rateLimiter := configureRateLimiter(baseThrottle, batchSize)   // Configure a ratelimiter based on throttle and batch size
 	batchStartBlock := new(big.Int).Set(targetEarliestBlockBigInt) // Start at the earliest block
 	core.LogDebug("Batch Start Block: " + batchStartBlock.String())
 	txnCount := 0
-	blockIndex := new(big.Int).Set(batchStartBlock)
-	core.LogDebug("Block Index: " + blockIndex.String())
+	blockIndex := core.NewThreadSafeMaxTracker(batchStartBlock.Int64()) // Running tally of the current block
+	blockIndexTempBigInt := big.NewInt(blockIndex.Get())
+	core.LogDebug("Block Index: " + blockIndexTempBigInt.String())
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
-		select {
-		case <-indexerCancel:
-			core.LogDebug("Indexer job cancelled in frontfill during batch loop")
-			_Database.IndexerUpdateJobStatus(uuid, "failed")
+		if breakPoint(uuid) {
 			return
-		default:
-			_ = rateLimiter.Wait(context.Background())
-			batchEndBlock := new(big.Int).Add(batchStartBlock, batchSize)
-			if batchEndBlock.Cmp(targetLatestBlock) == 1 { // Stop at the latest block allowed
-				batchEndBlock = targetLatestBlock
-			}
-			if batchStartBlock.Cmp(batchEndBlock) >= 0 { // Break if the start block is ahead of or equal to the end block
-				break
-			}
-			// Batch up blocks into one RPC call
-			var batchBlockNumbers []big.Int
-			for j := new(big.Int).Set(batchStartBlock); j.Cmp(batchEndBlock) == -1; j = new(big.Int).Add(j, big.NewInt(1)) {
-				batchBlockNumbers = append(batchBlockNumbers, *j)
-			}
-			// Make the RPC call
-			blocks := rpcBatchGetBlockByNumber(base, batchBlockNumbers)
-			// Loop through blocks
-			for _, block := range blocks {
-				transactions := block["transactions"].([]interface{})
-				// Loop through transactions in the block
-				for _, txn := range transactions {
-					transaction := txn.(map[string]interface{})                                                 // Get a handle on the transaction
-					ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base") // Dispatch the transaction to the database
-					if ret == 1 || ret == 2 {                                                                   // Skip transactions that are not valid YP posts
-						continue
-					}
-					txnCount++
-				}
-				// Increment the block index
-				blockIndex = new(big.Int).Add(blockIndex, big.NewInt(1))
-				// Send a status update
-				mod := big.NewInt(0)
-				mod.Mod(blockIndex, big.NewInt(reportInterval))
-				if mod.Sign() == 0 {
-					indexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndex, batchSize, "forward")
-				}
-				mod.Mod(blockIndex, big.NewInt(saveInterval))
-				if mod.Sign() == 0 {
-					_Database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
-				}
-			}
-			batchStartBlock = new(big.Int).Add(batchStartBlock, batchSize)
 		}
+		_ = rateLimiter.Wait(context.Background())
+		batchEndBlock := new(big.Int).Add(batchStartBlock, batchSize)
+		if batchEndBlock.Cmp(targetLatestBlock) == 1 { // Stop at the latest block allowed
+			batchEndBlock = targetLatestBlock
+		}
+		if batchStartBlock.Cmp(batchEndBlock) >= 0 { // Break if the start block is ahead of or equal to the end block
+			break
+		}
+		// Batch up blocks into one RPC call
+		var batchBlockNumbers []big.Int
+		for j := new(big.Int).Set(batchStartBlock); j.Cmp(batchEndBlock) == -1; j = new(big.Int).Add(j, big.NewInt(1)) {
+			batchBlockNumbers = append(batchBlockNumbers, *j)
+		}
+		// Make the RPC call
+		blocks := rpcBatchGetBlockByNumber(base, batchBlockNumbers)
+		// Loop through blocks
+		for _, block := range blocks {
+			transactions := block["transactions"].([]interface{})
+			// Loop through transactions in the block
+			for _, txn := range transactions {
+				transaction := txn.(map[string]interface{})                                                           // Get a handle on the transaction
+				ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndexTempBigInt, "base") // Dispatch the transaction to the database
+				if ret == 1 || ret == 2 {                                                                             // Skip transactions that are not valid YP posts
+					continue
+				}
+				txnCount++
+			}
+			// Send a status update
+			mod := big.NewInt(0)
+			mod.Mod(blockIndexTempBigInt, big.NewInt(reportInterval))
+			if mod.Sign() == 0 {
+				indexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndexTempBigInt, batchSize, "forward")
+			}
+			mod.Mod(blockIndexTempBigInt, big.NewInt(saveInterval))
+			if mod.Sign() == 0 {
+				_Database.IndexerUpdateHeadBlock(uuid, blockIndexTempBigInt.Uint64())
+			}
+		}
+		batchStartBlock = new(big.Int).Add(batchStartBlock, batchSize)
 	}
-	core.LogDebug("Completed Front Fill - Updating Head Block: " + blockIndex.String())
-	_Database.IndexerUpdateHeadBlock(uuid, blockIndex.Uint64())
+	core.LogDebug("Completed Front Fill - Updating Head Block: " + blockIndexTempBigInt.String())
+	_Database.IndexerUpdateHeadBlock(uuid, blockIndexTempBigInt.Uint64())
 	_Database.IndexerUpdateJobStatus(uuid, "complete")
 }
 func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
@@ -203,64 +199,36 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := configureRateLimiter(baseThrottle, batchSize) // Configure rate limiter based on throttle and batch size
-	batchStartBlock := targetLatestBlock                         // Start at the latest block
-	txnCount := 0                                                // Count the number of transactions processed
-	blockIndex := batchStartBlock                                // Running tally of the current block
+	rateLimiter := configureRateLimiter(baseThrottle, batchSize)        // Configure rate limiter based on throttle and batch size
+	batchStartBlock := targetLatestBlock                                // Start at the latest block
+	txnCount := core.NewThreadSafeCounter()                             // Count the number of transactions processed
+	blockIndex := core.NewThreadSafeMinTracker(batchStartBlock.Int64()) // Running tally of the current block
+	batchJobQueue := core.NewThreadSafeQueue()                          // Queue to hold batch jobs
 
+	core.LogDebug("1")
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
-		select {
-		case <-indexerCancel:
-			core.LogDebug("Indexer cancelled in backfill during batch loop")
-			_Database.IndexerUpdateJobStatus(uuid, "failed")
+		if breakPoint(uuid) {
 			return
-		default:
-			_ = rateLimiter.Wait(context.Background())
-			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
-			if batchEndBlock.Cmp(targetEarliestBlockBigInt) == -1 { // stop at the earliest block allowed
-				batchEndBlock = targetEarliestBlockBigInt
-			}
-			if batchStartBlock.Cmp(batchEndBlock) < 0 { // break if the start block is behind the end block
-				break
-			}
-			// Batch up blocks into one RPC call
-			var batchBlockNumbers []big.Int
-			for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
-				batchBlockNumbers = append(batchBlockNumbers, *j)
-			}
-			// Make the RPC call
-			blocks := rpcBatchGetBlockByNumber(base, batchBlockNumbers) // Returns an array of blocks
-			// Loop through blocks
-			for _, block := range blocks {
-				transactions := block["transactions"].([]interface{})
-				// Loop through transactions in the block
-				for _, txn := range transactions {
-					transaction := txn.(map[string]interface{})                                                 // Get a handle on the transaction
-					ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base") // Dispatch the transaction to the database
-					if ret == 1 || ret == 2 {                                                                   // Skip transactions that are not valid YP posts
-						continue
-					}
-					txnCount++ // We finished processing a transaction
-				}
-			}
-			// Decrement the block index
-			blockIndex = new(big.Int).Sub(blockIndex, big.NewInt(1))
-			// Send a status update
-			mod := big.NewInt(0)
-			mod.Mod(blockIndex, big.NewInt(reportInterval))
-			if mod.Sign() == 0 {
-				indexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
-			}
-			mod.Mod(blockIndex, big.NewInt(saveInterval))
-			if mod.Sign() == 0 {
-				_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
-			}
 		}
+		batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
+		if batchEndBlock.Cmp(targetEarliestBlockBigInt) == -1 { // stop at the earliest block allowed
+			batchEndBlock = targetEarliestBlockBigInt
+		}
+		if batchStartBlock.Cmp(batchEndBlock) < 0 { // break if the start block is behind the end block
+			break
+		}
+		// Batch up blocks
+		var batchBlockNumbers []big.Int
+		for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
+			batchBlockNumbers = append(batchBlockNumbers, *j)
+		}
+		batchJobQueue.Enqueue(batchBlockNumbers) // Add the batch of blocks to the queue
 	}
-	batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize)
-	core.LogDebug("Completed Back Fill - Updating Tail Block: " + blockIndex.String())
-	_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
-	_Database.IndexerUpdateJobStatus(uuid, "complete")
+	core.LogDebug("2")
+	// Start worker threads to process the batch jobs
+	for i := 0; i < workerCount; i++ {
+		go workerThread(rateLimiter, base, batchJobQueue, blockIndex, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward")
+	}
 }
 func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	// earliest block <----- latest block (starting traversal @ latest block)
@@ -289,62 +257,59 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := configureRateLimiter(baseThrottle, batchSize) // Configure a rate limiter based on throttle and batch size
-	batchStartBlock := targetLatestBlock                         // Start at the latest block
-	txnCount := 0                                                // Count the number of transactions processed
-	blockIndex := batchStartBlock                                // Running tally of the current block
+	rateLimiter := configureRateLimiter(baseThrottle, batchSize)        // Configure a rate limiter based on throttle and batch size
+	batchStartBlock := targetLatestBlock                                // Start at the latest block
+	txnCount := 0                                                       // Count the number of transactions processed
+	blockIndex := core.NewThreadSafeMinTracker(batchStartBlock.Int64()) // Running tally of the current block
+	blockIndexTempBigInt := big.NewInt(blockIndex.Get())
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
-		select {
-		case <-indexerCancel:
-			core.LogDebug("Indexer cancelled in fullfill during batch loop")
-			_Database.IndexerUpdateJobStatus(uuid, "failed")
+		if breakPoint(uuid) {
 			return
-		default:
-			_ = rateLimiter.Wait(context.Background())
-			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
-			if batchEndBlock.Cmp(&targetEarliestBlockBigInt) == -1 { // stop at the earliest block allowed
-				batchEndBlock = &targetEarliestBlockBigInt
-			}
-			if batchStartBlock.Cmp(batchEndBlock) < 0 { // break if the start block is behind the end block
-				break
-			}
-			// Batch up blocks into one RPC call
-			var batchBlockNumbers []big.Int
-			for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
-				batchBlockNumbers = append(batchBlockNumbers, *j)
-			}
-			// Make the RPC call
-			blocks := rpcBatchGetBlockByNumber(base, batchBlockNumbers) // Returns an array of blocks
-			// Loop through blocks
-			for _, block := range blocks {
-				transactions := block["transactions"].([]interface{}) // Get the transactions from the block
-				// Loop through transactions in the block
-				for _, txn := range transactions {
-					transaction := txn.(map[string]interface{})                                                 // Get a handle on the transaction
-					ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndex, "base") // Dispatch the transaction to the database
-					if ret == 1 || ret == 2 {                                                                   // Skip transactions that are not valid YP posts
-						continue
-					}
-					txnCount++
-				}
-				blockIndex = new(big.Int).Sub(blockIndex, big.NewInt(1)) // Decrement the block index
-				mod := big.NewInt(0)                                     // Send a status update
-				mod.Mod(blockIndex, big.NewInt(reportInterval))
-				if mod.Sign() == 0 {
-					indexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndex, batchSize, "backward")
-				}
-				mod.Mod(blockIndex, big.NewInt(saveInterval))
-				if mod.Sign() == 0 {
-					_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
-				}
-			}
-			batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize)
 		}
+		_ = rateLimiter.Wait(context.Background())
+		batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
+		if batchEndBlock.Cmp(&targetEarliestBlockBigInt) == -1 { // stop at the earliest block allowed
+			batchEndBlock = &targetEarliestBlockBigInt
+		}
+		if batchStartBlock.Cmp(batchEndBlock) < 0 { // break if the start block is behind the end block
+			break
+		}
+		// Batch up blocks into one RPC call
+		var batchBlockNumbers []big.Int
+		for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
+			batchBlockNumbers = append(batchBlockNumbers, *j)
+		}
+		// Make the RPC call
+		blocks := rpcBatchGetBlockByNumber(base, batchBlockNumbers) // Returns an array of blocks
+		// Loop through blocks
+		for _, block := range blocks {
+			transactions := block["transactions"].([]interface{}) // Get the transactions from the block
+			// Loop through transactions in the block
+			for _, txn := range transactions {
+				transaction := txn.(map[string]interface{})                                                           // Get a handle on the transaction
+				ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, blockIndexTempBigInt, "base") // Dispatch the transaction to the database
+				if ret == 1 || ret == 2 {                                                                             // Skip transactions that are not valid YP posts
+					continue
+				}
+				txnCount++
+			}
+			_blockIndexTempBigInt := big.NewInt(int64(blockIndexTempBigInt.Uint64() - 1))
+			mod := big.NewInt(0) // Send a status update
+			mod.Mod(_blockIndexTempBigInt, big.NewInt(reportInterval))
+			if mod.Sign() == 0 {
+				indexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndexTempBigInt, batchSize, "backward")
+			}
+			mod.Mod(blockIndexTempBigInt, big.NewInt(saveInterval))
+			if mod.Sign() == 0 {
+				_Database.IndexerUpdateTailBlock(uuid, blockIndexTempBigInt.Uint64())
+			}
+		}
+		batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize)
 	}
-	core.LogDebug("Completed Full Fill - Updating Tail Block: " + blockIndex.String())
-	_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64())
-	_Database.IndexerUpdateJobStatus(uuid, "complete")
+	//core.LogDebug("Completed Full Fill - Updating Tail Block: " + blockIndexTempBigInt.String()) debug
+	//_Database.IndexerUpdateTailBlock(uuid, blockIndex.Uint64()) debug
+	//_Database.IndexerUpdateJobStatus(uuid, "complete") debug
 }
 
 // --- Algorand Indexer Functions --- //
@@ -778,13 +743,72 @@ BATCHRPCCALL:
 	}
 	return blocks
 }
+func workerThread(rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, blockIndex *core.ThreadSafeMinCounter, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string) {
+	// Worker thread to process batches of blocks
+	core.LogDebug("Worker Thread Spawn")
+	for {
+		batch, populated := batchJobQueue.Dequeue()
+		if !populated {
+			core.LogDebug("Completed Worker Thread - No more batches to process")
+			_Database.IndexerUpdateJobStatus(_Database.IndexerGetJobUUID("base"), "complete")
+			return
+		}
+		//batchBigInt := batch.([]big.Int)
+		//core.LogDebug("Processing batch of blocks: " + batchBigInt[0].String() + " to " + batchBigInt[len(batchBigInt)-1].String())
+		_blockIndex := blockIndex.Get()              // Get the current block index
+		_blockIndexBigInt := big.NewInt(_blockIndex) // Convert the block index to a big.Int
+		uuid := _Database.IndexerGetJobUUID("base")  // Get the UUID of the blockchain job
+		if populated == false {
+			core.LogDebug("Completed Back Fill Worker Thread - No more batches to process")
+			_Database.IndexerUpdateTailBlock(uuid, uint64(_blockIndex))
+			_Database.IndexerUpdateJobStatus(uuid, "complete")
+			return
+		}
+		// Make the RPC call
+		blocks := rpcBatchGetBlockByNumber(base, batch.([]big.Int))
+		// Loop through blocks
+		for _, block := range blocks {
+			transactions := block["transactions"].([]interface{})
+			// Loop through transactions in the block
+			for _, txn := range transactions {
+				transaction := txn.(map[string]interface{})                                                        // Get a handle on the transaction
+				ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, _blockIndexBigInt, "base") // Dispatch the transaction to the database
+				if ret == 1 || ret == 2 {                                                                          // Skip transactions that are not valid YP posts
+					continue
+				}
+				txnCount.Increment() // Increment the transaction count
+			}
+		}
+		// Decrement the block index
+		blockIndexTemp := _blockIndex - 1
+		blockIndexTempBigInt := big.NewInt(blockIndexTemp)
+		blockIndex.Update(blockIndexTemp)
+		// Send a status update
+		mod := big.NewInt(0)
+		mod.Mod(big.NewInt(blockIndexTemp), big.NewInt(reportInterval))
+		if mod.Sign() == 0 {
+			indexerPrintProgress(targetEarliestBlock, targetLatestBlock, blockIndexTempBigInt, batchSize, "backward")
+		}
+		mod.Mod(blockIndexTempBigInt, big.NewInt(saveInterval))
+		if mod.Sign() == 0 {
+			_Database.IndexerUpdateTailBlock(_Database.IndexerGetJobUUID("base"), blockIndexTempBigInt.Uint64()) // Update the tail block in the database
+		}
+	}
+}
+func breakPoint(uuid string) bool {
+	// This function is a break point for the indexer to allow for graceful cancellation when the signal is received
+	select {
+	case <-indexerCancel:
+		core.LogDebug("Indexer cancelled in break point")
+		_Database.IndexerUpdateJobStatus(uuid, "failed")
+		return true
+	default:
+		return false // continue processing
+	}
+}
 
 // --- Global Helper Functions --- //
-func IndexerClearOldCachedPosts(__database *db.Database) {
-	// Clear cached transactions that are older than configured (expired) cached post history limit
-	// Only clear posts from backfill jobs where the address is "*" - do not clear cached posts for a specific address
-	//historyDays := __database.SettingsGetValue("historyDays")
-	// todo - get all posts older than the calculated history days, and delete them
+func IndexerClearOldCachedPosts(__database *db.Database) { // Clear cached transactions that are older than the configured (expired) cached post history limit
 }
 func IndexerRestartJobs(__database *db.Database, blockchain string) {
 	// set any indexer jobs to "failed" that were left in a "running" state from a crashed server
