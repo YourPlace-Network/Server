@@ -21,6 +21,7 @@ import {
 } from "@wagmi/core";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
+import {getName as cbGetName} from "@coinbase/onchainkit/identity";
 import {IsValidBaseAddress} from "../security";
 import {Sleep} from "../time";
 import {Web3} from "web3";
@@ -302,7 +303,11 @@ export async function baseGetAvatar(address: string) {
         universalResolverAddress: mainnetBase.ensUniversalResolverAddress,
     });
     if (ensAvatar && ensAvatar !== "") {
+        LogInfo("ENS Avatar found for Base address: " + address);
         return ensAvatar as GetEnsAvatarReturnType;
+    } else {
+        LogInfo("No ENS Avatar found for Base address: " + address);
+        return "";
     }
 }
 export async function baseGetName(address: string): Promise<string> {
@@ -316,21 +321,32 @@ export async function baseGetName(address: string): Promise<string> {
         LogError("Invalid Base address provided to baseGetName: " + address);
         return "";
     }
-    try {
-        const ensText = await viemClient.getEnsName({
-            address: address as `0x${string}`,
-            universalResolverAddress: mainnetBase.ensUniversalResolverAddress,
-        });
-        if (ensText && ensText !== "") {
-            return ensText;
-        } else {
-            LogInfo("No ENS name found for Base address: " + address);
-            return "";
-        }
-    } catch (error) {
-        LogError("Failed to get ENS name for Base address: " + address + " - " + error);
-        return "";
+    // Try viem first
+    let baseName = await baseViemGetEnsName(address);
+    if (baseName && baseName !== "") {
+        LogInfo("Base name found using viem: " + baseName);
+        return baseName;
     }
+    // If viem fails, try wagmi
+    baseName = await baseWagmiGetEnsName(address);
+    if (baseName && baseName !== "") {
+        LogInfo("Base name found using wagmi: " + baseName);
+        return baseName;
+    }
+    // If wagmi fails, try web3
+    baseName = await baseWeb3GetEnsName(address);
+    if (baseName && baseName !== "") {
+        LogInfo("Base name found using web3: " + baseName);
+        return baseName;
+    }
+    // If all methods fail, try onchainkit
+    baseName = await baseOnchainkitGetEnsName(address);
+    if (baseName && baseName !== "") {
+        LogInfo("Base name found using onchainkit: " + baseName);
+        return baseName;
+    }
+    LogInfo("No Base name found for address: " + address);
+    return "";
 }
 export async function baseGetENSText(_address: string, key: string): Promise<string> {
     LogInfo("baseGetENSText called with address: " + _address + " and key: " + key);
@@ -395,4 +411,61 @@ export async function baseGetNFTs(_address: string) {
     } catch (error) {
         LogError("Failed to get NFTs: " + error);
     }
+}
+
+// ---------- ENS Functions ---------- //
+function baseWagmiGetEnsName(address: string): Promise<string> {
+    LogInfo("baseWagmiGetEnsName called with address: " + address);
+    try {
+        return readContract(wagmiConfig, {
+            address: mainnetBase.ensUniversalResolverAddress as `0x${string}`,
+            abi: [
+                {
+                    inputs: [{name: 'address', type: 'address'}],
+                    name: 'name',
+                    outputs: [{name: '', type: 'string'}],
+                    stateMutability: 'view',
+                    type: 'function'
+                }
+            ],
+            functionName: 'name',
+            args: [address as `0x${string}`],
+        });
+    } catch (e) {
+        LogError("Failed to get Base ENS name using wagmi: " + e);
+    }
+    return Promise.resolve("");
+}
+function baseViemGetEnsName(address: string): Promise<string> {
+    LogInfo("baseViemGetEnsName called with address: " + address);
+    try {
+        return viemClient.getEnsName({
+            address: address as `0x${string}`,
+            universalResolverAddress: mainnetBase.ensUniversalResolverAddress,
+        });
+    } catch (e) {
+        LogError("Failed to get Base ENS name using viem: " + e);
+    }
+    return Promise.resolve("");
+}
+function baseWeb3GetEnsName(address: string): Promise<string> {
+    LogInfo("baseWeb3GetEnsName called with address: " + address);
+    try {
+        return web3Client.eth.ens.getName(address);
+    } catch (e) {
+        LogError("Failed to get Base ENS name using web3: " + e);
+    }
+    return Promise.resolve("");
+}
+async function baseOnchainkitGetEnsName(address: string): Promise<string> {
+    LogInfo("baseOnchainkitGetEnsName called with address: " + address);
+    try {
+        const baseName = await cbGetName({address: address as `0x${string}`, chain: viemBase});
+        if (baseName && baseName !== "") {
+            return baseName;
+        }
+    } catch (e) {
+        LogError("Failed to get Base ENS name using onchainkit: " + e);
+    }
+    return "";
 }

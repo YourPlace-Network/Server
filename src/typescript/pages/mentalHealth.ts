@@ -792,6 +792,7 @@ const tips = [
     "We never know as much as we think",
     "Most men are not content unless they are pushing themselves to the limits of their knowledge or beyond",
     "Do things in their due time",
+    "It's not done until it's tested for correctness",
 
 
 
