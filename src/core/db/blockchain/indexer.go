@@ -22,19 +22,22 @@ import (
 // Job States - Running, Complete, Failed, Pending
 
 const (
-	reportInterval = 5000 // print progress every # of blocks
+	reportInterval = 1000 // print progress every # of blocks
 	saveInterval   = 100  // save progress every # of blocks
 	throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
-	batchSizeLimit = 10   // The maximum number of blocks to fetch in a single batch RPC call
-	workerCount    = 10   // Number of worker threads to use for processing batches
+	batchSizeLimit = 25   // The maximum number of blocks to fetch in a single batch RPC call
+	workerCount    = 25   // Number of worker threads to use for processing batches
 )
 
 var (
-	indexerCancel chan bool
-	IndexerMutex  sync.Mutex
-	IsIndexing    bool
-	_Blockchain   *Blockchain
-	_Database     *db.Database
+	indexerCancel             chan bool
+	IndexerMutex              sync.Mutex
+	IsIndexing                bool
+	_Blockchain               *Blockchain
+	_Database                 *db.Database
+	dynamicThrottleMultiplier = 1.0
+	throttleControlMutex      sync.RWMutex    // Protects dynamicThrottleMultiplier
+	globalRequestTracker      *RequestTracker // Global request tracker to monitor request rates across all workers
 )
 
 type SequentialBlockTracker struct {
@@ -43,6 +46,11 @@ type SequentialBlockTracker struct {
 	nextExpectedBlock int64
 	uuid              string
 	database          *db.Database
+}
+type RequestTracker struct {
+	mu           sync.Mutex
+	requestTimes []time.Time
+	windowSize   time.Duration
 }
 
 func NewSequentialBlockTracker(startBlock int64, uuid string, database *db.Database) *SequentialBlockTracker {
@@ -75,6 +83,46 @@ func (sbt *SequentialBlockTracker) HasPendingBlocks() bool {
 	sbt.mu.Lock()
 	defer sbt.mu.Unlock()
 	return len(sbt.processedBlocks) > 0
+}
+
+func NewRequestTracker() *RequestTracker {
+	return &RequestTracker{
+		requestTimes: make([]time.Time, 0),
+		windowSize:   time.Minute, // Track requests over the last minute
+	}
+}
+func (rt *RequestTracker) RecordRequests(count int) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	now := time.Now()
+	// Add the current time for each request
+	for i := 0; i < count; i++ {
+		rt.requestTimes = append(rt.requestTimes, now)
+	}
+	// Clean up old requests outside the window
+	cutoff := now.Add(-rt.windowSize)
+	validIndex := 0
+	for i, requestTime := range rt.requestTimes {
+		if requestTime.After(cutoff) {
+			validIndex = i
+			break
+		}
+	}
+	rt.requestTimes = rt.requestTimes[validIndex:]
+}
+func (rt *RequestTracker) GetRequestsPerSecond() float64 {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-rt.windowSize) // Look at the last N-seconds for more responsive measurement
+	// Count requests in the last minute
+	validRequests := 0
+	for _, requestTime := range rt.requestTimes {
+		if requestTime.After(cutoff) {
+			validRequests++
+		}
+	}
+	return float64(validRequests) / rt.windowSize.Seconds()
 }
 
 // --- Indexer Main Method --- //
@@ -148,6 +196,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	blockIndex := core.NewThreadSafeMaxTracker(batchStartBlock.Int64()) // Running tally of the current block
 	blockIndexTempBigInt := big.NewInt(blockIndex.Get())
 	core.LogDebug("Block Index: " + blockIndexTempBigInt.String())
+	globalRequestTracker = NewRequestTracker()
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		if breakPoint(uuid) {
@@ -184,7 +233,8 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 			mod := big.NewInt(0)
 			mod.Mod(blockIndexTempBigInt, big.NewInt(reportInterval))
 			if mod.Sign() == 0 {
-				indexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndexTempBigInt, batchSize, "forward")
+				// todo - add request tracker
+				//indexerPrintProgress(targetEarliestBlockBigInt, targetLatestBlock, blockIndexTempBigInt, batchSize, "forward")
 			}
 			mod.Mod(blockIndexTempBigInt, big.NewInt(saveInterval))
 			if mod.Sign() == 0 {
@@ -244,7 +294,11 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	txnCount := core.NewThreadSafeCounter()                                                    // Count the number of transactions processed
 	batchJobQueue := core.NewThreadSafeQueue()                                                 // Queue to hold batch jobs
 	sequentialTracker := NewSequentialBlockTracker(targetLatestBlock.Int64(), uuid, _Database) // Sequential block tracker starting from the highest block
+	globalRequestTracker = NewRequestTracker()                                                 // Request tracker to monitor request rates
 	errorChan := make(chan error, workerCount)                                                 // Channel to handle errors from workers
+
+	// Start the throttle controller in a separate goroutine
+	go startThrottleController(baseThrottle, rateLimiter)
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		if breakPoint(uuid) {
@@ -271,7 +325,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		wg.Add(1) // Add a worker to the wait group
 		go func() {
 			defer wg.Done()
-			err := workerThread(rateLimiter, base, batchJobQueue, sequentialTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward", errorChan)
+			err := workerThread(rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward", errorChan)
 			if err != nil {
 				core.LogError("Worker encountered an error: " + err.Error())
 				errorChan <- err // Send the error to the error channel
@@ -325,7 +379,8 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := configureRateLimiter(baseThrottle, batchSize)        // Configure a rate limiter based on throttle and batch size
+	rateLimiter := configureRateLimiter(baseThrottle, batchSize) // Configure a rate limiter based on throttle and batch size
+	globalRequestTracker = NewRequestTracker()
 	batchStartBlock := targetLatestBlock                                // Start at the latest block
 	txnCount := 0                                                       // Count the number of transactions processed
 	blockIndex := core.NewThreadSafeMinTracker(batchStartBlock.Int64()) // Running tally of the current block
@@ -366,7 +421,8 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 			mod := big.NewInt(0) // Send a status update
 			mod.Mod(_blockIndexTempBigInt, big.NewInt(reportInterval))
 			if mod.Sign() == 0 {
-				indexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndexTempBigInt, batchSize, "backward")
+				// todo - add request tracker
+				//indexerPrintProgress(&targetEarliestBlock, targetLatestBlock, blockIndexTempBigInt, batchSize, "backward")
 			}
 			mod.Mod(blockIndexTempBigInt, big.NewInt(saveInterval))
 			if mod.Sign() == 0 {
@@ -480,7 +536,7 @@ func createIndexerJob(blockchain string) string {
 	_Database.IndexerCreateJob(uuid, blockchain)
 	return uuid
 }
-func indexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, traversalDirection string) {
+func indexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, traversalDirection string, requestTracker *RequestTracker) {
 	core.LogDebug("------------------------")
 	core.LogDebug("index: " + blockIndex.String())
 	core.LogDebug("target latest: " + targetLatestBlock.String())
@@ -505,6 +561,8 @@ func indexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.I
 	}
 	core.LogDebug("batches remaining: " + batchesRemaining.String())
 	core.LogDebug("batch size: " + batchSize.String())
+	actualRPS := requestTracker.GetRequestsPerSecond()
+	core.LogDebug("actual RPS: " + strconv.FormatFloat(actualRPS, 'f', 2, 64))
 }
 func calculatePercentage(totalRange *big.Int, index *big.Int) string {
 	if totalRange.Sign() == 0 {
@@ -528,11 +586,79 @@ func calculateOptimalBatchSize(throttleValue int) *big.Int { // Function to calc
 	return big.NewInt(int64(effectiveBatchSize))
 }
 func configureRateLimiter(throttleValue int, batchSize *big.Int) *rate.Limiter { // Function to configure rate limiter based on throttle and batch size
-	requestsPerSecond := float64(throttleValue) / float64(batchSize.Int64())
-	if requestsPerSecond < 1.0 {
-		requestsPerSecond = 1.0 // Minimum of 1 request per second
+	batchesPerSecond := calculateDynamicRate(throttleValue, int(batchSize.Int64()))
+	// Ensure burst capacity can handle at least one full batch
+	burstCapacity := int(batchesPerSecond) + 1
+	if burstCapacity < int(batchSize.Int64()) {
+		burstCapacity = int(batchSize.Int64())
 	}
-	return rate.NewLimiter(rate.Limit(requestsPerSecond), int(requestsPerSecond)+1)
+	return rate.NewLimiter(rate.Limit(batchesPerSecond), burstCapacity)
+}
+func startThrottleController(targetThrottleValue int, rateLimiter *rate.Limiter) {
+	ticker := time.NewTicker(30 * time.Second) // Adjust every N-seconds
+	defer ticker.Stop()
+	const (
+		adjustmentStep = 0.1   // 10% adjustment per iteration
+		maxMultiplier  = 100.0 // Don't go above 10,000% of the original rate
+		minMultiplier  = 0.1   // Don't go below 10% of the original rate
+		tolerance      = 0.1   // 10% tolerance before adjusting
+	)
+	uuid := _Database.IndexerGetJobUUID("base")
+	for {
+		select {
+		case <-ticker.C:
+			if breakPoint(uuid) {
+				return
+			}
+			if globalRequestTracker == nil {
+				continue
+			}
+			actualRPS := globalRequestTracker.GetRequestsPerSecond()
+			targetRPS := float64(targetThrottleValue)
+			if actualRPS < 1.0 { // Not enough data yet
+				continue
+			}
+			ratio := actualRPS / targetRPS
+			// Only adjust if we're outside the tolerance range
+			if ratio < (1.0-tolerance) || ratio > (1.0+tolerance) {
+				throttleControlMutex.Lock()
+				if ratio < (1.0 - tolerance) {
+					// We're going too slow, increase multiplier
+					dynamicThrottleMultiplier += adjustmentStep
+					if dynamicThrottleMultiplier > maxMultiplier {
+						dynamicThrottleMultiplier = maxMultiplier
+					}
+				} else if ratio > (1.0 + tolerance) {
+					// We're going too fast, decrease multiplier
+					dynamicThrottleMultiplier -= adjustmentStep
+					if dynamicThrottleMultiplier < minMultiplier {
+						dynamicThrottleMultiplier = minMultiplier
+					}
+				}
+				core.LogDebug("Throttle adjustment:\n\tactual=" + strconv.FormatFloat(actualRPS, 'f', 2, 64) +
+					"\ttarget=" + strconv.FormatFloat(targetRPS, 'f', 2, 64) +
+					"\tmultiplier=" + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+				throttleControlMutex.Unlock()
+				// Update the rate limiter with the new rate
+				newRate := calculateDynamicRate(targetThrottleValue, batchSizeLimit)
+				rateLimiter.SetLimit(rate.Limit(newRate))
+			}
+		default:
+			if breakPoint(uuid) {
+				return
+			}
+			time.Sleep(100 * time.Millisecond) // Sleep to avoid busy waiting
+		}
+	}
+}
+func calculateDynamicRate(throttleValue int, batchSize int) float64 {
+	throttleControlMutex.RLock()
+	defer throttleControlMutex.RUnlock()
+	batchesPerSecond := (float64(throttleValue) / float64(batchSize)) * dynamicThrottleMultiplier
+	if batchesPerSecond < 1.0 {
+		batchesPerSecond = 1.0
+	}
+	return batchesPerSecond
 }
 func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]interface{}, timestamp uint64, blockNumber uint64) {
 	// Pattern-based tokenization and database storage of YourPlace transactions
@@ -811,9 +937,8 @@ BATCHRPCCALL:
 	}
 	return blocks
 }
-func workerThread(rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string, errorChan chan<- error) error {
+func workerThread(rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker, requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string, errorChan chan<- error) error {
 	// Worker thread to process batches of blocks
-	core.LogDebug("Worker Thread Spawn")
 	for {
 		batch, populated := batchJobQueue.Dequeue()
 		if !populated {
@@ -826,8 +951,17 @@ func workerThread(rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.Thr
 		if !reservation.OK() {
 			return core.LogErrorReturn("Rate limiter reservation failed")
 		}
+		delayMs := reservation.Delay().Milliseconds()
+		core.LogDebug("Rate limiter delay: " + strconv.FormatInt(delayMs, 10) + "ms")
 		time.Sleep(reservation.Delay())
-		//core.LogDebug("\tProcessing batch of blocks: " + batchArray[0].String() + " to " + batchArray[len(batchArray)-1].String())
+		// Record the requests being made
+		requestTracker.RecordRequests(len(batchArray))
+		if globalRequestTracker != nil {
+			globalRequestTracker.RecordRequests(len(batchArray))
+		}
+		if breakPoint(sequentialTracker.uuid) { // Check for cancellation before RPC call
+			return nil
+		}
 		// Make the RPC call
 		blocks := rpcBatchGetBlockByNumber(base, batchArray)
 		// Process each block and update the block index as we go
@@ -849,7 +983,7 @@ func workerThread(rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.Thr
 			nextExpected := sequentialTracker.GetNextExpectedBlock()
 			mod := nextExpected % reportInterval
 			if mod == 0 {
-				indexerPrintProgress(targetEarliestBlock, targetLatestBlock, big.NewInt(nextExpected), batchSize, direction)
+				indexerPrintProgress(targetEarliestBlock, targetLatestBlock, big.NewInt(nextExpected), batchSize, direction, requestTracker)
 			}
 		}
 	}

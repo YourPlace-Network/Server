@@ -2,7 +2,6 @@ package core
 
 import (
 	"regexp"
-	"sort"
 	"strconv"
 	"sync"
 )
@@ -63,39 +62,6 @@ type ThreadSafeMinCounter struct {
 type ThreadSafeMaxCounter struct {
 	mu       sync.Mutex
 	maxValue int64
-}
-type ThreadSafeInt64Bottle struct {
-	// The queue fills up with INTs in sequential order, starting at a 0. It's like filling liquid into a bottle.
-	// The cache is for when INTs arrive in non-sequential order, where they are queued in sorted order, for their turn to be added to the main queue.
-	// The bottle always starts at the configured startingValue and fills upward in sequential order.
-	mu    sync.Mutex
-	queue []int64
-	cache []int64
-}
-
-func NewThreadSafeCachedBottle(startingValue int64) *ThreadSafeInt64Bottle {
-	bottle := &ThreadSafeInt64Bottle{
-		queue: []int64{},
-		cache: []int64{},
-	}
-	bottle.queue = append(bottle.queue, startingValue) // Pre-fill the queue with the starting value
-	return bottle
-}
-func (b *ThreadSafeInt64Bottle) Add(value int64) {
-	// Add an item to the cache queue
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	topValue := b.queue[len(b.queue)-1]
-	// Check if the value is sequentially next in line
-	if value > topValue {
-		// If the value is not sequentially next, add it to the cache
-		b.cache = append(b.cache, value)
-		sort.Slice(b.cache, func(i, j int) bool { // Sort the cache in ascending order
-			return b.cache[i] < b.cache[j]
-		})
-	}
-
-	//b.cache.Enqueue(value)
 }
 
 func NewThreadSafeCounter() *ThreadSafeCounter {

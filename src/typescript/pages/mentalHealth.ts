@@ -793,9 +793,13 @@ const tips = [
     "Most men are not content unless they are pushing themselves to the limits of their knowledge or beyond",
     "Do things in their due time",
     "It's not done until it's tested for correctness",
-
-
-
+    "Treat women good",
+    "Treat men good",
+    "Go out of your way to be a positive force on society. Do this even if society has gone out of its way to be a negative force on you. It's the only way to tip the balance towards positivity",
+    "The most moral and correct person will be wrong sometimes, so don't beat them down over it. If they're really trying to be better, then give them some breathing room and allow for simple mistakes",
+    "Don't let the Karen's take over. That's not good for men",
+    "Don't let the male chauvinists take over. That's not good for women",
+    "If you create a system that puts people at a disadvantage, then you should expect that people will not play into that system",
 
 ];
 
