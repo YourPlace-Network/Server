@@ -784,7 +784,22 @@ const tips = [
     "Making money in investments can be a good thing, but it can also be some of the least satisfying work",
     "Protesting is never a reason to block traffic, hold someone hostage, trespass, or destroy property. At a certain point, you just become a terrorist",
     "The headline is pretty much never enough information to get a full picture of what happened. And often times, you'll get the wrong picture",
-
+    "If you actually care about the truth, then don't let a lie get in the way of finding it",
+    "Some of these pieces of advice can be kinda cliche or seem like common knowledge, and that's ok",
+    "A man is not defined by his enemies. He's defined by his friends, his family, and his people",
+    "If your government is corrupt, giving them more money won't fix that problem. Very likely, it'll make it worse",
+    "Sometimes winning is just things being corrected back to normal",
+    "We never know as much as we think",
+    "Most men are not content unless they are pushing themselves to the limits of their knowledge or beyond",
+    "Do things in their due time",
+    "It's not done until it's tested for correctness",
+    "Treat women good",
+    "Treat men good",
+    "Go out of your way to be a positive force on society. Do this even if society has gone out of its way to be a negative force on you. It's the only way to tip the balance towards positivity",
+    "The most moral and correct person will be wrong sometimes, so don't beat them down over it. If they're really trying to be better, then give them some breathing room and allow for simple mistakes",
+    "Don't let the Karen's take over. That's not good for men",
+    "Don't let the male chauvinists take over. That's not good for women",
+    "If you create a system that puts people at a disadvantage, then you should expect that people will not play into that system",
 
 ];
 
