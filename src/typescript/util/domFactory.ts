@@ -414,6 +414,7 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     const downloadAnchor = document.createElement("a") as HTMLAnchorElement;
     const downloadButton = document.createElement("button") as HTMLButtonElement;
     const downloadIcon = document.createElement("i") as HTMLElement;
+    const fileNameSpan = document.createElement("span") as HTMLSpanElement;
     const fileSizeSpan = document.createElement("span") as HTMLSpanElement;
     const iconClass = getFileIcon(attachment[1]);
     let attachmentURL: string;
@@ -426,6 +427,10 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     if (!IsValidURL(attachmentURL)) {
         return Promise.reject("Invalid URL");
     }
+    if (attachment[3] !== "") {
+        const fileName = attachment[3];
+        fileNameSpan.textContent = XSSSanitizeValue(fileName);
+    }
     downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
     downloadAnchor.download = "";
     const fileSize = await formatFileSize(attachment[2]);
@@ -433,6 +438,7 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     downloadButton.classList.add("downloadButton", "btn");
     downloadIcon.classList.add("downloadIcon", "bi", "bi-download");
     attachmentCard.appendChild(fileIcon);
+    attachmentCard.appendChild(fileNameSpan);
     attachmentCard.appendChild(fileSizeSpan);
     attachmentCard.appendChild(downloadAnchor);
     downloadAnchor.appendChild(downloadButton);

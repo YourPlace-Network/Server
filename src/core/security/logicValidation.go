@@ -145,6 +145,7 @@ func GetFileType(path string) (string, string) {
 	}
 	return string(TypeUnknown), mimeTypes[TypeUnknown]
 }
+
 func IsInParentDirectory(parent string, child string) bool {
 	parent, err := filepath.Abs(parent)
 	if err != nil {

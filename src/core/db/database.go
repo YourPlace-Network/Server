@@ -13,9 +13,10 @@ type Database struct {
 	Engine string
 }
 type Attachment struct { //we can move this as long as it isn't defined in a package that imports database
-	FileURL  string
-	MimeType string
-	FileSize uint64
+	FileURL    string
+	MimeType   string
+	FileSize   uint64
+	Base64Name string
 }
 
 func (db *Database) Init(path string, engine string) {

@@ -79,6 +79,7 @@ declare global { // Extend the window interface with public objects
             copiedTooltip = new window.bootstrap.Tooltip(DOM.profileAddressCopy, {title: "Copied", trigger: "manual", placement: "right"});
         }
         async function updateProfile() {
+            console.log("test");
             let requestedAddress = DOM.injectedAddress.value;
             LogInfo("address: " + requestedAddress);
             let requestedBlockchain = DOM.injectedBlockchain.value;

@@ -115,8 +115,9 @@ import tinymce from "tinymce/tinymce";
                 let mimeType = file.mimeType;
                 if (mimeType == null) {return}
                 let size = file.size;
-                if (typeof url === "string" && mimeType !== "" && size !== ""){
-                    let attachment = [url, mimeType, size];
+                let base64Name = file.encodedUnsafeName;
+                if (typeof url === "string" && mimeType !== "" && size !== "" && base64Name !== ""){
+                    let attachment = [url, mimeType, size, base64Name];
                     attachments.push(attachment);
                 } else return
             }
@@ -152,7 +153,7 @@ import tinymce from "tinymce/tinymce";
                 DOM.attachmentDiv.appendChild(previewElement);
             }
             let [status, data] = await UploadFile(fileList, csrfToken);
-            uploadedFiles = data.data;
+            uploadedFiles.push(data.data);
 
             // Reset UI after upload
             DOM.uploadFileButton.disabled = false;

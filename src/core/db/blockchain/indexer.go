@@ -863,15 +863,17 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 		parsedURL, okURL := attachmentArray[0].(string)
 		parsedMimeType, okMimeType := attachmentArray[1].(string)
 		sizeFloat, okSize := attachmentArray[2].(float64)
-		if !okURL || !okMimeType || !okSize {
+		parsedBase64Name, okBase64Name := attachmentArray[3].(string)
+		if !okURL || !okMimeType || !okSize || !okBase64Name {
 			core.LogDebug("Post attach array values are not properly typed")
 			return false
 		}
 		sizeUint := uint64(sizeFloat)
 		parsedAttachment := db.Attachment{
-			FileURL:  parsedURL,
-			MimeType: parsedMimeType,
-			FileSize: sizeUint,
+			FileURL:    parsedURL,
+			MimeType:   parsedMimeType,
+			FileSize:   sizeUint,
+			Base64Name: parsedBase64Name,
 		}
 		parsedAttachments = append(parsedAttachments, parsedAttachment)
 	}
