@@ -800,7 +800,9 @@ const tips = [
     "Don't let the Karen's take over. That's not good for men",
     "Don't let the male chauvinists take over. That's not good for women",
     "If you create a system that puts people at a disadvantage, then you should expect that people will not play into that system",
-
+    "Harassing and haranguing well-intentioned strangers and service workers is some of the lowest form of content",
+    "If somebody can't accept an apology, then there is no reason to give them one",
+    "Sometimes the person playing the victim is really the bully",
 ];
 
 (function initialize() {

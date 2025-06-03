@@ -19,7 +19,9 @@ export async function WalletLogin() {
         case "pera":
             return ""; //return await algoAuthLogin(address);
         case "cbwalletbase":
-            return await baseAuthLogin();
+            let ret = await baseAuthLogin();
+            console.log(ret);
+            return ret;
         case "phantomsolana":
             return await phantomSolanaAuthLogin();
         case null:

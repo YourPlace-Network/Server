@@ -4,6 +4,7 @@ import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"encoding/json"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -60,17 +61,17 @@ func CreateAuthCookie(address, blockchain string, cryptoSeed []byte, database *d
 }
 func GetCookieValue(cookie *http.Cookie, cryptoSeed []byte, value string, database *db.Database) (string, error) {
 	if ValidateCookie(cookie, cryptoSeed, database) == false {
-		return "", core.LogErrorReturn("Invalid Cookie")
+		return "", errors.New("invalid Cookie")
 	}
 	cryptoSeedHash := HashBytes(cryptoSeed)
 	decryptedCookieValue, err := DecryptString(string(cryptoSeedHash), cookie.Value) // decrypt cookie value
 	if err != nil {
-		return "", core.LogErrorReturn("Could not decrypt cookie value")
+		return "", errors.New("could not decrypt cookie value")
 	}
 	var cookieValue SecureCookie
 	err = json.Unmarshal([]byte(decryptedCookieValue), &cookieValue) // json parse cookie value
 	if err != nil {
-		return "", core.LogErrorReturn("Could not parse cookie value")
+		return "", errors.New("could not parse cookie value")
 	}
 	value = strings.ToLower(value)
 	switch value {
@@ -87,7 +88,7 @@ func GetCookieValue(cookie *http.Cookie, cryptoSeed []byte, value string, databa
 	case "uuid":
 		return cookieValue.UUID, nil
 	default:
-		return "", core.LogErrorReturn("Invalid Cookie Value")
+		return "", errors.New("invalid Cookie Value")
 	}
 }
 func ValidateCookie(cookie *http.Cookie, cryptoSeed []byte, database *db.Database) bool {
@@ -130,19 +131,19 @@ func IncrementCookie(c *gin.Context, cryptoSeed []byte, database *db.Database) e
 	cryptoSeedHash := HashBytes(cryptoSeed)
 	cookie, err := c.Request.Cookie("yp_auth")
 	if err != nil {
-		return core.LogErrorReturn("Could not get cookie during increment")
+		return errors.New("could not get cookie during increment")
 	}
 	if !ValidateCookie(cookie, cryptoSeed, database) {
-		return core.LogErrorReturn("Invalid cookie during expiration")
+		return errors.New("invalid cookie during expiration")
 	}
 	decryptCookieJSON, err := DecryptString(string(cryptoSeedHash), cookie.Value)
 	if err != nil {
-		return core.LogErrorReturn("Could not decrypt cookie value")
+		return errors.New("could not decrypt cookie value")
 	}
 	var cookieObj SecureCookie
 	err = json.Unmarshal([]byte(decryptCookieJSON), &cookieObj)
 	if err != nil {
-		return core.LogErrorReturn("Could not unmarshal cookie value")
+		return errors.New("could not unmarshal cookie value")
 	}
 	timeDiffSeconds := currentTimestamp - cookieObj.Timestamp
 	if timeDiffSeconds < 300 { // if the cookie is younger than 5 minutes
