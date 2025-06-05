@@ -14,7 +14,6 @@ import (
 func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool) {
 	router.GET("/p/*path", func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Param("path"), "/")
-		path = security.SanitizePathTraversal(path)
 		if path == "" {
 			value, exists1 := c.Get("blockchain")
 			blockchainParam := value.(string)

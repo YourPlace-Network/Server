@@ -23,7 +23,7 @@ import {
 } from "@wagmi/core";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
-import {getName as cbGetName, } from "@coinbase/onchainkit/identity";
+import {getName as cbGetName} from "@coinbase/onchainkit/identity";
 import L2ResolverAbi from "./L2ResolverAbi";
 import {IsValidBaseAddress} from "../security";
 import {Sleep} from "../time";
@@ -327,7 +327,12 @@ export async function baseGetName(address: string): Promise<string> {
         LogError("Invalid Base address provided to baseGetName: " + address);
         return "";
     }
-    try {
+    const name = await cbGetName({address: address as `0x${string}`});
+    if (name && name !== "") {
+        LogInfo("Base ENS name found for address: " + address + " - " + name);
+        return name.toString();
+    }
+    /*try {
         const addressReverseNode = convertReverseNodeToBytes(address as `0x${string}`, wagmiBase.id);
         const basename = await viemClient.readContract({
             abi: L2ResolverAbi,
@@ -342,9 +347,12 @@ export async function baseGetName(address: string): Promise<string> {
     } catch (error) {
         LogError("Failed to get Base ENS name: " + error);
         return "";
-    }
+    }*/
     LogInfo("No Base name found for address: " + address);
     return "";
+}
+export async function baseGetName2(address: string): Promise<string> {
+    return ""
 }
 export async function baseGetENSText(_address: string, key: string): Promise<string> {
     LogInfo("baseGetENSText called with address: " + _address + " and key: " + key);
