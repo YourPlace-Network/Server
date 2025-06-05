@@ -3,31 +3,38 @@ import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {ethers} from "ethers";
 import {YP} from "../../services/yourplace";
-import {createPublicClient, defineChain, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
+import type {Address} from 'viem';
+import {
+    createPublicClient,
+    defineChain,
+    encodePacked,
+    http as viemHttp,
+    keccak256,
+    namehash,
+    parseEther,
+    UserRejectedRequestError
+} from "viem";
 import {normalize as viemNormalize} from "viem/ens";
 import {base as viemBase} from "viem/chains";
-import {encodePacked, keccak256, namehash} from 'viem';
-import type {Address} from 'viem';
 import {
     connect as wagmiConnect,
     createConfig,
     createStorage,
     disconnect,
     getConnections,
-    getEnsAvatar,
     type GetEnsAvatarReturnType,
     http as wagmiHttp,
     readContract,
     sendTransaction,
-    signMessage
+    signMessage,
 } from "@wagmi/core";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
 import {getName as cbGetName} from "@coinbase/onchainkit/identity";
-import L2ResolverAbi from "./L2ResolverAbi";
 import {IsValidBaseAddress} from "../security";
 import {Sleep} from "../time";
 import {Web3} from "web3";
+import PersistentCache from "../cache";
 
 // ---------- Global Variables ---------- //
 export const mainnetBase = {
@@ -51,6 +58,11 @@ const metadataYourPlace = {
     ],
     throttle: 500, // milliseconds
 }
+const baseEnsCache = new PersistentCache({
+    defaultTtl: 3600000, // 1 hour
+    keyPrefix: "baseEnsCache_"
+});
+const pendingOnchainkitRequests = new Map<string, Promise<string>>();
 let baseInit = false;
 let viemClient: any;
 let wagmiConfig: any;
@@ -296,7 +308,6 @@ async function baseGetURL(): Promise<string|null> {
     return null;
 }
 export async function baseGetAvatar(address: string) {
-    LogInfo("baseGetAvatar called with address: " + address);
     if (!baseInit) {
         await initBaseWallet();
     }
@@ -305,57 +316,56 @@ export async function baseGetAvatar(address: string) {
         return "";
     }
     let baseName = await baseGetName(address);
-    const ensAvatar = await viemClient.getEnsAvatar({
-        name: viemNormalize(baseName),
-        universalResolverAddress: mainnetBase.ensUniversalResolverAddress,
-    });
-    if (ensAvatar && ensAvatar !== "") {
-        LogInfo("ENS Avatar found for Base address: " + address);
-        return ensAvatar as GetEnsAvatarReturnType;
-    } else {
-        LogInfo("No ENS Avatar found for Base address: " + address);
+    if (!baseName || baseName === "") {
+        LogInfo("No Base name found for address, skipping avatar lookup: " + address);
+        return "";
+    }
+    try {
+        const ensAvatar = await viemClient.getEnsAvatar({
+            name: viemNormalize(baseName),
+            universalResolverAddress: mainnetBase.ensUniversalResolverAddress,
+        });
+        if (ensAvatar && ensAvatar !== "") {
+            LogInfo("ENS Avatar found for Base address: " + address);
+            return ensAvatar as GetEnsAvatarReturnType;
+        } else {
+            LogInfo("No ENS Avatar found for Base address: " + address);
+            return "";
+        }
+    } catch (error) {
+        LogError("Failed to get Base ENS avatar: " + error);
         return "";
     }
 }
-export async function baseGetName(address: string): Promise<string> {
-    LogInfo("baseGetName called with address: " + address);
+export async function baseGetName(_address: string): Promise<string> {
+    LogInfo("baseGetName called with address: " + _address);
     // https://gist.github.com/hughescoin/95b680619d602782396fa954e981adae
     if (!baseInit) {
         await initBaseWallet();
     }
-    if (!IsValidBaseAddress(address)) {
-        LogError("Invalid Base address provided to baseGetName: " + address);
+    if (!IsValidBaseAddress(_address)) {
+        LogError("Invalid Base address provided to baseGetName: " + _address);
         return "";
     }
-    const name = await cbGetName({address: address as `0x${string}`});
-    if (name && name !== "") {
-        LogInfo("Base ENS name found for address: " + address + " - " + name);
-        return name.toString();
+    // Check cache first
+    const cached = baseEnsCache.get(_address);
+    if (cached !== null) {
+        return cached as string;
     }
-    /*try {
-        const addressReverseNode = convertReverseNodeToBytes(address as `0x${string}`, wagmiBase.id);
-        const basename = await viemClient.readContract({
-            abi: L2ResolverAbi,
-            address: mainnetBase.ensBasenameResolverAddress as `0x${string}`,
-            functionName: 'name',
-            args: [addressReverseNode],
-        });
-        if (basename && basename !== "") {
-            LogInfo("Base ENS name found for address: " + address);
-            return basename as string;
-        }
-    } catch (error) {
-        LogError("Failed to get Base ENS name: " + error);
-        return "";
-    }*/
-    LogInfo("No Base name found for address: " + address);
-    return "";
-}
-export async function baseGetName2(address: string): Promise<string> {
-    return ""
+    // Check if request is already in progress
+    if (pendingOnchainkitRequests.has(_address)) {
+        return await pendingOnchainkitRequests.get(_address)!;
+    }
+    // Create new request
+    const requestPromise = performBasenameRequest(_address);
+    pendingOnchainkitRequests.set(_address, requestPromise);
+    try {
+        return await requestPromise;
+    } finally {
+        pendingOnchainkitRequests.delete(_address);
+    }
 }
 export async function baseGetENSText(_address: string, key: string): Promise<string> {
-    LogInfo("baseGetENSText called with address: " + _address + " and key: " + key);
     if (viemClient === null || !viemClient || !baseInit) {
         await initBaseWallet();
     }
@@ -371,7 +381,6 @@ export async function baseGetENSText(_address: string, key: string): Promise<str
     return "";
 }
 export async function baseGetNFTs(_address: string) {
-    LogInfo("baseGetNFTs called with address: " + _address);
     const minimalERC721ABI = [
         {
             inputs: [{ name: 'owner', type: 'address' }],
@@ -417,24 +426,49 @@ export async function baseGetNFTs(_address: string) {
 }
 
 // ---------- ENS Functions ---------- //
-export const convertReverseNodeToBytes = (address: Address, chainId: number,) => {
-    // https://gist.github.com/hughescoin/95b680619d602782396fa954e981adae#file-basenames-tsx-L115
-    const addressFormatted = address.toLocaleLowerCase() as Address;
-    const addressNode = keccak256(addressFormatted.substring(2) as Address);
-    const chainCoinType = convertChainIdToCoinType(chainId);
-    const baseReverseNode = namehash(
-        `${chainCoinType.toLocaleUpperCase()}.reverse`,
-    );
-    const addressReverseNode = keccak256(
-        encodePacked(['bytes32', 'bytes32'], [baseReverseNode, addressNode]),
-    );
-    return addressReverseNode;
-};
-export const convertChainIdToCoinType = (chainId: number): string => {
-    // https://gist.github.com/hughescoin/95b680619d602782396fa954e981adae#file-basenames-tsx-L102
-    if (chainId === viemBase.id) {
-        return 'addr';
+async function performBasenameRequest(_address: string): Promise<string> {
+    try {
+        const name = await cbGetName({address: _address as `0x${string}`, chain: wagmiBase});
+        if (name && name !== "") {
+            const basename = name.toString();
+            baseEnsCache.set(_address, basename);
+            LogInfo("Cached new basename for address: " + _address + " -> " + basename);
+            return basename;
+        }
+    } catch (error) {
+        LogError("Failed to get Base ENS name: " + error);
     }
-    const cointype = (0x80000000 | chainId) >>> 0;
-    return cointype.toString(16).toLocaleUpperCase();
-};
+    LogInfo("No Base name found for address: " + _address);
+    // Cache empty result to avoid repeated failed lookups
+    baseEnsCache.set(_address, "");
+    return "";
+
+    // Viem
+    /*try {
+        const addressReverseNode = convertReverseNodeToBytes(_address as `0x${string}`, viemBase.id);
+        const basename = await viemClient.readContract({
+            abi: L2ResolverAbi,
+            address: mainnetBase.ensBasenameResolverAddress as `0x${string}`,
+            functionName: 'name',
+            args: [addressReverseNode],
+        });
+        if (basename && basename !== "") {
+            return basename as string;
+        }
+    } catch (error) {
+        LogError("Failed to get Base ENS name 2: " + error);
+    }*/
+    // Wagmi
+    /*try {
+        const ensName = await fetchEnsName(wagmiConfig, {
+            address: _address as `0x${string}`,
+            chainId: wagmiBase.id,
+            universalResolverAddress: mainnetBase.ensUniversalResolverAddress as `0x${string}`,
+        });
+        if (ensName && ensName !== "") {
+            return ensName;
+        }
+    } catch (error) {
+        LogError("Failed to get Base ENS name 3: " + error);
+    }*/
+}
