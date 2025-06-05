@@ -1498,14 +1498,15 @@ func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, t
 				core.LogError("Could not check for existing file: " + err.Error())
 				continue
 			}
-			defer rows.Close()
 			if rows.Next() {
 				err = rows.Scan(&existingFileUUID)
 				if err != nil {
 					core.LogError("Could not scan existing file UUID: " + err.Error())
+					rows.Close()
 					continue
 				}
 			}
+			rows.Close()
 		}
 		if existingFileUUID != "" {
 			fileUUID = existingFileUUID

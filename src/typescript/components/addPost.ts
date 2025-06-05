@@ -81,13 +81,18 @@ import tinymce from "tinymce/tinymce";
         }
 
         async function submitPost() {
+            console.log("1");
             let payload = tinymce.get("addPostText")!.getContent();
+            console.log("2");
             if (!payload || payload.trim() === "") {
                 hideModal();
                 return;
             }
+            console.log("3");
             stripRemovedAttachments();
+            console.log("4");
             if (Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
+                console.log("uploadedFiles length", uploadedFiles.length);
                 postObj.postText = payload;
                 await prepareAttachedPost();
             } else {
@@ -116,6 +121,7 @@ import tinymce from "tinymce/tinymce";
                 if (mimeType == null) {return}
                 let size = file.size;
                 let base64Name = file.encodedUnsafeName;
+                console.log("prepare attached unsafe name is:" + base64Name);
                 if (typeof url === "string" && mimeType !== "" && size !== "" && base64Name !== ""){
                     let attachment = [url, mimeType, size, base64Name];
                     attachments.push(attachment);
@@ -141,6 +147,7 @@ import tinymce from "tinymce/tinymce";
             let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
             // Show some loading indication
             DOM.uploadFileButton.disabled = true;
+            DOM.submitPostButton.disabled = true;
             for (const file of fileList) {
                 const previewElement = await CreateAttachmentPreview(file);
                 const fileNameElement = previewElement.querySelector(".fileNameSpan")! as HTMLSpanElement;
@@ -153,10 +160,12 @@ import tinymce from "tinymce/tinymce";
                 DOM.attachmentDiv.appendChild(previewElement);
             }
             let [status, data] = await UploadFile(fileList, csrfToken);
-            uploadedFiles.push(data.data);
+            uploadedFiles.push(...data.data);
+            console.log("uuid from object: " + uploadedFiles[0].uuid);
 
             // Reset UI after upload
             DOM.uploadFileButton.disabled = false;
+            DOM.submitPostButton.disabled = false;
         }
         async function checkVideoStatus(fileHash: string) {
             let [status, data] = await HttpGetJson("/files/checkvideo/" + fileHash);
@@ -192,7 +201,10 @@ import tinymce from "tinymce/tinymce";
             DOM.spiceometerText.innerText = chilies;
         }
         function stripRemovedAttachments() {
-            uploadedFiles = uploadedFiles.filter(file => !removedFiles.includes(base64decode(file.encodedUnsafeName)));
+            console.log("stripRemovedAttachments");
+            console.log("encoded file name: " + uploadedFiles[0].encodedUnsafeName);
+            console.log("decoded file name: " + base64decode(uploadedFiles[0].encodedUnsafeName));
+            uploadedFiles = uploadedFiles.filter(file => !removedFiles?.includes(base64decode(file.encodedUnsafeName)));
         }
         function debounce<T extends (...args: any[]) => void>(func: T, delay: number): (...args: Parameters<T>) => void {
             let timeoutId: number;

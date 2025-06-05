@@ -104,17 +104,23 @@ declare global { // Extend the window interface with public objects
         }
         async function displayPosts(blockchain: string, address: string) { // adds posts to the DOM
             let posts = await FetchPosts(blockchain, address);
+            console.log("fetchposts");
             if (!posts || posts.length == 0) {
                 DOM.postsNum.textContent = "0";
                 return;
             }
+            console.log("FP 2")
             DOM.postsNum.textContent = String(posts.length);
+            console.log("FP 3")
             for (let i = 0; i < posts.length; i++) {
+                console.log("FP 4")
                 let postDiv = await CreatePostCard(posts[i]);
+                console.log("FP 5")
                 if (i % 2 === 0) {
                     postDiv.classList.add("shaded");
                 }
                 DOM.contentDiv.appendChild(postDiv);
+                console.log("FP 6")
             }
         }
 

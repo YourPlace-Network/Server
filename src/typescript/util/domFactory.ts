@@ -9,6 +9,7 @@ import {getFileIcon, formatFileSize} from "./files";
 import path from "path";
 import {extensionToMimeType} from "./mimeTypes";
 import {ShowModalMediaViewer} from "../components/modalMediaViewer";
+import {base64decode} from "byte-base64";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
@@ -445,17 +446,22 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     const fileSizeSpan = document.createElement("span") as HTMLSpanElement;
     const iconClass = getFileIcon(attachment[1]);
     let attachmentURL: string;
+    console.log("AC 1")
     fileIcon.classList.add("icon", "attachmentCardIcon", iconClass);
     if (attachment[0].startsWith("ipfs://")) {
         attachmentURL = CIDToSubdomainURL(attachment[0]);
     } else {
         attachmentURL = attachment[0];
     }
+    console.log("AC 2")
+    console.log("attachmentURL: " + attachmentURL);
     if (!IsValidURL(attachmentURL)) {
         return Promise.reject("Invalid URL");
     }
+    console.log("AC 3")
     if (attachment[3] !== "") {
-        const fileName = attachment[3];
+        const fileNameBase64 = attachment[3];
+        const fileName = base64decode(fileNameBase64)
         fileNameSpan.textContent = XSSSanitizeValue(fileName);
     }
     downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
@@ -470,6 +476,7 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     attachmentCard.appendChild(downloadAnchor);
     downloadAnchor.appendChild(downloadButton);
     downloadButton.appendChild(downloadIcon);
+    console.log("AC complete")
     return attachmentCard;
 }
 async function grid2Attachments(attachments: HTMLElement[]): Promise<HTMLDivElement> {
