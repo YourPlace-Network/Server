@@ -10,12 +10,11 @@ require (
 	github.com/ethereum/go-ethereum v1.15.11
 	github.com/getlantern/systray v1.2.2
 	github.com/gin-contrib/gzip v1.2.3
-	github.com/gin-gonic/gin v1.10.0
+	github.com/gin-gonic/gin v1.10.1
 	github.com/glebarez/go-sqlite v1.22.0
 	github.com/go-ole/go-ole v1.3.0
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/csrf v1.7.3
 	github.com/huin/goupnp v1.3.0
 	github.com/ipfs/boxo v0.30.0
 	github.com/ipfs/go-cid v0.5.0

@@ -215,6 +215,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, address TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"csrf_tokens":    "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
 	}
 	for _, createStatement := range tables {
 		err := db.execWithRetry(ctx, createStatement, 3)
@@ -835,6 +836,13 @@ func (db *SQLite) SettingsUpdateValue(key string, value string) {
 		core.LogError("Settings update failed: " + err.Error())
 	}
 }
+func (db *SQLite) SettingsDeleteValue(key string) error {
+	_, err := db.runParamSQLUpdate("DELETE FROM settings WHERE key = ?", key)
+	if err != nil {
+		return core.LogErrorReturn("Could not delete setting: " + err.Error())
+	}
+	return nil
+}
 
 // --- Profile Functions --- //
 func (db *SQLite) ProfileGetName(address string, blockchain string) string {
@@ -1020,7 +1028,11 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 	var posts []map[string]interface{}
 	rowsPosts, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddress = LOWER (?) AND blockchain = ? ORDER BY timestamp DESC", address, blockchain)
 	if err != nil {
-		core.LogError("Could not get user posts from database: " + err.Error())
+		core.LogDebug("Could not get user posts from database: " + err.Error())
+		return nil
+	}
+	if rowsPosts == nil {
+		core.LogDebug("No posts found for address: " + address + " on blockchain: " + blockchain)
 		return nil
 	}
 	defer rowsPosts.Close()
@@ -1030,27 +1042,28 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 		var attachments [][]string
 		err := rowsPosts.Scan(&txHash, &parent, &timestamp, &payload)
 		if err != nil {
-			core.LogError(err.Error())
+			core.LogDebug("Could not scan database rows for user posts: " + err.Error())
 			return nil
 		}
 		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
 		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash)
 		if err != nil {
-			core.LogError("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
-		}
-		defer rowsAttachments.Close()
-		for rowsAttachments.Next() {
-			var mimeType string
-			var size uint64
-			var fileUrl string
-			err := rowsAttachments.Scan(&mimeType, &size, &fileUrl)
-			if err != nil {
-				core.LogError("Could parse rows for post attachment: " + err.Error())
-				break // bail rowsAttachments for loop
+			core.LogDebug("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
+		} else if rowsAttachments != nil {
+			for rowsAttachments.Next() {
+				var mimeType string
+				var size uint64
+				var fileUrl string
+				err := rowsAttachments.Scan(&mimeType, &size, &fileUrl)
+				if err != nil {
+					core.LogDebug("Could parse rows for post attachment: " + err.Error())
+					break // bail rowsAttachments for loop
+				}
+				sizeString := strconv.FormatUint(size, 10)
+				attachment := []string{fileUrl, mimeType, sizeString}
+				attachments = append(attachments, attachment)
 			}
-			sizeString := strconv.FormatUint(size, 10)
-			attachment := []string{fileUrl, mimeType, sizeString}
-			attachments = append(attachments, attachment)
+			rowsAttachments.Close()
 		}
 		post := map[string]interface{}{
 			"resultType": "profile post",
@@ -1278,6 +1291,41 @@ func (db *SQLite) AuthGetServerOwnerAddress() string {
 	}
 	core.LogError("Could not get the server owner address from the database - no entry found")
 	return ""
+}
+func (db *SQLite) CSRFStoreToken(token string, expiration int64) {
+	query := "INSERT INTO csrf_tokens (token, expiration) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expiration = excluded.expiration"
+	_, err := db.runParamSQLUpdate(query, token, expiration)
+	if err != nil {
+		core.LogError("Could not store CSRF token: " + err.Error())
+	}
+}
+func (db *SQLite) CSRFValidateToken(token string) bool {
+	currentTime := time.Now().Unix()
+	rows, err := db.runParamSQLSelect("SELECT expiration FROM csrf_tokens WHERE token = ?", token)
+	if err != nil {
+		core.LogError("Could not validate CSRF token: " + err.Error())
+		return false
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var expiration int64
+		err = rows.Scan(&expiration)
+		if err != nil {
+			core.LogError("Could not scan CSRF token expiration: " + err.Error())
+			return false
+		}
+		if currentTime <= expiration {
+			return true
+		}
+	}
+	return false
+}
+func (db *SQLite) CSRFCleanupExpired() {
+	currentTime := time.Now().Unix()
+	_, err := db.runParamSQLUpdate("DELETE FROM csrf_tokens WHERE expiration < ?", currentTime)
+	if err != nil {
+		core.LogError("Could not cleanup expired CSRF tokens: " + err.Error())
+	}
 }
 
 // --- File & IPFS Functions --- //

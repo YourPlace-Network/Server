@@ -49,15 +49,21 @@ declare global { // Extend the window interface with public callback objects
                 await Sleep(500); // Allow delay for cookie/context to be set
 
                 // Handle all redirects
+                let redir: any;
                 if (redirect.startsWith("/p/")) {
                     console.log("Redirecting to: " + redirect);
-                    window.location.replace(redirect);
+                    redir = redirect;
                 } else if (redirect === "/settings/") {
                     console.log("Redirecting to: " + redirect);
-                    window.location.replace("/settings/");
+                    redir = "/settings/";
                 } else {
                     console.log("Redirecting to: /");
-                    window.location.replace("/");
+                    redir = "/";
+                }
+                if (redir !== null) {
+                    console.log("Redirecting to: " + redir);
+                    window.location.replace(redir);
+                    return;
                 }
             } catch(error) {
                 LogError("LoginCallback Error: " + error);

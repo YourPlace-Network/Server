@@ -104,6 +104,13 @@ func (db *Database) SettingsUpdateValue(key string, value string) {
 		db.sqlite.SettingsUpdateValue(key, value)
 	}
 }
+func (db *Database) SettingsDeleteValue(key string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.SettingsDeleteValue(key)
+	}
+	return nil
+}
 func (db *Database) Ping() bool {
 	switch db.Engine {
 	case "sqlite":
@@ -172,6 +179,25 @@ func (db *Database) AuthGetServerOwnerAddress() string {
 		return db.sqlite.AuthGetServerOwnerAddress()
 	}
 	return ""
+}
+func (db *Database) CSRFStoreToken(token string, expiration int64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.CSRFStoreToken(token, expiration)
+	}
+}
+func (db *Database) CSRFValidateToken(token string) bool {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.CSRFValidateToken(token)
+	}
+	return false
+}
+func (db *Database) CSRFCleanupExpired() {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.CSRFCleanupExpired()
+	}
 }
 
 // --- Files Functions --- //

@@ -19,9 +19,13 @@ export async function WalletLogin() {
         case "pera":
             return ""; //return await algoAuthLogin(address);
         case "cbwalletbase":
-            let ret = await baseAuthLogin();
-            console.log(ret);
-            return ret;
+            LogInfo("Logging in to Base wallet - WalletLogin()");
+            let loginStatus = await baseAuthLogin();
+            if (loginStatus !== "success") {
+                LogError("Failed to login to Base wallet: " + loginStatus);
+                return "";
+            }
+            return loginStatus;
         case "phantomsolana":
             return await phantomSolanaAuthLogin();
         case null:
@@ -56,6 +60,7 @@ export async function DisconnectWallet() {
 export async function ConnectWallet(wallet: string): Promise<string> {
     switch (wallet) {
         case "pera":
+            LogInfo("Connecting to Pera wallet");
             let address = await algoConnectWallet("pera");
             if (IsValidAddress(address, "algorand")) {
                 SetWallet("pera");
@@ -64,9 +69,13 @@ export async function ConnectWallet(wallet: string): Promise<string> {
             }
             break;
         case "cbwalletbase":
+            LogInfo("Connecting to Base wallet");
             let addressBase = await baseConnectWallet();
             if (!addressBase || addressBase === "") {
                 LogError("Base wallet returned empty address");
+                SetWallet("");
+                SetChain("");
+                SetAddress("");
                 return "Failed to connect to Base wallet: Empty address";
             }
             let validAddress = IsValidBaseAddress(addressBase);

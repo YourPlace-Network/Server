@@ -3,11 +3,11 @@ package routes
 import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
+	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
 	"encoding/hex"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/csrf"
 	"net/http"
 	"strconv"
 	"strings"
@@ -31,7 +31,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 		})
 	})
 	router.GET("/login", func(c *gin.Context) {
-		csrfToken := csrf.Token(c.Request)
+		csrfToken := middleware.GetCSRFToken(c)
 		c.HTML(http.StatusOK, "src/templates/pages/login.tmpl", gin.H{
 			"title":       title,
 			"pageName":    "login",
@@ -75,12 +75,11 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login address"})
 			return
 		}
-		core.LogDebug("Base wallet login address is valid")
-		core.LogDebug("Base wallet login payload: " + payload.Payload)
-		core.LogDebug("Base wallet login signature: " + payload.Signature)
-		core.LogDebug("Base wallet login signature length: " + strconv.Itoa(len(payload.Signature)))
-		core.LogDebug("Base wallet login address: " + payload.Address)
-
+		//core.LogDebug("Base wallet login address is valid")
+		//core.LogDebug("Base wallet login payload: " + payload.Payload)
+		//core.LogDebug("Base wallet login signature: " + payload.Signature)
+		//core.LogDebug("Base wallet login signature length: " + strconv.Itoa(len(payload.Signature)))
+		//core.LogDebug("Base wallet login address: " + payload.Address)
 		if !security.IsValidEthSignature(payload.Payload, payload.Signature, payload.Address) { // todo: check if this is the right function
 			core.LogDebug("Base wallet login eth signature is invalid")
 			if !security.IsValidERC6492Signature(payload.Payload, payload.Signature, payload.Address) {

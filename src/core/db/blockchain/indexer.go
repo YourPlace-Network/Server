@@ -25,8 +25,8 @@ const (
 	reportInterval = 5000 // print progress every # of blocks
 	saveInterval   = 100  // save progress every # of blocks
 	throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
-	batchSizeLimit = 10   // The maximum number of blocks to fetch in a single batch RPC call
-	workerCount    = 10   // Number of worker threads to use for processing batches
+	batchSizeLimit = 25   // The maximum number of blocks to fetch in a single batch RPC call
+	workerCount    = 25   // Number of worker threads to use for processing batches
 )
 
 var (

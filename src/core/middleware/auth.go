@@ -28,8 +28,8 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 }
 
 // Prefix match on path, exact match on method
-var prefixGetExclusions = []string{"/static/", "/login", "/logout", "/profile/", "/posts"} // This exclusion should be used rarely, as it will exclude all GET requests to that path
-var prefixPostExclusions = []string{"/login"}                                              // This exclusion should be used rarely, as it will exclude all POST requests to that path
+var prefixGetExclusions = []string{"/static/", "/login", "/logout", "/profile/", "/posts"} // This exclusion should rarely be used, as it will exclude all GET requests to that path
+var prefixPostExclusions = []string{"/login"}                                              // This exclusion should rarely be used, as it will exclude all POST requests to that path
 
 func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -44,6 +44,11 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 		if len(path) > 0 && path != "/login" && path != "/ping" {
 			redirect = "?redirect=" + path
 		}
+		// Don't redirect HEAD requests - just deny them
+		if c.Request.Method == "HEAD" {
+			c.AbortWithStatus(http.StatusMethodNotAllowed)
+			return
+		}
 		// Check for auth cookie
 		authCookie, err := c.Request.Cookie("yp_auth")
 		if err != nil { // If there is no yp_auth cookie in the request
@@ -55,7 +60,6 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 		// Validate cookie
 		authenticated := security.ValidateCookie(authCookie, cryptoSeed, database) // Check if the cookie is valid
 		if !authenticated {
-			//core.LogDebug("Auth middleware - Cookie is invalid")
 			security.InvalidateCookie(authCookie, cryptoSeed, database)
 			c.Redirect(http.StatusFound, "/login"+redirect)
 			c.Abort()
@@ -99,6 +103,9 @@ func IsRequestExcluded(c *gin.Context) bool {
 	parsedURL, _ := url.Parse(requestURI)
 	requestPath := parsedURL.Path
 	requestMethod := strings.TrimRight(c.Request.Method, "/\\")
+	if requestPath == "/login" && requestMethod == "HEAD" {
+		return true // Exclude all HEAD requests to /login to prevent redirect loops
+	}
 	// Prefix exclusion checks
 	for _, prefix := range prefixGetExclusions { // GET prefix exclusions
 		if strings.HasPrefix(requestPath, prefix) && requestMethod == "GET" {
@@ -110,6 +117,7 @@ func IsRequestExcluded(c *gin.Context) bool {
 			return true
 		}
 	}
+	// Special case for /p/ profile browsing paths
 	if strings.HasPrefix(requestPath, "/p/") && requestPath != "/p/" && requestMethod == "GET" {
 		// authenticated users need to be able to provide auth context to /p/ to view their own profile, but unauthenticated users must be able to access paths below /p/ to view other profiles
 		return true

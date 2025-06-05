@@ -101,7 +101,15 @@ export async function baseAuthLogin(): Promise<string> {
         await baseConnectWallet();
     }
     let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
+    if (!csrfToken || csrfToken === "") {
+        LogError("CSRF token not found - baseAuthLogin()");
+        return "csrf token not found";
+    }
     let address = GetAddress()!;
+    if (!address || address === "" || !IsValidBaseAddress(address)) {
+        LogError("Invalid Base address - baseAuthLogin()");
+        return "invalid address";
+    }
     const response = await HttpGetJson("/login/nonce");
     if (response[0] != 200) {
         LogError("Failed to get login nonce from server: " + response[1]);
@@ -127,13 +135,13 @@ export async function baseAuthLogin(): Promise<string> {
     const response2 = await HttpPostJson("/login/wallet/base", loginPayload, csrfToken);
     if (response2[0] != 200) {
         LogError("Failed to login with Base");
-
+        await Sleep(3000);
         await DisconnectWallet();
-        return response2[1].status;
+        return response2[1] ? response[1].status : "Unknown error during Base login";
     }
     try {
         let status = response2[1].status as string;
-        if (status === "success") {
+        if (status === "Base wallet login success") {
             return "success";
         }
     } catch (e) {
