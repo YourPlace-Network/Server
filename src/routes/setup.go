@@ -4,9 +4,9 @@ import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
+	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/csrf"
 	"net/http"
 	"os"
 	"strconv"
@@ -26,7 +26,7 @@ func SetupRoutes(router *gin.Engine, database *db.Database, title string, favico
 		if uploadDirectory != "" {
 			uploadDirectory = defaultUploadDirectory
 		}
-		token := csrf.Token(c.Request)
+		token := middleware.GetCSRFToken(c)
 		c.HTML(http.StatusOK, "src/templates/pages/setup.tmpl", gin.H{
 			"title":                  title,
 			"defaultUploadDirectory": defaultUploadDirectory,

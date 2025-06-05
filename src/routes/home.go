@@ -2,15 +2,15 @@ package routes
 
 import (
 	"YourPlace/src/core/db"
+	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/csrf"
 	"net/http"
 )
 
 func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool, database *db.Database, cryptoSeed []byte, gateway bool) {
 	router.GET("/", func(c *gin.Context) {
-		token := csrf.Token(c.Request)
+		token := middleware.GetCSRFToken(c)
 		authenticated := false
 		authCookie, err := c.Request.Cookie("yp_auth")
 		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {

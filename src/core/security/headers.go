@@ -40,10 +40,18 @@ func Headers(port int) gin.HandlerFunc {
 				"media-src 'self' data: https://*; "+
 				"font-src 'self' https://fonts.gstatic.com; "+
 				"connect-src 'self' data: https://* wss://*:* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // this must wildcard all TLS connections to allow for P2P traffic
-				"frame-src https://*; ")
-		c.Header("X-Content-Options", "nosniff")
+				"frame-src https://*; "+
+				"base-uri 'self'; "+
+				"form-action 'self'; "+
+				"object-src 'none'; ")
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "SAMEORIGIN")
+		c.Header("X-XSS-Protection", "1; mode=block")
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
 		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
-		//c.Header("X-Frame-Options", fmt.Sprintf("sameorigin"))
+		c.Header("Pragma", "no-cache")
+		c.Header("Expires", "0")
 		return
 	}
 }

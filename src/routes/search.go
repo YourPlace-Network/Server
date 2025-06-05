@@ -12,8 +12,21 @@ import (
 func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain.Blockchain) {
 	router.GET("/s/", func(c *gin.Context) {
 		query := c.Query("q")
+		if len(query) == 0 {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "no query provided"})
+			return
+		}
+		if len(query) > 250 {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "query too long"})
+			return
+		}
 		printableQuery := security.SanitizeNonPrintable(query)
+		printableQuery = security.StripXssChars(printableQuery)
 		noWhitespace := strings.TrimSpace(printableQuery)
+		if len(noWhitespace) == 0 {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "query only contains invalid characters - cut it out, buster"})
+			return
+		}
 		tokens := strings.Fields(noWhitespace)
 		var address string
 		if tokens[0] == "profile:" { // profile specific search to demonstrate tokenization
@@ -48,8 +61,6 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 			profiles := database.SearchGetProfiles(profileQuery)
 			results := append(posts, profiles...)
 			c.SecureJSON(http.StatusOK, gin.H{"results": results})
-
 		}
-
 	})
 }

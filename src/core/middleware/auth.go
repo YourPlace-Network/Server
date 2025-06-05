@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 // List of path/method pairs that do not require authentication. Everything else requires a yp_auth cookie created from /login
@@ -29,30 +28,31 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 }
 
 // Prefix match on path, exact match on method
-var prefixGetExclusions = []string{"/static/", "/login", "/logout", "/profile/", "/posts"} // This exclusion should be used rarely, as it will exclude all GET requests to that path
-var prefixPostExclusions = []string{"/login"}                                              // This exclusion should be used rarely, as it will exclude all POST requests to that path
+var prefixGetExclusions = []string{"/static/", "/login", "/logout", "/profile/", "/posts"} // This exclusion should rarely be used, as it will exclude all GET requests to that path
+var prefixPostExclusions = []string{"/login"}                                              // This exclusion should rarely be used, as it will exclude all POST requests to that path
 
 func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Early return for excluded paths
 		if IsRequestExcluded(c) {
-			//core.LogDebug("Auth - Path Excluded: " + c.Request.URL.Path + " Method: " + c.Request.Method)
 			c.Next()
 			return
 		}
-		//core.LogDebug("Auth - Path Enforced: " + c.Request.URL.Path + " Method: " + c.Request.Method)
 		// Build redirect path
 		path := c.Request.URL.Path
 		redirect := ""
 		if len(path) > 0 && path != "/login" && path != "/ping" {
 			redirect = "?redirect=" + path
 		}
-		//core.LogDebug("Auth middleware - Redirect: " + redirect)
+		// Don't redirect HEAD requests - just deny them
+		if c.Request.Method == "HEAD" {
+			c.AbortWithStatus(http.StatusMethodNotAllowed)
+			return
+		}
 		// Check for auth cookie
 		authCookie, err := c.Request.Cookie("yp_auth")
 		if err != nil { // If there is no yp_auth cookie in the request
-			core.LogDebug("No auth cookie. Redirecting to login")
-			time.Sleep(30)                                  // debug
+			//core.LogDebug("No auth cookie. Redirecting to login")
 			c.Redirect(http.StatusFound, "/login"+redirect) // Redirect to the login page
 			c.Abort()                                       // You're on the /login page, and no cookie is expected
 			return
@@ -60,9 +60,7 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 		// Validate cookie
 		authenticated := security.ValidateCookie(authCookie, cryptoSeed, database) // Check if the cookie is valid
 		if !authenticated {
-			core.LogDebug("Auth middleware - Cookie is invalid")
 			security.InvalidateCookie(authCookie, cryptoSeed, database)
-			time.Sleep(30) // debug
 			c.Redirect(http.StatusFound, "/login"+redirect)
 			c.Abort()
 			return
@@ -72,7 +70,6 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 		if err != nil { // If the cookie is valid, but can't get the address value, send back to /login
 			core.LogDebug("Auth middleware - Failed to get address value from cookie: " + err.Error())
 			security.InvalidateCookie(authCookie, cryptoSeed, database)
-			time.Sleep(30) // debug
 			c.Redirect(http.StatusFound, "/login"+redirect)
 			c.Abort()
 			return
@@ -81,7 +78,6 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 		if err != nil { // If the cookie is valid, but can't get the value, send back to /login
 			core.LogDebug("Auth middleware - Failed to get blockchain value from cookie: " + err.Error())
 			security.InvalidateCookie(authCookie, cryptoSeed, database)
-			time.Sleep(30) // debug
 			c.Redirect(http.StatusFound, "/login"+redirect)
 			c.Abort()
 			return
@@ -91,7 +87,6 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 		if err != nil {
 			core.LogDebug("Auth middleware - Failed to increment cookie: " + err.Error())
 			security.InvalidateCookie(authCookie, cryptoSeed, database)
-			time.Sleep(30) // debug
 			c.Redirect(http.StatusFound, "/login"+redirect)
 			c.Abort()
 			return
@@ -108,7 +103,9 @@ func IsRequestExcluded(c *gin.Context) bool {
 	parsedURL, _ := url.Parse(requestURI)
 	requestPath := parsedURL.Path
 	requestMethod := strings.TrimRight(c.Request.Method, "/\\")
-
+	if requestPath == "/login" && requestMethod == "HEAD" {
+		return true // Exclude all HEAD requests to /login to prevent redirect loops
+	}
 	// Prefix exclusion checks
 	for _, prefix := range prefixGetExclusions { // GET prefix exclusions
 		if strings.HasPrefix(requestPath, prefix) && requestMethod == "GET" {
@@ -120,11 +117,11 @@ func IsRequestExcluded(c *gin.Context) bool {
 			return true
 		}
 	}
+	// Special case for /p/ profile browsing paths
 	if strings.HasPrefix(requestPath, "/p/") && requestPath != "/p/" && requestMethod == "GET" {
 		// authenticated users need to be able to provide auth context to /p/ to view their own profile, but unauthenticated users must be able to access paths below /p/ to view other profiles
 		return true
 	}
-
 	// Excluded tuples checks (exact match)
 	for _, excludedTuple := range excludedTuplesAuth {
 		if requestPath == excludedTuple[0] && requestMethod == excludedTuple[1] { // check if it matches an excluded tuple

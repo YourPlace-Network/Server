@@ -5,26 +5,43 @@ import (
 	"net/http"
 )
 
-func CORSMiddleware(port int) gin.HandlerFunc {
+func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		// Only allow localhost origins for local development
+		allowedOrigins := []string{
+			"http://localhost:42424",
+			"https://localhost:42424",
+		}
+
+		originAllowed := false
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				c.Header("Access-Control-Allow-Origin", origin)
+				originAllowed = true
+				break
+			}
+		}
+
+		if !originAllowed && origin != "" {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+
 		c.Header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Cross-Origin-Resource-Policy", "cross-origin")
-		c.Header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		c.Header("Cross-Origin-Resource-Policy", "same-origin")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS, PUT, DELETE")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-CSRF-Token, X-Requested-With, Cache-Control, Content-Length")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Max-Age", "3600")
-
 		// Handle preflight requests
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
-		// Handle HEAD requests for all routes
 		if c.Request.Method == "HEAD" {
-			c.Header("Content-Type", "application/json")
-			c.Status(http.StatusOK)
-			c.Abort()
+			c.Header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
+			c.AbortWithStatus(http.StatusOK)
 			return
 		}
 		c.Next()

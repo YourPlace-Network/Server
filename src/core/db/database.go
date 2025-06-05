@@ -105,6 +105,13 @@ func (db *Database) SettingsUpdateValue(key string, value string) {
 		db.sqlite.SettingsUpdateValue(key, value)
 	}
 }
+func (db *Database) SettingsDeleteValue(key string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.SettingsDeleteValue(key)
+	}
+	return nil
+}
 func (db *Database) Ping() bool {
 	switch db.Engine {
 	case "sqlite":

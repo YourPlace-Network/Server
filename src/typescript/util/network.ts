@@ -1,3 +1,5 @@
+import {LogError} from "./log";
+
 export async function HttpGetJson(url: string): Promise<[number, any]>{
     const options = {
         method: "GET",
@@ -20,7 +22,8 @@ export async function HttpGetJson(url: string): Promise<[number, any]>{
 }
 export async function HttpPostJson(url: string, payload: any, csrfToken: string): Promise<[number, any]> {
     if (csrfToken == null || csrfToken == "") {
-        return [400, {"status": "Invalid CSRF Token"}];
+        LogError("HttpPostJson: Invalid/missing CSRF Token");
+        return [400, {"status": "Invalid/missing CSRF Token"}];
     }
     const options = {
         method: "POST",
@@ -30,8 +33,9 @@ export async function HttpPostJson(url: string, payload: any, csrfToken: string)
             "Content-Type": "application/json; charset=utf-8",
             "X-CSRF-Token": csrfToken,
         },
-        body: JSON.stringify(payload)
-    }
+        body: JSON.stringify(payload),
+        credentials: "include", // Important for CSRF cookies
+    };
     let response: Response;
     try {
         response = await fetchWithTimeout(url, options, 30000);
@@ -39,9 +43,19 @@ export async function HttpPostJson(url: string, payload: any, csrfToken: string)
         return [400, {"status": "Request timed out"}];
     }
     if (!response.ok) {
+        try {
+            const errorText = await response.text();
+            return [response.status, errorText ? JSON.parse(errorText) : null];
+        } catch (e) {
+            return [response.status, null];
+        }
+    }
+    try {
+        const responseData = await response.json();
+        return [response.status, responseData];
+    } catch (e) {
         return [response.status, null];
     }
-    return [response.status, await response.json()];
 }
 export async function HttpPostFile(url: string, file: File | FileList, csrfToken: string): Promise<[number, any]> {
     if (csrfToken == null || csrfToken == "") {
@@ -63,6 +77,7 @@ export async function HttpPostFile(url: string, file: File | FileList, csrfToken
             "Accept": "application/json",
             "X-CSRF-Token": csrfToken,
         },
+        credentials: "include", // Important for CSRF cookies
     }
     let response = await fetchWithTimeout(url, options, 120000);
     return [response.status, await response.json()];

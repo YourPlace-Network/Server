@@ -6,6 +6,8 @@ import {YP} from "../../services/yourplace";
 import {createPublicClient, defineChain, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
 import {normalize as viemNormalize} from "viem/ens";
 import {base as viemBase} from "viem/chains";
+import {encodePacked, keccak256, namehash} from 'viem';
+import type {Address} from 'viem';
 import {
     connect as wagmiConnect,
     createConfig,
@@ -22,6 +24,7 @@ import {
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
 import {getName as cbGetName} from "@coinbase/onchainkit/identity";
+import L2ResolverAbi from "./L2ResolverAbi";
 import {IsValidBaseAddress} from "../security";
 import {Sleep} from "../time";
 import {Web3} from "web3";
@@ -51,19 +54,16 @@ const metadataYourPlace = {
 let baseInit = false;
 let viemClient: any;
 let wagmiConfig: any;
-let ensClient: any;
-let web3Client: any;
+let web3Client: Web3;
 
 // ---------- Initialization Functions ---------- //
 async function initBaseWallet() {
     if (baseInit) { return; }
     try {
-        await Sleep(metadataYourPlace.throttle);
         viemClient = createPublicClient({
             transport: viemHttp(mainnetBase.rpcUrl!, {retryCount: 10, retryDelay: 1000}),
             chain: defineChain(viemBase),
         });
-        await Sleep(metadataYourPlace.throttle);
         wagmiConfig = createConfig({
             chains: [wagmiBase],
             connectors: [coinbaseWallet({
@@ -82,7 +82,6 @@ async function initBaseWallet() {
             }),
             ssr: true,
         });
-        await Sleep(metadataYourPlace.throttle);
         web3Client = new Web3(mainnetBase.rpcUrl!);
     } catch (e) {
         LogError("Failed to initialize Base wallet: " + e);
@@ -102,7 +101,15 @@ export async function baseAuthLogin(): Promise<string> {
         await baseConnectWallet();
     }
     let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
+    if (!csrfToken || csrfToken === "") {
+        LogError("CSRF token not found - baseAuthLogin()");
+        return "csrf token not found";
+    }
     let address = GetAddress()!;
+    if (!address || address === "" || !IsValidBaseAddress(address)) {
+        LogError("Invalid Base address - baseAuthLogin()");
+        return "invalid address";
+    }
     const response = await HttpGetJson("/login/nonce");
     if (response[0] != 200) {
         LogError("Failed to get login nonce from server: " + response[1]);
@@ -128,12 +135,13 @@ export async function baseAuthLogin(): Promise<string> {
     const response2 = await HttpPostJson("/login/wallet/base", loginPayload, csrfToken);
     if (response2[0] != 200) {
         LogError("Failed to login with Base");
+        await Sleep(3000);
         await DisconnectWallet();
-        return response2[1].status;
+        return response2[1] ? response[1].status : "Unknown error during Base login";
     }
     try {
         let status = response2[1].status as string;
-        if (status === "success") {
+        if (status === "Base wallet login success") {
             return "success";
         }
     } catch (e) {
@@ -289,7 +297,6 @@ async function baseGetURL(): Promise<string|null> {
 }
 export async function baseGetAvatar(address: string) {
     LogInfo("baseGetAvatar called with address: " + address);
-    await Sleep(metadataYourPlace.throttle);
     if (!baseInit) {
         await initBaseWallet();
     }
@@ -312,7 +319,6 @@ export async function baseGetAvatar(address: string) {
 }
 export async function baseGetName(address: string): Promise<string> {
     LogInfo("baseGetName called with address: " + address);
-    await Sleep(metadataYourPlace.throttle);
     // https://gist.github.com/hughescoin/95b680619d602782396fa954e981adae
     if (!baseInit) {
         await initBaseWallet();
@@ -321,41 +327,39 @@ export async function baseGetName(address: string): Promise<string> {
         LogError("Invalid Base address provided to baseGetName: " + address);
         return "";
     }
-    // Try viem first
-    let baseName = await baseViemGetEnsName(address);
-    if (baseName && baseName !== "") {
-        LogInfo("Base name found using viem: " + baseName);
-        return baseName;
+    const name = await cbGetName({address: address as `0x${string}`});
+    if (name && name !== "") {
+        LogInfo("Base ENS name found for address: " + address + " - " + name);
+        return name.toString();
     }
-    // If viem fails, try wagmi
-    baseName = await baseWagmiGetEnsName(address);
-    if (baseName && baseName !== "") {
-        LogInfo("Base name found using wagmi: " + baseName);
-        return baseName;
-    }
-    // If wagmi fails, try web3
-    baseName = await baseWeb3GetEnsName(address);
-    if (baseName && baseName !== "") {
-        LogInfo("Base name found using web3: " + baseName);
-        return baseName;
-    }
-    // If all methods fail, try onchainkit
-    baseName = await baseOnchainkitGetEnsName(address);
-    if (baseName && baseName !== "") {
-        LogInfo("Base name found using onchainkit: " + baseName);
-        return baseName;
-    }
+    /*try {
+        const addressReverseNode = convertReverseNodeToBytes(address as `0x${string}`, wagmiBase.id);
+        const basename = await viemClient.readContract({
+            abi: L2ResolverAbi,
+            address: mainnetBase.ensBasenameResolverAddress as `0x${string}`,
+            functionName: 'name',
+            args: [addressReverseNode],
+        });
+        if (basename && basename !== "") {
+            LogInfo("Base ENS name found for address: " + address);
+            return basename as string;
+        }
+    } catch (error) {
+        LogError("Failed to get Base ENS name: " + error);
+        return "";
+    }*/
     LogInfo("No Base name found for address: " + address);
     return "";
 }
+export async function baseGetName2(address: string): Promise<string> {
+    return ""
+}
 export async function baseGetENSText(_address: string, key: string): Promise<string> {
     LogInfo("baseGetENSText called with address: " + _address + " and key: " + key);
-    await Sleep(metadataYourPlace.throttle);
     if (viemClient === null || !viemClient || !baseInit) {
         await initBaseWallet();
     }
     let baseName = await baseGetName(_address);
-    await Sleep(metadataYourPlace.throttle);
     let textRecord = await viemClient!.getEnsText({
         name: baseName,
         key: key,
@@ -368,7 +372,6 @@ export async function baseGetENSText(_address: string, key: string): Promise<str
 }
 export async function baseGetNFTs(_address: string) {
     LogInfo("baseGetNFTs called with address: " + _address);
-    await Sleep(metadataYourPlace.throttle);
     const minimalERC721ABI = [
         {
             inputs: [{ name: 'owner', type: 'address' }],
@@ -414,58 +417,24 @@ export async function baseGetNFTs(_address: string) {
 }
 
 // ---------- ENS Functions ---------- //
-function baseWagmiGetEnsName(address: string): Promise<string> {
-    LogInfo("baseWagmiGetEnsName called with address: " + address);
-    try {
-        return readContract(wagmiConfig, {
-            address: mainnetBase.ensUniversalResolverAddress as `0x${string}`,
-            abi: [
-                {
-                    inputs: [{name: 'address', type: 'address'}],
-                    name: 'name',
-                    outputs: [{name: '', type: 'string'}],
-                    stateMutability: 'view',
-                    type: 'function'
-                }
-            ],
-            functionName: 'name',
-            args: [address as `0x${string}`],
-        });
-    } catch (e) {
-        LogError("Failed to get Base ENS name using wagmi: " + e);
+export const convertReverseNodeToBytes = (address: Address, chainId: number,) => {
+    // https://gist.github.com/hughescoin/95b680619d602782396fa954e981adae#file-basenames-tsx-L115
+    const addressFormatted = address.toLocaleLowerCase() as Address;
+    const addressNode = keccak256(addressFormatted.substring(2) as Address);
+    const chainCoinType = convertChainIdToCoinType(chainId);
+    const baseReverseNode = namehash(
+        `${chainCoinType.toLocaleUpperCase()}.reverse`,
+    );
+    const addressReverseNode = keccak256(
+        encodePacked(['bytes32', 'bytes32'], [baseReverseNode, addressNode]),
+    );
+    return addressReverseNode;
+};
+export const convertChainIdToCoinType = (chainId: number): string => {
+    // https://gist.github.com/hughescoin/95b680619d602782396fa954e981adae#file-basenames-tsx-L102
+    if (chainId === viemBase.id) {
+        return 'addr';
     }
-    return Promise.resolve("");
-}
-function baseViemGetEnsName(address: string): Promise<string> {
-    LogInfo("baseViemGetEnsName called with address: " + address);
-    try {
-        return viemClient.getEnsName({
-            address: address as `0x${string}`,
-            universalResolverAddress: mainnetBase.ensUniversalResolverAddress,
-        });
-    } catch (e) {
-        LogError("Failed to get Base ENS name using viem: " + e);
-    }
-    return Promise.resolve("");
-}
-function baseWeb3GetEnsName(address: string): Promise<string> {
-    LogInfo("baseWeb3GetEnsName called with address: " + address);
-    try {
-        return web3Client.eth.ens.getName(address);
-    } catch (e) {
-        LogError("Failed to get Base ENS name using web3: " + e);
-    }
-    return Promise.resolve("");
-}
-async function baseOnchainkitGetEnsName(address: string): Promise<string> {
-    LogInfo("baseOnchainkitGetEnsName called with address: " + address);
-    try {
-        const baseName = await cbGetName({address: address as `0x${string}`, chain: viemBase});
-        if (baseName && baseName !== "") {
-            return baseName;
-        }
-    } catch (e) {
-        LogError("Failed to get Base ENS name using onchainkit: " + e);
-    }
-    return "";
-}
+    const cointype = (0x80000000 | chainId) >>> 0;
+    return cointype.toString(16).toLocaleUpperCase();
+};

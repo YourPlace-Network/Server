@@ -1,11 +1,12 @@
 package routes
 
 import (
+	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/db/blockchain"
+	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/csrf"
 	"net/http"
 	"strings"
 )
@@ -17,19 +18,23 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			value, exists1 := c.Get("blockchain")
 			blockchainParam := value.(string)
 			if !security.IsValidBlockchain(blockchainParam) {
+				core.LogDebug("Invalid blockchain parameter in profile route")
 				c.Redirect(http.StatusFound, "/login?redirect=/p/")
 				return
 			}
 			value, exists2 := c.Get("accountAddress")
 			addressParam := value.(string)
 			if !security.IsValidAddress(addressParam, blockchainParam) {
+				core.LogDebug("Invalid address parameter in profile route")
 				c.Redirect(http.StatusFound, "/login?redirect=/p/")
 				return
 			}
 			if exists1 && exists2 {
+				core.LogDebug("Redirecting to profile with blockchain and address parameters")
 				c.Redirect(http.StatusFound, "/p/"+blockchainParam+"/"+addressParam)
 				return
 			} else {
+				core.LogDebug("No blockchain or address parameters found in profile route")
 				c.Redirect(http.StatusFound, "/login?redirect=/p/")
 				return
 			}
@@ -63,7 +68,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			c.Redirect(http.StatusSeeOther, "/404")
 			return
 		}
-		token := csrf.Token(c.Request)
+		token := middleware.GetCSRFToken(c)
 
 		// Check if the profile viewer is the profile owner
 		isGuest := true

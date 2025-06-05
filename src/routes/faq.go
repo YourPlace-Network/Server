@@ -2,9 +2,9 @@ package routes
 
 import (
 	"YourPlace/src/core/db"
+	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/csrf"
 	"net/http"
 )
 
@@ -15,7 +15,7 @@ func FAQRoutes(router *gin.Engine, title string, database *db.Database, cryptoSe
 		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
 			authenticated = true
 		}
-		token := csrf.Token(c.Request)
+		token := middleware.GetCSRFToken(c)
 		c.HTML(http.StatusOK, "src/templates/pages/faq.tmpl", gin.H{
 			"title":                 title,
 			"pageName":              "faq",

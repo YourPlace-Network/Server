@@ -19,7 +19,6 @@ import (
 	"github.com/getlantern/systray"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/csrf"
 	_cron "github.com/robfig/cron/v3"
 	"html/template"
 	"io/fs"
@@ -88,8 +87,8 @@ func main() {
 	}
 	if debug || host.DoesExist(host.GetDataDir()+"debug") { // Run in debug mode
 		core.LogInfo("Running in debug mode")
-		debug = true
 		host.SetEnvVar("YourPlaceDebug", "true")
+		debug = true
 	} else {
 		host.DeleteEnvVar("YourPlaceDebug")
 		host.DeleteIfExists(host.GetDataDir() + "debug")
@@ -281,10 +280,11 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	}
 	//router.Use(gin.Logger()) // Attach default logger which prints to stdout
 	router.Use(CustomGinRecovery())
-	router.Use(middleware.CORSMiddleware(port))
+	router.Use(middleware.CORSMiddleware())
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.Use(middleware.LoopbackMiddleware(port))
 	router.Use(middleware.LoopbackRedirectMiddleware(port))
+	router.Use(middleware.CSRFMiddleware(middleware.CSRFConfig{CryptoSeed: cryptoSeed}))
 	router.Use(middleware.AuthMiddleware(cryptoSeed, database))
 	if !installed {
 		router.Use(middleware.SetupMiddleware(installed))
@@ -320,12 +320,11 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 		}
 	}
 	// --- Start Web Server Loop --- //
-	CSRF := csrf.Protect(cryptoSeed, csrf.SameSite(csrf.SameSiteStrictMode), csrf.Secure(true), csrf.HttpOnly(true), csrf.Path("/"))
 	var srv *http.Server
 	if protocol == "http" {
 		srv = &http.Server{
 			Addr:              "0.0.0.0:" + strconv.Itoa(port),
-			Handler:           CSRF(router),
+			Handler:           router,
 			ReadTimeout:       30 * time.Second,
 			WriteTimeout:      60 * time.Second,
 			IdleTimeout:       120 * time.Second,
@@ -361,7 +360,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 			database.MetaUpdateValue("ethPriceUSD", fmt.Sprint(ethPriceUSD))
 		}
 	})
-	// ------- Expire Old Login Nonces ------- //
+	// ------- Expire Old Auth Material ------- //
 	database.AuthExpireLoginNonce()
 	c.AddFunc("@every 1m", func() {
 		database.AuthExpireLoginNonce()

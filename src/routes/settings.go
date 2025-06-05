@@ -5,11 +5,11 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/host"
+	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/network"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/csrf"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -20,7 +20,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	defaultUploadDirectory := host.GetDataDir() + "upload" + host.PathSeparator
 
 	router.GET("/settings", func(c *gin.Context) { // Settings View
-		token := csrf.Token(c.Request)
+		token := middleware.GetCSRFToken(c)
 		authenticated := false
 		authCookie, err := c.Request.Cookie("yp_auth")
 		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {

@@ -22,7 +22,7 @@ import (
 // Job States - Running, Complete, Failed, Pending
 
 const (
-	reportInterval = 1000 // print progress every # of blocks
+	reportInterval = 5000 // print progress every # of blocks
 	saveInterval   = 100  // save progress every # of blocks
 	throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
 	batchSizeLimit = 25   // The maximum number of blocks to fetch in a single batch RPC call
@@ -46,6 +46,7 @@ type SequentialBlockTracker struct {
 	nextExpectedBlock int64
 	uuid              string
 	database          *db.Database
+	direction         string
 }
 type RequestTracker struct {
 	mu           sync.Mutex
@@ -53,24 +54,35 @@ type RequestTracker struct {
 	windowSize   time.Duration
 }
 
-func NewSequentialBlockTracker(startBlock int64, uuid string, database *db.Database) *SequentialBlockTracker {
+func NewSequentialBlockTracker(startBlock int64, uuid string, database *db.Database, direction string) *SequentialBlockTracker {
 	return &SequentialBlockTracker{
 		processedBlocks:   make(map[int64]bool),
 		nextExpectedBlock: startBlock,
 		uuid:              uuid,
 		database:          database,
+		direction:         direction,
 	}
 }
-func (sbt *SequentialBlockTracker) MarkBlockProcessed(blockNumber int64) {
+func (sbt *SequentialBlockTracker) MarkBlockProcessed(blockNumber int64, direction string) {
 	sbt.mu.Lock()
 	defer sbt.mu.Unlock()
 	sbt.processedBlocks[blockNumber] = true
 	// Update nextExpectedBlock to the next unprocessed sequential block
-	for sbt.processedBlocks[sbt.nextExpectedBlock] {
-		delete(sbt.processedBlocks, sbt.nextExpectedBlock) // Remove processed blocks from the map
-		sbt.nextExpectedBlock--                            // Move to the next expected block
-		if sbt.nextExpectedBlock%saveInterval == 0 {       // Check if we should save progress
-			sbt.database.IndexerUpdateTailBlock(sbt.uuid, uint64(sbt.nextExpectedBlock))
+	if direction == "forward" {
+		for sbt.processedBlocks[sbt.nextExpectedBlock] {
+			delete(sbt.processedBlocks, sbt.nextExpectedBlock)
+			sbt.nextExpectedBlock++
+			if sbt.nextExpectedBlock%saveInterval == 0 {
+				sbt.database.IndexerUpdateHeadBlock(sbt.uuid, uint64(sbt.nextExpectedBlock))
+			}
+		}
+	} else {
+		for sbt.processedBlocks[sbt.nextExpectedBlock] {
+			delete(sbt.processedBlocks, sbt.nextExpectedBlock)
+			sbt.nextExpectedBlock--
+			if sbt.nextExpectedBlock%saveInterval == 0 {
+				sbt.database.IndexerUpdateTailBlock(sbt.uuid, uint64(sbt.nextExpectedBlock))
+			}
 		}
 	}
 }
@@ -95,20 +107,12 @@ func (rt *RequestTracker) RecordRequests(count int) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	now := time.Now()
+	cutoff := now.Add(-rt.windowSize)
+	rt.cleanupOldRequests(cutoff)
 	// Add the current time for each request
 	for i := 0; i < count; i++ {
 		rt.requestTimes = append(rt.requestTimes, now)
 	}
-	// Clean up old requests outside the window
-	cutoff := now.Add(-rt.windowSize)
-	validIndex := 0
-	for i, requestTime := range rt.requestTimes {
-		if requestTime.After(cutoff) {
-			validIndex = i
-			break
-		}
-	}
-	rt.requestTimes = rt.requestTimes[validIndex:]
 }
 func (rt *RequestTracker) GetRequestsPerSecond() float64 {
 	rt.mu.Lock()
@@ -124,6 +128,16 @@ func (rt *RequestTracker) GetRequestsPerSecond() float64 {
 	}
 	return float64(validRequests) / rt.windowSize.Seconds()
 }
+func (rt *RequestTracker) cleanupOldRequests(cutoff time.Time) {
+	writeIndex := 0
+	for readIndex, requestTime := range rt.requestTimes {
+		if requestTime.After(cutoff) {
+			rt.requestTimes[writeIndex] = rt.requestTimes[readIndex]
+			writeIndex++
+		}
+	}
+	rt.requestTimes = rt.requestTimes[:writeIndex] // Trim the slice to the new length
+}
 
 // --- Indexer Main Method --- //
 func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) {
@@ -133,7 +147,7 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 	if uuid == "" || databaseStatus == "" {
 		return // bail out if the preflight bails out
 	}
-	_ = databaseHeadBlock   // todo - placeholder for head block use later on
+	_ = databaseHeadBlock
 	switch databaseStatus { // Post fill job dispatch, based on last job status
 	case "pending":
 		core.LogDebug("Starting pending job from the beginning")
@@ -161,6 +175,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	// (old) head block <----- latest block (starting traversal @ latest block)
 	// head block -----> latest block (starting traversal @ head block)
 	core.LogDebug("--- IndexerBaseFrontFill()")
+	direction := "forward"
 	_Database.IndexerUpdateJobStatus(uuid, "running")
 	headBlock := _Database.IndexerGetHeadBlock(uuid)
 	if headBlock <= 0 {
@@ -189,15 +204,15 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := configureRateLimiter(baseThrottle, batchSize)
+	rateLimiter := configureRateLimiter(baseThrottle)
 	batchStartBlock := new(big.Int).Set(targetEarliestBlockBigInt) // Start at the earliest block
 	txnCount := core.NewThreadSafeCounter()
 	batchJobQueue := core.NewThreadSafeQueue()
-	sequentialTracker := NewSequentialBlockTracker(targetEarliestBlockBigInt.Int64(), uuid, _Database)
+	sequentialTracker := NewSequentialBlockTracker(targetEarliestBlockBigInt.Int64(), uuid, _Database, direction)
 	globalRequestTracker = NewRequestTracker()
 	errorChan := make(chan error, workerCount)
 
-	go startThrottleController(baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
+	go startThrottleController(uuid, baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		if breakPoint(uuid) {
@@ -224,7 +239,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := workerThread(rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlockBigInt, targetLatestBlock, batchSize, "forward", errorChan)
+			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlockBigInt, targetLatestBlock, batchSize, "forward", errorChan)
 			if err != nil {
 				core.LogError("Worker thread failed: " + err.Error())
 				errorChan <- err // Send the error to the error channel
@@ -253,6 +268,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	// earliest block <----- tail block (starting traversal @ tail block)—
 	core.LogDebug("--- IndexerBaseBackFill() ---")
+	direction := "backward"
 	_Database.IndexerUpdateJobStatus(uuid, "running")
 	databaseTailBlock := big.NewInt(int64(_Database.IndexerGetTailBlock(uuid)))
 	if databaseTailBlock.Cmp(big.NewInt(0)) == 0 { // if databaseTailBlock = 0, then the job is new
@@ -292,16 +308,16 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := configureRateLimiter(baseThrottle, batchSize)                               // Configure rate limiter based on throttle and batch size
-	batchStartBlock := targetLatestBlock                                                       // Start at the latest block
-	txnCount := core.NewThreadSafeCounter()                                                    // Count the number of transactions processed
-	batchJobQueue := core.NewThreadSafeQueue()                                                 // Queue to hold batch jobs
-	sequentialTracker := NewSequentialBlockTracker(targetLatestBlock.Int64(), uuid, _Database) // Sequential block tracker starting from the highest block
-	globalRequestTracker = NewRequestTracker()                                                 // Request tracker to monitor request rates
-	errorChan := make(chan error, workerCount)                                                 // Channel to handle errors from workers
+	rateLimiter := configureRateLimiter(baseThrottle)                                                     // Configure rate limiter based on throttle and batch size
+	batchStartBlock := targetLatestBlock                                                                  // Start at the latest block
+	txnCount := core.NewThreadSafeCounter()                                                               // Count the number of transactions processed
+	batchJobQueue := core.NewThreadSafeQueue()                                                            // Queue to hold batch jobs
+	sequentialTracker := NewSequentialBlockTracker(targetLatestBlock.Int64(), uuid, _Database, direction) // Sequential block tracker starting from the highest block
+	globalRequestTracker = NewRequestTracker()                                                            // Request tracker to monitor request rates
+	errorChan := make(chan error, workerCount)                                                            // Channel to handle errors from workers
 
 	// Start the throttle controller in a separate goroutine
-	go startThrottleController(baseThrottle, rateLimiter)
+	go startThrottleController(uuid, baseThrottle, rateLimiter)
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		if breakPoint(uuid) {
@@ -328,7 +344,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		wg.Add(1) // Add a worker to the wait group
 		go func() {
 			defer wg.Done()
-			err := workerThread(rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward", errorChan)
+			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward", errorChan)
 			if err != nil {
 				core.LogError("Worker encountered an error: " + err.Error())
 				errorChan <- err // Send the error to the error channel
@@ -358,6 +374,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	// earliest block <----- latest block (starting traversal @ latest block)
 	core.LogDebug("--- IndexerBaseFullFill()")
+	direction := "backward"
 	_Database.IndexerUpdateJobStatus(uuid, "running")
 	targetLatestBlock := baseLatestBlock
 	core.LogDebug("Target Latest Block: " + targetLatestBlock.String())
@@ -382,15 +399,15 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("Batch Count: " + batchCount.String())
-	rateLimiter := configureRateLimiter(baseThrottle, batchSize)                               // Configure a rate limiter based on throttle and batch size
-	batchStartBlock := targetLatestBlock                                                       // Start at the latest block
-	txnCount := core.NewThreadSafeCounter()                                                    // Count the number of transactions processed
-	batchJobQueue := core.NewThreadSafeQueue()                                                 // Queue to hold batch jobs
-	sequentialTracker := NewSequentialBlockTracker(targetLatestBlock.Int64(), uuid, _Database) // Sequential block tracker starting from the highest block
+	rateLimiter := configureRateLimiter(baseThrottle)                                                     // Configure a rate limiter based on throttle and batch size
+	batchStartBlock := targetLatestBlock                                                                  // Start at the latest block
+	txnCount := core.NewThreadSafeCounter()                                                               // Count the number of transactions processed
+	batchJobQueue := core.NewThreadSafeQueue()                                                            // Queue to hold batch jobs
+	sequentialTracker := NewSequentialBlockTracker(targetLatestBlock.Int64(), uuid, _Database, direction) // Sequential block tracker starting from the highest block
 	globalRequestTracker = NewRequestTracker()
 	errorChan := make(chan error, workerCount) // Channel to handle errors from workers
 
-	go startThrottleController(baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
+	go startThrottleController(uuid, baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		if breakPoint(uuid) {
@@ -417,7 +434,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := workerThread(rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, &targetEarliestBlockBigInt, targetLatestBlock, batchSize, "backward", errorChan)
+			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, &targetEarliestBlockBigInt, targetLatestBlock, batchSize, "backward", errorChan)
 			if err != nil {
 				core.LogError("Worker encountered an error: " + err.Error())
 				errorChan <- err
@@ -544,33 +561,26 @@ func createIndexerJob(blockchain string) string {
 	_Database.IndexerCreateJob(uuid, blockchain)
 	return uuid
 }
-func indexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, traversalDirection string, requestTracker *RequestTracker) {
+func indexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, direction string, requestTracker *RequestTracker) {
 	core.LogDebug("------------------------")
-	core.LogDebug("index: " + blockIndex.String())
-	core.LogDebug("target latest: " + targetLatestBlock.String())
-	core.LogDebug("target earliest: " + targetEarliestBlock.String())
+	core.LogDebug("index: " + blockIndex.String() + " - direction: " + direction)
+	core.LogDebug("target latest: " + targetLatestBlock.String() + " - target earliest: " + targetEarliestBlock.String())
 	totalRange := new(big.Int).Sub(targetLatestBlock, targetEarliestBlock)
-	core.LogDebug("total range: " + totalRange.String())
 	var progressMade *big.Int
-	if traversalDirection == "forward" {
+	if direction == "forward" {
 		progressMade = new(big.Int).Sub(blockIndex, targetEarliestBlock)
 	} else {
 		progressMade = new(big.Int).Sub(targetLatestBlock, blockIndex)
 	}
-	core.LogDebug("progress made: " + progressMade.String())
 	progressPercent := calculatePercentage(totalRange, progressMade)
-	core.LogDebug("progress: " + progressPercent + " %")
+	core.LogDebug("blocks processed: " + progressMade.String() + " - progress: " + progressPercent + " %")
 	progressRemaining := new(big.Int).Sub(totalRange, progressMade)
-	core.LogDebug("progress remaining: " + progressRemaining.String())
 	batchesRemaining := new(big.Int).Div(progressRemaining, batchSize)
 	batchSizeRemainder := new(big.Int).Mod(progressRemaining, batchSize)
 	if batchSizeRemainder.Cmp(big.NewInt(0)) != 0 {
 		batchesRemaining.Add(batchesRemaining, big.NewInt(1))
 	}
-	core.LogDebug("batches remaining: " + batchesRemaining.String())
-	core.LogDebug("batch size: " + batchSize.String())
-	actualRPS := requestTracker.GetRequestsPerSecond()
-	core.LogDebug("actual RPS: " + strconv.FormatFloat(actualRPS, 'f', 2, 64))
+	core.LogDebug("blocks remaining: " + progressRemaining.String() + " - batches remaining: " + batchesRemaining.String())
 }
 func calculatePercentage(totalRange *big.Int, index *big.Int) string {
 	if totalRange.Sign() == 0 {
@@ -593,25 +603,20 @@ func calculateOptimalBatchSize(throttleValue int) *big.Int { // Function to calc
 	}
 	return big.NewInt(int64(effectiveBatchSize))
 }
-func configureRateLimiter(throttleValue int, batchSize *big.Int) *rate.Limiter { // Function to configure rate limiter based on throttle and batch size
-	batchesPerSecond := calculateDynamicRate(throttleValue, int(batchSize.Int64()))
-	// Ensure burst capacity can handle at least one full batch
-	burstCapacity := int(batchesPerSecond) + 1
-	if burstCapacity < int(batchSize.Int64()) {
-		burstCapacity = int(batchSize.Int64())
-	}
-	return rate.NewLimiter(rate.Limit(batchesPerSecond), burstCapacity)
+func configureRateLimiter(throttleValue int) *rate.Limiter { // Function to configure rate limiter based on throttle and batch size
+	requestsPerSecond := calculateDynamicRate(throttleValue, 1)
+	burstCapacity := workerCount // Allow each worker to have one token
+	return rate.NewLimiter(rate.Limit(requestsPerSecond), burstCapacity)
 }
-func startThrottleController(targetThrottleValue int, rateLimiter *rate.Limiter) {
+func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *rate.Limiter) {
 	ticker := time.NewTicker(30 * time.Second) // Adjust every N-seconds
 	defer ticker.Stop()
 	const (
-		adjustmentStep = 0.25  // 25% adjustment per iteration
-		maxMultiplier  = 100.0 // Don't go above 10,000% of the original rate
+		adjustmentStep = 0.1   // 10% adjustment per iteration
+		maxMultiplier  = 100.0 // Don't go above 10,000% of the original rate (1.0 == 100%)
 		minMultiplier  = 0.1   // Don't go below 10% of the original rate
 		tolerance      = 0.1   // 10% tolerance before adjusting
 	)
-	uuid := _Database.IndexerGetJobUUID("base")
 	for {
 		select {
 		case <-ticker.C:
@@ -648,7 +653,7 @@ func startThrottleController(targetThrottleValue int, rateLimiter *rate.Limiter)
 					"\tmultiplier=" + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 				throttleControlMutex.Unlock()
 				// Update the rate limiter with the new rate
-				newRate := calculateDynamicRate(targetThrottleValue, batchSizeLimit)
+				newRate := calculateDynamicRate(targetThrottleValue, 1)
 				rateLimiter.SetLimit(rate.Limit(newRate))
 			}
 		default:
@@ -697,15 +702,12 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 		return
 	}
 	action := matches[2] // get the action code
-	core.LogDebug("Action: " + action)
 	if len(action) < 1 {
 		core.LogError("Invalid YourPlace transaction action: " + action)
 		return
 	}
-	actionPrefix := action[0] // parse out the action prefix
-	core.LogDebug("Action Prefix: " + strconv.FormatUint(uint64(actionPrefix), 10))
-	actionPostfix := action[1:] // parse out the action postfix
-	core.LogDebug("Action Postfix: " + actionPostfix)
+	actionPrefix := action[0]                                // parse out the action prefix
+	actionPostfix := action[1:]                              // parse out the action postfix
 	var payloadObject map[string]interface{}                 // create a map for the YourPlace payload object
 	err = json.Unmarshal([]byte(matches[3]), &payloadObject) // unmarshal the payload object
 	if err != nil {
@@ -885,9 +887,7 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 		}
 	}
 }
-func rpcBatchGetBlockByNumber(base *Base, batchBlockNumbers []big.Int) []map[string]interface{} {
-	// Get the necessary variables
-	uuid := _Database.IndexerGetJobUUID("base")
+func rpcBatchGetBlockByNumber(uuid string, base *Base, batchBlockNumbers []big.Int) []map[string]interface{} {
 	// Create the batch RPC call
 	var batch []rpc.BatchElem
 	for _, blockNumber := range batchBlockNumbers {
@@ -903,49 +903,53 @@ func rpcBatchGetBlockByNumber(base *Base, batchBlockNumbers []big.Int) []map[str
 	rpcErrorCount := 0
 	var blocks []map[string]interface{}
 BATCHRPCCALL:
-	select {
-	case <-indexerCancel:
-		core.LogDebug("Indexer cancelled during batch RPC call")
-		_Database.IndexerUpdateJobStatus(uuid, "failed")
+	if breakPoint(uuid) {
 		return nil
-	default:
-		err := base.RpcClient.BatchCallContext(context.Background(), batch)
-		if err != nil {
-			core.LogDebug("Could not perform RPC call from rpcBatchGetBlockByNumber, backing off: " + err.Error())
-			rpcErrorCount++
-			backoff := (rpcErrorCount + 1) * 2
-			time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
-			if rpcErrorCount >= 120 {
-				core.LogDebug("Backfill failed too many times: " + err.Error())
-				_Database.IndexerUpdateJobStatus(uuid, "failed")
-				return nil
-			}
-			goto BATCHRPCCALL
+	}
+	err := base.RpcClient.BatchCallContext(context.Background(), batch)
+	if err != nil {
+		core.LogDebug("Could not perform RPC call from rpcBatchGetBlockByNumber, backing off: " + err.Error())
+		rpcErrorCount++
+		backoff := (rpcErrorCount + 1) * 2
+		time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
+		if rpcErrorCount >= 120 {
+			core.LogDebug("Backfill failed too many times: " + err.Error())
+			_Database.IndexerUpdateJobStatus(uuid, "failed")
+			return nil
 		}
+		goto BATCHRPCCALL
 	}
 	i := 0
 	for _, elem := range batch { // Loop through each block in the batch response
-		select {
-		case <-indexerCancel:
-			core.LogDebug("Indexer cancelled in backfill during batch processing")
-			_Database.IndexerUpdateJobStatus(uuid, "failed")
+		if breakPoint(uuid) {
 			return nil
-		default:
-			if elem.Error != nil {
-				core.LogDebug("Could not get block data from rpcBatchGetBlockByNumber: " + elem.Error.Error())
-				core.LogDebug("index: " + batchBlockNumbers[i].String())
-				core.LogDebug("method: " + elem.Method)
-				println("Args: ", elem.Args)
-				println("result: ", elem.Result)
+		}
+		if elem.Error != nil {
+			core.LogDebug("Could not get block data from rpcBatchGetBlockByNumber: " + elem.Error.Error())
+			core.LogDebug("index: " + batchBlockNumbers[i].String())
+			core.LogDebug("method: " + elem.Method)
+			println("Args: ", elem.Args)
+			println("result: ", elem.Result)
+			blocks = append(blocks, nil) // Append nil to the blocks to maintain array alignment
+		} else {
+			if elem.Result == nil {
+				blocks = append(blocks, nil) // Append nil if the result to maintain array alignment
+			} else {
+				resultPtr, ok := elem.Result.(*map[string]interface{})
+				if !ok || resultPtr == nil {
+					blocks = append(blocks, nil) // Append nil if the result to maintain array alignment
+				} else {
+					blocks = append(blocks, *resultPtr) // Append the result to the blocks slice
+				}
 			}
-			block := *elem.Result.(*map[string]interface{})
-			blocks = append(blocks, block)
 		}
 		i++
 	}
 	return blocks
 }
-func workerThread(rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker, requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string, errorChan chan<- error) error {
+func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker,
+	requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int,
+	targetLatestBlock *big.Int, batchSize *big.Int, direction string, errorChan chan<- error) error {
 	// Worker thread to process batches of blocks
 	for {
 		batch, populated := batchJobQueue.Dequeue()
@@ -954,29 +958,53 @@ func workerThread(rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.Thr
 			return nil
 		}
 		batchArray := batch.([]big.Int) // Get the batch of blocks
-		// Reserve rate limit tokens for all requests in this batch
-		reservation := rateLimiter.ReserveN(time.Now(), len(batchArray))
-		if !reservation.OK() {
-			return core.LogErrorReturn("Rate limiter reservation failed")
+		// Wait for rate limit token immediately when we get work
+		err := rateLimiter.Wait(context.Background())
+		if err != nil {
+			return core.LogErrorReturn("Rate limiter wait failed: " + err.Error())
 		}
-		time.Sleep(reservation.Delay())
 		// Record the requests being made
-		requestTracker.RecordRequests(len(batchArray))
+		requestTracker.RecordRequests(1)
 		if globalRequestTracker != nil {
-			globalRequestTracker.RecordRequests(len(batchArray))
+			globalRequestTracker.RecordRequests(1)
 		}
 		if breakPoint(sequentialTracker.uuid) { // Check for cancellation before RPC call
 			return nil
 		}
 		// Make the RPC call
-		blocks := rpcBatchGetBlockByNumber(base, batchArray)
+		blocks := rpcBatchGetBlockByNumber(uuid, base, batchArray)
+		if blocks == nil {
+			continue // Skip processing if blocks are nil
+		}
 		// Process each block and update the block index as we go
 		for i, block := range blocks {
+			if i >= len(batchArray) { // Safety check
+				break
+			}
+			if block == nil {
+				sequentialTracker.MarkBlockProcessed(batchArray[i].Int64(), direction)
+				continue // Skip nil blocks
+			}
 			currentBlockNumber := batchArray[i].Int64()
-			transactions := block["transactions"].([]interface{}) // Get the transactions from the block
+			transactionsRaw, exists := block["transactions"]
+			if !exists || transactionsRaw == nil {
+				sequentialTracker.MarkBlockProcessed(currentBlockNumber, direction)
+				continue // Skip blocks with no transactions
+			}
+			transactions, ok := transactionsRaw.([]interface{})
+			if !ok {
+				sequentialTracker.MarkBlockProcessed(currentBlockNumber, direction)
+				continue // Skip blocks with malformed transactions
+			}
 			// Loop through transactions in the block
 			for _, txn := range transactions {
-				transaction := txn.(map[string]interface{})
+				if txn == nil {
+					continue // Skip nil transactions
+				}
+				transaction, ok2 := txn.(map[string]interface{})
+				if !ok2 {
+					continue // Skip malformed transactions
+				}
 				ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, big.NewInt(currentBlockNumber), "base")
 				if ret == 1 || ret == 2 { // Skip transactions that are not valid YP posts
 					continue
@@ -984,7 +1012,7 @@ func workerThread(rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.Thr
 				txnCount.Increment()
 			}
 			// Mark this block as processed in the sequential tracker
-			sequentialTracker.MarkBlockProcessed(currentBlockNumber)
+			sequentialTracker.MarkBlockProcessed(currentBlockNumber, direction)
 			// Send status updates
 			nextExpected := sequentialTracker.GetNextExpectedBlock()
 			mod := nextExpected % reportInterval
