@@ -8,6 +8,7 @@ import {LogInfo} from "./log";
 import {getFileIcon, formatFileSize} from "./files";
 import path from "path";
 import {extensionToMimeType} from "./mimeTypes";
+import {ShowModalMediaViewer} from "../components/modalMediaViewer";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
@@ -130,6 +131,8 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     image.src = fileUrl;
                     image.classList.add("postAttachment", "postCardAttachmentImage");
                     let imageLoader = await CreateImageLoader(image);
+                    imageLoader.classList.add("expandable");
+                    imageLoader.addEventListener("click", expandView)
                     if (postData.attachments.length === 1) {
                         imageLoader.classList.add("postAttachment");
                         renderedAttachmentElements.push(imageLoader);
@@ -345,6 +348,30 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
     carouselDiv.appendChild(previousButton);
     carouselDiv.appendChild(nextButton);
     return carouselDiv;
+}
+async function expandView(event: MouseEvent) {
+    const clickedDiv = event.currentTarget as HTMLDivElement; //Renderable attachments should be wrapped in a loader div
+    clickedDiv.classList.add("initiator"); // class added so the expanded attachment carousel knows which image to start on
+    const specificPostAttachmentDiv = clickedDiv.closest(".postCardAttachmentDiv") as HTMLDivElement;
+    const expandables = specificPostAttachmentDiv.querySelectorAll("expandable") as NodeListOf<HTMLDivElement>;
+    const clonedExpandablesArray = Array.from(expandables).map(expandable => expandable.cloneNode(true) as HTMLDivElement);
+    clickedDiv.classList.remove("initiator");
+    if (clonedExpandablesArray.length === 1) {
+        ShowModalMediaViewer(clonedExpandablesArray[0]);
+    }
+    if (clonedExpandablesArray.length > 1) {
+        const carousel = await CreateCarousel(clonedExpandablesArray);
+        carousel.querySelectorAll(".active").forEach(element => {
+            element.classList.remove("active");
+        })
+        const index = clonedExpandablesArray.findIndex(element => element.classList.contains("initiator"));
+        const clonedClickedElement = carousel.querySelector(".initiator") as HTMLElement;
+        const firstDisplayedSlide = clonedClickedElement.closest(".carousel-item") as HTMLDivElement;
+        firstDisplayedSlide.classList.add("active");
+        const firstIndicator = carousel.querySelector(`[data-slide-to="${index}"]`) as HTMLLIElement;
+        firstIndicator.classList.add("active");
+        ShowModalMediaViewer(carousel);
+    }
 }
 export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDivElement> { // Adds an image to a div that displays /www/image/imagefail.png if the image fails to load
     const imageLoader = document.createElement("div") as HTMLDivElement;
