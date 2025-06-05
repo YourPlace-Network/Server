@@ -94,6 +94,10 @@ func LogWarningReturn(message string) error {
 	LogWarn(message)
 	return errors.New(message)
 }
+func LogDebugReturn(message string) error {
+	LogDebug(message)
+	return errors.New(message)
+}
 func LogRead(lines int, newlineFlag int) (string, string) { // Return the latest X lines from the log file - newLineFlag: 1=<br>, 2=\n, 3=\r\n
 	newline := ""
 	switch newlineFlag {

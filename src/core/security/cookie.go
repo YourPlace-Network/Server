@@ -150,7 +150,11 @@ func IncrementCookie(c *gin.Context, cryptoSeed []byte, database *db.Database) e
 		return nil
 	} else { // Revoke the old cookie and return a new one (cookie theft defense)
 		database.AuthDeleteNonce(cookieObj.Nonce)
-		http.SetCookie(c.Writer, CreateAuthCookie(cookieObj.Address, cookieObj.Blockchain, cryptoSeed, database))
+		newCookie := CreateAuthCookie(cookieObj.Address, cookieObj.Blockchain, cryptoSeed, database)
+		if newCookie == nil {
+			return errors.New("could not create new cookie")
+		}
+		http.SetCookie(c.Writer, newCookie)
 		return nil
 	}
 }

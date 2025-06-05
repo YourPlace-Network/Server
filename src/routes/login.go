@@ -71,16 +71,23 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login json"})
 			return
 		}
-		if !security.IsValidEthAddress(payload.Address) {
+		if !security.IsValidEthAddress(payload.Address) { // validate address format
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login address"})
 			return
 		}
-		//core.LogDebug("Base wallet login address is valid")
-		//core.LogDebug("Base wallet login payload: " + payload.Payload)
-		//core.LogDebug("Base wallet login signature: " + payload.Signature)
-		//core.LogDebug("Base wallet login signature length: " + strconv.Itoa(len(payload.Signature)))
-		//core.LogDebug("Base wallet login address: " + payload.Address)
-		if !security.IsValidEthSignature(payload.Payload, payload.Signature, payload.Address) { // todo: check if this is the right function
+		if len(payload.Payload) == 0 || len(payload.Payload) > 1000 { // validate payload length
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login payload length"})
+			return
+		}
+		if len(payload.Signature) != 132 { // validate signature length 0x + 130 hex characters for ETH signature
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login signature length"})
+			return
+		}
+		if !strings.HasPrefix(payload.Signature, "0x") { // validate signature prefix
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login signature prefix"})
+			return
+		}
+		if !security.IsValidEthSignature(payload.Payload, payload.Signature, payload.Address) {
 			core.LogDebug("Base wallet login eth signature is invalid")
 			if !security.IsValidERC6492Signature(payload.Payload, payload.Signature, payload.Address) {
 				core.LogDebug("Base wallet login ERC6492 signature is invalid")

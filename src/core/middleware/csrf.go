@@ -4,7 +4,6 @@ import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/security"
 	"crypto/subtle"
-	"encoding/base64"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -73,10 +72,10 @@ func generateCSRFToken(seed []byte) (string, error) {
 	// Create timestamp
 	timestamp := time.Now().Unix()
 	// Combine token with timestamp and sign with seed
-	payload := fmt.Sprintf("%s:%d", base64.URLEncoding.EncodeToString(tokenBytes), timestamp)
+	payload := fmt.Sprintf("%s:%d", security.Base64EncodeBytes(tokenBytes), timestamp)
 	signature := security.HMAC([]byte(payload), seed)
 	// Return signed token
-	return fmt.Sprintf("%s.%s", payload, base64.URLEncoding.EncodeToString([]byte(signature))), nil
+	return fmt.Sprintf("%s.%s", payload, security.Base64Encode(signature)), nil
 }
 func validateCSRFToken(c *gin.Context, config CSRFConfig) bool {
 	// Get token from multiple sources
@@ -124,13 +123,13 @@ func isValidTokenFormat(token string, seed []byte, maxAge int) bool {
 		return false
 	}
 	payload := parts[0]
-	providedSig, err := base64.URLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return false
+	providedSig := security.Base64Decode(parts[1])
+	if providedSig == "" || len(providedSig) == 0 {
+		return false // Invalid base64 encoding
 	}
 	// Verify signature
 	expectedSig := security.HMAC([]byte(payload), seed)
-	if subtle.ConstantTimeCompare(providedSig, []byte(expectedSig)) != 1 {
+	if subtle.ConstantTimeCompare([]byte(providedSig), []byte(expectedSig)) != 1 {
 		return false
 	}
 	// Check expiration
@@ -148,14 +147,21 @@ func isValidTokenFormat(token string, seed []byte, maxAge int) bool {
 	return true // Token is valid
 }
 func setCSRFCookie(c *gin.Context, token string, config CSRFConfig) {
+	// Extract domain from request host
+	host := c.Request.Host
+	domain := ""
+	if host == "localhost:42424" || host == "127.0.0.1:42424" {
+		domain = "localhost"
+	}
+
 	c.SetCookie(
 		CSRFCookieName,
 		token,
 		config.MaxAge,
 		"/",
-		"localhost",
-		true,
-		true, // HttpOnly
+		domain,
+		false, // Secure: false for HTTP localhost
+		true,  // HttpOnly
 	)
 }
 func isCSRFExcluded(c *gin.Context) bool {

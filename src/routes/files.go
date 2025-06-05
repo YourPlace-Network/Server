@@ -21,18 +21,32 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "invalid uuid"})
 			return
 		}
-
 		c.AbortWithStatus(http.StatusNotImplemented)
 		return
 	})
 
 	router.POST("/files/upload", func(c *gin.Context) {
+		// Check content length first
+		const maxUploadSize = 100 << 30 // 100 GB
+		if c.Request.ContentLength > maxUploadSize {
+			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"status": "File size exceeds limit"})
+			return
+		}
 		form, err := c.MultipartForm()
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "No file uploaded"})
 			return
 		}
 		files := form.File["file"]
+		if len(files) == 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "No file uploaded"})
+			return
+		}
+		// Limit number of files
+		if len(files) > 10 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Too many files uploaded"})
+			return
+		}
 		fileDataArray := []map[string]interface{}{}
 		uploadDirectory := security.SanitizePathTraversal(database.SettingsGetValue("uploadDirectory"))
 		if !strings.HasSuffix(uploadDirectory, host.PathSeparator) {

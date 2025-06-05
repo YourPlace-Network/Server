@@ -289,8 +289,8 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 	// Export each table directly to the compressed stream
 	for _, table := range tables {
 		core.LogDebug("Exporting table: " + table)
-		// Get table schema
-		rows, err := db.runParamSQLSelect(fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'", table))
+		// Get table schema - use parameterized query to prevent SQL injection
+		rows, err := db.runParamSQLSelect("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", table)
 		if err != nil {
 			return core.LogErrorReturn("Could not get table schema: " + err.Error())
 		}
@@ -317,8 +317,8 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 		if err != nil {
 			return core.LogErrorReturn("Could not write schema: " + err.Error())
 		}
-		// Get all data from the table
-		dataRows, err := db.runParamSQLSelect(fmt.Sprintf("SELECT * FROM %s", table))
+		// Get all data from the table - table name comes from predefined list so safe
+		dataRows, err := db.runParamSQLSelect("SELECT * FROM " + sanitizeSQLiteTableName(table))
 		if err != nil {
 			return core.LogErrorReturn("Could not get table data: " + err.Error())
 		}
@@ -372,8 +372,8 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 			}
 			continue
 		}
-		// Get data again for second pass
-		dataRows, err = db.runParamSQLSelect("SELECT * FROM " + table)
+		// Get data again for second pass - table name comes from predefined list so safe
+		dataRows, err = db.runParamSQLSelect("SELECT * FROM " + sanitizeSQLiteTableName(table))
 		if err != nil {
 			return core.LogErrorReturn("Could not get table data (second pass): " + err.Error())
 		}

@@ -15,7 +15,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
-	"errors"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/pbkdf2"
@@ -23,7 +22,6 @@ import (
 	"io"
 	"log"
 	"math/big"
-	_rand "math/rand"
 	"net"
 	"os"
 	"strings"
@@ -39,26 +37,25 @@ func EncryptString(password, plainText string) (string, error) {
 }
 func EncryptBytes(password string, plainText []byte) ([]byte, error) {
 	if len(password) < 32 {
-		return nil, errors.New("encryption password too short")
+		return nil, core.LogDebugReturn("encryption password too short")
 	}
-	key := make([]byte, 32) // create 32 byte key from password
-	copy(key, password)
-	nonce := make([]byte, 12) // generate nonce
-	_, err := io.ReadFull(rand.Reader, nonce)
+	key, salt, err := DeriveKey(password)
 	if err != nil {
-		return nil, err
+		return nil, core.LogDebugReturn("key derivation failed: " + err.Error())
 	}
+	nonce := RandomBytes(12)
 	block, err := aes.NewCipher(key) // create AES-256 cipher block
 	if err != nil {
-		return nil, err
+		return nil, core.LogDebugReturn("AES cipher creation failed: " + err.Error())
 	}
 	aesGCM, err := cipher.NewGCM(block) // create GCM cipher
 	if err != nil {
-		return nil, err
+		return nil, core.LogDebugReturn("GCM creation failed: " + err.Error())
 	}
 	cipherText := aesGCM.Seal(nil, nonce, plainText, nil) // encrypt data
-	cipherText = append(cipherText, nonce...)             // append nonce to cipherText
-	return cipherText, nil
+	result := append(salt, cipherText...)                 // append salt to cipherText
+	result = append(result, nonce...)                     // append nonce to cipherText
+	return result, nil
 }
 func DecryptString(password, cipherText string) (string, error) {
 	decodedCipherText := Base64Decode(cipherText)
@@ -70,36 +67,36 @@ func DecryptString(password, cipherText string) (string, error) {
 }
 func DecryptBytes(password string, cipherText []byte) ([]byte, error) {
 	nonceSize := 12
+	saltSize := 16
 	if len(password) < 32 {
-		return nil, core.LogErrorReturn("decryption password too short")
+		return nil, core.LogDebugReturn("decryption password too short")
 	}
-	if len(cipherText) <= nonceSize {
-		return nil, core.LogErrorReturn("cipher text too short")
+	if len(cipherText) <= nonceSize+saltSize {
+		return nil, core.LogDebugReturn("cipher text too short")
 	}
-	nonce := cipherText[len(cipherText)-nonceSize:]     // extract nonce
-	cipherText = cipherText[:len(cipherText)-nonceSize] // extract cipherText
-	key := make([]byte, 32)                             // create 32 byte key from password
-	copy(key, password)
-	block, err := aes.NewCipher(key) // create AES-256 cipher block
+	salt := cipherText[:saltSize]                                       // extract salt
+	nonce := cipherText[len(cipherText)-nonceSize:]                     // extract nonce
+	cipherText = cipherText[saltSize : len(cipherText)-nonceSize]       // extract cipherText
+	key := pbkdf2.Key([]byte(password), salt, 1000000, 32, sha3.New512) // derive key from password and salt
+	block, err := aes.NewCipher(key)                                    // create AES-256 cipher block
 	if err != nil {
-		return nil, err
+		return nil, core.LogDebugReturn("AES cipher creation failed: " + err.Error())
 	}
 	aesGCM, err := cipher.NewGCM(block) // create GCM cipher
 	if err != nil {
-		return nil, err
+		return nil, core.LogDebugReturn("GCM creation failed: " + err.Error())
 	}
 	plainText, err := aesGCM.Open(nil, nonce, cipherText, nil) // decrypt data
 	if err != nil {
-		return nil, err
+		return nil, core.LogDebugReturn("decryption failed: " + err.Error())
 	}
 	return plainText, nil
 }
 func DeriveKey(password string) ([]byte, []byte, error) {
-	salt := make([]byte, 12)
-	_, err := io.ReadFull(rand.Reader, salt)
-	if err != nil {
-		return nil, nil, err
+	if len(password) < 32 {
+		return nil, nil, core.LogDebugReturn("key derivation password too short")
 	}
+	salt := RandomBytes(16)
 	key := pbkdf2.Key([]byte(password), salt, 1000000, 32, sha3.New512)
 	return key, salt, nil
 }
@@ -200,7 +197,21 @@ func RandomString(length int) string {
 	return string(bytes)
 }
 func RandomUint(min, max int) uint64 {
-	return uint64(min + _rand.Intn(max-min))
+	if max <= min {
+		return uint64(min)
+	}
+	rangeSize := max - min
+	bigMax := big.NewInt(int64(rangeSize))
+	randomBig, err := rand.Int(rand.Reader, bigMax)
+	if err != nil {
+		// Fallback to secure random bytes
+		randomBytes := RandomBytes(8)
+		return uint64(min) + (uint64(randomBytes[0])<<56|uint64(randomBytes[1])<<48|
+			uint64(randomBytes[2])<<40|uint64(randomBytes[3])<<32|
+			uint64(randomBytes[4])<<24|uint64(randomBytes[5])<<16|
+			uint64(randomBytes[6])<<8|uint64(randomBytes[7]))%uint64(rangeSize)
+	}
+	return uint64(min) + uint64(randomBig.Int64())
 }
 func Base64EncodeBytes(value []byte) string {
 	return base64.StdEncoding.EncodeToString(value)
