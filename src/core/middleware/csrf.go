@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -42,7 +43,7 @@ func CSRFMiddleware(config CSRFConfig) gin.HandlerFunc {
 		// For safe methods, generate and set token
 		if method == "GET" || method == "HEAD" || method == "OPTIONS" {
 			existingToken, err := c.Cookie(CSRFCookieName)
-			if err == nil && existingToken != "" && isValidTokenFormat(existingToken, config.CryptoSeed) {
+			if err == nil && existingToken != "" && isValidTokenFormat(existingToken, config.CryptoSeed, config.MaxAge) {
 				// Reuse existing valid token
 				c.Set("csrfToken", existingToken)
 				c.Next()
@@ -89,7 +90,7 @@ func validateCSRFToken(c *gin.Context, config CSRFConfig) bool {
 		return false
 	}
 	// Validate token format and signature
-	if !isValidTokenFormat(token, config.CryptoSeed) {
+	if !isValidTokenFormat(token, config.CryptoSeed, config.MaxAge) {
 		return false
 	}
 	// Validate against cookie token
@@ -122,7 +123,7 @@ func getCSRFTokenFromRequest(c *gin.Context) string {
 	}
 	return ""
 }
-func isValidTokenFormat(token string, seed []byte) bool {
+func isValidTokenFormat(token string, seed []byte, maxAge int) bool {
 	parts := strings.Split(token, ".")
 	if len(parts) != 2 {
 		return false
@@ -134,7 +135,22 @@ func isValidTokenFormat(token string, seed []byte) bool {
 	}
 	// Verify signature
 	expectedSig := security.HMAC([]byte(payload), seed)
-	return subtle.ConstantTimeCompare(providedSig, []byte(expectedSig)) == 1
+	if subtle.ConstantTimeCompare(providedSig, []byte(expectedSig)) != 1 {
+		return false
+	}
+	// Check expiration
+	payloadParts := strings.Split(payload, ":")
+	if len(payloadParts) != 2 {
+		return false
+	}
+	timestamp, err := strconv.ParseInt(payloadParts[1], 10, 64)
+	if err != nil {
+		return false
+	}
+	if time.Now().Unix()-timestamp > int64(maxAge) {
+		return false // Token has expired
+	}
+	return true // Token is valid
 }
 func setCSRFCookie(c *gin.Context, token string, config CSRFConfig) {
 	c.SetCookie(

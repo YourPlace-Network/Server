@@ -365,10 +365,6 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 	c.AddFunc("@every 1m", func() {
 		database.AuthExpireLoginNonce()
 	})
-	database.CSRFCleanupExpired()
-	c.AddFunc("@every 5m", func() {
-		database.CSRFCleanupExpired()
-	})
 	// ------- Blockchain Indexer ------- //
 	if indexer {
 		blockchain.IndexerClearOldCachedPosts(database)
