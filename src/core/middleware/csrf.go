@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"YourPlace/src/core"
-	"YourPlace/src/core/db"
 	"YourPlace/src/core/security"
 	"crypto/subtle"
 	"encoding/base64"
@@ -23,16 +22,12 @@ const (
 
 type CSRFConfig struct {
 	CryptoSeed []byte
-	Database   *db.Database
-	Secure     bool
-	SameSite   http.SameSite
 	MaxAge     int // seconds
 }
 
 func CSRFMiddleware(config CSRFConfig) gin.HandlerFunc {
-	if config.MaxAge == 0 {
-		config.MaxAge = 3600 // 1 hour default
-	}
+	config.MaxAge = 3600 // 1-hour default
+
 	return func(c *gin.Context) {
 		// Skip CSRF for safe methods and excluded paths
 		if isCSRFExcluded(c) {
@@ -159,7 +154,7 @@ func setCSRFCookie(c *gin.Context, token string, config CSRFConfig) {
 		config.MaxAge,
 		"/",
 		"localhost",
-		config.Secure,
+		true,
 		true, // HttpOnly
 	)
 }
