@@ -1292,41 +1292,6 @@ func (db *SQLite) AuthGetServerOwnerAddress() string {
 	core.LogError("Could not get the server owner address from the database - no entry found")
 	return ""
 }
-func (db *SQLite) CSRFStoreToken(token string, expiration int64) {
-	query := "INSERT INTO csrf_tokens (token, expiration) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expiration = excluded.expiration"
-	_, err := db.runParamSQLUpdate(query, token, expiration)
-	if err != nil {
-		core.LogError("Could not store CSRF token: " + err.Error())
-	}
-}
-func (db *SQLite) CSRFValidateToken(token string) bool {
-	currentTime := time.Now().Unix()
-	rows, err := db.runParamSQLSelect("SELECT expiration FROM csrf_tokens WHERE token = ?", token)
-	if err != nil {
-		core.LogError("Could not validate CSRF token: " + err.Error())
-		return false
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var expiration int64
-		err = rows.Scan(&expiration)
-		if err != nil {
-			core.LogError("Could not scan CSRF token expiration: " + err.Error())
-			return false
-		}
-		if currentTime <= expiration {
-			return true
-		}
-	}
-	return false
-}
-func (db *SQLite) CSRFCleanupExpired() {
-	currentTime := time.Now().Unix()
-	_, err := db.runParamSQLUpdate("DELETE FROM csrf_tokens WHERE expiration < ?", currentTime)
-	if err != nil {
-		core.LogError("Could not cleanup expired CSRF tokens: " + err.Error())
-	}
-}
 
 // --- File & IPFS Functions --- //
 func (db *SQLite) FileAdd(fileUUID string, fileHash string, mimeType string, unsafeNameB64 string, size int64) {

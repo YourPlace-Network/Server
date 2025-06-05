@@ -180,25 +180,6 @@ func (db *Database) AuthGetServerOwnerAddress() string {
 	}
 	return ""
 }
-func (db *Database) CSRFStoreToken(token string, expiration int64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.CSRFStoreToken(token, expiration)
-	}
-}
-func (db *Database) CSRFValidateToken(token string) bool {
-	switch db.Engine {
-	case "sqlite":
-		return db.sqlite.CSRFValidateToken(token)
-	}
-	return false
-}
-func (db *Database) CSRFCleanupExpired() {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.CSRFCleanupExpired()
-	}
-}
 
 // --- Files Functions --- //
 func (db *Database) FileAdd(fileUUID string, fileHash string, mimeType string, unsafeNameB64 string, size int64) {

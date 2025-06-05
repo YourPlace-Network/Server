@@ -41,17 +41,20 @@ func CSRFMiddleware(config CSRFConfig) gin.HandlerFunc {
 		method := c.Request.Method
 		// For safe methods, generate and set token
 		if method == "GET" || method == "HEAD" || method == "OPTIONS" {
+			existingToken, err := c.Cookie(CSRFCookieName)
+			if err == nil && existingToken != "" && isValidTokenFormat(existingToken, config.CryptoSeed) {
+				// Reuse existing valid token
+				c.Set("csrfToken", existingToken)
+				c.Next()
+				return
+			}
 			token, err := generateCSRFToken(config.CryptoSeed)
 			if err != nil {
 				core.LogError("Failed to generate CSRF token: " + err.Error())
 				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
-			// Store token in the database with expiration
-			storeCSRFToken(config.Database, token, config.MaxAge)
-			// Set cookie
 			setCSRFCookie(c, token, config)
-			// Make token available to templates
 			c.Set("csrfToken", token)
 			c.Next()
 			return
@@ -87,10 +90,6 @@ func validateCSRFToken(c *gin.Context, config CSRFConfig) bool {
 	}
 	// Validate token format and signature
 	if !isValidTokenFormat(token, config.CryptoSeed) {
-		return false
-	}
-	// Check if token exists in database and is not expired
-	if !isTokenInDatabase(config.Database, token) {
 		return false
 	}
 	// Validate against cookie token
@@ -136,13 +135,6 @@ func isValidTokenFormat(token string, seed []byte) bool {
 	// Verify signature
 	expectedSig := security.HMAC([]byte(payload), seed)
 	return subtle.ConstantTimeCompare(providedSig, []byte(expectedSig)) == 1
-}
-func storeCSRFToken(database *db.Database, token string, maxAge int) {
-	expiration := time.Now().Add(time.Duration(maxAge) * time.Second).Unix()
-	database.CSRFStoreToken(token, expiration)
-}
-func isTokenInDatabase(database *db.Database, token string) bool {
-	return database.CSRFValidateToken(token)
 }
 func setCSRFCookie(c *gin.Context, token string, config CSRFConfig) {
 	c.SetCookie(
