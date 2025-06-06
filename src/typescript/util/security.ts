@@ -30,7 +30,6 @@ export function IsValidURL(url: string): boolean {
     try {
         if (url.endsWith(".ipfs.localhost:42426")) { // allow local IPFS node links
             let cid: string = url.substring("ipfs://".length, (url.length - ".ipfs.localhost:42426".length));
-            console.log("cid before validation: " + cid);
             return IsValidIpfsCid(cid);
         } else if (url.startsWith("ipfs://")) { // allow generic IPFS links with CID
             let cid: string = url.substring("ipfs://".length);
