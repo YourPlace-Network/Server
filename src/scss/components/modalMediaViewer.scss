@@ -125,8 +125,9 @@
     position: fixed !important; // Override Bootstrap's positioning to place in viewport margins
     top: 50%;
     transform: translateY(-50%);
-    width: 60px;
-    height: 80px;
+    width: 50px;
+    height: 70px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -138,15 +139,21 @@
       opacity: 1;
       background-color: rgba(255, 255, 255, 0.2);
     }
+
+    // Make controls smaller on very small viewports
+    @media (max-width: 768px) {
+      width: 40px;
+      height: 60px;
+    }
   }
 
   // Center controls in the 5vw margins on each side
   .carousel-control-prev {
-    left: calc((100vw - 90vw) / 4); // Centers in left margin: 2.5vw
+    left: max(1vw, 5px); // At least 5px from edge
   }
 
   .carousel-control-next {
-    right: calc((100vw - 90vw) / 4); // Centers in right margin: 2.5vw
+    right: max(1vw, 5px); // At least 5px from edge
   }
 
   // Style the icons
