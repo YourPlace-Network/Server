@@ -150,6 +150,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     }
                     (attachmentCard as unknown as HTMLDivElement).classList.add("postAttachment");
                     listedAttachmentElements.push(attachmentCard as unknown as HTMLDivElement);
+                    console.log("acpush")
                     break;
             }
         }
@@ -295,7 +296,8 @@ function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
     iframe.setAttribute("credentialless", "");
     return iframe;
 }
-export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> { // Creates carousel div element when passed an array of any elements
+export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> {// Creates carousel div element when passed an array of any elements
+    console.log("Creating Carousel");
     let carouselDiv = document.createElement("div") as HTMLDivElement;
     let carouselList = document.createElement("ol") as HTMLOListElement;
     let carouselInnerDiv = document.createElement("div") as HTMLDivElement;
@@ -348,28 +350,44 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
     carouselDiv.appendChild(carouselInnerDiv);
     carouselDiv.appendChild(previousButton);
     carouselDiv.appendChild(nextButton);
+    console.log("carousel done");
+    console.log(carouselDiv.outerHTML);
     return carouselDiv;
 }
-async function expandView(event: MouseEvent) {
+async function expandView(event: MouseEvent | PointerEvent) {
+    console.log("expandView");
     const clickedDiv = event.currentTarget as HTMLDivElement; //Renderable attachments should be wrapped in a loader div
+    console.log("ev 2")
     clickedDiv.classList.add("initiator"); // class added so the expanded attachment carousel knows which image to start on
     const specificPostAttachmentDiv = clickedDiv.closest(".postCardAttachmentDiv") as HTMLDivElement;
-    const expandables = specificPostAttachmentDiv.querySelectorAll("expandable") as NodeListOf<HTMLDivElement>;
+    const expandables = specificPostAttachmentDiv.querySelectorAll(".expandable") as NodeListOf<HTMLDivElement>;
+    console.log("ev 3")
     const clonedExpandablesArray = Array.from(expandables).map(expandable => expandable.cloneNode(true) as HTMLDivElement);
     clickedDiv.classList.remove("initiator");
     if (clonedExpandablesArray.length === 1) {
         ShowModalMediaViewer(clonedExpandablesArray[0]);
     }
+    console.log("expandables array length: " + clonedExpandablesArray.length);
+    console.log("ev 4")
     if (clonedExpandablesArray.length > 1) {
         const carousel = await CreateCarousel(clonedExpandablesArray);
+        console.log("ev 5")
         carousel.querySelectorAll(".active").forEach(element => {
             element.classList.remove("active");
         })
+        console.log("ev 6")
         const index = clonedExpandablesArray.findIndex(element => element.classList.contains("initiator"));
+        console.log ("index: " + index);
+        console.log("ev 7")
         const clonedClickedElement = carousel.querySelector(".initiator") as HTMLElement;
+        console.log("ev 8")
         const firstDisplayedSlide = clonedClickedElement.closest(".carousel-item") as HTMLDivElement;
+        console.log("ev 9")
         firstDisplayedSlide.classList.add("active");
-        const firstIndicator = carousel.querySelector(`[data-slide-to="${index}"]`) as HTMLLIElement;
+        console.log("ev 10")
+        console.log("Available indicators:", carousel.querySelectorAll('[data-bs-slide-to]'));
+        const firstIndicator = carousel.querySelector(`[data-bs-slide-to="${index}"]`) as HTMLLIElement;
+        console.log("ev 11")
         firstIndicator.classList.add("active");
         ShowModalMediaViewer(carousel);
     }
