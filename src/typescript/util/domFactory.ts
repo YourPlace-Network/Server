@@ -133,7 +133,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     image.classList.add("postAttachment", "postCardAttachmentImage");
                     let imageLoader = await CreateImageLoader(image);
                     imageLoader.classList.add("expandable");
-                    imageLoader.addEventListener("click", expandView)
+                    imageLoader.addEventListener("click", expandView);
                     if (postData.attachments.length === 1) {
                         imageLoader.classList.add("postAttachment");
                         renderedAttachmentElements.push(imageLoader);
@@ -457,7 +457,7 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     }
     if (attachment[3] !== "") {
         const fileNameBase64 = attachment[3];
-        const fileName = base64decode(fileNameBase64)
+        const fileName = base64decode(fileNameBase64);
         fileNameSpan.textContent = XSSSanitizeValue(fileName);
     }
     downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
