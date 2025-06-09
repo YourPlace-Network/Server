@@ -1,13 +1,10 @@
 import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
-import {IsValidAddress, WalletGetExplorerAddressLink, WalletGetExplorerTxLink} from "./blockchain/wallet";
+import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink} from "./blockchain/wallet";
 import {IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
-import {LogInfo} from "./log";
 import {getFileIcon, formatFileSize} from "./files";
-import path from "path";
-import {extensionToMimeType} from "./mimeTypes";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
@@ -31,7 +28,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     let reactionDiv = document.createElement("div") as HTMLDivElement;
     let unixpostdate = postData.timestamp;
     let postdatevalue = new Date(unixpostdate * 1000).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true});
-    let walletAddressLink = WalletGetExplorerAddressLink(postData.address);
+    let walletAddressLink = WalletGetYourPlaceAddressLink(postData.address);
     let walletTxLink = WalletGetExplorerTxLink(postData.txHash);
 
     // adding attributes to elements
@@ -63,7 +60,6 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     postHeaderDiv.classList.add("postCardHeaderDiv");
     postAuthorLink.classList.add("postCardAuthorLink");
     postAuthorLink.href = XSSSanitizeUrl(walletAddressLink);
-    postAuthorLink.target = "_blank";
     postAuthor.classList.add("postCardAuthor");
     postAuthor.textContent = postData.author;
     postDate.classList.add("postCardDate");
@@ -140,7 +136,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                 default:
                     let attachmentCard = await CreateAttachmentCard(postData.attachments[i]).catch( e =>{
                         return "failed"
-                    })
+                    });
                     if (attachmentCard !instanceof HTMLDivElement) {
                         break;
                     }
@@ -206,7 +202,6 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
             }
         }
     }
-
     // Post Rendering
     postTextDiv.innerHTML = XSSSanitizeTinyMCEHtml(postText);
     return postDiv;

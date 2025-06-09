@@ -13,6 +13,7 @@ import (
 
 func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool) {
 	router.GET("/p/*path", func(c *gin.Context) {
+		start := core.StartTimer()
 		path := strings.TrimPrefix(c.Param("path"), "/")
 		if path == "" {
 			value, exists1 := c.Get("blockchain")
@@ -68,7 +69,11 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			c.Redirect(http.StatusSeeOther, "/404")
 			return
 		}
+
 		token := middleware.GetCSRFToken(c)
+
+		core.EndTimer(start)
+		start2 := core.StartTimer()
 
 		// Check if the profile viewer is the profile owner
 		isGuest := true
@@ -94,6 +99,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"isGuest":               isGuest, // Guest mode distinguishes if the viewer is the guest or owner of the profile
 			"gatewayMode":           gateway,
 		}
+		core.EndTimer(start2)
 		c.HTML(http.StatusOK, "src/templates/pages/profile.tmpl", responseJson)
 	})
 	router.GET("/profile/name/:blockchain/:address", func(c *gin.Context) {

@@ -3,17 +3,7 @@ import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {ethers} from "ethers";
 import {YP} from "../../services/yourplace";
-import type {Address} from 'viem';
-import {
-    createPublicClient,
-    defineChain,
-    encodePacked,
-    http as viemHttp,
-    keccak256,
-    namehash,
-    parseEther,
-    UserRejectedRequestError
-} from "viem";
+import {createPublicClient, defineChain, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
 import {normalize as viemNormalize} from "viem/ens";
 import {base as viemBase} from "viem/chains";
 import {
@@ -338,7 +328,6 @@ export async function baseGetAvatar(address: string) {
     }
 }
 export async function baseGetName(_address: string): Promise<string> {
-    LogInfo("baseGetName called with address: " + _address);
     // https://gist.github.com/hughescoin/95b680619d602782396fa954e981adae
     if (!baseInit) {
         await initBaseWallet();

@@ -91,7 +91,7 @@ declare global { // Extend the window interface with public objects
                 renderProfileAddress(requestedAddress),
                 renderProfileName(requestedBlockchain, requestedAddress),
                 renderProfileAvatar(requestedBlockchain, requestedAddress),
-                renderProfileBanner(requestedBlockchain, requestedAddress),
+                // renderProfileBanner(requestedBlockchain, requestedAddress),
                 renderProfileDescription(requestedBlockchain, requestedAddress),
                 renderProfileLocation(requestedBlockchain, requestedAddress),
                 renderProfileWebsite(requestedBlockchain, requestedAddress),
@@ -130,22 +130,31 @@ declare global { // Extend the window interface with public objects
                 let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
                 if (response[0] === 200) {
                     if (!response[1] || response[1].name.length < 1) {
-                        return;
+                        name = truncateAddress(address);
+                    } else {
+                        name = response[1].name;
                     }
-                    name = response[1].name;
+                } else {
+                    name = truncateAddress(address);
                 }
             }
             if (typeof name === "string") {
                 DOM.profileName.textContent = name;
             }
-            const avatarAuthors = document.querySelectorAll("b.postCardAuthor");
-            avatarAuthors.forEach((b: Element) => {
-                if (b instanceof HTMLElement) {
-                    if (typeof name === "string") {
-                        b.textContent = name;
-                    } // Set the post authors
+            const updatePostAuthors = () => {
+                const avatarAuthors = document.querySelectorAll("b.postCardAuthor");
+                if (avatarAuthors.length > 0 && typeof name === "string") {
+                    avatarAuthors.forEach((b: Element) => {
+                        if (b instanceof HTMLElement) {
+                            b.textContent = name;
+                        }
+                    });
+                } else if (avatarAuthors.length === 0) {
+                    // Posts might not be rendered yet, try again in a bit
+                    setTimeout(updatePostAuthors, 100);
                 }
-            });
+            };
+            updatePostAuthors();
         }
         async function renderProfileAvatar(blockchain: string, address: string) {
             let avatarURL = await WalletGetAvatar(blockchain, address); // get the avatar from the blockchain
