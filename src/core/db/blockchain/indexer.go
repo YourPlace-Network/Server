@@ -1063,6 +1063,7 @@ func handlePostTransaction(payloadObject map[string]interface{}, txHash, blockch
 		core.LogDebug("Failed to convert post text to string")
 		return false
 	}
+	postTextStr = security.SanitizeNonPrintable(postTextStr)
 	_Database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr)
 	return true
 }
@@ -1089,9 +1090,21 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 		parsedURL, okURL := attachmentArray[0].(string)
 		parsedMimeType, okMimeType := attachmentArray[1].(string)
 		sizeFloat, okSize := attachmentArray[2].(float64)
-		parsedBase64Name, okBase64Name := attachmentArray[3].(string)
+		unsafeNameBase64, okBase64Name := attachmentArray[3].(string)
 		if !okURL || !okMimeType || !okSize || !okBase64Name {
 			core.LogDebug("Post attach array values are not properly typed")
+			return false
+		}
+		if !security.IsValidIndexedFilename(unsafeNameBase64) {
+			core.LogDebug("Post attach action does not contain a valid filename")
+			return false
+		}
+		if !security.IsValidURL(parsedURL) && !security.IsValidCID(parsedURL) {
+			core.LogDebug("Post attach action does not contain a valid URL or CID")
+			return false
+		}
+		if sizeFloat < 0 {
+			core.LogDebug("Post attach action contains negative file size")
 			return false
 		}
 		sizeUint := uint64(sizeFloat)
@@ -1099,10 +1112,11 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 			FileURL:    parsedURL,
 			MimeType:   parsedMimeType,
 			FileSize:   sizeUint,
-			Base64Name: parsedBase64Name,
+			Base64Name: unsafeNameBase64,
 		}
 		parsedAttachments = append(parsedAttachments, parsedAttachment)
 	}
+	postTextStr = security.SanitizeNonPrintable(postTextStr)
 	_Database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, parsedAttachments)
 	return true
 }

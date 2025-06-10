@@ -1,5 +1,6 @@
 @use "sass:map";
 @use "../global.scss";
+//TODO: remove important where possible
 
 // Modal Media Viewer Styles
 #modalMediaViewer {
@@ -55,7 +56,7 @@
 
   // Carousel inner grows to use available space
   .carousel-inner {
-    flex: 1;
+    flex: 1; // allows growth and shrink behavior
     min-height: 0; // Allow shrinking
     position: relative;
     overflow: hidden;
@@ -71,7 +72,7 @@
 
   // Remove padding on any element (for aspect ratio padding)
   #mediaDiv [style*="padding-top"] {
-    padding-top: 0 !important;
+    padding-top: 0;
   }
 
   // Constrain content within the modal
@@ -120,9 +121,9 @@
   }
 
   // Position carousel controls in viewport margins using fixed positioning
-  .carousel-control-prev,
-  .carousel-control-next {
-    position: fixed !important; // Override Bootstrap's positioning to place in viewport margins
+  #mediaViewerCarouselPrev,
+  #mediaViewerCarouselNext {
+    position: fixed;
     top: 50%;
     transform: translateY(-50%);
     width: 50px;
@@ -148,11 +149,11 @@
   }
 
   // Center controls in the 5vw margins on each side
-  .carousel-control-prev {
+  #mediaViewerCarouselPrev {
     left: max(1vw, 5px); // At least 5px from edge
   }
 
-  .carousel-control-next {
+  #mediaViewerCarouselNext {
     right: max(1vw, 5px); // At least 5px from edge
   }
 

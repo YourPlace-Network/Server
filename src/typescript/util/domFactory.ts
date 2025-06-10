@@ -145,7 +145,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     let attachmentCard = await CreateAttachmentCard(postData.attachments[i]).catch( e =>{
                         return "failed"
                     })
-                    if (attachmentCard !instanceof HTMLDivElement) {
+                    if (!(attachmentCard instanceof HTMLDivElement)) {
                         break;
                     }
                     (attachmentCard as unknown as HTMLDivElement).classList.add("postAttachment");
@@ -371,6 +371,11 @@ async function expandView(event: MouseEvent | PointerEvent) {
         firstDisplayedSlide.classList.add("active");
         const firstIndicator = carousel.querySelector(`[data-bs-slide-to="${index}"]`) as HTMLLIElement;
         firstIndicator.classList.add("active");
+        // Add specific IDs for media viewer carousel controls
+        const prevControl = carousel.querySelector(".carousel-control-prev") as HTMLAnchorElement;
+        const nextControl = carousel.querySelector(".carousel-control-next") as HTMLAnchorElement;
+        if (prevControl) prevControl.id = "mediaViewerCarouselPrev";
+        if (nextControl) nextControl.id = "mediaViewerCarouselNext";
         ShowModalMediaViewer(carousel);
     }
 }

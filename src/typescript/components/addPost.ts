@@ -115,9 +115,9 @@ import tinymce from "tinymce/tinymce";
                 let mimeType = file.mimeType;
                 if (mimeType == null) {return}
                 let size = file.size;
-                let base64Name = file.encodedUnsafeName;
-                if (typeof url === "string" && mimeType !== "" && size !== "" && base64Name !== ""){
-                    let attachment = [url, mimeType, size, base64Name];
+                let encodedUnsafeName = file.encodedUnsafeName;
+                if (typeof url === "string" && mimeType !== "" && size !== "" && encodedUnsafeName !== ""){
+                    let attachment = [url, mimeType, size, encodedUnsafeName];
                     attachments.push(attachment);
                 } else return
             }
