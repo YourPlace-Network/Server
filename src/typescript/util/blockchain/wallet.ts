@@ -168,7 +168,6 @@ export async function WalletGetName(chain?: string, address?: string): Promise<s
         chain = GetChain()!;
     }
     if (!address) {
-        LogError("GetAddress");
         address = GetAddress()!;
     }
     switch (chain) {
@@ -251,6 +250,19 @@ export function WalletGetExplorerTxLink(tx: string) {
         return mainnetBase.explorerUrl + "/tx/" + tx;
     }
     return "";
+}
+export function WalletGetYourPlaceAddressLink(address: string) {
+    let chain = GetChain();
+    let host = window.location.host;
+    if (chain == "algorand") {
+        return `${host}/p/algorand/${address}`;
+    } else if (chain == "base") {
+        return `${host}/p/base/${address}`;
+    } else if (chain == "solana") {
+        return `${host}/p/solana/${address}`;
+    } else {
+        return `${host}/p/${address}`;
+    }
 }
 export async function WalletGetNFTs(chain?: string, address?: string): Promise<string[]|null> {
     if (!chain) { chain = GetChain()!; }

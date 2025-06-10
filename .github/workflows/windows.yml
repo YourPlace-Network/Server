@@ -26,7 +26,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
       with:
-        go-version: '1.24.1'
+        go-version: '1.24.4'
 
     - name: Choco Install
       uses: ConorMacBride/install-package@3e7ad059e07782ee54fa35f827df52aae0626f30 # v1.1.0

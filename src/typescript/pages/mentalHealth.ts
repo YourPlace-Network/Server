@@ -817,6 +817,14 @@ const tips = [
     "Getting too comfortable is often a sign that you're not progressing",
     "Take documentaries with a grain of salt",
     "It's ok to be motivated into healthy habits by self-help media and stupid memes. Most motivation doesn't need to come from some deep and mysterious source",
+    "Don't bring your child to a protest or a riot. If things go bad, the state could reasonably argue that you've endangered the child and can take them away",
+    "Political leaders and the security apparatus should be held to a higher standard than the average citizen. But also not so high that it effectively sabotages their ability to serve",
+    "It's not a police state when people who are actively destroying things and harming others gets arrested. That's just normal societal operation",
+    "Someone demanding perfection could just be trying to sabotage the process",
+    "\"The bitterness of poor quality remains long after the sweetness of low price is forgotten\"\n- Benjamin Franklin",
+    "If you find a good woman who wants a family, marry her and impregnate as soon as possible",
+    "If you find a good man who wants a family, marry him and get pregnant as soon as possible",
+    "Throwing a brick/rock at a police officer (or anyone) gives them the moral and legal justification to kill you",
 
 
 ];
