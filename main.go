@@ -270,7 +270,11 @@ func PostServerRun(database *db.Database) {
 	}
 }
 func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, logFile *os.File) {
-	gin.SetMode(gin.ReleaseMode)
+	if debug {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	router := gin.New()
 	router.RedirectTrailingSlash = true
 	if gateway {
@@ -390,6 +394,10 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 	}
 	c.AddFunc("@every 168h", func() {
 		network.UpdateBadBits(database)
+	})
+	// ------- Clear Caches ------- //
+	c.AddFunc("@every 10m", func() {
+		blockchain.CleanWalletCache()
 	})
 	// --- Start Cron --- //
 	c.Start()

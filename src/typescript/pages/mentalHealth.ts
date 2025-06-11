@@ -825,6 +825,9 @@ const tips = [
     "If you find a good woman who wants a family, marry her and impregnate as soon as possible",
     "If you find a good man who wants a family, marry him and get pregnant as soon as possible",
     "Throwing a brick/rock at a police officer (or anyone) gives them the moral and legal justification to kill you",
+    "Don't make fun of another mans wife. People have been murdered over beef like that",
+    "Finding the true popular opinion takes concerted effort. It's easy to get gaslighted by social media, the news and influencers. They just use big megaphones to make it seem like they represent the majority",
+    "Consensus / majority opinion is a just ok way to judge things. In a free speech society, it's got maybe a 60-70% accuracy rate",
 
 
 ];
