@@ -38,13 +38,11 @@
     height: 90vh;
     overflow: hidden;
     position: relative;
-
     // Make mediaDiv a flex container to properly contain carousel
     display: flex;
     align-items: center;
     justify-content: center;
   }
-
   // Carousel fills available space and uses flexbox
   .carousel {
     width: 100%;
@@ -53,7 +51,6 @@
     flex-direction: column;
     position: relative;
   }
-
   // Carousel inner grows to use available space
   .carousel-inner {
     flex: 1; // allows growth and shrink behavior
@@ -61,7 +58,6 @@
     position: relative;
     overflow: hidden;
   }
-
   // Style active carousel items only
   .carousel-item.active {
     height: 100%;
@@ -69,18 +65,15 @@
     align-items: center;
     justify-content: center;
   }
-
   // Remove padding on any element (for aspect ratio padding)
   #mediaDiv [style*="padding-top"] {
     padding-top: 0;
   }
-
   // Constrain content within the modal
   .carousel-item > * {
     max-width: 100%;
     max-height: 100%;
   }
-
   // All media should be contained
   img, video, iframe,
   .image-container,
@@ -90,13 +83,11 @@
     width: auto;
     height: auto;
   }
-
   // Images specifically
   img {
     object-fit: contain;
     display: block;
   }
-
   // Image containers need special handling
   .image-container {
     display: flex !important;
@@ -105,7 +96,6 @@
     overflow: hidden;
     background: none;
   }
-
   // Indicators at bottom of carousel
   .carousel-indicators {
     position: relative;
@@ -113,13 +103,11 @@
     margin-top: 10px;
     margin-bottom: 0;
   }
-
   // For non-carousel content
   #mediaDiv > *:not(.carousel) {
     max-width: 90vw;
     max-height: 90vh;
   }
-
   // Position carousel controls in viewport margins using fixed positioning
   #mediaViewerCarouselPrev,
   #mediaViewerCarouselNext {
@@ -135,28 +123,23 @@
     opacity: 0.7;
     transition: opacity 0.3s, background-color 0.3s;
     z-index: 1055;
-
     &:hover {
       opacity: 1;
       background-color: rgba(255, 255, 255, 0.2);
     }
-
     // Make controls smaller on very small viewports
     @media (max-width: 768px) {
       width: 40px;
       height: 60px;
     }
   }
-
   // Center controls in the 5vw margins on each side
   #mediaViewerCarouselPrev {
     left: max(1vw, 5px); // At least 5px from edge
   }
-
   #mediaViewerCarouselNext {
     right: max(1vw, 5px); // At least 5px from edge
   }
-
   // Style the icons
   .carousel-control-prev-icon,
   .carousel-control-next-icon {
@@ -164,7 +147,6 @@
     width: 30px;
     height: 30px;
   }
-
   // Close button
   .btn-close {
     position: absolute;
@@ -179,7 +161,6 @@
     }
   }
 }
-
 // Dark overlay
 .modal-backdrop {
   background-color: rgba(0, 0, 0, 0.8);

@@ -142,31 +142,25 @@ ul.ellipsesMenu {
   padding: 1rem;
   text-align: center;
   height: 100%;
-  
   .attachmentCardIconRow {
     margin-bottom: 0.5rem;
   }
-  
   .attachmentCardIcon {
     font-size: 2.5rem;
   }
-  
   .attachmentCardNameRow {
     margin-bottom: 0.5rem;
     word-break: break-word;
     max-width: 100%;
   }
-  
   .attachmentCardFileName {
     font-weight: 500;
   }
-  
   .attachmentCardBottomRow {
     display: flex;
     align-items: center;
     gap: 0.5rem;
   }
-  
   .attachmentCardFileSize {
     font-size: 0.875rem;
     color: global.$text-muted;

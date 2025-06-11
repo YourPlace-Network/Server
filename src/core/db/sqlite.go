@@ -1155,7 +1155,7 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 				core.LogError("Could parse rows for post attachment: " + err.Error())
 				break // bail rowsAttachments for loop
 			}
-			sizeString := strconv.FormatUint(size, 10)
+			sizeString := strconv.FormatUint(size, 10) // TODO: why is this a string?
 			attachment := []string{fileURL, mimeType, sizeString, fileName}
 			attachments = append(attachments, attachment)
 		}
