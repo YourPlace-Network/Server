@@ -12,7 +12,6 @@
     margin: 0;
     max-width: 100%;
   }
-
   .modal-content {
     background-color: rgba(0, 0, 0, 0.9);
     border: none;
@@ -20,7 +19,6 @@
     width: 100vw;
     overflow: hidden;
   }
-
   .modal-body {
     display: flex;
     align-items: center;
@@ -31,7 +29,6 @@
     overflow: hidden;
     position: relative; // Important for control positioning
   }
-
   // Reset mediaDiv to original size
   #mediaDiv {
     width: 90vw;
