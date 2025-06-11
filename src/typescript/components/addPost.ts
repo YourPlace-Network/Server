@@ -1,7 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
 import {IsValidIpfsCid} from "../util/security";
-import {base64decode} from "byte-base64";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
 import {CreateAttachmentPreview} from "../util/domFactory";
@@ -36,7 +35,7 @@ import tinymce from "tinymce/tinymce";
             uuid: string;
             pathOnDisk: string;
             mimeType: string;
-            encodedUnsafeName: string;
+            fileName: string;
             size: string;
             fileUrl?: string;
         }
@@ -115,9 +114,9 @@ import tinymce from "tinymce/tinymce";
                 let mimeType = file.mimeType;
                 if (mimeType == null) {return}
                 let size = file.size;
-                let encodedUnsafeName = file.encodedUnsafeName;
-                if (typeof url === "string" && mimeType !== "" && size !== "" && encodedUnsafeName !== ""){
-                    let attachment = [url, mimeType, size, encodedUnsafeName];
+                let fileName = file.fileName;
+                if (typeof url === "string" && mimeType !== "" && size !== "" && fileName !== ""){
+                    let attachment = [url, mimeType, size, fileName];
                     attachments.push(attachment);
                 } else return
             }
@@ -193,7 +192,7 @@ import tinymce from "tinymce/tinymce";
             DOM.spiceometerText.innerText = chilies;
         }
         function stripRemovedAttachments() {
-            uploadedFiles = uploadedFiles.filter(file => !removedFiles?.includes(base64decode(file.encodedUnsafeName)));
+            uploadedFiles = uploadedFiles.filter(file => !removedFiles?.includes(file.fileName));
         }
         function debounce<T extends (...args: any[]) => void>(func: T, delay: number): (...args: Parameters<T>) => void {
             let timeoutId: number;

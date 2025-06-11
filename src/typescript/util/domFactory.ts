@@ -440,7 +440,10 @@ export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElemen
 }
 export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivElement> {// TODO: File names?
     const attachmentCard = document.createElement("div") as HTMLDivElement;
+    const iconRow = document.createElement("div") as HTMLDivElement;
     const fileIcon = document.createElement("i") as HTMLElement;
+    const nameRow = document.createElement("div") as HTMLDivElement;
+    const bottomRow = document.createElement("div") as HTMLDivElement;
     const downloadAnchor = document.createElement("a") as HTMLAnchorElement;
     const downloadButton = document.createElement("button") as HTMLButtonElement;
     const downloadIcon = document.createElement("i") as HTMLElement;
@@ -448,6 +451,10 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     const fileSizeSpan = document.createElement("span") as HTMLSpanElement;
     const iconClass = getFileIcon(attachment[1]);
     let attachmentURL: string;
+    attachmentCard.classList.add("attachmentCard");
+    iconRow.classList.add("attachmentCardIconRow");
+    nameRow.classList.add("attachmentCardNameRow");
+    bottomRow.classList.add("attachmentCardBottomRow");
     fileIcon.classList.add("icon", "attachmentCardIcon", iconClass);
     if (attachment[0].startsWith("ipfs://")) {
         attachmentURL = CIDToSubdomainURL(attachment[0]);
@@ -457,21 +464,23 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     if (!IsValidURL(attachmentURL)) {
         return Promise.reject("Invalid URL");
     }
-    if (attachment[3] !== "") {
-        const fileNameBase64 = attachment[3];
-        const fileName = base64decode(fileNameBase64);
-        fileNameSpan.textContent = XSSSanitizeValue(fileName);
-    }
+    const fileName :string = attachment[3];
+    fileNameSpan.textContent = XSSSanitizeValue(fileName);
+    fileNameSpan.classList.add("attachmentCardFileName");
     downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
-    downloadAnchor.download = "";
+    downloadAnchor.download = fileName;
     const fileSize = await formatFileSize(attachment[2]);
     fileSizeSpan.innerText = fileSize;
+    fileSizeSpan.classList.add("attachmentCardFileSize");
     downloadButton.classList.add("downloadButton", "btn");
     downloadIcon.classList.add("downloadIcon", "bi", "bi-download");
-    attachmentCard.appendChild(fileIcon);
-    attachmentCard.appendChild(fileNameSpan);
-    attachmentCard.appendChild(fileSizeSpan);
-    attachmentCard.appendChild(downloadAnchor);
+    iconRow.appendChild(fileIcon);
+    nameRow.appendChild(fileNameSpan);
+    bottomRow.appendChild(fileSizeSpan);
+    bottomRow.appendChild(downloadAnchor);
+    attachmentCard.appendChild(iconRow);
+    attachmentCard.appendChild(nameRow);
+    attachmentCard.appendChild(bottomRow);
     downloadAnchor.appendChild(downloadButton);
     downloadButton.appendChild(downloadIcon);
     return attachmentCard;

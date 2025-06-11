@@ -378,21 +378,17 @@ func IsValidBase64(payload string) bool {
 	}
 	return true
 }
-func IsValidIndexedFilename(base64Filename string) bool { // Returns bool because we probably shouldn't index a file that actually needs this sanitization.
-	decodedFilename := Base64Decode(base64Filename)
-	if len(decodedFilename) == 0 {
+func IsValidIndexedFilename(fileName string) bool { // Returns bool because we probably shouldn't index a file that actually needs this sanitization.
+	if SanitizePathTraversal(fileName) != fileName {
 		return false
 	}
-	if SanitizePathTraversal(decodedFilename) != decodedFilename {
+	if SanitizeCommandInjection(fileName) != fileName {
 		return false
 	}
-	if SanitizeCommandInjection(decodedFilename) != decodedFilename {
+	if SanitizeNonPrintable(fileName) != fileName {
 		return false
 	}
-	if SanitizeNonPrintable(decodedFilename) != decodedFilename {
-		return false
-	}
-	if !LengthRange(decodedFilename, 1, 255) {
+	if !LengthRange(fileName, 1, 255) {
 		return false
 	}
 	return true
