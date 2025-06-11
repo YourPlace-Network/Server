@@ -464,7 +464,7 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     if (!IsValidURL(attachmentURL)) {
         return Promise.reject("Invalid URL");
     }
-    const fileName :string = attachment[3];
+    const fileName = attachment[3];
     fileNameSpan.textContent = XSSSanitizeValue(fileName);
     fileNameSpan.classList.add("attachmentCardFileName");
     downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
