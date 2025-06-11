@@ -27,7 +27,7 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 # JSON API
 ### Posting (to yourself)
 - `yp/1/p:{"p":"payload"}` - Post a message 🚢
-- `yp/1/pa:{"p":"payload","a":[["ipfs://CID/path.exe","application/vnd.microsoft.portable-executable",4096, "filename.exe"],["ipfs://CID2/path2.jpg","image/jpeg",2048, "filename.jpg"]]}` - Post a message with file attachment(s) [{path, mimetype, size}]
+- `yp/1/pa:{"p":"payload","a":[["ipfs://CID/path.exe","application/vnd.microsoft.portable-executable",4096,"filename.exe"],["ipfs://CID2/path2.jpg","image/jpeg",2048,"filename.jpg"]]}` - Post a message with file attachment(s) [{path, mimetype, size}]
 - `yp/1/pr:{"txh":"txnHash"}` - Repost a post
 - `yp/1/pry:{"txh":"txnHash","p":"payload"}` - Reply to a post (to original poster)
 - `yp/1/prp:{"txh":"txnHash","p":"payload"}` - Repost a post with a message
