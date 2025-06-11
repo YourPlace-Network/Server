@@ -15,7 +15,6 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -1039,7 +1038,7 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 	for rowsPosts.Next() {
 		var timestamp uint64
 		var txHash, payload, parent string
-		var attachments [][]string
+		var attachments [][]interface{}
 		err := rowsPosts.Scan(&txHash, &parent, &timestamp, &payload)
 		if err != nil {
 			core.LogDebug("Could not scan database rows for user posts: " + err.Error())
@@ -1060,8 +1059,7 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 					core.LogDebug("Could parse rows for post attachment: " + err.Error())
 					break // bail rowsAttachments for loop
 				}
-				sizeString := strconv.FormatUint(size, 10)
-				attachment := []string{fileUrl, mimeType, sizeString, fileName}
+				attachment := []interface{}{fileUrl, mimeType, size, fileName}
 				attachments = append(attachments, attachment)
 			}
 			rowsAttachments.Close()
@@ -1133,7 +1131,7 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 	for rows.Next() {
 		var timestamp uint64
 		var txHash, parentHash, payload, blockchain, address string
-		var attachments [][]string
+		var attachments [][]interface{}
 		err := rows.Scan(&txHash, &parentHash, &timestamp, &payload, &address, &blockchain)
 		if err != nil {
 			core.LogError("Could not scan database rows: " + err.Error())
@@ -1155,8 +1153,7 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 				core.LogError("Could parse rows for post attachment: " + err.Error())
 				break // bail rowsAttachments for loop
 			}
-			sizeString := strconv.FormatUint(size, 10) // TODO: why is this a string?
-			attachment := []string{fileURL, mimeType, sizeString, fileName}
+			attachment := []interface{}{fileURL, mimeType, size, fileName}
 			attachments = append(attachments, attachment)
 		}
 		post := map[string]interface{}{
