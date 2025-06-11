@@ -368,6 +368,31 @@ func IsValidHex(payload string) bool {
 	}
 	return true
 }
+func IsValidBase64(payload string) bool {
+	if len(payload) == 0 {
+		return false
+	}
+	decoded := Base64DecodeBytes(payload)
+	if decoded == nil {
+		return false
+	}
+	return true
+}
+func IsValidIndexedFilename(fileName string) bool { // Returns bool because we probably shouldn't index a file that actually needs this sanitization.
+	if SanitizePathTraversal(fileName) != fileName {
+		return false
+	}
+	if SanitizeCommandInjection(fileName) != fileName {
+		return false
+	}
+	if SanitizeNonPrintable(fileName) != fileName {
+		return false
+	}
+	if !LengthRange(fileName, 1, 255) {
+		return false
+	}
+	return true
+}
 func IsValidNFDomain(payload string) bool {
 	return RegexMatch("^[a-zA-Z0-9]{1,27}\\.algo$", payload)
 }

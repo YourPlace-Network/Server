@@ -120,15 +120,49 @@ ul.ellipsesMenu {
 .postAttachmentCarousel .carousel-indicators {
   top: 100%;
 }
-.postAttachmentCarousel .prevIconDiv {
-  background: global.$secondary;
+.postAttachmentCarousel .prevIconDiv,
+.postAttachmentCarousel .nextIconDiv {
+  background: global.$tertiary;
   display: flex;
   align-items: center;
   height: 2.5rem;
 }
-.postAttachmentCarousel .nextIconDiv {
-  background: global.$secondary;
-  display: flex;
-  align-items: center;
+.postAttachmentCarousel .carousel-control-prev,
+.postAttachmentCarousel .carousel-control-next {
+  width: auto;
   height: 2.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.attachmentCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+  height: 100%;
+  .attachmentCardIconRow {
+    margin-bottom: 0.5rem;
+  }
+  .attachmentCardIcon {
+    font-size: 2.5rem;
+  }
+  .attachmentCardNameRow {
+    margin-bottom: 0.5rem;
+    word-break: break-word;
+    max-width: 100%;
+  }
+  .attachmentCardFileName {
+    font-weight: 500;
+  }
+  .attachmentCardBottomRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .attachmentCardFileSize {
+    font-size: 0.875rem;
+    color: global.$text-muted;
+  }
 }

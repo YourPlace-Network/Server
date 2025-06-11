@@ -85,15 +85,14 @@ func FilesRoutes(router *gin.Engine, database *db.Database) {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to move file"})
 				return
 			}
-			encodedUnsafeName := security.Base64Encode(file.Filename)
 			_, mimeType := security.GetFileType(finalFilePath)
-			database.FileAdd(fileUUID, fileHash, mimeType, encodedUnsafeName, file.Size)
+			database.FileAdd(fileUUID, fileHash, mimeType, file.Filename, file.Size)
 			fileData := map[string]interface{}{
-				"uuid":              fileUUID,
-				"pathOnDisk":        finalFilePath,
-				"mimeType":          mimeType,
-				"encodedUnsafeName": encodedUnsafeName,
-				"size":              file.Size,
+				"uuid":       fileUUID,
+				"pathOnDisk": finalFilePath,
+				"mimeType":   mimeType,
+				"fileName":   file.Filename,
+				"size":       file.Size,
 			}
 			fileDataArray = append(fileDataArray, fileData)
 		}

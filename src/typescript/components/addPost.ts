@@ -1,7 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
 import {IsValidIpfsCid} from "../util/security";
-import {base64decode} from "byte-base64";
 import {WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
 import {CreateAttachmentPreview} from "../util/domFactory";
@@ -36,7 +35,7 @@ import tinymce from "tinymce/tinymce";
             uuid: string;
             pathOnDisk: string;
             mimeType: string;
-            encodedUnsafeName: string;
+            fileName: string;
             size: string;
             fileUrl?: string;
         }
@@ -115,8 +114,9 @@ import tinymce from "tinymce/tinymce";
                 let mimeType = file.mimeType;
                 if (mimeType == null) {return}
                 let size = file.size;
-                if (typeof url === "string" && mimeType !== "" && size !== ""){
-                    let attachment = [url, mimeType, size];
+                let fileName = file.fileName;
+                if (typeof url === "string" && mimeType !== "" && size !== "" && fileName !== ""){
+                    let attachment = [url, mimeType, size, fileName];
                     attachments.push(attachment);
                 } else return
             }
@@ -140,6 +140,7 @@ import tinymce from "tinymce/tinymce";
             let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
             // Show some loading indication
             DOM.uploadFileButton.disabled = true;
+            DOM.submitPostButton.disabled = true;
             for (const file of fileList) {
                 const previewElement = await CreateAttachmentPreview(file);
                 const fileNameElement = previewElement.querySelector(".fileNameSpan")! as HTMLSpanElement;
@@ -152,10 +153,10 @@ import tinymce from "tinymce/tinymce";
                 DOM.attachmentDiv.appendChild(previewElement);
             }
             let [status, data] = await UploadFile(fileList, csrfToken);
-            uploadedFiles = data.data;
-
+            uploadedFiles.push(...data.data);
             // Reset UI after upload
             DOM.uploadFileButton.disabled = false;
+            DOM.submitPostButton.disabled = false;
         }
         async function checkVideoStatus(fileHash: string) {
             let [status, data] = await HttpGetJson("/files/checkvideo/" + fileHash);
@@ -191,7 +192,7 @@ import tinymce from "tinymce/tinymce";
             DOM.spiceometerText.innerText = chilies;
         }
         function stripRemovedAttachments() {
-            uploadedFiles = uploadedFiles.filter(file => !removedFiles.includes(base64decode(file.encodedUnsafeName)));
+            uploadedFiles = uploadedFiles.filter(file => !removedFiles?.includes(file.fileName));
         }
         function debounce<T extends (...args: any[]) => void>(func: T, delay: number): (...args: Parameters<T>) => void {
             let timeoutId: number;

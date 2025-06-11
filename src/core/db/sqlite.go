@@ -15,7 +15,6 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -204,7 +203,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 	tables := map[string]string{
 		"meta":          "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
-		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, unsafeNameB64 TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
+		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
 		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT)",
 		"postsBackfill": "CREATE TABLE IF NOT EXISTS postsBackfill (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER)",
 		"authNonce":     "CREATE TABLE IF NOT EXISTS authNonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
@@ -1039,13 +1038,13 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 	for rowsPosts.Next() {
 		var timestamp uint64
 		var txHash, payload, parent string
-		var attachments [][]string
+		var attachments [][]interface{}
 		err := rowsPosts.Scan(&txHash, &parent, &timestamp, &payload)
 		if err != nil {
 			core.LogDebug("Could not scan database rows for user posts: " + err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
 		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash)
 		if err != nil {
 			core.LogDebug("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
@@ -1054,13 +1053,13 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 				var mimeType string
 				var size uint64
 				var fileUrl string
-				err := rowsAttachments.Scan(&mimeType, &size, &fileUrl)
+				var fileName string
+				err := rowsAttachments.Scan(&mimeType, &size, &fileUrl, &fileName)
 				if err != nil {
 					core.LogDebug("Could parse rows for post attachment: " + err.Error())
 					break // bail rowsAttachments for loop
 				}
-				sizeString := strconv.FormatUint(size, 10)
-				attachment := []string{fileUrl, mimeType, sizeString}
+				attachment := []interface{}{fileUrl, mimeType, size, fileName}
 				attachments = append(attachments, attachment)
 			}
 			rowsAttachments.Close()
@@ -1132,13 +1131,13 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 	for rows.Next() {
 		var timestamp uint64
 		var txHash, parentHash, payload, blockchain, address string
-		var attachments [][]string
+		var attachments [][]interface{}
 		err := rows.Scan(&txHash, &parentHash, &timestamp, &payload, &address, &blockchain)
 		if err != nil {
 			core.LogError("Could not scan database rows: " + err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
 		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
 		if err != nil {
 			core.LogError("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
@@ -1148,13 +1147,13 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 			var mimeType string
 			var size uint64
 			var fileURL string
-			err := rowsAttachments.Scan(&mimeType, &size, &fileURL)
+			var fileName string
+			err := rowsAttachments.Scan(&mimeType, &size, &fileURL, &fileName)
 			if err != nil {
 				core.LogError("Could parse rows for post attachment: " + err.Error())
 				break // bail rowsAttachments for loop
 			}
-			sizeString := strconv.FormatUint(size, 10)
-			attachment := []string{fileURL, mimeType, sizeString}
+			attachment := []interface{}{fileURL, mimeType, size, fileName}
 			attachments = append(attachments, attachment)
 		}
 		post := map[string]interface{}{
@@ -1294,9 +1293,9 @@ func (db *SQLite) AuthGetServerOwnerAddress() string {
 }
 
 // --- File & IPFS Functions --- //
-func (db *SQLite) FileAdd(fileUUID string, fileHash string, mimeType string, unsafeNameB64 string, size int64) {
-	query := "INSERT INTO files (fileUUID, fileHash, mimeType, unsafeNameB64, size, addedDate) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, fileUUID, fileHash, mimeType, unsafeNameB64, size, core.GetTimestamp())
+func (db *SQLite) FileAdd(fileUUID string, fileHash string, mimeType string, fileName string, size int64) {
+	query := "INSERT INTO files (fileUUID, fileHash, mimeType, fileName, size, addedDate) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, fileUUID, fileHash, mimeType, fileName, size, core.GetTimestamp())
 	if err != nil {
 		core.LogError("Could not add the file to the database: " + err.Error())
 	}
@@ -1488,6 +1487,7 @@ func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, t
 		}
 		mimeType := attachment.MimeType
 		size := attachment.FileSize
+		fileName := attachment.FileName
 		var existingFileUUID string
 		if fileURL != "" || cid != "" {
 			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
@@ -1495,20 +1495,21 @@ func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, t
 				core.LogError("Could not check for existing file: " + err.Error())
 				continue
 			}
-			defer rows.Close()
 			if rows.Next() {
 				err = rows.Scan(&existingFileUUID)
 				if err != nil {
 					core.LogError("Could not scan existing file UUID: " + err.Error())
+					rows.Close()
 					continue
 				}
 			}
+			rows.Close()
 		}
 		if existingFileUUID != "" {
 			fileUUID = existingFileUUID
 		} else {
-			insertFileQuery := "INSERT INTO files (fileUUID, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?)"
-			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, mimeType, size, timestamp, cid, fileURL, "onchain")
+			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain")
 			if err != nil {
 				core.LogError("Could not insert file record: " + err.Error())
 				continue

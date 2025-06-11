@@ -28,14 +28,12 @@ export function IsValidIpfsCid(cid: string): boolean {
 }
 export function IsValidURL(url: string): boolean {
     try {
-        if (url.startsWith("ipfs://")) { // check IPFS links
-            if (url.endsWith(".ipfs.localhost:42426")) { // allow local IPFS node links
-                let cid: string = url.substring("ipfs://".length, (url.length - ".ipfs.localhost:42426".length));
-                return IsValidIpfsCid(cid);
-            } else { // allow generic IPFS links with CID
-                let cid: string = url.substring("ipfs://".length);
-                return IsValidIpfsCid(cid);
-            }
+        if (url.endsWith(".ipfs.localhost:42426")) { // allow local IPFS node links
+            let cid: string = url.substring("ipfs://".length, (url.length - ".ipfs.localhost:42426".length));
+            return IsValidIpfsCid(cid);
+        } else if (url.startsWith("ipfs://")) { // allow generic IPFS links with CID
+            let cid: string = url.substring("ipfs://".length);
+            return IsValidIpfsCid(cid);
         }
         let urlObj: URL = new URL(url);
         if (urlObj.protocol === "https:") { // allow external HTTPS links

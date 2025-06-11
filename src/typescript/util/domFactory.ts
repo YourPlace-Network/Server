@@ -5,6 +5,10 @@ import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink} 
 import {IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
 import {getFileIcon, formatFileSize} from "./files";
+import path from "path";
+import {extensionToMimeType} from "./mimeTypes";
+import {ShowModalMediaViewer} from "../components/modalMediaViewer";
+import {base64decode} from "byte-base64";
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
@@ -126,6 +130,8 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     image.src = fileUrl;
                     image.classList.add("postAttachment", "postCardAttachmentImage");
                     let imageLoader = await CreateImageLoader(image);
+                    imageLoader.classList.add("expandable");
+                    imageLoader.addEventListener("click", expandView);
                     if (postData.attachments.length === 1) {
                         imageLoader.classList.add("postAttachment");
                         renderedAttachmentElements.push(imageLoader);
@@ -137,7 +143,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                     let attachmentCard = await CreateAttachmentCard(postData.attachments[i]).catch( e =>{
                         return "failed"
                     });
-                    if (attachmentCard !instanceof HTMLDivElement) {
+                    if (!(attachmentCard instanceof HTMLDivElement)) {
                         break;
                     }
                     (attachmentCard as unknown as HTMLDivElement).classList.add("postAttachment");
@@ -286,7 +292,7 @@ function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
     iframe.setAttribute("credentialless", "");
     return iframe;
 }
-export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> { // Creates carousel div element when passed an array of any elements
+export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivElement> {// Creates carousel div element when passed an array of any elements
     let carouselDiv = document.createElement("div") as HTMLDivElement;
     let carouselList = document.createElement("ol") as HTMLOListElement;
     let carouselInnerDiv = document.createElement("div") as HTMLDivElement;
@@ -340,6 +346,35 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
     carouselDiv.appendChild(previousButton);
     carouselDiv.appendChild(nextButton);
     return carouselDiv;
+}
+async function expandView(event: MouseEvent | PointerEvent) {
+    const clickedDiv = event.currentTarget as HTMLDivElement; //Renderable attachments should be wrapped in a loader div
+    clickedDiv.classList.add("initiator"); // class added so the expanded attachment carousel knows which image to start on
+    const specificPostAttachmentDiv = clickedDiv.closest(".postCardAttachmentDiv") as HTMLDivElement;
+    const expandables = specificPostAttachmentDiv.querySelectorAll(".expandable") as NodeListOf<HTMLDivElement>;
+    const clonedExpandablesArray = Array.from(expandables).map(expandable => expandable.cloneNode(true) as HTMLDivElement);
+    clickedDiv.classList.remove("initiator");
+    if (clonedExpandablesArray.length === 1) {
+        ShowModalMediaViewer(clonedExpandablesArray[0]);
+    }
+    if (clonedExpandablesArray.length > 1) {
+        const carousel = await CreateCarousel(clonedExpandablesArray);
+        carousel.querySelectorAll(".active").forEach(element => {
+            element.classList.remove("active");
+        })
+        const index = clonedExpandablesArray.findIndex(element => element.classList.contains("initiator"));
+        const clonedClickedElement = carousel.querySelector(".initiator") as HTMLElement;
+        const firstDisplayedSlide = clonedClickedElement.closest(".carousel-item") as HTMLDivElement;
+        firstDisplayedSlide.classList.add("active");
+        const firstIndicator = carousel.querySelector(`[data-bs-slide-to="${index}"]`) as HTMLLIElement;
+        firstIndicator.classList.add("active");
+        // Add specific IDs for media viewer carousel controls
+        const prevControl = carousel.querySelector(".carousel-control-prev") as HTMLAnchorElement;
+        const nextControl = carousel.querySelector(".carousel-control-next") as HTMLAnchorElement;
+        if (prevControl) prevControl.id = "mediaViewerCarouselPrev";
+        if (nextControl) nextControl.id = "mediaViewerCarouselNext";
+        ShowModalMediaViewer(carousel);
+    }
 }
 export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDivElement> { // Adds an image to a div that displays /www/image/imagefail.png if the image fails to load
     const imageLoader = document.createElement("div") as HTMLDivElement;
@@ -405,13 +440,21 @@ export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElemen
 }
 export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivElement> {// TODO: File names?
     const attachmentCard = document.createElement("div") as HTMLDivElement;
+    const iconRow = document.createElement("div") as HTMLDivElement;
     const fileIcon = document.createElement("i") as HTMLElement;
+    const nameRow = document.createElement("div") as HTMLDivElement;
+    const bottomRow = document.createElement("div") as HTMLDivElement;
     const downloadAnchor = document.createElement("a") as HTMLAnchorElement;
     const downloadButton = document.createElement("button") as HTMLButtonElement;
     const downloadIcon = document.createElement("i") as HTMLElement;
+    const fileNameSpan = document.createElement("span") as HTMLSpanElement;
     const fileSizeSpan = document.createElement("span") as HTMLSpanElement;
     const iconClass = getFileIcon(attachment[1]);
     let attachmentURL: string;
+    attachmentCard.classList.add("attachmentCard");
+    iconRow.classList.add("attachmentCardIconRow");
+    nameRow.classList.add("attachmentCardNameRow");
+    bottomRow.classList.add("attachmentCardBottomRow");
     fileIcon.classList.add("icon", "attachmentCardIcon", iconClass);
     if (attachment[0].startsWith("ipfs://")) {
         attachmentURL = CIDToSubdomainURL(attachment[0]);
@@ -421,15 +464,23 @@ export async function CreateAttachmentCard(attachment: any[]):Promise<HTMLDivEle
     if (!IsValidURL(attachmentURL)) {
         return Promise.reject("Invalid URL");
     }
+    const fileName = attachment[3];
+    fileNameSpan.textContent = XSSSanitizeValue(fileName);
+    fileNameSpan.classList.add("attachmentCardFileName");
     downloadAnchor.href = XSSSanitizeUrl(attachmentURL);
-    downloadAnchor.download = "";
+    downloadAnchor.download = XSSSanitizeValue(fileName);
     const fileSize = await formatFileSize(attachment[2]);
     fileSizeSpan.innerText = fileSize;
+    fileSizeSpan.classList.add("attachmentCardFileSize");
     downloadButton.classList.add("downloadButton", "btn");
     downloadIcon.classList.add("downloadIcon", "bi", "bi-download");
-    attachmentCard.appendChild(fileIcon);
-    attachmentCard.appendChild(fileSizeSpan);
-    attachmentCard.appendChild(downloadAnchor);
+    iconRow.appendChild(fileIcon);
+    nameRow.appendChild(fileNameSpan);
+    bottomRow.appendChild(fileSizeSpan);
+    bottomRow.appendChild(downloadAnchor);
+    attachmentCard.appendChild(iconRow);
+    attachmentCard.appendChild(nameRow);
+    attachmentCard.appendChild(bottomRow);
     downloadAnchor.appendChild(downloadButton);
     downloadButton.appendChild(downloadIcon);
     return attachmentCard;
