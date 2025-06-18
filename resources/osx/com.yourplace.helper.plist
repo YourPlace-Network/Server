@@ -14,8 +14,8 @@
     <dict>
       <key>ThrottleInterval</key>
       <integer>240</integer>
-      <key>Crashed</key>
-      <true/>
+      <key>SuccessfulExit</key>
+      <false/>
     </dict>
     <key>UserName</key>
     <string>root</string>
