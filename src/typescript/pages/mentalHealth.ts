@@ -828,6 +828,12 @@ const tips = [
     "Don't make fun of another mans wife. People have been murdered over beef like that",
     "Finding the true popular opinion takes concerted effort. It's easy to get gaslighted by social media, the news and influencers. They just use big megaphones to make it seem like they represent the majority",
     "Consensus / majority opinion is a just ok way to judge things. In a free speech society, it's got maybe a 60-70% accuracy rate",
+    "Whatever you want in life, go find it. Get out of your house and earn it",
+    "Social media can be fun, but the dopamine loop can be dangerous. Get outside every day and don't be consumed by the screen",
+    "Resale value is almost never as high as what you put into it",
+    "Pets are not a replacement for children. Always calling them babies is not good for your mental health or for humanity as a whole",
+    "Give peace a chance. Give it the largest and best chance possible. And if that fails, then give war a chance",
+    "You can't bomb a people out of a religion, or bomb a country into democracy. They have to do that themselves",
 
 
 ];

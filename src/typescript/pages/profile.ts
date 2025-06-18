@@ -90,7 +90,7 @@ declare global { // Extend the window interface with public objects
                 displayPosts(requestedBlockchain, requestedAddress),
                 renderProfileAddress(requestedAddress),
                 renderProfileName(requestedBlockchain, requestedAddress),
-                renderProfileAvatar(requestedBlockchain, requestedAddress),
+                // renderProfileAvatar(requestedBlockchain, requestedAddress),
                 // renderProfileBanner(requestedBlockchain, requestedAddress),
                 renderProfileDescription(requestedBlockchain, requestedAddress),
                 renderProfileLocation(requestedBlockchain, requestedAddress),

@@ -13,7 +13,7 @@ import (
 
 func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool) {
 	router.GET("/p/*path", func(c *gin.Context) {
-		start := core.StartTimer()
+		start := core.StartTimer("Profile route segments")
 		path := strings.TrimPrefix(c.Param("path"), "/")
 		if path == "" {
 			value, exists1 := c.Get("blockchain")
@@ -43,18 +43,15 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		segments := strings.Split(path, "/")
 		var blockchainParam string
 		var addressParam string
-		core.LogDebug("Profile route segments: " + strings.Join(segments, ", "))
 		core.EndTimer(start)
 
+		start2 := core.StartTimer("Profile route segment parsing")
 		if len(segments) == 1 {
 			name := segments[0]
 			var valid bool
 			var err error
 			valid, blockchainParam = security.IsValidENSName(name)
-			start2 := core.StartTimer()
 			addressParam, err = blockchain.WalletGetAddress(blockchainParam, name, _blockchain)
-			core.LogDebug("Validating ENS name: " + name)
-			core.EndTimer(start2)
 			if !valid || err != nil {
 				c.Redirect(http.StatusSeeOther, "/404")
 				return
@@ -66,6 +63,8 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			c.Redirect(http.StatusSeeOther, "/404")
 			return
 		}
+		core.EndTimer(start2)
+		start3 := core.StartTimer("Profile route validation")
 		if !security.IsValidBlockchain(blockchainParam) {
 			c.Redirect(http.StatusSeeOther, "/404")
 			return
@@ -74,24 +73,22 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			c.Redirect(http.StatusSeeOther, "/404")
 			return
 		}
-
-		start3 := core.StartTimer()
+		core.EndTimer(start3)
+		startCSRF := core.StartTimer("CSRF token generation")
 		token := middleware.GetCSRFToken(c)
-
+		core.EndTimer(startCSRF)
+		start4 := core.StartTimer("CSRF token validation and guest check")
 		// Check if the profile viewer is the profile owner
 		isGuest := true
-		authCookie, err := c.Request.Cookie("yp_auth")
-		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
-			blockchainValue, _err := security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
-			if _err == nil && security.IsValidBlockchain(blockchainValue) {
-				addressValue, err2 := security.GetCookieValue(authCookie, cryptoSeed, "address", database)
-				if err2 == nil && security.IsValidAddress(addressValue, blockchainValue) {
-					if addressValue == addressParam && blockchainValue == blockchainParam {
-						isGuest = false
-					}
-				}
-			}
+		viewerAddress, addressOk := c.Get("accountAddress")
+		viewerBlockchain, blockchainOk := c.Get("blockchain")
+		//core.LogDebug(viewerAddress.(string))
+		//core.LogDebug(viewerBlockchain.(string))
+		if (addressOk && blockchainOk) && viewerAddress == addressParam && viewerBlockchain == blockchainParam {
+			isGuest = false
 		}
+		core.EndTimer(start4)
+		start5 := core.StartTimer("Loading profile page")
 		responseJson := gin.H{
 			"title":                 title,
 			"csrfToken":             token,
@@ -102,8 +99,8 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"isGuest":               isGuest, // Guest mode distinguishes if the viewer is the guest or owner of the profile
 			"gatewayMode":           gateway,
 		}
-		core.LogDebug("Rendering profile page for address: " + addressParam + " on blockchain: " + blockchainParam)
-		core.EndTimer(start3)
+		core.LogDebug("Loading page")
+		core.EndTimer(start5)
 		c.HTML(http.StatusOK, "src/templates/pages/profile.tmpl", responseJson)
 	})
 	router.GET("/profile/name/:blockchain/:address", func(c *gin.Context) {
@@ -264,28 +261,28 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		followerCount := database.ProfileGetFollowerCount(address, blockchainParam)
 		c.SecureJSON(http.StatusOK, gin.H{"followerCount": followerCount})
 	})
-	router.GET("/profile/isFollower/:toBlockchain/:toAddress/:fromBlockcain/:fromAddress", func(c *gin.Context) {
-		blockchainParam := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchainParam) {
+	router.GET("/profile/isFollower/:toBlockchain/:toAddress/:fromBlockchain/:fromAddress", func(c *gin.Context) {
+		toBlockchain := c.Param("toBlockchain")
+		if !security.IsValidBlockchain(toBlockchain) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
 			return
 		}
-		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchainParam) {
+		toAddress := c.Param("toAddress")
+		if !security.IsValidAddress(toAddress, toBlockchain) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		followerBlockchain := c.Param("followerBlockchain")
-		if !security.IsValidBlockchain(followerBlockchain) {
+		fromBlockchain := c.Param("fromBlockchain")
+		if !security.IsValidBlockchain(fromBlockchain) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid follower blockchain"})
 			return
 		}
-		followerAddress := c.Param("followerAddress")
-		if !security.IsValidAddress(followerAddress, followerBlockchain) {
+		fromAddress := c.Param("fromAddress")
+		if !security.IsValidAddress(fromAddress, fromBlockchain) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid follower address"})
 			return
 		}
-		isFollower := database.ProfileIsFollower(address, blockchainParam, followerAddress, followerBlockchain)
+		isFollower := database.ProfileIsFollower(toAddress, toBlockchain, fromAddress, fromBlockchain)
 		c.SecureJSON(http.StatusOK, gin.H{"isFollower": isFollower})
 	})
 }
