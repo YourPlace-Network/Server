@@ -91,17 +91,19 @@ func handleConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	requestLine, err := reader.ReadString('\n')
 	if err != nil {
-		log.Println("Could not read helper request: " + err.Error())
+		LogDebug("Could not read helper request: " + err.Error())
 		return
 	}
 	var request HelperRequest
 	err = json.Unmarshal([]byte(requestLine), &request)
 	if err != nil {
-		log.Println("Could not decode helper request: " + err.Error())
+		LogDebug("Could not decode helper request: " + err.Error())
 		return
 	}
 	var response HelperResponse
-	switch request.Method {
+	fullMethod := request.Method
+	methodName := strings.Fields(fullMethod)[0] // handles methods with additional params
+	switch methodName {
 	case "ping":
 		log.Println("Received ping request")
 		response.Status = "success"
@@ -117,8 +119,16 @@ func handleConnection(conn net.Conn) {
 			response.Message = "restarting"
 		}
 	case "uninstall":
-		log.Println("Received uninstall request")
-		err = uninstallYourPlace(true, false)
+		LogDebug("Received uninstall request")
+		keepUpload := false
+		keepBlockchain := false
+		if strings.Contains(fullMethod, "keepUpload") {
+			keepUpload = true
+		}
+		if strings.Contains(fullMethod, "keepBlockchain") {
+			keepBlockchain = true
+		}
+		err = uninstallYourPlace(keepUpload, keepBlockchain)
 		if err != nil {
 			response.Status = "failed"
 			response.Message = "could not uninstall yourplace: " + err.Error()
@@ -127,7 +137,7 @@ func handleConnection(conn net.Conn) {
 			response.Message = "ok - uninstalling"
 		}
 	default:
-		log.Println("Received unknown method")
+		LogDebug("Received unknown method: " + request.Method)
 		response.Status = "failure"
 		response.Message = "unknown method"
 	}
