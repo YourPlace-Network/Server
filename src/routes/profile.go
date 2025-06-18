@@ -43,13 +43,18 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		segments := strings.Split(path, "/")
 		var blockchainParam string
 		var addressParam string
+		core.LogDebug("Profile route segments: " + strings.Join(segments, ", "))
+		core.EndTimer(start)
 
 		if len(segments) == 1 {
 			name := segments[0]
 			var valid bool
 			var err error
 			valid, blockchainParam = security.IsValidENSName(name)
+			start2 := core.StartTimer()
 			addressParam, err = blockchain.WalletGetAddress(blockchainParam, name, _blockchain)
+			core.LogDebug("Validating ENS name: " + name)
+			core.EndTimer(start2)
 			if !valid || err != nil {
 				c.Redirect(http.StatusSeeOther, "/404")
 				return
@@ -70,10 +75,8 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			return
 		}
 
+		start3 := core.StartTimer()
 		token := middleware.GetCSRFToken(c)
-
-		core.EndTimer(start)
-		start2 := core.StartTimer()
 
 		// Check if the profile viewer is the profile owner
 		isGuest := true
@@ -99,7 +102,8 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"isGuest":               isGuest, // Guest mode distinguishes if the viewer is the guest or owner of the profile
 			"gatewayMode":           gateway,
 		}
-		core.EndTimer(start2)
+		core.LogDebug("Rendering profile page for address: " + addressParam + " on blockchain: " + blockchainParam)
+		core.EndTimer(start3)
 		c.HTML(http.StatusOK, "src/templates/pages/profile.tmpl", responseJson)
 	})
 	router.GET("/profile/name/:blockchain/:address", func(c *gin.Context) {

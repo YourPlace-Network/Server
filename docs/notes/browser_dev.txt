@@ -1,3 +1,0 @@
-Network filters
--domain:dns.google -domain:libp2p.io -domain:cid.contact -domain:cloudflare-dns.com -domain:fonts.googleapis.com
-
