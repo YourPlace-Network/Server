@@ -49,11 +49,11 @@ const metadataYourPlace = {
     throttle: 500, // milliseconds
 }
 const baseEnsCache = new PersistentCache({
-    defaultTtl: 3600000, // 1 hour
+    defaultTtl: 21600000, // 6 hours
     keyPrefix: "baseEnsCache_"
 });
 const baseAvatarCache = new PersistentCache({
-    defaultTtl: 3600000, // 1 hour
+    defaultTtl: 21600000, // 6 hours
     keyPrefix: "baseAvatarCache_"
 });
 const pendingOnchainkitRequests = new Map<string, Promise<string>>();
