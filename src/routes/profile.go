@@ -13,7 +13,6 @@ import (
 
 func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool) {
 	router.GET("/p/*path", func(c *gin.Context) {
-		start := core.StartTimer("Profile route segments")
 		path := strings.TrimPrefix(c.Param("path"), "/")
 		if path == "" {
 			value, exists1 := c.Get("blockchain")
@@ -43,9 +42,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		segments := strings.Split(path, "/")
 		var blockchainParam string
 		var addressParam string
-		core.EndTimer(start)
 
-		start2 := core.StartTimer("Profile route segment parsing")
 		if len(segments) == 1 {
 			name := segments[0]
 			var valid bool
@@ -63,8 +60,6 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			c.Redirect(http.StatusSeeOther, "/404")
 			return
 		}
-		core.EndTimer(start2)
-		start3 := core.StartTimer("Profile route validation")
 		if !security.IsValidBlockchain(blockchainParam) {
 			c.Redirect(http.StatusSeeOther, "/404")
 			return
@@ -73,22 +68,14 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			c.Redirect(http.StatusSeeOther, "/404")
 			return
 		}
-		core.EndTimer(start3)
-		startCSRF := core.StartTimer("CSRF token generation")
 		token := middleware.GetCSRFToken(c)
-		core.EndTimer(startCSRF)
-		start4 := core.StartTimer("CSRF token validation and guest check")
 		// Check if the profile viewer is the profile owner
 		isGuest := true
 		viewerAddress, addressOk := c.Get("accountAddress")
 		viewerBlockchain, blockchainOk := c.Get("blockchain")
-		//core.LogDebug(viewerAddress.(string))
-		//core.LogDebug(viewerBlockchain.(string))
-		if (addressOk && blockchainOk) && viewerAddress == addressParam && viewerBlockchain == blockchainParam {
+		if addressOk && blockchainOk && (viewerAddress == addressParam) && (viewerBlockchain == blockchainParam) {
 			isGuest = false
 		}
-		core.EndTimer(start4)
-		start5 := core.StartTimer("Loading profile page")
 		responseJson := gin.H{
 			"title":                 title,
 			"csrfToken":             token,
@@ -99,8 +86,6 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"isGuest":               isGuest, // Guest mode distinguishes if the viewer is the guest or owner of the profile
 			"gatewayMode":           gateway,
 		}
-		core.LogDebug("Loading page")
-		core.EndTimer(start5)
 		c.HTML(http.StatusOK, "src/templates/pages/profile.tmpl", responseJson)
 	})
 	router.GET("/profile/name/:blockchain/:address", func(c *gin.Context) {

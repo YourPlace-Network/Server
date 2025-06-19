@@ -154,6 +154,7 @@ export async function WalletGetAvatar(chain?: string, address?: string): Promise
             return "";
         case "base":
             let avatarURL = await baseGetAvatar(address);
+            console.log(avatarURL);
             if (avatarURL) return avatarURL;
             return "";
         case "solana":
@@ -164,17 +165,15 @@ export async function WalletGetAvatar(chain?: string, address?: string): Promise
     }
 }
 export async function WalletGetName(chain?: string, address?: string): Promise<string|null> {
-    if (!chain) {
-        chain = GetChain()!;
-    }
-    if (!address) {
-        address = GetAddress()!;
-    }
+    if (!chain) chain = GetChain()!;
+    if (!address) address = GetAddress()!;
     switch (chain) {
         case "algorand":
             return null;
         case "base":
-            return baseGetName(address);
+            let baseName = await baseGetName(address);
+            if (baseName) return baseName;
+            return "";
     }
     return "";
 }
