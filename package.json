@@ -57,6 +57,7 @@
     "react-dom": "^19.1.0",
     "sass": "^1.89.0",
     "sass-loader": "^16.0.5",
+    "skittles": "^0.4.2",
     "stream-browserify": "^3.0.0",
     "style-loader": "^4.0.0",
     "tinymce": "^7.9.1",

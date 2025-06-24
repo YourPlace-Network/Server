@@ -834,6 +834,19 @@ const tips = [
     "Pets are not a replacement for children. Always calling them babies is not good for your mental health or for humanity as a whole",
     "Give peace a chance. Give it the largest and best chance possible. And if that fails, then give war a chance",
     "You can't bomb a people out of a religion, or bomb a country into democracy. They have to do that themselves",
+    "If you're outdoors and your hair starts to stand up, then you need to get indoors immediately. It's a sign that lightning is about to strike and static electricity is building up around you",
+    "The solution is to never let the cat out of the box",
+    "Do more hope posting",
+    "If you're living in your parent's home, then to some degree, you need to live how they want. When you move out, then you can live however",
+    "Unreasonable and crazy people don't usually get better over time. They usually just get more unreasonable and crazy",
+    "It's not funny to joke about killing innocent people. Some crazy person might take it as permission to do it",
+    "Being pretty doesn't get you commitment, and being smart doesn't get you laid. You need to be a good person, and have a good personality",
+    "Getting an insult back in a debate means you won",
+    "Do not use AI to recreate people close to you that have died. It's not real, is bad for your mental health, and will prevent you from finding closure",
+    "Joke or not, take it seriously. People often show their true intentions before they act",
+    "Avoid speculation",
+    "For 99% of people, your work knowing your public accounts is only a liability to you",
+
 
 
 ];
@@ -877,28 +890,35 @@ const tips = [
                 "<br>&emsp;<a href='tel:112' class='obviousLink'>112 <i class='bi bi-telephone-outbound-fill'></i></a> (Europe, Asia, Africa)" +
                 "<br>&emsp;<a href='tel:000' class='obviousLink'>000 <i class='bi bi-telephone-outbound-fill'></i></a> (Australia)" +
                 "<br>&emsp;<a href='tel:999' class='obviousLink'>999 <i class='bi bi-telephone-outbound-fill'></i></a> (Asia, Africa)" +
-                "<br>&emsp;<a href='https://en.wikipedia.org/wiki/List_of_emergency_telephone_numbers' class='obviousLink'>Your country</a> emergency number may be different" +
+                "<br>&emsp;<a href='https://en.wikipedia.org/wiki/List_of_emergency_telephone_numbers' class='obviousLink' target='_blank'>Your country</a> emergency number may be different" +
                 "<hr />" +
-                "If you're feeling suicidal, please seek help:" +
+                "If you're feeling suicidal or are in emotional distress, please seek help:" +
                 "<br>&emsp;<b>Suicide & Crisis Lifeline:</b> <a href='tel:988' class='obviousLink'>988 <i class='bi bi-telephone-outbound-fill'></i></a>" +
                 "<br>&emsp;<b>Crisis Text Line:</b> Text HOME to <a href='sms:741741?body=HOME' class='obviousLink'>741741 <i class='bi bi-telephone-outbound-fill'></i></a>" +
-                "<br>&emsp;<b>Trans Lifeline:</b> <a href='tel:18775658860' class='obviousLink'>1-877-565-8860 <i class='bi bi-telephone-outbound-fill'></i></a>" +
-                "<br>&emsp;<b>Trevor Lifeline:</b> <a href='tel:18664887386' class='obviousLink'>1-866-488-7386 <i class='bi bi-telephone-outbound-fill'></i></a> (for LGBTQ youth)" +
-                "<br>&emsp;<b>Veterans Crisis Line:</b> <a href='tel:18002738255' class='obviousLink'>1-800-273-8255 <i class='bi bi-telephone-outbound-fill'></i></a> Press 1"
+                "<br>&emsp;<b>Crisis Online Chat:</b> <a href='https://chat.988lifeline.org/' class='obviousLink' target='_blank'>start a chat <i class='bi bi-chat-dots-fill'></i></a>" +
+                "<br>&emsp;<b>Veterans Crisis Line:</b> <a href='tel:18002738255' class='obviousLink'>1-800-273-8255 <i class='bi bi-telephone-outbound-fill'></i></a> Press 1" +
+                "<hr />" +
+                "If you need general mental help, you can find more at the NIMH:" +
+                "<br>&emsp;<a href='https://www.nimh.nih.gov/health/find-help' class='obviousLink' target='_blank'>NIMH Find Help <i class='bi bi-box-arrow-up-right'></i></a>"
             );
         }
         function pause() {
             LogInfo("Pause");
             clearInterval(intervalId);
             paused = true;
+            DOM.pause.classList.add("pressed");
+            DOM.play.classList.remove("pressed");
         }
         function play() {
             LogInfo("Play");
             intervalId = setInterval(reload, intervalTimeout);
             paused = false;
+            DOM.play.classList.add("pressed");
+            DOM.pause.classList.remove("pressed");
         }
 
         intervalId = setInterval(reload, intervalTimeout);
+        DOM.play.classList.add("pressed");
 
         DOM.refreshBtn.addEventListener("click", () => {
             clearInterval(intervalId);

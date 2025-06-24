@@ -103,7 +103,6 @@ initBaseWallet().then();
 export async function baseAuthLogin(): Promise<string> {
     // RET: string - "success" or error message or ""
     if (!baseInit) {
-        LogError("Base wallet not initialized - baseAuthLogin()");
         await initBaseWallet();
         await baseConnectWallet();
     }
