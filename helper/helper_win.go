@@ -20,8 +20,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -173,8 +175,10 @@ func handleIPCConnection(handle windows.Handle) {
 	}
 	response := ""
 	LogInfo("Received action: " + action.Type)
+	LogDebug("log test")
 	switch action.Type {
 	case "ping":
+		LogInfo("received ping")
 		response = "pong"
 	case "restart":
 		LogDebug("Restarting YourPlace Server")
@@ -404,6 +408,84 @@ func haltRestarter(c *cron.Cron) {
 }
 
 // Helper Functions
+func GetProcessOwnerAsUser(processName string) (*user.User, error) {
+	// First, find the process
+	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer windows.CloseHandle(snapshot)
+	var procEntry windows.ProcessEntry32
+	procEntry.Size = uint32(unsafe.Sizeof(procEntry))
+	if err := windows.Process32First(snapshot, &procEntry); err != nil {
+		return nil, err
+	}
+	for {
+		exeName := windows.UTF16ToString(procEntry.ExeFile[:])
+		if strings.HasPrefix(exeName, processName) {
+			// Found the process, now get its owner
+			return getProcessOwnerByPIDAsUser(procEntry.ProcessID)
+		}
+
+		if err := windows.Process32Next(snapshot, &procEntry); err != nil {
+			break
+		}
+	}
+	return nil, fmt.Errorf("process %s not found", processName)
+}
+
+// getProcessOwnerByPIDAsUser gets the owner of a specific process ID as a user.User object
+func getProcessOwnerByPIDAsUser(pid uint32) (*user.User, error) {
+	// Open the process
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION, false, pid)
+	if err != nil {
+		return nil, err
+	}
+	defer windows.CloseHandle(handle)
+	// Open the process token
+	var token windows.Token
+	err = windows.OpenProcessToken(handle, windows.TOKEN_QUERY, &token)
+	if err != nil {
+		return nil, err
+	}
+	defer token.Close()
+	// Get the token user information
+	tokenUser, err := token.GetTokenUser()
+	if err != nil {
+		return nil, err
+	}
+	// Get the SID string
+	sidString := tokenUser.User.Sid.String()
+	// Convert SID to username
+	account, domain, _, err := tokenUser.User.Sid.LookupAccount("")
+	if err != nil {
+		return nil, err
+	}
+	// Format username with domain if present
+	username := account
+	if domain != "" && domain != "." {
+		username = domain + "\\" + account
+	}
+	// Use LookupId to get the full user.User object
+	// First try with just the account name
+	u, err := user.Lookup(account)
+	if err != nil {
+		// If that fails, try with domain\account
+		if domain != "" && domain != "." {
+			u, err = user.Lookup(username)
+			if err != nil {
+				// If both fail, try looking up by SID
+				u, err = user.LookupId(sidString)
+				if err != nil {
+					return nil, fmt.Errorf("failed to lookup user: %v", err)
+				}
+			}
+		} else {
+			return nil, err
+		}
+	}
+	return u, nil
+}
 func registerUninstaller() {
 	uninstallFolder := "C:\\ProgramData\\YourPlace"
 	host.CreateFolder(uninstallFolder)
@@ -678,8 +760,9 @@ func runPowershellUninstaller(keepUploads, keepBlockchain bool) {
 
 // Logging Functions
 func LogInit(name string) *os.File {
-	user, _ := os.UserHomeDir()
-	logDir := filepath.Join(user, "YourPlace")
+	user, _ := GetProcessOwnerAsUser("YourPlace")
+	homeDir := user.HomeDir
+	logDir := filepath.Join(homeDir, "YourPlace")
 	logPath := filepath.Join(logDir, name+".log")
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
