@@ -175,10 +175,8 @@ func handleIPCConnection(handle windows.Handle) {
 	}
 	response := ""
 	LogInfo("Received action: " + action.Type)
-	LogDebug("log test")
 	switch action.Type {
 	case "ping":
-		LogInfo("received ping")
 		response = "pong"
 	case "restart":
 		LogDebug("Restarting YourPlace Server")
@@ -409,8 +407,7 @@ func haltRestarter(c *cron.Cron) {
 
 // Helper Functions
 func GetProcessOwnerAsUser(processName string) (*user.User, error) {
-	// First, find the process
-	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0) // First, find the process
 	if err != nil {
 		return nil, err
 	}
@@ -423,8 +420,7 @@ func GetProcessOwnerAsUser(processName string) (*user.User, error) {
 	for {
 		exeName := windows.UTF16ToString(procEntry.ExeFile[:])
 		if strings.HasPrefix(exeName, processName) {
-			// Found the process, now get its owner
-			return getProcessOwnerByPIDAsUser(procEntry.ProcessID)
+			return getProcessOwnerByPIDAsUser(procEntry.ProcessID) // Found the process, now get its owner
 		}
 
 		if err := windows.Process32Next(snapshot, &procEntry); err != nil {
@@ -434,44 +430,35 @@ func GetProcessOwnerAsUser(processName string) (*user.User, error) {
 	return nil, fmt.Errorf("process %s not found", processName)
 }
 
-// getProcessOwnerByPIDAsUser gets the owner of a specific process ID as a user.User object
 func getProcessOwnerByPIDAsUser(pid uint32) (*user.User, error) {
-	// Open the process
-	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION, false, pid)
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION, false, pid) // Open the process
 	if err != nil {
 		return nil, err
 	}
 	defer windows.CloseHandle(handle)
-	// Open the process token
-	var token windows.Token
+	var token windows.Token // Open the process token
 	err = windows.OpenProcessToken(handle, windows.TOKEN_QUERY, &token)
 	if err != nil {
 		return nil, err
 	}
 	defer token.Close()
-	// Get the token user information
-	tokenUser, err := token.GetTokenUser()
+	tokenUser, err := token.GetTokenUser() // Get the token user information
 	if err != nil {
 		return nil, err
 	}
-	// Get the SID string
-	sidString := tokenUser.User.Sid.String()
-	// Convert SID to username
-	account, domain, _, err := tokenUser.User.Sid.LookupAccount("")
+	sidString := tokenUser.User.Sid.String()                        // Get the SID string
+	account, domain, _, err := tokenUser.User.Sid.LookupAccount("") // Convert SID to username
 	if err != nil {
 		return nil, err
 	}
-	// Format username with domain if present
-	username := account
+	username := account // Format username with domain if present
 	if domain != "" && domain != "." {
 		username = domain + "\\" + account
 	}
 	// Use LookupId to get the full user.User object
-	// First try with just the account name
-	u, err := user.Lookup(account)
+	u, err := user.Lookup(account) // First try with just the account name
 	if err != nil {
-		// If that fails, try with domain\account
-		if domain != "" && domain != "." {
+		if domain != "" && domain != "." { // If that fails, try with domain\account
 			u, err = user.Lookup(username)
 			if err != nil {
 				// If both fail, try looking up by SID
