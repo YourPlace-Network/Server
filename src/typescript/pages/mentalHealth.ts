@@ -846,6 +846,9 @@ const tips = [
     "Joke or not, take it seriously. People often show their true intentions before they act",
     "Avoid speculation",
     "For 99% of people, your work knowing your public accounts is only a liability to you",
+    "Never hurt yourself because of online harassment. Just delete your accounts and live in the real world for a while. It's a necessary detox that only you can do",
+    "Most dating apps are just huge pools of unrealistic expectations",
+    "Being cyber bullied is kind of an own-goal. You can literally just delete your account and log off and then it stops. You can even downgrade to a dumb phone. Whatever problems you're having online, will most likely go away when you choose not to live with it. If the cyberbullying leaks into your real life, then sue the real life culprits (and bring evidence)",
 
 
 

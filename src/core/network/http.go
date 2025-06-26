@@ -123,7 +123,7 @@ func HttpPost(url string) (string, error) {
 		return "", core.LogWarningReturn("Could not read response body: " + err.Error())
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", core.LogWarningReturn("Got non-200 response: " + strconv.Itoa(resp.StatusCode) + "\n" + string(body))
+		return string(body), core.LogWarningReturn("Got non-200 response: " + strconv.Itoa(resp.StatusCode) + "\n" + string(body))
 	}
 	return string(body), nil
 }
