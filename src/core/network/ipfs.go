@@ -206,15 +206,77 @@ func (node *IPFS) IPNSSearchName(name string) ([]string, error) {
 		return resolvedArray, nil
 	}
 }
-func (node *IPFS) IPFSAddRemotePinning(name string, url string, key string) {
-	requestString := "http://127.0.0.1:42425/api/v0/pin/remote/service/add?arg=" + name + "&arg=" + url + "&arg=" + key
+func (node *IPFS) IPFSAddRemotePinning(name string, url string, key string) bool {
+	return node.ipfsAddRemotePinningInternal(name, url, key, false)
+}
+func (node *IPFS) ipfsAddRemotePinningInternal(name string, url string, key string, isRetry bool) bool {
+	requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/service/add?arg=%s&arg=%s&arg=%s", node.port, name, url, key)
 	response, err := HttpPost(requestString)
 	if err != nil {
 		_core.LogDebug("Could not add IPFS pinning service: " + err.Error() + " - " + response)
-		return
+		return false
 	}
+	if strings.Contains(response, "service already present") {
+		_core.LogDebug("IPFS pinning service already exists, checking health...")
+		if node.IPFSCheckPinServiceHealth(name) {
+			_core.LogDebug("IPFS pinning service is healthy and reachable")
+			return true
+		} else {
+			if isRetry {
+				_core.LogError("IPFS pinning service exists but is not healthy or reachable, and retry attempt failed")
+				return false
+			}
+			_core.LogDebug("IPFS pinning service is unhealthy, attempting to remove and re-add...")
+			result := node.IPFSRemoveRemotePinning(name)
+			if !result {
+				_core.LogError("Failed to remove unhealthy IPFS pinning service")
+				return false
+			}
+			return node.ipfsAddRemotePinningInternal(name, url, key, true)
+		}
+	}
+
 	_core.LogDebug("Added IPFS pinning service: " + response)
+	return true
 }
+func (node *IPFS) IPFSRemoveRemotePinning(name string) bool {
+	requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/service/rm?arg=%s", node.port, name)
+	response, err := HttpPost(requestString)
+	if err != nil {
+		_core.LogError("Could not remove IPFS pinning service: " + err.Error() + " - " + response)
+		return false
+	}
+	if strings.Contains(response, "service removed") || response == "" {
+		_core.LogDebug("IPFS pinning service '" + name + "' removed successfully")
+		return true
+	}
+	if strings.Contains(response, "service not found") {
+		_core.LogDebug("IPFS pinning service '" + name + "' was not found")
+		return false
+	}
+	_core.LogError("Unexpected response when removing IPFS pinning service: " + response)
+	return false
+}
+func (node *IPFS) IPFSCheckPinServiceHealth(serviceName string) bool {
+	listURL := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/service/ls", node.port)
+	response, err := HttpGet(listURL, 10)
+	if err != nil {
+		_core.LogError("Failed to list pinning services: " + err.Error())
+		return false
+	}
+	if !strings.Contains(response, serviceName) {
+		_core.LogError("Pinning service '" + serviceName + "' not found in service list")
+		return false
+	}
+	testURL := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/ls?service=%s&status=pinned&status=pinning&status=failed", node.port, serviceName)
+	_, err = HttpGet(testURL, 30)
+	if err != nil {
+		_core.LogError("Failed to connect to pinning service '" + serviceName + "': " + err.Error())
+		return false
+	}
+	return true
+}
+
 func (node *IPFS) IPFSPinFile(cid string) error {
 	return nil // todo fix this
 	ctx, cancel := context.WithCancel(context.Background())

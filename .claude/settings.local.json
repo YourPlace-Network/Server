@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(rg:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(clear)",
+      "Bash(make:*)",
+      "Bash(go build:*)"
     ],
     "deny": []
   }

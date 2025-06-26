@@ -397,7 +397,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 	})
 	// ------- Clear Caches ------- //
 	c.AddFunc("@every 10m", func() {
-		blockchain.CleanWalletCache()
+		db.CleanAllCaches()
 	})
 	// --- Start Cron --- //
 	c.Start()

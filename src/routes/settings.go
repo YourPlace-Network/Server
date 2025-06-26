@@ -464,8 +464,12 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		host.AddSecret("ipfsPinningKey", security.SanitizeNonPrintable(payload.PinningKey))
 		database.SettingsUpdateValue("ipfsPinningURL", url)
-		ipfs.IPFSAddRemotePinning("ipfsPinning", url, payload.PinningKey)
-		c.SecureJSON(http.StatusOK, gin.H{"status": "IPFS URL and Key saved"})
+		success := ipfs.IPFSAddRemotePinning("ipfsPinning", url, payload.PinningKey)
+		if success {
+			c.SecureJSON(http.StatusOK, gin.H{"status": "IPFS URL and Key saved"})
+		} else {
+			c.SecureJSON(http.StatusInternalServerError, gin.H{})
+		}
 	})
 	router.POST("/settings/server/debug", func(c *gin.Context) {
 		type Payload struct {

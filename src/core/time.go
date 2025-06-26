@@ -30,13 +30,13 @@ func TimestampToTimeStr(timestamp uint64) string {
 	formatted := t.Format("2006-01-02 15:04:05")
 	return fmt.Sprintf("%s", formatted)
 }
-func StartTimer() func() {
+func StartTimer(label string) func() {
 	// Usage: start := StartTimer()
 	//        EndTimer(start)
 	start := time.Now()
 	return func() {
 		elapsed := time.Since(start)
-		LogInfo("Elapsed time: " + elapsed.String())
+		LogInfo("Elapsed time: " + elapsed.String() + " for " + label)
 	}
 }
 func EndTimer(start func()) {
