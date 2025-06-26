@@ -136,6 +136,9 @@ func handleConnection(conn net.Conn) {
 			response.Status = "success"
 			response.Message = "ok - uninstalling"
 		}
+	case "version":
+		response.Status = "success"
+		response.Message = version
 	default:
 		LogDebug("Received unknown method: " + request.Method)
 		response.Status = "failure"
@@ -282,13 +285,15 @@ func getProcessUserInfo(processName string) (*user.User, error) {
 
 // Logging Functions
 func LogInit(name string) *os.File {
-	logDir := "/Library/Logs/YourPlace"
-	err := os.MkdirAll(logDir, 0755)
+	user, err := getProcessUserInfo("YourPlace")
+	homeDir := user.HomeDir
+	logDir := filepath.Join(homeDir, "Library", "Logs", "YourPlace")
+	err = os.MkdirAll(logDir, 0755)
 	if err != nil {
 		fmt.Println("Error creating log directory: " + err.Error())
 		return nil
 	}
-	logFile := filepath.Join(logDir, "helper.log")
+	logFile := filepath.Join(logDir, "yourplacehelper.log")
 	file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println("Error opening log file: " + err.Error())

@@ -7,6 +7,7 @@ import ( // don't add any exported YourPlace functions - it will create a depend
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -31,9 +32,22 @@ var (
 	helperFile  *os.File
 )
 
+// getLogDirectory returns the appropriate log directory for the current OS
+func getLogDirectory() string {
+	if runtime.GOOS == "darwin" {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, "Library", "Logs", "YourPlace")
+	} else if runtime.GOOS == "windows" {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, "YourPlace")
+	}
+	// Default fallback for other OS
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, "YourPlace")
+}
+
 func LogInit(name string) *os.File {
-	user, _ := os.UserHomeDir()
-	logDir := filepath.Join(user, "YourPlace")
+	logDir := getLogDirectory()
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		log.Fatal("Failed to create log directory: " + err.Error())
@@ -145,9 +159,7 @@ func LogRead(lines int, newlineFlag int) (string, string) { // Return the latest
 	return result.String(), currentFile.Name()
 }
 func LogReadHelper(lines int, newlineFlag int) (string, string) { // Return the latest X lines from the helper log file - newLineFlag: 1=<br>, 2=\n, 3=\r\n
-	user, _ := os.UserHomeDir()
-	logDir := filepath.Join(user, "YourPlace")
-	logPath := filepath.Join(logDir, "yourplacehelper.log")
+	logPath := filepath.Join(getLogDirectory(), "yourplacehelper.log")
 	newline := ""
 	switch newlineFlag {
 	case 1:
@@ -191,5 +203,5 @@ func LogReadHelper(lines int, newlineFlag int) (string, string) { // Return the 
 			result.WriteString(newline)
 		}
 	}
-	return result.String(), currentFile.Name()
+	return result.String(), logPath
 }
