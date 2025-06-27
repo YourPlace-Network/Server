@@ -595,10 +595,6 @@ func GetLogDirectory() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, "YourPlace")
 }
-func GetHelperLogDirectory() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "YourPlace")
-}
 func GetSecret(name string) string {
 	cred, err := wincred.GetGenericCredential(name)
 	if err != nil {

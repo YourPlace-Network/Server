@@ -422,14 +422,12 @@ func GetProcessOwnerAsUser(processName string) (*user.User, error) {
 		if strings.HasPrefix(exeName, processName) {
 			return getProcessOwnerByPIDAsUser(procEntry.ProcessID) // Found the process, now get its owner
 		}
-
 		if err := windows.Process32Next(snapshot, &procEntry); err != nil {
 			break
 		}
 	}
 	return nil, fmt.Errorf("process %s not found", processName)
 }
-
 func getProcessOwnerByPIDAsUser(pid uint32) (*user.User, error) {
 	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION, false, pid) // Open the process
 	if err != nil {
