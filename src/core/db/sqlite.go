@@ -212,9 +212,15 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"onchain_post":  "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', toAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
 		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', birthdate INTEGER DEFAULT NULL, server TEXT DEFAULT '', " +
 			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
-		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, address TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"csrf_tokens":    "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
+		"onchain_block":        "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, address TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"onchain_follow":       "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"marketplace_listings": "CREATE TABLE IF NOT EXISTS marketplace_listings (id TEXT PRIMARY KEY, sellerAddress TEXT, sellerBlockchain TEXT, title TEXT, description TEXT, price TEXT, priceWei TEXT, currency TEXT, listingType TEXT DEFAULT 'fixed', status TEXT DEFAULT 'active', auctionEndTime INTEGER, reservePrice TEXT, reservePriceWei TEXT, txHash TEXT, createdAt INTEGER, updatedAt INTEGER)",
+		"marketplace_offers":   "CREATE TABLE IF NOT EXISTS marketplace_offers (id TEXT PRIMARY KEY, listingId TEXT, offerByAddress TEXT, offerByBlockchain TEXT, offerPrice TEXT, offerPriceWei TEXT, message TEXT, status TEXT DEFAULT 'pending', txHash TEXT, createdAt INTEGER, acceptedAt INTEGER, FOREIGN KEY(listingId) REFERENCES marketplace_listings(id))",
+		"marketplace_payments": "CREATE TABLE IF NOT EXISTS marketplace_payments (id TEXT PRIMARY KEY, offerId TEXT, offerAcceptTxHash TEXT, fromAddress TEXT, fromBlockchain TEXT, toAddress TEXT, toBlockchain TEXT, price TEXT, priceWei TEXT, txHash TEXT, status TEXT DEFAULT 'pending', createdAt INTEGER, FOREIGN KEY(offerId) REFERENCES marketplace_offers(id))",
+		"marketplace_receipts": "CREATE TABLE IF NOT EXISTS marketplace_receipts (id TEXT PRIMARY KEY, paymentId TEXT, receiptByAddress TEXT, receiptByBlockchain TEXT, txHash TEXT, createdAt INTEGER, FOREIGN KEY(paymentId) REFERENCES marketplace_payments(id))",
+		"marketplace_bids":     "CREATE TABLE IF NOT EXISTS marketplace_bids (id TEXT PRIMARY KEY, listingId TEXT, bidderAddress TEXT, bidderBlockchain TEXT, bidAmount TEXT, bidAmountWei TEXT, bidMessage TEXT, status TEXT DEFAULT 'active', txHash TEXT, createdAt INTEGER, outbidAt INTEGER, FOREIGN KEY(listingId) REFERENCES marketplace_listings(id))",
+		"marketplace_auctions": "CREATE TABLE IF NOT EXISTS marketplace_auctions (id TEXT PRIMARY KEY, listingId TEXT, startTime INTEGER, endTime INTEGER, currentHighBid TEXT, currentHighBidWei TEXT, currentHighBidder TEXT, currentHighBidderBlockchain TEXT, bidCount INTEGER DEFAULT 0, status TEXT DEFAULT 'active', txHash TEXT, createdAt INTEGER, endedAt INTEGER, FOREIGN KEY(listingId) REFERENCES marketplace_listings(id))",
+		"csrf_tokens":          "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
 	}
 	for _, createStatement := range tables {
 		err := db.execWithRetry(ctx, createStatement, 3)
@@ -1588,5 +1594,701 @@ func (db *SQLite) OnchainF(txHash string, blockchain string, followerAddress str
 	_, err = db.runParamSQLUpdate(query, txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	if err != nil {
 		core.LogError("Could not tokenize the follow in the database: " + err.Error())
+	}
+}
+
+// --- Marketplace Functions --- //
+func (db *SQLite) MarketplaceCreateListing(id string, sellerAddress string, sellerBlockchain string, title string, description string, price string, priceWei string, currency string, txHash string) {
+	timestamp := core.GetTimestamp()
+	query := "INSERT INTO marketplace_listings (id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, txHash, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	_, err := db.runParamSQLUpdate(query, id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, txHash, timestamp, timestamp)
+	if err != nil {
+		core.LogError("Could not create marketplace listing: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceGetListings() []map[string]interface{} {
+	query := "SELECT id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, status, txHash, createdAt, updatedAt FROM marketplace_listings WHERE status = 'active' ORDER BY createdAt DESC"
+	rows, err := db.runParamSQLSelect(query)
+	if err != nil {
+		core.LogError("Could not get marketplace listings: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	var listings []map[string]interface{}
+	for rows.Next() {
+		var id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, status, txHash string
+		var createdAt, updatedAt int64
+		err = rows.Scan(&id, &sellerAddress, &sellerBlockchain, &title, &description, &price, &priceWei, &currency, &status, &txHash, &createdAt, &updatedAt)
+		if err != nil {
+			core.LogError("Could not scan marketplace listing: " + err.Error())
+			continue
+		}
+		listing := map[string]interface{}{
+			"id": id, "sellerAddress": sellerAddress, "sellerBlockchain": sellerBlockchain,
+			"title": title, "description": description, "price": price, "priceWei": priceWei,
+			"currency": currency, "status": status, "txHash": txHash,
+			"createdAt": createdAt, "updatedAt": updatedAt,
+		}
+		listings = append(listings, listing)
+	}
+	return listings
+}
+func (db *SQLite) MarketplaceGetUserListings(sellerAddress string, sellerBlockchain string) []map[string]interface{} {
+	query := "SELECT id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, status, txHash, createdAt, updatedAt FROM marketplace_listings WHERE sellerAddress = ? AND sellerBlockchain = ? ORDER BY createdAt DESC"
+	rows, err := db.runParamSQLSelect(query, sellerAddress, sellerBlockchain)
+	if err != nil {
+		core.LogError("Could not get user marketplace listings: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	var listings []map[string]interface{}
+	for rows.Next() {
+		var id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, status, txHash string
+		var createdAt, updatedAt int64
+		err = rows.Scan(&id, &sellerAddress, &sellerBlockchain, &title, &description, &price, &priceWei, &currency, &status, &txHash, &createdAt, &updatedAt)
+		if err != nil {
+			core.LogError("Could not scan user marketplace listing: " + err.Error())
+			continue
+		}
+		listing := map[string]interface{}{
+			"id": id, "sellerAddress": sellerAddress, "sellerBlockchain": sellerBlockchain,
+			"title": title, "description": description, "price": price, "priceWei": priceWei,
+			"currency": currency, "status": status, "txHash": txHash,
+			"createdAt": createdAt, "updatedAt": updatedAt,
+		}
+		listings = append(listings, listing)
+	}
+	return listings
+}
+func (db *SQLite) MarketplaceGetListing(id string) map[string]interface{} {
+	query := "SELECT id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, status, txHash, createdAt, updatedAt FROM marketplace_listings WHERE id = ?"
+	rows, err := db.runParamSQLSelect(query, id)
+	if err != nil {
+		core.LogError("Could not get marketplace listing: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, status, txHash string
+		var createdAt, updatedAt int64
+		err = rows.Scan(&id, &sellerAddress, &sellerBlockchain, &title, &description, &price, &priceWei, &currency, &status, &txHash, &createdAt, &updatedAt)
+		if err != nil {
+			core.LogError("Could not scan marketplace listing: " + err.Error())
+			return nil
+		}
+		return map[string]interface{}{
+			"id": id, "sellerAddress": sellerAddress, "sellerBlockchain": sellerBlockchain,
+			"title": title, "description": description, "price": price, "priceWei": priceWei,
+			"currency": currency, "status": status, "txHash": txHash,
+			"createdAt": createdAt, "updatedAt": updatedAt,
+		}
+	}
+	return nil
+}
+func (db *SQLite) MarketplaceUpdateListingStatus(id string, status string) {
+	timestamp := core.GetTimestamp()
+	query := "UPDATE marketplace_listings SET status = ?, updatedAt = ? WHERE id = ?"
+	_, err := db.runParamSQLUpdate(query, status, timestamp, id)
+	if err != nil {
+		core.LogError("Could not update marketplace listing status: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceCreateTransaction(id string, listingId string, buyerAddress string, buyerBlockchain string, sellerAddress string, sellerBlockchain string, txHash string, price string, priceWei string) {
+	timestamp := core.GetTimestamp()
+	query := "INSERT INTO marketplace_transactions (id, listingId, buyerAddress, buyerBlockchain, sellerAddress, sellerBlockchain, txHash, price, priceWei, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	_, err := db.runParamSQLUpdate(query, id, listingId, buyerAddress, buyerBlockchain, sellerAddress, sellerBlockchain, txHash, price, priceWei, timestamp)
+	if err != nil {
+		core.LogError("Could not create marketplace transaction: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceGetTransaction(id string) map[string]interface{} {
+	query := "SELECT id, listingId, buyerAddress, buyerBlockchain, sellerAddress, sellerBlockchain, txHash, status, price, priceWei, createdAt, completedAt FROM marketplace_transactions WHERE id = ?"
+	rows, err := db.runParamSQLSelect(query, id)
+	if err != nil {
+		core.LogError("Could not get marketplace transaction: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var id, listingId, buyerAddress, buyerBlockchain, sellerAddress, sellerBlockchain, txHash, status, price, priceWei string
+		var createdAt, completedAt sql.NullInt64
+		err = rows.Scan(&id, &listingId, &buyerAddress, &buyerBlockchain, &sellerAddress, &sellerBlockchain, &txHash, &status, &price, &priceWei, &createdAt, &completedAt)
+		if err != nil {
+			core.LogError("Could not scan marketplace transaction: " + err.Error())
+			return nil
+		}
+		result := map[string]interface{}{
+			"id": id, "listingId": listingId, "buyerAddress": buyerAddress, "buyerBlockchain": buyerBlockchain,
+			"sellerAddress": sellerAddress, "sellerBlockchain": sellerBlockchain, "txHash": txHash,
+			"status": status, "price": price, "priceWei": priceWei,
+		}
+		if createdAt.Valid {
+			result["createdAt"] = createdAt.Int64
+		}
+		if completedAt.Valid {
+			result["completedAt"] = completedAt.Int64
+		}
+		return result
+	}
+	return nil
+}
+func (db *SQLite) MarketplaceUpdateTransactionStatus(id string, status string) {
+	timestamp := core.GetTimestamp()
+	query := "UPDATE marketplace_transactions SET status = ?, completedAt = ? WHERE id = ?"
+	_, err := db.runParamSQLUpdate(query, status, timestamp, id)
+	if err != nil {
+		core.LogError("Could not update marketplace transaction status: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceGetUserTransactions(address string, blockchain string) []map[string]interface{} {
+	query := "SELECT id, listingId, buyerAddress, buyerBlockchain, sellerAddress, sellerBlockchain, txHash, status, price, priceWei, createdAt, completedAt FROM marketplace_transactions WHERE (buyerAddress = ? AND buyerBlockchain = ?) OR (sellerAddress = ? AND sellerBlockchain = ?) ORDER BY createdAt DESC"
+	rows, err := db.runParamSQLSelect(query, address, blockchain, address, blockchain)
+	if err != nil {
+		core.LogError("Could not get user marketplace transactions: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	var transactions []map[string]interface{}
+	for rows.Next() {
+		var id, listingId, buyerAddress, buyerBlockchain, sellerAddress, sellerBlockchain, txHash, status, price, priceWei string
+		var createdAt, completedAt sql.NullInt64
+		err = rows.Scan(&id, &listingId, &buyerAddress, &buyerBlockchain, &sellerAddress, &sellerBlockchain, &txHash, &status, &price, &priceWei, &createdAt, &completedAt)
+		if err != nil {
+			core.LogError("Could not scan user marketplace transaction: " + err.Error())
+			continue
+		}
+		transaction := map[string]interface{}{
+			"id": id, "listingId": listingId, "buyerAddress": buyerAddress, "buyerBlockchain": buyerBlockchain,
+			"sellerAddress": sellerAddress, "sellerBlockchain": sellerBlockchain, "txHash": txHash,
+			"status": status, "price": price, "priceWei": priceWei,
+		}
+		if createdAt.Valid {
+			transaction["createdAt"] = createdAt.Int64
+		}
+		if completedAt.Valid {
+			transaction["completedAt"] = completedAt.Int64
+		}
+		transactions = append(transactions, transaction)
+	}
+	return transactions
+}
+
+// --- Onchain Marketplace Functions --- //
+func (db *SQLite) MarketplaceListing(txHash string, blockchain string, fromAddr string, toAddr string, title string, description string, price string, priceSmallUnit string, currencySymbol string, imageUrls []string, timestamp uint64) {
+	marketplaceId := uuid.New().String()
+	imageUrlsJson, _ := json.Marshal(imageUrls)
+	// Check if this transaction already exists with different timestamp
+	existingQuery := "SELECT createdAt FROM marketplace_listings WHERE txHash = ? LIMIT 1"
+	existingRows, err := db.runParamSQLSelect(existingQuery, txHash)
+	if err != nil {
+		core.LogError("Could not check for existing marketplace listing: " + err.Error())
+		return
+	}
+	defer existingRows.Close()
+	if existingRows.Next() {
+		var existingTimestamp uint64
+		err = existingRows.Scan(&existingTimestamp)
+		if err != nil {
+			core.LogError("Could not scan existing listing timestamp: " + err.Error())
+			return
+		}
+		// If existing transaction has earlier timestamp, keep it (first-one-wins by blockchain time)
+		if existingTimestamp <= timestamp {
+			core.LogInfo("Marketplace listing ignored - earlier timestamp exists: " + txHash)
+			return
+		}
+		// If this transaction has earlier timestamp, replace the existing one
+		updateQuery := "UPDATE marketplace_listings SET title = ?, description = ?, price = ?, priceSmallUnit = ?, currency = ?, imageUrls = ?, updatedAt = ?, createdAt = ? WHERE txHash = ?"
+		_, err = db.runParamSQLUpdate(updateQuery, title, description, price, priceSmallUnit, currencySymbol, string(imageUrlsJson), timestamp, timestamp, txHash)
+		if err != nil {
+			core.LogError("Could not update marketplace listing with earlier timestamp: " + err.Error())
+		}
+		return
+	}
+	// Insert new listing
+	query := "INSERT INTO marketplace_listings (id, sellerAddress, sellerBlockchain, title, description, price, priceSmallUnit, currency, imageUrls, status, txHash, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)"
+	_, err = db.runParamSQLUpdate(query, marketplaceId, fromAddr, blockchain, title, description, price, priceSmallUnit, currencySymbol, string(imageUrlsJson), txHash, timestamp, timestamp)
+	if err != nil {
+		core.LogError("Could not index marketplace listing: " + err.Error())
+	} else {
+		core.LogInfo("Indexed marketplace listing: " + marketplaceId + " from tx: " + txHash)
+	}
+}
+func (db *SQLite) MarketplaceOffer(txHash string, blockchain string, fromAddr string, toAddr string, listingTxHash string, offerPrice string, offerPriceSmallUnit string, message string, timestamp uint64) {
+	// Check if this transaction already exists with different timestamp
+	checkQuery := "SELECT createdAt FROM marketplace_offers WHERE id = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(checkQuery, txHash)
+	if err != nil {
+		core.LogError("Could not check for existing marketplace offer: " + err.Error())
+		return
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var existingTimestamp uint64
+		err = rows.Scan(&existingTimestamp)
+		if err != nil {
+			core.LogError("Could not scan existing offer timestamp: " + err.Error())
+			return
+		}
+		// If existing transaction has earlier timestamp, keep it (first-one-wins by blockchain time)
+		if existingTimestamp <= timestamp {
+			core.LogInfo("Marketplace offer ignored - earlier timestamp exists: " + txHash)
+			return
+		}
+		// If this transaction has earlier timestamp, replace the existing one
+		updateQuery := "UPDATE marketplace_offers SET listingId = ?, offerByAddress = ?, offerByBlockchain = ?, offerPrice = ?, offerPriceSmallUnit = ?, message = ?, status = 'pending', txHash = ?, createdAt = ? WHERE id = ?"
+		_, err = db.runParamSQLUpdate(updateQuery, listingTxHash, fromAddr, blockchain, offerPrice, offerPriceSmallUnit, message, txHash, timestamp, txHash)
+		if err != nil {
+			core.LogError("Could not update marketplace offer with earlier timestamp: " + err.Error())
+		}
+		return
+	}
+	// Insert new offer
+	query := "INSERT INTO marketplace_offers (id, listingId, offerByAddress, offerByBlockchain, offerPrice, offerPriceSmallUnit, message, status, txHash, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)"
+	_, err = db.runParamSQLUpdate(query, txHash, listingTxHash, fromAddr, blockchain, offerPrice, offerPriceSmallUnit, message, txHash, timestamp)
+	if err != nil {
+		core.LogError("Could not index marketplace offer: " + err.Error())
+		return
+	}
+	// Check if this offer is for an auction listing and update high bid if needed
+	listingQuery := "SELECT listingType, id FROM marketplace_listings WHERE txHash = ? LIMIT 1"
+	listingRows, err := db.runParamSQLSelect(listingQuery, listingTxHash)
+	if err != nil {
+		core.LogError("Could not check listing type for offer: " + err.Error())
+		return
+	}
+	defer listingRows.Close()
+	if listingRows.Next() {
+		var listingType, listingId string
+		err = listingRows.Scan(&listingType, &listingId)
+		if err != nil {
+			core.LogError("Could not scan listing type: " + err.Error())
+			return
+		}
+		// If this is an auction listing, update the high bid
+		if listingType == "auction" {
+			db.MarketplaceUpdateHighBid(listingId, offerPrice, offerPriceSmallUnit, fromAddr, blockchain)
+		}
+	}
+}
+func (db *SQLite) MarketplaceOfferAccept(txHash string, blockchain string, fromAddr string, toAddr string, offerTxHash string, timestamp uint64) {
+	// Check if offer exists and is still pending
+	checkQuery := "SELECT status FROM marketplace_offers WHERE id = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(checkQuery, offerTxHash)
+	if err != nil {
+		core.LogError("Could not check offer status: " + err.Error())
+		return
+	}
+	defer rows.Close()
+	var currentStatus string
+	if !rows.Next() {
+		core.LogError("Offer not found for acceptance: " + offerTxHash)
+		return
+	}
+	err = rows.Scan(&currentStatus)
+	if err != nil {
+		core.LogError("Could not scan offer status: " + err.Error())
+		return
+	}
+	if currentStatus != "pending" {
+		core.LogWarn("Attempted to accept non-pending offer: " + offerTxHash + " (status: " + currentStatus + ")")
+		return
+	}
+	// Only accept if still pending
+	query := "UPDATE marketplace_offers SET status = 'accepted', acceptedAt = ? WHERE id = ? AND status = 'pending'"
+	result, err := db.runParamSQLUpdate(query, timestamp, offerTxHash)
+	if err != nil {
+		core.LogError("Could not accept marketplace offer: " + err.Error())
+		return
+	}
+	// Check if update actually happened
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		core.LogWarn("Offer acceptance failed - possibly already accepted: " + offerTxHash)
+	}
+}
+func (db *SQLite) MarketplacePayment(txHash string, buyerBlockchain string, fromAddr string, toAddr string, offerAcceptTxHash string, price string, priceSmallUnit string, timestamp uint64) {
+	offerQuery := "SELECT id, offerPriceSmallUnit, offerByAddress, offerByBlockchain, listingId FROM marketplace_offers WHERE status = 'accepted' AND acceptedAt <= ? ORDER BY acceptedAt DESC LIMIT 1"
+	rows, err := db.runParamSQLSelect(offerQuery, timestamp+60)
+	if err != nil {
+		core.LogError("Could not find accepted offer for payment: " + err.Error())
+		return
+	}
+	defer rows.Close()
+	var offerId, expectedPriceSmallUnit, offerByAddress, offerByBlockchain, listingId string
+	if rows.Next() {
+		err = rows.Scan(&offerId, &expectedPriceSmallUnit, &offerByAddress, &offerByBlockchain, &listingId)
+		if err != nil {
+			core.LogError("Could not scan offer details: " + err.Error())
+			return
+		}
+	} else {
+		core.LogError("No accepted offer found for payment transaction")
+		return
+	}
+	if priceSmallUnit != expectedPriceSmallUnit {
+		core.LogWarn("Payment amount mismatch - Expected: " + expectedPriceSmallUnit + ", Got: " + priceSmallUnit + " for offer: " + offerId)
+	}
+	if fromAddr != offerByAddress {
+		core.LogWarn("Payment from unexpected address - Expected: " + offerByAddress + ", Got: " + fromAddr + " for offer: " + offerId)
+	}
+	sellerQuery := "SELECT sellerAddress, sellerBlockchain FROM marketplace_listings WHERE id = ? LIMIT 1"
+	sellerRows, err := db.runParamSQLSelect(sellerQuery, listingId)
+	if err != nil {
+		core.LogError("Could not find seller details: " + err.Error())
+		return
+	}
+	defer sellerRows.Close()
+	var sellerAddress, sellerBlockchain string
+	if sellerRows.Next() {
+		err = sellerRows.Scan(&sellerAddress, &sellerBlockchain)
+		if err != nil {
+			core.LogError("Could not scan seller details: " + err.Error())
+			return
+		}
+	}
+	query := "INSERT INTO marketplace_payments (id, offerId, offerAcceptTxHash, fromAddress, fromBlockchain, toAddress, toBlockchain, price, priceSmallUnit, txHash, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?) ON CONFLICT (id) DO NOTHING"
+	_, err = db.runParamSQLUpdate(query, txHash, offerId, offerAcceptTxHash, fromAddr, buyerBlockchain, sellerAddress, sellerBlockchain, price, priceSmallUnit, txHash, timestamp)
+	if err != nil {
+		core.LogError("Could not index marketplace payment: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceReceipt(txHash string, blockchain string, fromAddr string, toAddr string, paymentTxHash string, timestamp uint64) {
+	// Get payment ID
+	paymentQuery := "SELECT id FROM marketplace_payments WHERE txHash = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(paymentQuery, paymentTxHash)
+	if err != nil {
+		core.LogError("Could not find payment for receipt: " + err.Error())
+		return
+	}
+	defer rows.Close()
+	var paymentId string
+	if rows.Next() {
+		err = rows.Scan(&paymentId)
+		if err != nil {
+			core.LogError("Could not scan payment ID: " + err.Error())
+			return
+		}
+	} else {
+		core.LogError("No payment found for receipt transaction")
+		return
+	}
+	// Create receipt record
+	query := "INSERT INTO marketplace_receipts (id, paymentId, receiptByAddress, receiptByBlockchain, txHash, createdAt) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING"
+	_, err = db.runParamSQLUpdate(query, txHash, paymentId, fromAddr, blockchain, txHash, timestamp)
+	if err != nil {
+		core.LogError("Could not index marketplace receipt: " + err.Error())
+		return
+	}
+	// Update payment status to completed
+	updateQuery := "UPDATE marketplace_payments SET status = 'completed' WHERE id = ?"
+	_, err = db.runParamSQLUpdate(updateQuery, paymentId)
+	if err != nil {
+		core.LogError("Could not complete marketplace payment: " + err.Error())
+	}
+}
+
+// --- Marketplace Offer Functions --- //
+func (db *SQLite) MarketplaceCreateOffer(id string, listingId string, offerByAddress string, offerByBlockchain string, offerPrice string, offerPriceWei string, message string, txHash string) {
+	timestamp := core.GetTimestamp()
+	query := "INSERT INTO marketplace_offers (id, listingId, offerByAddress, offerByBlockchain, offerPrice, offerPriceWei, message, status, txHash, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)"
+	_, err := db.runParamSQLUpdate(query, id, listingId, offerByAddress, offerByBlockchain, offerPrice, offerPriceWei, message, txHash, timestamp)
+	if err != nil {
+		core.LogError("Could not create marketplace offer: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceGetOffers(listingId string) []map[string]interface{} {
+	query := "SELECT id, listingId, offerByAddress, offerByBlockchain, offerPrice, offerPriceWei, message, status, txHash, createdAt, acceptedAt FROM marketplace_offers WHERE listingId = ? ORDER BY createdAt DESC"
+	rows, err := db.runParamSQLSelect(query, listingId)
+	if err != nil {
+		core.LogError("Could not get marketplace offers: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	var offers []map[string]interface{}
+	for rows.Next() {
+		var id, listingId, offerByAddress, offerByBlockchain, offerPrice, offerPriceWei, message, status, txHash string
+		var createdAt, acceptedAt sql.NullInt64
+		err = rows.Scan(&id, &listingId, &offerByAddress, &offerByBlockchain, &offerPrice, &offerPriceWei, &message, &status, &txHash, &createdAt, &acceptedAt)
+		if err != nil {
+			core.LogError("Could not scan marketplace offer: " + err.Error())
+			continue
+		}
+		offer := map[string]interface{}{
+			"id": id, "listingId": listingId, "offerByAddress": offerByAddress, "offerByBlockchain": offerByBlockchain,
+			"offerPrice": offerPrice, "offerPriceWei": offerPriceWei, "message": message, "status": status, "txHash": txHash,
+		}
+		if createdAt.Valid {
+			offer["createdAt"] = createdAt.Int64
+		}
+		if acceptedAt.Valid {
+			offer["acceptedAt"] = acceptedAt.Int64
+		}
+		offers = append(offers, offer)
+	}
+	return offers
+}
+func (db *SQLite) MarketplaceGetOffer(id string) map[string]interface{} {
+	query := "SELECT id, listingId, offerByAddress, offerByBlockchain, offerPrice, offerPriceWei, message, status, txHash, createdAt, acceptedAt FROM marketplace_offers WHERE id = ?"
+	rows, err := db.runParamSQLSelect(query, id)
+	if err != nil {
+		core.LogError("Could not get marketplace offer: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var id, listingId, offerByAddress, offerByBlockchain, offerPrice, offerPriceWei, message, status, txHash string
+		var createdAt, acceptedAt sql.NullInt64
+		err = rows.Scan(&id, &listingId, &offerByAddress, &offerByBlockchain, &offerPrice, &offerPriceWei, &message, &status, &txHash, &createdAt, &acceptedAt)
+		if err != nil {
+			core.LogError("Could not scan marketplace offer: " + err.Error())
+			return nil
+		}
+		result := map[string]interface{}{
+			"id": id, "listingId": listingId, "offerByAddress": offerByAddress, "offerByBlockchain": offerByBlockchain,
+			"offerPrice": offerPrice, "offerPriceWei": offerPriceWei, "message": message, "status": status, "txHash": txHash,
+		}
+		if createdAt.Valid {
+			result["createdAt"] = createdAt.Int64
+		}
+		if acceptedAt.Valid {
+			result["acceptedAt"] = acceptedAt.Int64
+		}
+		return result
+	}
+	return nil
+}
+func (db *SQLite) MarketplaceAcceptOffer(offerId string, acceptedAt uint64) {
+	query := "UPDATE marketplace_offers SET status = 'accepted', acceptedAt = ? WHERE id = ?"
+	_, err := db.runParamSQLUpdate(query, acceptedAt, offerId)
+	if err != nil {
+		core.LogError("Could not accept marketplace offer: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceCreatePayment(id string, offerId string, offerAcceptTxHash string, fromAddress string, fromBlockchain string, toAddress string, toBlockchain string, price string, priceWei string, txHash string) {
+	timestamp := core.GetTimestamp()
+	query := "INSERT INTO marketplace_payments (id, offerId, offerAcceptTxHash, fromAddress, fromBlockchain, toAddress, toBlockchain, price, priceWei, txHash, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)"
+	_, err := db.runParamSQLUpdate(query, id, offerId, offerAcceptTxHash, fromAddress, fromBlockchain, toAddress, toBlockchain, price, priceWei, txHash, timestamp)
+	if err != nil {
+		core.LogError("Could not create marketplace payment: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceCreateReceipt(id string, paymentId string, receiptByAddress string, receiptByBlockchain string, txHash string) {
+	timestamp := core.GetTimestamp()
+	query := "INSERT INTO marketplace_receipts (id, paymentId, receiptByAddress, receiptByBlockchain, txHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)"
+	_, err := db.runParamSQLUpdate(query, id, paymentId, receiptByAddress, receiptByBlockchain, txHash, timestamp)
+	if err != nil {
+		core.LogError("Could not create marketplace receipt: " + err.Error())
+	}
+}
+
+// --- Auction Functions (Using Offer Transaction Type) --- //
+func (db *SQLite) MarketplaceCreateAuction(id string, listingId string, startTime uint64, endTime uint64, txHash string) {
+	timestamp := core.GetTimestamp()
+	// Check if this auction already exists with different timestamp
+	checkQuery := "SELECT createdAt FROM marketplace_auctions WHERE id = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(checkQuery, id)
+	if err != nil {
+		core.LogError("Could not check for existing marketplace auction: " + err.Error())
+		return
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var existingTimestamp uint64
+		err = rows.Scan(&existingTimestamp)
+		if err != nil {
+			core.LogError("Could not scan existing auction timestamp: " + err.Error())
+			return
+		}
+		// If existing transaction has earlier timestamp, keep it (first-one-wins by blockchain time)
+		if existingTimestamp <= timestamp {
+			core.LogInfo("Marketplace auction ignored - earlier timestamp exists: " + id)
+			return
+		}
+		// If this transaction has earlier timestamp, replace the existing one
+		updateQuery := "UPDATE marketplace_auctions SET listingId = ?, startTime = ?, endTime = ?, status = 'active', txHash = ?, createdAt = ? WHERE id = ?"
+		_, err = db.runParamSQLUpdate(updateQuery, listingId, startTime, endTime, txHash, timestamp, id)
+		if err != nil {
+			core.LogError("Could not update marketplace auction with earlier timestamp: " + err.Error())
+		}
+		return
+	}
+	// Insert new auction
+	query := "INSERT INTO marketplace_auctions (id, listingId, startTime, endTime, status, txHash, createdAt) VALUES (?, ?, ?, ?, 'active', ?, ?)"
+	_, err = db.runParamSQLUpdate(query, id, listingId, startTime, endTime, txHash, timestamp)
+	if err != nil {
+		core.LogError("Could not create marketplace auction: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceGetAuction(listingId string) map[string]interface{} {
+	query := "SELECT id, listingId, startTime, endTime, currentHighBid, currentHighBidWei, currentHighBidder, currentHighBidderBlockchain, bidCount, status, txHash, createdAt, endedAt FROM marketplace_auctions WHERE listingId = ?"
+	rows, err := db.runParamSQLSelect(query, listingId)
+	if err != nil {
+		core.LogError("Could not get marketplace auction: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var id, listingId, currentHighBid, currentHighBidWei, currentHighBidder, currentHighBidderBlockchain, status, txHash string
+		var startTime, endTime, bidCount, createdAt, endedAt sql.NullInt64
+		err = rows.Scan(&id, &listingId, &startTime, &endTime, &currentHighBid, &currentHighBidWei, &currentHighBidder, &currentHighBidderBlockchain, &bidCount, &status, &txHash, &createdAt, &endedAt)
+		if err != nil {
+			core.LogError("Could not scan marketplace auction: " + err.Error())
+			return nil
+		}
+		result := map[string]interface{}{
+			"id": id, "listingId": listingId, "currentHighBid": currentHighBid, "currentHighBidWei": currentHighBidWei,
+			"currentHighBidder": currentHighBidder, "currentHighBidderBlockchain": currentHighBidderBlockchain,
+			"status": status, "txHash": txHash,
+		}
+		if startTime.Valid {
+			result["startTime"] = startTime.Int64
+		}
+		if endTime.Valid {
+			result["endTime"] = endTime.Int64
+		}
+		if bidCount.Valid {
+			result["bidCount"] = bidCount.Int64
+		}
+		if createdAt.Valid {
+			result["createdAt"] = createdAt.Int64
+		}
+		if endedAt.Valid {
+			result["endedAt"] = endedAt.Int64
+		}
+		return result
+	}
+	return nil
+}
+func (db *SQLite) MarketplaceUpdateHighBid(listingId string, bidAmount string, bidAmountWei string, bidderAddress string, bidderBlockchain string) {
+	query := "UPDATE marketplace_auctions SET currentHighBid = ?, currentHighBidWei = ?, currentHighBidder = ?, currentHighBidderBlockchain = ?, bidCount = bidCount + 1 WHERE listingId = ?"
+	_, err := db.runParamSQLUpdate(query, bidAmount, bidAmountWei, bidderAddress, bidderBlockchain, listingId)
+	if err != nil {
+		core.LogError("Could not update marketplace auction high bid: " + err.Error())
+	}
+}
+
+// --- Onchain Auction Functions --- //
+func (db *SQLite) OnchainMAL(txHash string, blockchain string, fromAddr string, toAddr string, title string, description string, startPrice string, startPriceWei string, reservePrice string, reservePriceWei string, currency string, duration uint64, timestamp uint64) {
+	endTime := timestamp + duration
+	marketplaceId := uuid.New().String()
+	// Check if this auction listing already exists with different timestamp
+	existingQuery := "SELECT createdAt FROM marketplace_listings WHERE txHash = ? LIMIT 1"
+	existingRows, err := db.runParamSQLSelect(existingQuery, txHash)
+	if err != nil {
+		core.LogError("Could not check for existing marketplace auction listing: " + err.Error())
+		return
+	}
+	defer existingRows.Close()
+	if existingRows.Next() {
+		var existingTimestamp uint64
+		err = existingRows.Scan(&existingTimestamp)
+		if err != nil {
+			core.LogError("Could not scan existing auction listing timestamp: " + err.Error())
+			return
+		}
+		// If existing transaction has earlier timestamp, keep it (first-one-wins by blockchain time)
+		if existingTimestamp <= timestamp {
+			core.LogInfo("Marketplace auction listing ignored - earlier timestamp exists: " + txHash)
+			return
+		}
+		// If this transaction has earlier timestamp, replace the existing one
+		updateQuery := "UPDATE marketplace_listings SET title = ?, description = ?, price = ?, priceWei = ?, currency = ?, listingType = 'auction', reservePrice = ?, reservePriceWei = ?, auctionEndTime = ?, updatedAt = ?, createdAt = ? WHERE txHash = ?"
+		_, err = db.runParamSQLUpdate(updateQuery, title, description, startPrice, startPriceWei, currency, reservePrice, reservePriceWei, endTime, timestamp, timestamp, txHash)
+		if err != nil {
+			core.LogError("Could not update marketplace auction listing with earlier timestamp: " + err.Error())
+		}
+		return
+	}
+	// Create auction listing
+	listingQuery := "INSERT INTO marketplace_listings (id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, listingType, status, reservePrice, reservePriceWei, auctionEndTime, txHash, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'auction', 'active', ?, ?, ?, ?, ?, ?)"
+	_, err = db.runParamSQLUpdate(listingQuery, marketplaceId, fromAddr, blockchain, title, description, startPrice, startPriceWei, currency, reservePrice, reservePriceWei, endTime, txHash, timestamp, timestamp)
+	if err != nil {
+		core.LogError("Could not index marketplace auction listing: " + err.Error())
+		return
+	}
+	// Create auction record
+	auctionQuery := "INSERT INTO marketplace_auctions (id, listingId, startTime, endTime, status, txHash, createdAt) VALUES (?, ?, ?, ?, 'active', ?, ?)"
+	_, err = db.runParamSQLUpdate(auctionQuery, txHash+"_auction", marketplaceId, timestamp, endTime, txHash, timestamp)
+	if err != nil {
+		core.LogError("Could not create auction record: " + err.Error())
+	}
+}
+func (db *SQLite) MarketplaceListingCancel(txHash string, blockchain string, fromAddr string, toAddr string, listingTxHash string, reason string, timestamp uint64) {
+	if len(reason) > 500 {
+		core.LogError("Reason too long in marketplace listing cancel: " + string(rune(len(reason))))
+		return
+	}
+	checkQuery := "SELECT status FROM marketplace_listings WHERE txHash = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(checkQuery, listingTxHash)
+	if err != nil {
+		core.LogError("Could not check listing status for cancellation: " + err.Error())
+		return
+	}
+	defer rows.Close()
+	var currentStatus string
+	if !rows.Next() {
+		core.LogError("Listing not found for cancellation: " + listingTxHash)
+		return
+	}
+	err = rows.Scan(&currentStatus)
+	if err != nil {
+		core.LogError("Could not scan listing status: " + err.Error())
+		return
+	}
+	if currentStatus != "active" {
+		core.LogWarn("Attempted to cancel non-active listing: " + listingTxHash + " (status: " + currentStatus + ")")
+		return
+	}
+	query := "UPDATE marketplace_listings SET status = 'cancelled', updatedAt = ? WHERE txHash = ? AND status = 'active'"
+	result, err := db.runParamSQLUpdate(query, timestamp, listingTxHash)
+	if err != nil {
+		core.LogError("Could not cancel marketplace listing: " + err.Error())
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		core.LogWarn("Listing cancellation failed - possibly already cancelled: " + listingTxHash)
+	} else {
+		core.LogInfo("Cancelled marketplace listing: " + listingTxHash)
+	}
+}
+func (db *SQLite) MarketplaceOfferCancel(txHash string, blockchain string, fromAddr string, toAddr string, offerTxHash string, reason string, timestamp uint64) {
+	if len(reason) > 500 {
+		core.LogError("Reason too long in marketplace offer cancel: " + string(rune(len(reason))))
+		return
+	}
+	checkQuery := "SELECT status FROM marketplace_offers WHERE id = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(checkQuery, offerTxHash)
+	if err != nil {
+		core.LogError("Could not check offer status for cancellation: " + err.Error())
+		return
+	}
+	defer rows.Close()
+	var currentStatus string
+	if !rows.Next() {
+		core.LogError("Offer not found for cancellation: " + offerTxHash)
+		return
+	}
+	err = rows.Scan(&currentStatus)
+	if err != nil {
+		core.LogError("Could not scan offer status: " + err.Error())
+		return
+	}
+	if currentStatus != "pending" {
+		core.LogWarn("Attempted to cancel non-pending offer: " + offerTxHash + " (status: " + currentStatus + ")")
+		return
+	}
+	query := "UPDATE marketplace_offers SET status = 'cancelled' WHERE id = ? AND status = 'pending'"
+	result, err := db.runParamSQLUpdate(query, offerTxHash)
+	if err != nil {
+		core.LogError("Could not cancel marketplace offer: " + err.Error())
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		core.LogWarn("Offer cancellation failed - possibly already cancelled: " + offerTxHash)
+	} else {
+		core.LogInfo("Cancelled marketplace offer: " + offerTxHash)
 	}
 }

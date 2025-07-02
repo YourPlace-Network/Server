@@ -27,6 +27,8 @@ import {Web3} from "web3";
 import PersistentCache from "../cache";
 
 // ---------- Global Variables ---------- //
+const SERVICE_FEE_ADDRESS = "0x742d35Cc6675C88aa240bbCE398bC4E1B91A6b7b"; // YourPlace service fee address (0.5%)
+const SERVICE_FEE_RATE = 0.005; // 0.5%
 export const mainnetBase = {
     ethChainID: 8453,
     name: "Base",
@@ -290,6 +292,103 @@ export async function baseFollowUser(toAddress: string, toBlockchain: string) {
     let address = GetAddress()!;
     let jsonData = YP.follow(toAddress, toBlockchain);
     const txnID = await baseTxn(address, jsonData);
+    return txnID;
+}
+
+// ---------- Marketplace Functions ---------- //
+export async function baseCreateMarketplaceListing(title: string, description: string, price: string, priceSmallUnit: string, currencySymbol: string, imageUrls: string[] = [], listingType: string = "fixed") {
+    let address = GetAddress()!;
+    let jsonData = YP.marketplaceListing(title, description, price, priceSmallUnit, currencySymbol, imageUrls, listingType);
+    const txnID = await baseTxn(address, jsonData);
+    return txnID;
+}
+export async function baseCreateMarketplaceOffer(listingTxHash: string, offerPrice: string, offerPriceSmallUnit: string, sellerAddress: string, message?: string) {
+    let address = GetAddress()!;
+    let jsonData = YP.marketplaceOffer(listingTxHash, offerPrice, offerPriceSmallUnit, message);
+    const txnID = await baseTxn(sellerAddress, jsonData); // Send offer from buyer to seller
+    return txnID;
+}
+export async function baseAcceptMarketplaceOffer(offerTxHash: string, buyerAddress: string) {
+    let address = GetAddress()!;
+    let jsonData = YP.marketplaceOfferAccept(offerTxHash);
+    const txnID = await baseTxn(buyerAddress, jsonData); // Send acceptance from seller to buyer
+    return txnID;
+}
+export async function basePayMarketplaceOffer(offerAcceptTxHash: string, sellerAddress: string, priceSmallUnit: string) {
+    let address = GetAddress()!;
+    let totalPriceWei = BigInt(priceSmallUnit);
+    let serviceFeeWei = totalPriceWei * BigInt(5) / BigInt(1000); // 0.5% = 5/1000
+    let sellerAmountWei = totalPriceWei - serviceFeeWei;
+    let totalPriceEth = parseFloat(priceSmallUnit) / 1e18;
+    let jsonData = YP.marketplacePayment(offerAcceptTxHash, totalPriceEth.toString(), priceSmallUnit);
+    
+    if (!baseInit) {
+        await initBaseWallet();
+    }
+    try {
+        const connections = getConnections(wagmiConfig);
+        if (!connections.length) {
+            await baseConnectWallet();
+            const newConnections = getConnections(wagmiConfig);
+            if (!newConnections.length) {
+                LogError("Failed to connect to Base Wallet to perform marketplace payment");
+                return;
+            }
+        }
+        
+        // Send payment to seller (minus service fee)
+        const sellerTxHash = await sendTransaction(wagmiConfig, {
+            account: address as `0x${string}`,
+            to: sellerAddress as `0x${string}`,
+            value: sellerAmountWei,
+            data: ethers.hexlify(Buffer.from(jsonData, "utf8")) as `0x${string}`,
+            connector: connections[0]?.connector,
+            chainId: wagmiBase.id,
+        });
+        
+        // Send service fee to service address
+        if (serviceFeeWei > 0) {
+            await sendTransaction(wagmiConfig, {
+                account: address as `0x${string}`,
+                to: SERVICE_FEE_ADDRESS as `0x${string}`,
+                value: serviceFeeWei,
+                data: "0x",
+                connector: connections[0]?.connector,
+                chainId: wagmiBase.id,
+            });
+        }
+        
+        return sellerTxHash;
+    } catch (error) {
+        LogError("Failed to pay for marketplace item: " + error);
+    }
+}
+export async function baseCompleteMarketplaceTransaction(paymentTxHash: string, buyerAddress: string) {
+    let address = GetAddress()!;
+    let jsonData = YP.marketplaceReceipt(paymentTxHash);
+    const txnID = await baseTxn(buyerAddress, jsonData); // Send receipt from seller to buyer
+    return txnID;
+}
+
+// ---------- Auction Functions (Stubbed for Forward Compatibility) ---------- //
+export async function baseCreateMarketplaceAuction(title: string, description: string, startPrice: string, startPriceSmallUnit: string, reservePrice: string, reservePriceSmallUnit: string, currencySymbol: string, duration: number) {
+    let address = GetAddress()!;
+    let jsonData = YP.marketplaceAuctionListing(title, description, startPrice, startPriceSmallUnit, reservePrice, reservePriceSmallUnit, currencySymbol, duration);
+    const txnID = await baseTxn(address, jsonData);
+    return txnID;
+}
+// Note: Bidding on auctions now uses the same offer transaction type as regular listings
+// Use baseCreateMarketplaceOffer() for both regular offers and auction bids
+export async function baseCancelMarketplaceListing(listingTxHash: string, reason?: string) {
+    let address = GetAddress()!;
+    let jsonData = YP.marketplaceListingCancel(listingTxHash, reason);
+    const txnID = await baseTxn(address, jsonData); // Self-transaction: announce cancellation to world
+    return txnID;
+}
+export async function baseCancelMarketplaceOffer(offerTxHash: string, sellerAddress: string, reason?: string) {
+    let address = GetAddress()!;
+    let jsonData = YP.marketplaceOfferCancel(offerTxHash, reason);
+    const txnID = await baseTxn(sellerAddress, jsonData); // Send cancellation from buyer to seller
     return txnID;
 }
 

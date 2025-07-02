@@ -103,6 +103,9 @@
                     <button class="navBtn col-sm btn" id="btnReplies" aria-describedby="comingsoon-tooltip" disabled>
                         <i class="bi bi-chat-dots"></i>Replies
                     </button>
+                    <button class="navBtn col-sm btn" id="btnMarketplace">
+                        <i class="bi bi-shop"></i>Marketplace
+                    </button>
                     <button class="navBtn col-sm btn" id="btnNFTs" aria-describedby="comingsoon-tooltip" disabled>
                         <i class="bi bi-gem"></i>Tokens
                     </button>
@@ -143,6 +146,7 @@
             </div>
             <div class="col-sm-1">
                 {{template "addPost" .}}
+                {{template "addSale" .}}
             </div>
         </div>
     </div>

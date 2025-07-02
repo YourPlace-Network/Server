@@ -313,6 +313,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	} else {
 		routes.ProfileRoutes(router, title, database, _blockchain, cryptoSeed, gateway)
 		routes.PostRoutes(router, database)
+		routes.MarketplaceRoutes(router, database)
 		routes.FilesRoutes(router, database)
 		routes.IPFSRoutes(router, database, ipfs, port)
 		routes.MentalHealthRoutes(router, title, database, cryptoSeed, gateway)

@@ -337,6 +337,36 @@ func (db *Database) OnchainF(txHash string, blockchain string, followerAddress s
 		db.sqlite.OnchainF(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	}
 }
+func (db *Database) MarketplaceListing(txHash string, blockchain string, fromAddr string, toAddr string, title string, description string, price string, priceSmallUnit string, currencySymbol string, imageUrls []string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceListing(txHash, blockchain, fromAddr, toAddr, title, description, price, priceSmallUnit, currencySymbol, imageUrls, timestamp)
+	}
+}
+func (db *Database) MarketplaceOffer(txHash string, blockchain string, fromAddr string, toAddr string, listingTxHash string, offerPrice string, offerPriceSmallUnit string, message string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceOffer(txHash, blockchain, fromAddr, toAddr, listingTxHash, offerPrice, offerPriceSmallUnit, message, timestamp)
+	}
+}
+func (db *Database) MarketplaceOfferAccept(txHash string, blockchain string, fromAddr string, toAddr string, offerTxHash string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceOfferAccept(txHash, blockchain, fromAddr, toAddr, offerTxHash, timestamp)
+	}
+}
+func (db *Database) MarketplacePayment(txHash string, buyerBlockchain string, fromAddr string, toAddr string, offerAcceptTxHash string, price string, priceSmallUnit string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplacePayment(txHash, buyerBlockchain, fromAddr, toAddr, offerAcceptTxHash, price, priceSmallUnit, timestamp)
+	}
+}
+func (db *Database) MarketplaceReceipt(txHash string, blockchain string, fromAddr string, toAddr string, paymentTxHash string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceReceipt(txHash, blockchain, fromAddr, toAddr, paymentTxHash, timestamp)
+	}
+}
 
 // --- Search Functions --- //
 func (db *Database) SearchGetPosts(query string) []map[string]interface{} {
@@ -446,4 +476,142 @@ func (db *Database) ProfileIsFollower(address string, blockchain string, followe
 		return db.sqlite.ProfileIsFollower(address, blockchain, followerAddress, followerBlockchain)
 	}
 	return false
+}
+
+// --- Marketplace Functions --- //
+func (db *Database) MarketplaceCreateListing(id string, sellerAddress string, sellerBlockchain string, title string, description string, price string, priceWei string, currency string, txHash string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceCreateListing(id, sellerAddress, sellerBlockchain, title, description, price, priceWei, currency, txHash)
+	}
+}
+func (db *Database) MarketplaceGetListings() []map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.MarketplaceGetListings()
+	}
+	return nil
+}
+func (db *Database) MarketplaceGetUserListings(sellerAddress string, sellerBlockchain string) []map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.MarketplaceGetUserListings(sellerAddress, sellerBlockchain)
+	}
+	return nil
+}
+func (db *Database) MarketplaceGetListing(id string) map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.MarketplaceGetListing(id)
+	}
+	return nil
+}
+func (db *Database) MarketplaceUpdateListingStatus(id string, status string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceUpdateListingStatus(id, status)
+	}
+}
+func (db *Database) MarketplaceCreateTransaction(id string, listingId string, buyerAddress string, buyerBlockchain string, sellerAddress string, sellerBlockchain string, txHash string, price string, priceWei string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceCreateTransaction(id, listingId, buyerAddress, buyerBlockchain, sellerAddress, sellerBlockchain, txHash, price, priceWei)
+	}
+}
+func (db *Database) MarketplaceGetTransaction(id string) map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.MarketplaceGetTransaction(id)
+	}
+	return nil
+}
+func (db *Database) MarketplaceUpdateTransactionStatus(id string, status string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceUpdateTransactionStatus(id, status)
+	}
+}
+func (db *Database) MarketplaceGetUserTransactions(address string, blockchain string) []map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.MarketplaceGetUserTransactions(address, blockchain)
+	}
+	return nil
+}
+func (db *Database) MarketplaceCreateOffer(id string, listingId string, offerByAddress string, offerByBlockchain string, offerPrice string, offerPriceWei string, message string, txHash string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceCreateOffer(id, listingId, offerByAddress, offerByBlockchain, offerPrice, offerPriceWei, message, txHash)
+	}
+}
+func (db *Database) MarketplaceGetOffers(listingId string) []map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.MarketplaceGetOffers(listingId)
+	}
+	return nil
+}
+func (db *Database) MarketplaceGetOffer(id string) map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.MarketplaceGetOffer(id)
+	}
+	return nil
+}
+func (db *Database) MarketplaceAcceptOffer(offerId string, acceptedAt uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceAcceptOffer(offerId, acceptedAt)
+	}
+}
+func (db *Database) MarketplaceCreatePayment(id string, offerId string, offerAcceptTxHash string, fromAddress string, fromBlockchain string, toAddress string, toBlockchain string, price string, priceWei string, txHash string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceCreatePayment(id, offerId, offerAcceptTxHash, fromAddress, fromBlockchain, toAddress, toBlockchain, price, priceWei, txHash)
+	}
+}
+func (db *Database) MarketplaceCreateReceipt(id string, paymentId string, receiptByAddress string, receiptByBlockchain string, txHash string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceCreateReceipt(id, paymentId, receiptByAddress, receiptByBlockchain, txHash)
+	}
+}
+
+// --- Auction Functions (Using Offer Transaction Type) --- //
+func (db *Database) MarketplaceCreateAuction(id string, listingId string, startTime uint64, endTime uint64, txHash string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceCreateAuction(id, listingId, startTime, endTime, txHash)
+	}
+}
+func (db *Database) MarketplaceGetAuction(listingId string) map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.MarketplaceGetAuction(listingId)
+	}
+	return nil
+}
+func (db *Database) MarketplaceUpdateHighBid(listingId string, bidAmount string, bidAmountWei string, bidderAddress string, bidderBlockchain string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceUpdateHighBid(listingId, bidAmount, bidAmountWei, bidderAddress, bidderBlockchain)
+	}
+}
+func (db *Database) OnchainMAL(txHash string, blockchain string, fromAddr string, toAddr string, title string, description string, startPrice string, startPriceWei string, reservePrice string, reservePriceWei string, currency string, duration uint64, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainMAL(txHash, blockchain, fromAddr, toAddr, title, description, startPrice, startPriceWei, reservePrice, reservePriceWei, currency, duration, timestamp)
+	}
+}
+func (db *Database) MarketplaceListingCancel(txHash string, blockchain string, fromAddr string, toAddr string, listingTxHash string, reason string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceListingCancel(txHash, blockchain, fromAddr, toAddr, listingTxHash, reason, timestamp)
+	}
+}
+func (db *Database) MarketplaceOfferCancel(txHash string, blockchain string, fromAddr string, toAddr string, offerTxHash string, reason string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.MarketplaceOfferCancel(txHash, blockchain, fromAddr, toAddr, offerTxHash, reason, timestamp)
+	}
 }

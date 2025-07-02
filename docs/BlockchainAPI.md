@@ -16,6 +16,7 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 - m = metadata
 - b = block
 - s = settings
+- $ = marketplace
 
 ### Payload Tags
 - \# = hashtag
@@ -37,8 +38,8 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 - `yp/1/rl:{"txh":"txnHash"}` - Like a post
 - `yp/1/rdl:{"txh":"txnHash"}` - Dislike a post
 ### Following (to yourself)
-- `yp/1/f:{"a":"address", "b":"blockchain"}` - Follow an address at a blockchain 🚢
-- `yp/1/fu:{"a":"address", "b":"blockchain"}` - Unfollow an address at a blockchain
+- `yp/1/f:{"a":"address","b":"blockchain"}` - Follow an address at a blockchain 🚢
+- `yp/1/fu:{"a":"address","b":"blockchain"}` - Unfollow an address at a blockchain
 - `yp/1/fh:{"h#":"#hashtag"}` - Follow a hashtag on all blockchains
 - `yp/1/fuh:{"h#":"#hashtag"}` - Unfollow a hashtag on all blockchains
 ### Metadata (to yourself)
@@ -53,7 +54,7 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 - `yp/1/mao:{"ao":"true"}` = Set profile to adults only
 - `yp/1/mbot:{"bot":"true"}` = Set profile to bot
 ### Block (to yourself)
-- `yp/1/bl:{"l":"https://block.list.com/list.json"}` - Subscribe to block list (HTTPS/IPFS)
+- `yp/1/bl:{"l":"https://block.list.com/list.json"}` - Subscribe to blocklist (HTTPS/IPFS)
 - `yp/1/ba:{"a":"address"}` - Block an address
 - `yp/1/bh:{"h#":"#hashtag"}` - Block a hashtag
 - `yp/1/bw:{"w":"word"}` - Block a word
@@ -70,3 +71,12 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 - `yp/1/sd:{"d":"nfdomains"}` - Set description preference to nfdomains
 - `yp/1/ss:{"s":"false"}` - Set saved post preference to false
 - `yp/1/sap:{"ap":"false"}` - Set autoplay preference to false
+### Marketplace (to yourself and others)
+- `yp/1/$l:{"n":"name","d":"description","p":1.000,"c":"currency","q":1,"i":["https://image.url", "ipfs://image.cid"]}` - List an item for sale (to yourself)
+- `yp/1/$o:{"b":"blockchain","txh":"tnxHash","q":1,"p":1.000}` - Make an offer on an item (buyer to seller)
+- `yp/1/$ao:{"b":"blockchain","txh":"txnHash"}` - Accept an offer (seller to buyer)
+- `yp/1/$p:{"b":"blockchain","txh":"txnHash"}` - Purchase an item (buyer to seller) Must include purchase value in transaction
+- `yp/1/$r:{"b":"blockchain","txh":"txnHash","m":"message"}` - Provide receipt once product has shipped (seller to buyer)
+- `yp/1/$la:{"n":"name","d":"description","p":1.000,"c":"currency","q":1,"i":["https://image.url", "ipfs://image.cid"],"r":0.5}` - List an auction item for sale (to yourself)
+- `yp/1/$lc:{"b":"blockchain","txh":"txnHash"}` - Cancel a listing item (to yourself) - Can only happen before payment is made
+- `yp/1/$oc:{"b":"blockchain","txh":"txnHash"}` - Cancel an offer (to seller) - Can only happen before payment is made

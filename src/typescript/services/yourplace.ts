@@ -67,4 +67,73 @@ export let YP = {
         }
         return `yp/1/f:${JSON.stringify(payload)}`
     },
+    marketplaceListing: function(title: string, description: string, price: string, priceSmallUnit: string, currencySymbol: string, imageUrls: string[] = [], listingType: string = "fixed"): string {
+        const payload = {
+            t: title,
+            d: description,
+            p: price,
+            psu: priceSmallUnit,
+            c: currencySymbol,
+            img: imageUrls,
+            lt: listingType
+        }
+        return `yp/1/ml:${JSON.stringify(payload)}`
+    },
+    marketplaceOffer: function(listingTxHash: string, offerPrice: string, offerPriceSmallUnit: string, message?: string): string {
+        const payload = {
+            l: listingTxHash,
+            op: offerPrice,
+            opsu: offerPriceSmallUnit,
+            m: message || ""
+        }
+        return `yp/1/mo:${JSON.stringify(payload)}`
+    },
+    marketplaceOfferAccept: function(offerTxHash: string): string {
+        const payload = {
+            o: offerTxHash
+        }
+        return `yp/1/moa:${JSON.stringify(payload)}`
+    },
+    marketplacePayment: function(offerAcceptTxHash: string, price: string, priceSmallUnit: string): string {
+        const payload = {
+            oa: offerAcceptTxHash,
+            p: price,
+            psu: priceSmallUnit
+        }
+        return `yp/1/mp:${JSON.stringify(payload)}`
+    },
+    marketplaceReceipt: function(paymentTxHash: string): string {
+        const payload = {
+            pt: paymentTxHash
+        }
+        return `yp/1/mr:${JSON.stringify(payload)}`
+    },
+    marketplaceListingCancel: function(listingTxHash: string, reason?: string): string {
+        const payload = {
+            l: listingTxHash,
+            r: reason || ""
+        }
+        return `yp/1/mlc:${JSON.stringify(payload)}`
+    },
+    marketplaceOfferCancel: function(offerTxHash: string, reason?: string): string {
+        const payload = {
+            o: offerTxHash,
+            r: reason || ""
+        }
+        return `yp/1/moc:${JSON.stringify(payload)}`
+    },
+    marketplaceAuctionListing: function(title: string, description: string, startPrice: string, startPriceSmallUnit: string, reservePrice: string, reservePriceSmallUnit: string, currencySymbol: string, duration: number, imageUrls: string[] = []): string {
+        const payload = {
+            t: title,
+            d: description,
+            sp: startPrice,
+            spsu: startPriceSmallUnit,
+            rp: reservePrice,
+            rpsu: reservePriceSmallUnit,
+            c: currencySymbol,
+            dur: duration,
+            img: imageUrls
+        }
+        return `yp/1/mal:${JSON.stringify(payload)}`
+    },
 }

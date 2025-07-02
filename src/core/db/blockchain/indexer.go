@@ -879,9 +879,177 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 				}
 				break
 			}
-			break
-		case 'b': // Blocking Actions
-		case 's': // Settings Actions
+		case '$':
+			switch actionPostfix {
+			case "l":
+				core.LogDebug("Marketplace Action: " + action)
+			case "o": // Marketplace Offer
+				core.LogDebug("Marketplace Action: " + action)
+				listingTxHash, ok1 := payloadObject["l"]
+				offerPrice, ok2 := payloadObject["p"]
+				offerPriceSmallUnit, ok3 := payloadObject["ps"]
+				if !ok1 || !ok2 || !ok3 {
+					core.LogDebug("Marketplace offer missing required fields")
+					break
+				}
+				listingTxHashStr, ok := listingTxHash.(string)
+				if !ok || len(listingTxHashStr) == 0 {
+					core.LogDebug("Invalid listing transaction hash in marketplace offer")
+					break
+				}
+				offerPriceStr, ok := offerPrice.(string)
+				if !ok || len(offerPriceStr) == 0 {
+					core.LogDebug("Invalid offer price in marketplace offer")
+					break
+				}
+				offerPriceSmallUnitStr, ok := offerPriceSmallUnit.(string)
+				if !ok || len(offerPriceSmallUnitStr) == 0 {
+					core.LogDebug("Invalid offer price small unit in marketplace offer")
+					break
+				}
+				message := ""
+				if msg, ok := payloadObject["m"]; ok {
+					if msgStr, ok := msg.(string); ok && len(msgStr) <= 1000 {
+						message = msgStr
+					}
+				}
+				_Database.MarketplaceOffer(txHash, blockchain, fromAddress, toAddress, listingTxHashStr, offerPriceStr, offerPriceSmallUnitStr, message, timestamp)
+				break
+			case "oa": // Marketplace Offer Accept
+				core.LogDebug("Marketplace Action: " + action)
+				offerTxHash, ok1 := payloadObject["o"]
+				if !ok1 {
+					core.LogDebug("Marketplace offer accept missing required fields")
+					break
+				}
+				offerTxHashStr, ok := offerTxHash.(string)
+				if !ok || len(offerTxHashStr) == 0 {
+					core.LogDebug("Invalid offer transaction hash in marketplace offer accept")
+					break
+				}
+				_Database.MarketplaceOfferAccept(txHash, blockchain, fromAddress, toAddress, offerTxHashStr, timestamp)
+				break
+			case "p": // Marketplace Payment
+				core.LogDebug("Marketplace Action: " + action)
+				offerAcceptTxHash, ok1 := payloadObject["oa"]
+				totalPrice, ok2 := payloadObject["tp"]
+				totalPriceSmallUnit, ok3 := payloadObject["tps"]
+				if !ok1 || !ok2 || !ok3 {
+					core.LogDebug("Marketplace payment missing required fields")
+					break
+				}
+				offerAcceptTxHashStr, ok := offerAcceptTxHash.(string)
+				if !ok || len(offerAcceptTxHashStr) == 0 {
+					core.LogDebug("Invalid offer accept transaction hash in marketplace payment")
+					break
+				}
+				totalPriceStr, ok := totalPrice.(string)
+				if !ok || len(totalPriceStr) == 0 {
+					core.LogDebug("Invalid total price in marketplace payment")
+					break
+				}
+				totalPriceSmallUnitStr, ok := totalPriceSmallUnit.(string)
+				if !ok || len(totalPriceSmallUnitStr) == 0 {
+					core.LogDebug("Invalid total price small unit in marketplace payment")
+					break
+				}
+				_Database.MarketplacePayment(txHash, blockchain, fromAddress, toAddress, offerAcceptTxHashStr, totalPriceStr, totalPriceSmallUnitStr, timestamp)
+				break
+			case "r": // Marketplace Receipt
+				core.LogDebug("Marketplace Action: " + action)
+				paymentTxHash, ok1 := payloadObject["p"]
+				if !ok1 {
+					core.LogDebug("Marketplace receipt missing required fields")
+					break
+				}
+				paymentTxHashStr, ok := paymentTxHash.(string)
+				if !ok || len(paymentTxHashStr) == 0 {
+					core.LogDebug("Invalid payment transaction hash in marketplace receipt")
+					break
+				}
+				_Database.MarketplaceReceipt(txHash, blockchain, fromAddress, toAddress, paymentTxHashStr, timestamp)
+				break
+			case "al": // Marketplace Auction Listing (use regular listing with auction type)
+				core.LogDebug("Marketplace Action: " + action)
+				title, ok1 := payloadObject["t"]
+				description, ok2 := payloadObject["d"]
+				startPrice, ok3 := payloadObject["sp"]
+				startPriceSmallUnit, ok4 := payloadObject["sps"]
+				currencySymbol, ok5 := payloadObject["c"]
+				if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 {
+					core.LogDebug("Marketplace auction listing missing required fields")
+					break
+				}
+				titleStr, ok := title.(string)
+				if !ok || len(titleStr) == 0 || len(titleStr) > 200 {
+					core.LogDebug("Invalid title in marketplace auction listing")
+					break
+				}
+				descriptionStr, ok := description.(string)
+				if !ok || len(descriptionStr) > 2000 {
+					core.LogDebug("Invalid description in marketplace auction listing")
+					break
+				}
+				startPriceStr, ok := startPrice.(string)
+				if !ok || len(startPriceStr) == 0 {
+					core.LogDebug("Invalid start price in marketplace auction listing")
+					break
+				}
+				startPriceSmallUnitStr, ok := startPriceSmallUnit.(string)
+				if !ok || len(startPriceSmallUnitStr) == 0 {
+					core.LogDebug("Invalid start price small unit in marketplace auction listing")
+					break
+				}
+				currencySymbolStr, ok := currencySymbol.(string)
+				if !ok || len(currencySymbolStr) == 0 || len(currencySymbolStr) > 10 {
+					core.LogDebug("Invalid currency symbol in marketplace auction listing")
+					break
+				}
+				// Store auction as regular listing with auction type indicator
+				imageUrls := []string{}
+				_Database.MarketplaceListing(txHash, blockchain, fromAddress, toAddress, titleStr, descriptionStr, startPriceStr, startPriceSmallUnitStr, currencySymbolStr, imageUrls, timestamp)
+				break
+			case "lc": // Marketplace Listing Cancel
+				core.LogDebug("Marketplace Action: " + action)
+				listingTxHash, ok1 := payloadObject["l"]
+				if !ok1 {
+					core.LogDebug("Marketplace listing cancel missing required fields")
+					break
+				}
+				listingTxHashStr, ok := listingTxHash.(string)
+				if !ok || len(listingTxHashStr) == 0 {
+					core.LogDebug("Invalid listing transaction hash in marketplace listing cancel")
+					break
+				}
+				reason := ""
+				if r, ok := payloadObject["r"]; ok {
+					if reasonStr, ok := r.(string); ok && len(reasonStr) <= 500 {
+						reason = reasonStr
+					}
+				}
+				_Database.MarketplaceListingCancel(txHash, blockchain, fromAddress, toAddress, listingTxHashStr, reason, timestamp)
+				break
+			case "oc": // Marketplace Offer Cancel
+				core.LogDebug("Marketplace Action: " + action)
+				offerTxHash, ok1 := payloadObject["o"]
+				if !ok1 {
+					core.LogDebug("Marketplace offer cancel missing required fields")
+					break
+				}
+				offerTxHashStr, ok := offerTxHash.(string)
+				if !ok || len(offerTxHashStr) == 0 {
+					core.LogDebug("Invalid offer transaction hash in marketplace offer cancel")
+					break
+				}
+				reason := ""
+				if r, ok := payloadObject["r"]; ok {
+					if reasonStr, ok := r.(string); ok && len(reasonStr) <= 500 {
+						reason = reasonStr
+					}
+				}
+				_Database.MarketplaceOfferCancel(txHash, blockchain, fromAddress, toAddress, offerTxHashStr, reason, timestamp)
+				break
+			}
 		default:
 			core.LogError("Unknown YourPlace transaction action: " + action)
 		}

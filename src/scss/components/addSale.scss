@@ -1,0 +1,316 @@
+// Add Sale Modal Styling
+#addSaleModal {
+  .modal-dialog {
+    max-width: 600px;
+  }
+
+  .modal-body {
+    padding: 2rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+
+    label {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--bs-body-color);
+    }
+
+    .form-control {
+      border-radius: 8px;
+      border: 2px solid var(--bs-border-color);
+      padding: 0.75rem;
+      transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+      &:focus {
+        border-color: var(--bs-primary);
+        box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+      }
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    input[type="number"].form-control {
+      -moz-appearance: textfield;
+      &::-webkit-outer-spin-button,
+      &::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+    }
+  }
+
+  #addSaleControls {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--bs-border-color);
+
+    .col {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    #uploadImageColumn {
+      justify-content: flex-start;
+    }
+
+    #listColumn {
+      justify-content: flex-end;
+      flex-direction: column;
+    }
+
+    .btn {
+      border-radius: 6px;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+    }
+
+    .form-check-label {
+      font-size: 0.9rem;
+      color: var(--bs-secondary);
+    }
+  }
+
+  #saleStatusDiv {
+    display: none;
+    margin-bottom: 0.5rem;
+
+    #saleStatusText {
+      font-size: 0.9rem;
+      color: var(--bs-success);
+      font-weight: 600;
+      margin: 0;
+    }
+  }
+
+  #saleImagesDiv {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+
+    .image-preview {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid var(--bs-border-color);
+
+      .preview-image {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+      }
+
+      .preview-controls {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 0.25rem;
+
+        .remove-image {
+          font-size: 0.75rem;
+          padding: 0.25rem 0.5rem;
+        }
+      }
+    }
+  }
+}
+
+// Add Sale Button
+#addSaleButton {
+  position: fixed;
+  bottom: 100px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease-in-out;
+  z-index: 1000;
+
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
+  }
+
+  &.grow {
+    animation: pulse 2s infinite;
+  }
+
+  i {
+    transition: transform 0.2s ease-in-out;
+  }
+
+  &:hover i {
+    transform: rotate(90deg);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+// Marketplace Cards
+.marketplace-card {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  &.shaded {
+    background: var(--bs-gray-50);
+  }
+
+  .marketplace-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+
+    .marketplace-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--bs-body-color);
+      flex: 1;
+      margin-right: 1rem;
+    }
+
+    .marketplace-price {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--bs-success);
+      background: rgba(var(--bs-success-rgb), 0.1);
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+  }
+
+  .marketplace-card-body {
+    margin-bottom: 1rem;
+
+    .marketplace-description {
+      color: var(--bs-secondary);
+      margin-bottom: 0.75rem;
+      line-height: 1.5;
+    }
+
+    .marketplace-status {
+      font-size: 0.9rem;
+      font-weight: 500;
+      
+      &:contains("active") {
+        color: var(--bs-success);
+      }
+      
+      &:contains("sold") {
+        color: var(--bs-danger);
+      }
+      
+      &:contains("inactive") {
+        color: var(--bs-warning);
+      }
+    }
+  }
+
+  .marketplace-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--bs-border-color);
+    padding-top: 1rem;
+
+    .text-muted {
+      font-size: 0.85rem;
+    }
+
+    .buy-btn {
+      font-weight: 500;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+    }
+  }
+}
+
+// Active navigation button styling
+.navBtn.active {
+  background-color: var(--bs-primary);
+  color: white;
+  border-color: var(--bs-primary);
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  #addSaleModal {
+    .modal-dialog {
+      margin: 1rem;
+      max-width: calc(100% - 2rem);
+    }
+
+    #addSaleControls {
+      .col {
+        flex-direction: column;
+        text-align: center;
+        margin-bottom: 1.5rem;
+      }
+    }
+
+    #saleImagesDiv {
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
+  }
+
+  .marketplace-card {
+    padding: 1rem;
+
+    .marketplace-card-header {
+      flex-direction: column;
+      align-items: flex-start;
+
+      .marketplace-title {
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+      }
+    }
+
+    .marketplace-card-footer {
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+  }
+
+  #addSaleButton {
+    bottom: 80px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    font-size: 1.25rem;
+  }
+}

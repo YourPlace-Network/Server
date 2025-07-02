@@ -220,8 +220,10 @@ func IsValidAddress(payload string, blockchain string) bool {
 	} else if blockchain == "algo" {
 		return IsValidAlgoAddress(payload)
 	}
-	core.LogError("Invalid blockchain")
 	return false
+}
+func IsValidBaseAddress(payload string) bool {
+	return IsValidEthAddress(payload)
 }
 func IsValidAlgoAddress(payload string) bool {
 	_, err := _algotypes.DecodeAddress(payload)
@@ -260,6 +262,63 @@ func IsValidUUID(payload string) bool {
 		return false
 	}
 	return true
+}
+func IsValidMarketplacePrice(price string) bool {
+	if price == "" || len(price) > 50 {
+		return false
+	}
+	priceFloat, err := strconv.ParseFloat(price, 64)
+	if err != nil {
+		return false
+	}
+	return priceFloat > 0 && priceFloat < 1000000
+}
+func IsValidMarketplacePriceSmallUnit(priceSmallUnit string, currency string) bool {
+	if priceSmallUnit == "" || len(priceSmallUnit) > 80 {
+		return false
+	}
+	priceInt, err := strconv.ParseUint(priceSmallUnit, 10, 64)
+	if err != nil {
+		return false
+	}
+	return priceInt > 0
+}
+func IsValidMarketplaceCurrency(currency string) bool {
+	validCurrencies := []string{"ETH", "BTC", "ALGO", "SOL"}
+	for _, validCurrency := range validCurrencies {
+		if currency == validCurrency {
+			return true
+		}
+	}
+	return false
+}
+func IsValidMarketplaceTitle(title string) bool {
+	if title == "" || len(title) > 200 {
+		return false
+	}
+	return !strings.Contains(title, "<") && !strings.Contains(title, ">")
+}
+func IsValidMarketplaceDescription(description string) bool {
+	if description == "" || len(description) > 5000 {
+		return false
+	}
+	return !strings.Contains(description, "<script")
+}
+func IsValidMarketplaceImageURL(imageURL string) bool {
+	if imageURL == "" || len(imageURL) > 500 {
+		return false
+	}
+	u, err := url.Parse(imageURL)
+	if err != nil {
+		return false
+	}
+	if u.Scheme == "https" {
+		return true
+	}
+	if u.Scheme == "ipfs" || strings.HasPrefix(imageURL, "ipfs://") {
+		return IsValidCID(imageURL)
+	}
+	return false
 }
 func IsValidEthAddress(payload string) bool {
 	if !strings.HasPrefix(payload, "0x") {

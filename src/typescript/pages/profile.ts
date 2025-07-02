@@ -2,6 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss"
 import "../../scss/pages/profile.scss";
 import "../components/addPost";
+import "../components/addSale";
 import "../components/modalDialog";
 import "../components/scrollTop";
 import "../components/menu";
@@ -29,12 +30,14 @@ declare global { // Extend the window interface with public objects
     function main() {
         let DOM = {
             addPostButton: document.getElementById("addPostButton")! as HTMLButtonElement,
+            addSaleButton: document.getElementById("addSaleButton")! as HTMLButtonElement,
             avatarPreview: document.getElementById("avatarPreview")! as HTMLImageElement,
             bannerPreview: document.getElementById("bannerPreview")! as HTMLImageElement,
             btnFiles: document.getElementById("btnFiles")! as HTMLButtonElement,
             btnNFTs: document.getElementById("btnNFTs")! as HTMLButtonElement,
             btnSearch: document.getElementById("btnSearch")! as HTMLButtonElement,
             btnPosts: document.getElementById("btnPosts")! as HTMLButtonElement,
+            btnMarketplace: document.getElementById("btnMarketplace")! as HTMLButtonElement,
             btnComments: document.getElementById("btnComments")! as HTMLButtonElement,
             profileAddressCopy: document.getElementById("profileAddressCopy")! as HTMLElement,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
@@ -69,6 +72,7 @@ declare global { // Extend the window interface with public objects
             likesNum: document.getElementById("likesNum")! as HTMLDivElement,
         }
         let copiedTooltip: any;
+        let currentView = "posts"; // Track current view: "posts" or "marketplace"
 
         // --------- Page Functions --------- //
         async function init() {
@@ -114,6 +118,98 @@ declare global { // Extend the window interface with public objects
                     postDiv.classList.add("shaded");
                 }
                 DOM.contentDiv.appendChild(postDiv);
+            }
+        }
+        async function displayMarketplace(blockchain: string, address: string) {
+            DOM.contentDiv.innerHTML = ""; // Clear existing content
+            try {
+                let response = await HttpGetJson(`/api/marketplace/listings/${blockchain}/${address}`);
+                if (response[0] !== 200) {
+                    setEmptyPlaceholder("bi-shop", "No Marketplace Listings", "Start selling by creating your first listing!");
+                    return;
+                }
+                let listings = response[1].listings;
+                if (!listings || listings.length === 0) {
+                    setEmptyPlaceholder("bi-shop", "No Marketplace Listings", "Start selling by creating your first listing!");
+                    return;
+                }
+                for (let i = 0; i < listings.length; i++) {
+                    let listingDiv = createMarketplaceCard(listings[i]);
+                    if (i % 2 === 0) {
+                        listingDiv.classList.add("shaded");
+                    }
+                    DOM.contentDiv.appendChild(listingDiv);
+                }
+            } catch (error) {
+                LogError("Failed to load marketplace listings: " + error);
+                setEmptyPlaceholder("bi-exclamation-triangle", "Error Loading Marketplace", "Please try again later.");
+            }
+        }
+        function createMarketplaceCard(listing: any): HTMLDivElement {
+            let card = document.createElement("div");
+            card.className = "marketplace-card";
+            card.innerHTML = `
+                <div class="marketplace-card-header">
+                    <h5 class="marketplace-title">${XSSSanitizeValue(listing.title)}</h5>
+                    <span class="marketplace-price">${XSSSanitizeValue(listing.price)} ${XSSSanitizeValue(listing.currency)}</span>
+                </div>
+                <div class="marketplace-card-body">
+                    <p class="marketplace-description">${XSSSanitizeValue(listing.description)}</p>
+                    <div class="marketplace-status">Status: ${XSSSanitizeValue(listing.status)}</div>
+                </div>
+                <div class="marketplace-card-footer">
+                    <small class="text-muted">Listed ${new Date(listing.createdAt * 1000).toLocaleDateString()}</small>
+                    ${listing.status === 'active' ? `<button class="btn btn-primary btn-sm buy-btn" data-listing-id="${listing.id}">Buy Now</button>` : ''}
+                </div>
+            `;
+            
+            // Add buy button event listener
+            let buyBtn = card.querySelector('.buy-btn') as HTMLButtonElement;
+            if (buyBtn) {
+                buyBtn.addEventListener('click', () => purchaseItem(listing));
+            }
+            
+            return card;
+        }
+        async function purchaseItem(listing: any) {
+            try {
+                LogInfo("Purchasing item: " + listing.id);
+                // This would integrate with the blockchain purchase function
+                // For now, just show a placeholder message
+                alert("Purchase functionality will be implemented with smart contract integration");
+            } catch (error) {
+                LogError("Failed to purchase item: " + error);
+            }
+        }
+        function setEmptyPlaceholder(iconClass: string, title: string, description: string) {
+            DOM.placeHolderIcon.className = `bi ${iconClass}`;
+            DOM.placeHolderH3.textContent = title;
+            DOM.placeHolderP.textContent = description;
+            DOM.emptyContentDivPlaceHolder.style.display = "block";
+        }
+        function switchView(view: string) {
+            currentView = view;
+            // Clear content
+            DOM.contentDiv.innerHTML = "";
+            DOM.emptyContentDivPlaceHolder.style.display = "none";
+            
+            // Update button states
+            document.querySelectorAll('.navBtn').forEach(btn => btn.classList.remove('active'));
+            
+            if (view === "posts") {
+                DOM.btnPosts.classList.add('active');
+                DOM.addPostButton.style.display = "block";
+                DOM.addSaleButton.style.display = "none";
+                let requestedAddress = DOM.injectedAddress.value;
+                let requestedBlockchain = DOM.injectedBlockchain.value;
+                displayPosts(requestedBlockchain, requestedAddress);
+            } else if (view === "marketplace") {
+                DOM.btnMarketplace.classList.add('active');
+                DOM.addPostButton.style.display = "none";
+                DOM.addSaleButton.style.display = "block";
+                let requestedAddress = DOM.injectedAddress.value;
+                let requestedBlockchain = DOM.injectedBlockchain.value;
+                displayMarketplace(requestedBlockchain, requestedAddress);
             }
         }
 
@@ -380,7 +476,10 @@ declare global { // Extend the window interface with public objects
 
         // --------- Event Handlers --------- //
         DOM.btnPosts.addEventListener("click", function () {
-            window.location.href = "/p/";
+            switchView("posts");
+        });
+        DOM.btnMarketplace.addEventListener("click", function () {
+            switchView("marketplace");
         });
         DOM.btnSearch.addEventListener("click", function () {
             window.location.href = "/";
