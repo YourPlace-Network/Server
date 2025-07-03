@@ -947,14 +947,11 @@ BATCHRPCCALL:
 	}
 	return blocks
 }
-func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker,
-	requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int,
-	targetLatestBlock *big.Int, batchSize *big.Int, direction string, errorChan chan<- error) error {
+func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker, requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string, errorChan chan<- error) error {
 	// Worker thread to process batches of blocks
 	for {
 		batch, populated := batchJobQueue.Dequeue()
 		if !populated {
-			core.LogDebug("Completed Worker Thread - No more batches to process")
 			return nil
 		}
 		batchArray := batch.([]big.Int) // Get the batch of blocks

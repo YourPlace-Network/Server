@@ -1590,3 +1590,69 @@ func (db *SQLite) OnchainF(txHash string, blockchain string, followerAddress str
 		core.LogError("Could not tokenize the follow in the database: " + err.Error())
 	}
 }
+
+// --- Followers Feed Functions --- //
+func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int) []map[string]interface{} {
+	var posts []map[string]interface{}
+	query := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, p.blockchain 
+			  FROM onchain_post p 
+			  INNER JOIN onchain_follow f ON p.fromAddress = f.followeeAddress AND p.blockchain = f.followeeBlockchain 
+			  WHERE f.followerAddress = LOWER(?) AND f.followerBlockchain = ? 
+			  ORDER BY p.timestamp DESC 
+			  LIMIT ?`
+
+	rows, err := db.runParamSQLSelect(query, followerAddress, followerBlockchain, limit)
+	if err != nil {
+		core.LogError("Could not get followers feed from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var timestamp uint64
+		var txHash, parentTxHash, payload, blockchain, address string
+		var attachments [][]interface{}
+		err := rows.Scan(&txHash, &parentTxHash, &timestamp, &payload, &address, &blockchain)
+		if err != nil {
+			core.LogError("Could not scan database rows for followers feed: " + err.Error())
+			return nil
+		}
+
+		// Get attachments for this post
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
+		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash)
+		if err != nil {
+			core.LogDebug("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
+		} else if rowsAttachments != nil {
+			for rowsAttachments.Next() {
+				var mimeType string
+				var size uint64
+				var fileUrl string
+				var fileName string
+				err := rowsAttachments.Scan(&mimeType, &size, &fileUrl, &fileName)
+				if err != nil {
+					core.LogDebug("Could parse rows for post attachment: " + err.Error())
+					break // bail rowsAttachments for loop
+				}
+				attachment := []interface{}{fileUrl, mimeType, size, fileName}
+				attachments = append(attachments, attachment)
+			}
+			rowsAttachments.Close()
+		}
+
+		post := map[string]interface{}{
+			"resultType": "post",
+			"txHash":     txHash,
+			"parentHash": parentTxHash,
+			"timestamp":  timestamp,
+			"payload":    payload,
+			"blockchain": blockchain,
+			"address":    address,
+		}
+		if attachments != nil {
+			post["attachments"] = attachments
+		}
+		posts = append(posts, post)
+	}
+	return posts
+}

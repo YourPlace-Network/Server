@@ -5,7 +5,7 @@ import "../components/menu";
 import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
 import {HttpGetJson} from "../util/network";
 import {IsValidURL, XSSSanitizeUrl} from "../util/security";
-import {WalletGetAvatar, WalletGetDescription, WalletGetName} from "../util/blockchain/wallet";
+import {WalletGetAvatar, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {CIDToSubdomainURL} from "../util/ipfs";
 
 (function initialize() {
@@ -15,6 +15,8 @@ import {CIDToSubdomainURL} from "../util/ipfs";
         let DOM = {
             searchInput: document.getElementById("searchInput")! as HTMLInputElement,
             resultsDiv: document.getElementById("resultsDiv")! as HTMLDivElement,
+            followersFeedDiv: document.getElementById("followersFeedDiv")! as HTMLDivElement,
+            isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
         }
         type user = { // address is the map key
             blockchain: string,
@@ -22,12 +24,110 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             name: string,
         }
 
-        async function handleSearch() {
-            DOM.resultsDiv.replaceChildren();
-            let query = DOM.searchInput.value;
-            if (query.length <= 0) {
+        async function loadFollowersFeed() {
+            if (DOM.isCookieAuthenticated.value !== "true") {
                 return;
             }
+            
+            try {
+                interface Profile {
+                    name: string | null;
+                    avatar: URL | null;
+                }
+                // Get current user's address and blockchain from wallet functions
+                const userAddress = GetAddress();
+                const userBlockchain = GetChain();
+                if (!userAddress || !userBlockchain) {
+                    return;
+                }
+                DOM.followersFeedDiv.replaceChildren();
+                let resp = await HttpGetJson(`/feed/${userBlockchain}/${userAddress}?limit=20`);
+                if (resp[0] !== 200 || !resp[1].posts) {
+                    return;
+                }
+                let posts: any[] = resp[1].posts;
+                const ProfileCache: Record<string, Profile> = {};
+                const pendingCards: HTMLDivElement[] = [];
+                // Create all cards with placeholder data first
+                for (let i = 0; i < posts.length; i++) {
+                    posts[i].author = "Loading...";
+                    posts[i].avatarSrc = "/static/image/avatar.png";
+                    let postDiv = await CreatePostCard(posts[i]);
+                    if (i % 2 === 0) {
+                        postDiv.classList.add("shaded");
+                    }
+                    pendingCards.push(postDiv);
+                    DOM.followersFeedDiv.appendChild(postDiv);
+                }
+                // Fetch profile data for each unique author
+                const profilePromises = posts.map(async post => {
+                    let blockchain = post.blockchain;
+                    let address = post.address;
+                    let key = blockchain + address;
+                    if (!(key in ProfileCache)) {
+                        let name = await WalletGetName(blockchain, address);
+                        if (name === null || name.length === 0) {
+                            let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
+                            if (response[0] === 200) {
+                                if (response[1] && response[1].name.length > 0) {
+                                    name = response[1].name;
+                                }
+                            }
+                        }
+                        let avatar: URL | null = new URL(await WalletGetAvatar(blockchain, address));
+                        if (avatar === null) {
+                            let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
+                            if (response[0] === 200 && response[1] && response[1].avatarAddress) {
+                                const avatarAddress = response[1].avatarAddress.trim();
+                                if (avatarAddress.length > 0) {
+                                    const avatarURL = CIDToSubdomainURL(avatarAddress);
+                                    if (IsValidURL(avatarURL)) {
+                                        avatar = new URL(avatarURL);
+                                    } else {
+                                        avatar = null;
+                                    }
+                                } else {
+                                    avatar = null;
+                                }
+                            } else {
+                                avatar = null;
+                            }
+                        }
+                        ProfileCache[key] = {name, avatar};
+                        // Update all posts for this profile
+                        pendingCards.forEach(postDiv => {
+                            const postAddress = postDiv.querySelector('.postCardAddress') as HTMLInputElement;
+                            const postBlockchain = postDiv.querySelector('.postCardBlockchain') as HTMLInputElement;
+                            if (postAddress && postBlockchain) {
+                                const postKey = postBlockchain.value + postAddress.value;
+                                if (postKey === key) {
+                                    const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
+                                    const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
+                                    if (authorElement) authorElement.textContent = name || "Unknown";
+                                    if (avatarElement) {
+                                        const defaultPath = "/static/image/avatar.png";
+                                        avatarElement.src = avatar ? XSSSanitizeUrl(avatar.toString()) : defaultPath;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+                await Promise.all(profilePromises);
+            } catch (error) {
+                console.error("Error loading followers feed:", error);
+            }
+        }
+
+        async function handleSearch() {
+            DOM.resultsDiv.replaceChildren();
+            DOM.followersFeedDiv.style.display = "none";
+            let query = DOM.searchInput.value;
+            if (query.length <= 0) {
+                DOM.followersFeedDiv.style.display = "block";
+                return;
+            }
+            DOM.resultsDiv.style.display = "block";
             let resp = await HttpGetJson("/s/?q=" + query);
             if (resp[0] !== 200 || resp[1].results === null) {
                 return;
@@ -169,5 +269,8 @@ import {CIDToSubdomainURL} from "../util/ipfs";
         ["keyup", "cut", "paste"].forEach(event => DOM.searchInput.addEventListener(event, debounceHandler, false));
 
         DOM.searchInput.value = "";
+        DOM.resultsDiv.style.display = "none"; // Initialize followers feed on page load
+        DOM.followersFeedDiv.style.display = "block";
+        loadFollowersFeed();
     }
 })();
