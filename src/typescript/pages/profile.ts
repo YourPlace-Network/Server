@@ -13,7 +13,7 @@ import {GetToasts} from "../components/toast";
 import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletGetDescription, WalletGetLocation, WalletGetWebsite, WalletSendPostNudge, WalletFollowUser} from "../util/blockchain/wallet";
 import {CreatePostCard} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
-import {CIDToSubdomainURL, GetIPFSFile} from "../util/ipfs";
+import {CIDToSubdomainURL, GetIPFSFile, loadImageWithTimeout, checkIPFSContentExists} from "../util/ipfs";
 import PersistentCache from "../util/cache";
 
 declare global { // Extend the window interface with public objects
@@ -136,6 +136,7 @@ declare global { // Extend the window interface with public objects
                 }
                 DOM.contentDiv.appendChild(postDiv);
             }
+            populatePostCards();
         }
 
         // --------- Profile Data Helpers --------- //
@@ -209,37 +210,26 @@ declare global { // Extend the window interface with public objects
         async function renderProfileAvatar(blockchain: string, address: string) {
             let avatarURL = await WalletGetAvatar(blockchain, address); // get the avatar from the blockchain
             if (IsValidURL(avatarURL)) {
-                DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
-                populatePostCards();
+                const success = await loadImageWithTimeout(avatarURL, 3000);
+                if (success) {
+                    DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
+                } else {
+                    DOM.profileAvatar.src = "/static/image/avatar.png";
+                    LogError(`Avatar failed to load, using default: ${avatarURL}`);
+                }
                 return;
             } else if (IsValidIpfsCid(avatarURL)) {
-                avatarURL = CIDToSubdomainURL(avatarURL);
-                DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
-                return;
-            }
-        }
-        async function renderProfileBanner(blockchain: string, address: string) {
-            const response = await HttpGetJson("/profile/banner/" + blockchain + "/" + address);
-            if (response[0] === 200 && response[1]?.bannerAddress) {
-                let bannerAddress = response[1].bannerAddress;
-                if (bannerAddress.startsWith("ipfs://")) {
-                    bannerAddress = CIDToSubdomainURL(bannerAddress);
-                    if (bannerAddress) {
-                        const img = new Image();
-                        img.crossOrigin = "anonymous";
-                        img.onload = () => {
-                            DOM.profileBanner.src = img.src;
-                        };
-                        img.onerror = () => {
-                            LogError("Failed to load banner image");
-                        };
-                        img.src = bannerAddress; // Start the loading process
+                const ipfsURL = CIDToSubdomainURL(avatarURL);
+                if (ipfsURL) {
+                    const success = await loadImageWithTimeout(ipfsURL, 3000);
+                    if (success) {
+                        DOM.profileAvatar.src = XSSSanitizeUrl(ipfsURL);
                     } else {
-                        LogError("Invalid banner address");
+                        DOM.profileAvatar.src = "/static/image/avatar.png";
+                        LogError(`IPFS avatar failed to load, using default: ${ipfsURL}`);
                     }
-                } else if (IsValidURL(bannerAddress)) {
-                    DOM.profileBanner.src = XSSSanitizeUrl(bannerAddress);
                 }
+                return;
             }
         }
         async function renderProfileDescription(blockchain: string, address: string) {
@@ -407,21 +397,30 @@ declare global { // Extend the window interface with public objects
             updatePostAuthors();
         }
         async function renderProfileAvatarFromData(avatarAddress: string, blockchain: string, address: string) {
-            if (!avatarAddress) {
-                const avatarURL = await WalletGetAvatar(blockchain, address);
-                if (IsValidURL(avatarURL)) {
+            let avatarURL = avatarAddress;
+            if (!avatarAddress) { // If no cached avatar, try blockchain lookup
+                avatarURL = await WalletGetAvatar(blockchain, address);
+            }
+            if (IsValidURL(avatarURL)) {
+                const success = await loadImageWithTimeout(avatarURL, 3000);
+                if (success) {
                     DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
-                } else if (IsValidIpfsCid(avatarURL)) {
-                    DOM.profileAvatar.src = XSSSanitizeUrl(CIDToSubdomainURL(avatarURL));
+                } else {
+                    DOM.profileAvatar.src = "/static/image/avatar.png";
+                    LogError(`Avatar failed to load, using default: ${avatarURL}`);
                 }
-            } else {
-                if (IsValidURL(avatarAddress)) {
-                    DOM.profileAvatar.src = XSSSanitizeUrl(avatarAddress);
-                } else if (IsValidIpfsCid(avatarAddress)) {
-                    DOM.profileAvatar.src = XSSSanitizeUrl(CIDToSubdomainURL(avatarAddress));
+            } else if (IsValidIpfsCid(avatarURL)) {
+                const ipfsURL = CIDToSubdomainURL(avatarURL);
+                if (ipfsURL) {
+                    const success = await loadImageWithTimeout(ipfsURL, 3000);
+                    if (success) {
+                        DOM.profileAvatar.src = XSSSanitizeUrl(ipfsURL);
+                    } else {
+                        DOM.profileAvatar.src = "/static/image/avatar.png";
+                        LogError(`IPFS avatar failed to load, using default: ${ipfsURL}`);
+                    }
                 }
             }
-            populatePostCards();
         }
         async function renderProfileDescriptionFromData(description: string) {
             if (description && description.length > 0) {
@@ -475,15 +474,13 @@ declare global { // Extend the window interface with public objects
                     bannerURL = CIDToSubdomainURL(bannerAddress);
                 }
                 if (IsValidURL(bannerURL)) {
-                    const img = new Image();
-                    img.crossOrigin = "anonymous";
-                    img.onload = () => {
-                        DOM.profileBanner.src = img.src;
-                    };
-                    img.onerror = () => {
-                        LogError("Failed to load banner image from cache");
-                    };
-                    img.src = bannerURL;
+                    const success = await loadImageWithTimeout(bannerURL, 3000);
+                    if (success) {
+                        DOM.profileBanner.src = XSSSanitizeUrl(bannerURL);
+                    } else {
+                        DOM.profileBanner.src = "/static/image/banner.jpg";
+                        LogError(`Banner failed to load, using default`);
+                    }
                 }
             }
         }
