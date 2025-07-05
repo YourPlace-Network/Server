@@ -83,7 +83,7 @@ declare global { // Extend the window interface with public objects
             GetToasts().catch(error => LogError("Toast loading failed: " + error)); // Load toasts in background - don't block profile loading
             copiedTooltip = new window.bootstrap.Tooltip(DOM.profileAddressCopy, {title: "Copied", trigger: "manual", placement: "right"});
         }
-        async function updateProfile() {
+        async function updateProfile() { // "main" method for loading the profile and it's data
             let requestedAddress = DOM.injectedAddress.value;
             let requestedBlockchain = DOM.injectedBlockchain.value;
             if (!requestedAddress || !IsValidAddress(requestedAddress, requestedBlockchain)) {
@@ -141,7 +141,7 @@ declare global { // Extend the window interface with public objects
         // --------- Profile Data Helpers --------- //
         async function renderProfileFromCache(profileData: any, blockchain: string, address: string) {
             await renderProfileAddress(address);
-            await renderProfileNameFromData(profileData.name, address);
+            await renderProfileNameFromData(profileData.name, blockchain, address);
             await renderProfileAvatarFromData(profileData.avatarAddress, blockchain, address);
             await renderProfileDescriptionFromData(profileData.description);
             await renderProfileLocationFromData(profileData.location);
@@ -384,18 +384,23 @@ declare global { // Extend the window interface with public objects
         }
 
         // --------- Cache Render Helper Functions --------- //
-        async function renderProfileNameFromData(name: string, address: string) {
-            const displayName = name && name.length > 0 ? name : truncateAddress(address);
-            DOM.profileName.textContent = displayName;
+        async function renderProfileNameFromData(cachedName: string, blockchain: string, address: string) {
+            // First try ENS lookup (same as original renderProfileName)
+            let name = await WalletGetName(blockchain, address);
+            if (name === null || name.length === 0) {
+                // Fall back to cached database name
+                name = cachedName && cachedName.length > 0 ? cachedName : truncateAddress(address);
+            }
+            DOM.profileName.textContent = name;
             const updatePostAuthors = () => {
                 const avatarAuthors = document.querySelectorAll("b.postCardAuthor");
-                if (avatarAuthors.length > 0) {
+                if (avatarAuthors.length > 0 && typeof name === "string") {
                     avatarAuthors.forEach((b: Element) => {
                         if (b instanceof HTMLElement) {
-                            b.textContent = displayName;
+                            b.textContent = name;
                         }
                     });
-                } else {
+                } else if (avatarAuthors.length === 0) {
                     setTimeout(updatePostAuthors, 100);
                 }
             };
