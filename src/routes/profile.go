@@ -73,6 +73,20 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		isGuest := true
 		viewerAddress, addressOk := c.Get("accountAddress")
 		viewerBlockchain, blockchainOk := c.Get("blockchain")
+		// If context values aren't set (due to auth exclusion), check cookie directly
+		if !addressOk || !blockchainOk {
+			authCookie, err := c.Request.Cookie("yp_auth")
+			if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
+				cookieAddress, err1 := security.GetCookieValue(authCookie, cryptoSeed, "address", database)
+				cookieBlockchain, err2 := security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
+				if err1 == nil && err2 == nil {
+					viewerAddress = cookieAddress
+					viewerBlockchain = cookieBlockchain
+					addressOk = true
+					blockchainOk = true
+				}
+			}
+		}
 		if addressOk && blockchainOk && (viewerAddress == addressParam) && (viewerBlockchain == blockchainParam) {
 			isGuest = false
 		}
