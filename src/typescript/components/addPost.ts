@@ -7,7 +7,7 @@ import {CreateAttachmentPreview} from "../util/domFactory";
 import {UploadFile} from "../util/files";
 import {AddFileToIPFS} from "../util/ipfs";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
-import tinymce from "tinymce/tinymce";
+// TinyMCE will be lazy loaded when needed
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -39,29 +39,40 @@ import tinymce from "tinymce/tinymce";
             size: string;
             fileUrl?: string;
         }
+        let tinymceLoaded = false;
+        let tinymceLoadingPromise: Promise<void> | null = null;
 
-        tinymce.init({
-            selector: "#addPostText",
-            plugins: "code table lists emoticons",
-            toolbar: "styles | forecolor backcolor emoticons | bullist numlist | code",
-            toolbar_mode: "sliding",
-            menubar: false,
-            statusbar: true,
-            min_height: 200,
-            base_url: "/static/tinymce",
-            resize: true,
-            branding: false,
-            license_key: "gpl",
-            //paste_data_images: false, // todo
-            setup: function(editor) {
-                editor.on("input", function() {
-                    debounceHandler();
+        async function initTinyMCE() {
+            if (tinymceLoaded) return;
+            if (tinymceLoadingPromise) return tinymceLoadingPromise;
+            tinymceLoadingPromise = (async () => {
+                const tinymce = await import("tinymce/tinymce");
+                await tinymce.default.init({
+                    selector: "#addPostText",
+                    plugins: "code table lists emoticons",
+                    toolbar: "styles | forecolor backcolor emoticons | bullist numlist | code",
+                    toolbar_mode: "sliding",
+                    menubar: false,
+                    statusbar: true,
+                    min_height: 200,
+                    base_url: "/static/tinymce",
+                    resize: true,
+                    branding: false,
+                    license_key: "gpl",
+                    //paste_data_images: false, // todo
+                    setup: function(editor) {
+                        editor.on("input", function() {
+                            debounceHandler();
+                        });
+                        editor.on("change", function() {
+                            debounceHandler();
+                        });
+                    }
                 });
-                editor.on("change", function() {
-                    debounceHandler();
-                });
-            }
-        });
+                tinymceLoaded = true;
+            })();
+            return tinymceLoadingPromise;
+        }
 
         function hideModal() {
             DOM.spiceometerText.innerText = "";
@@ -71,16 +82,23 @@ import tinymce from "tinymce/tinymce";
             modalBackdrops.forEach(backdrop => {
                 backdrop.remove();
             })
-            tinymce.get("addPostText")!.setContent("");
+            if (tinymceLoaded) {
+                (window as any).tinymce.get("addPostText")?.setContent("");
+            }
         }
-        function showModal() {
+        async function showModal() {
             addPostModal.show();
-            tinymce.get("addPostText")!.focus();
+            await initTinyMCE(); // Load TinyMCE when modal is shown
+            if (tinymceLoaded) {
+                (window as any).tinymce.get("addPostText")?.focus();
+            }
             enableSpiceometer().then();
         }
 
         async function submitPost() {
-            let payload = tinymce.get("addPostText")!.getContent();
+            if (!tinymceLoaded) return;
+            
+            let payload = (window as any).tinymce.get("addPostText")?.getContent();
             if (!payload || payload.trim() === "") {
                 hideModal();
                 return;
@@ -95,7 +113,7 @@ import tinymce from "tinymce/tinymce";
             clearPostObj();
             hideModal();
             DOM.spiceometerText.innerText = "";
-            tinymce.get("addPostText")!.setContent("");
+            (window as any).tinymce.get("addPostText")?.setContent("");
         }
         async function prepareAttachedPost() {
             let csrfToken = DOM.csrfToken.value;
@@ -173,7 +191,9 @@ import tinymce from "tinymce/tinymce";
             }
         }
         async function checkSpiciness() {
-            let quote = tinymce.get("addPostText")!.getContent();
+            if (!tinymceLoaded) return;
+            let quote = (window as any).tinymce.get("addPostText")?.getContent();
+            if (!quote) return;
             // Strip HTML tags for spiciness check
             quote = quote.replace(/<[^>]*>/g, "");
             if (quote.length < 3) {

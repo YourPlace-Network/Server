@@ -74,11 +74,11 @@ func DecryptBytes(password string, cipherText []byte) ([]byte, error) {
 	if len(cipherText) <= nonceSize+saltSize {
 		return nil, core.LogDebugReturn("cipher text too short")
 	}
-	salt := cipherText[:saltSize]                                       // extract salt
-	nonce := cipherText[len(cipherText)-nonceSize:]                     // extract nonce
-	cipherText = cipherText[saltSize : len(cipherText)-nonceSize]       // extract cipherText
-	key := pbkdf2.Key([]byte(password), salt, 1000000, 32, sha3.New512) // derive key from password and salt
-	block, err := aes.NewCipher(key)                                    // create AES-256 cipher block
+	salt := cipherText[:saltSize]                                      // extract salt
+	nonce := cipherText[len(cipherText)-nonceSize:]                    // extract nonce
+	cipherText = cipherText[saltSize : len(cipherText)-nonceSize]      // extract cipherText
+	key := pbkdf2.Key([]byte(password), salt, 100000, 32, sha3.New512) // derive key from password and salt
+	block, err := aes.NewCipher(key)                                   // create AES-256 cipher block
 	if err != nil {
 		return nil, core.LogDebugReturn("AES cipher creation failed: " + err.Error())
 	}
@@ -97,11 +97,11 @@ func DeriveKey(password string) ([]byte, []byte, error) {
 		return nil, nil, core.LogDebugReturn("key derivation password too short")
 	}
 	salt := RandomBytes(16)
-	key := pbkdf2.Key([]byte(password), salt, 1000000, 32, sha3.New512)
+	key := pbkdf2.Key([]byte(password), salt, 100000, 32, sha3.New512)
 	return key, salt, nil
 }
 func DeriveKeySalt(password string, salt []byte) []byte {
-	return pbkdf2.Key([]byte(password), salt, 1000000, 32, sha3.New512)
+	return pbkdf2.Key([]byte(password), salt, 100000, 32, sha3.New512)
 }
 func GenerateSalt(saltSize int) []byte {
 	var salt = make([]byte, saltSize)

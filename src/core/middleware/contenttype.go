@@ -23,7 +23,6 @@ func ContentTypeMiddleware() gin.HandlerFunc {
 		}
 	}
 }
-
 func CacheControlMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
