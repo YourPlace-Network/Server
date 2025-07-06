@@ -849,7 +849,7 @@ const tips = [
     "Never hurt yourself because of online harassment. Just delete your accounts and live in the real world for a while. It's a necessary detox that only you can do",
     "Most dating apps are just huge pools of unrealistic expectations",
     "Being cyber bullied is kind of an own-goal. You can literally just delete your account and log off and then it stops. You can even downgrade to a dumb phone. Whatever problems you're having online, will most likely go away when you choose not to live with it. If the cyberbullying leaks into your real life, then sue the real life culprits (and bring evidence)",
-
+    "It is much better to ask your God for wisdom, than intelligence or money",
 
 
 ];

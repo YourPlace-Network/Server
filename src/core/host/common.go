@@ -9,6 +9,7 @@ import (
 	"compress/gzip"
 	"embed"
 	"errors"
+	"github.com/oschwald/geoip2-golang"
 	"io"
 	"io/fs"
 	"net"
@@ -20,6 +21,9 @@ import (
 	"strings"
 	"time"
 )
+
+//go:embed bin/GeoLite2-Country.mmdb
+var geoliteDB []byte
 
 func IsDebugMode() bool {
 	if GetEnvVar("YourPlaceDebug") == "true" || DoesExist(GetDataDir()+"debug") {
@@ -185,6 +189,22 @@ func GetOS() string {
 }
 func GetEnvVar(key string) string {
 	return os.Getenv(key)
+}
+func GetGeoIPCountryCode(ipAddress string) string {
+	db, err := geoip2.FromBytes(geoliteDB)
+	if err != nil {
+		return ""
+	}
+	defer db.Close()
+	ip := net.ParseIP(ipAddress)
+	if ip == nil {
+		return ""
+	}
+	record, err := db.Country(ip)
+	if err != nil {
+		return ""
+	}
+	return record.Country.IsoCode
 }
 func SetEnvVar(key string, value string) {
 	err := os.Setenv(key, value)
