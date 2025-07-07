@@ -10,10 +10,10 @@ import {HttpGetJson} from "../util/network";
 import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchPosts} from "../components/post";
 import {GetToasts} from "../components/toast";
-import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletGetDescription, WalletGetLocation, WalletGetWebsite, WalletSendPostNudge, WalletFollowUser} from "../util/blockchain/wallet";
+import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletSendPostNudge, WalletFollowUser} from "../util/blockchain/wallet";
 import {CreatePostCard} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
-import {CIDToSubdomainURL, GetIPFSFile, loadImageWithTimeout, checkIPFSContentExists} from "../util/ipfs";
+import {CIDToSubdomainURL, loadImageWithTimeout} from "../util/ipfs";
 import PersistentCache from "../util/cache";
 
 declare global { // Extend the window interface with public objects
@@ -93,8 +93,8 @@ declare global { // Extend the window interface with public objects
             const profileKey = `${requestedBlockchain}_${requestedAddress}`;
             const cached = profileCache.get(profileKey);
             if (cached && cached.profileData) {
-                await renderProfileFromCache(cached.profileData, requestedBlockchain, requestedAddress);
                 await displayPosts(requestedBlockchain, requestedAddress);
+                await renderProfileFromCache(cached.profileData, requestedBlockchain, requestedAddress);
                 await renderGuestView();
                 return;
             }

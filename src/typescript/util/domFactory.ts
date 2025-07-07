@@ -1,14 +1,33 @@
 import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
-import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink} from "./blockchain/wallet";
+import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar} from "./blockchain/wallet";
 import {IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL} from "./ipfs";
 import {getFileIcon, formatFileSize} from "./files";
-import path from "path";
 import {extensionToMimeType} from "./mimeTypes";
 import {ShowModalMediaViewer} from "../components/modalMediaViewer";
 import {base64decode} from "byte-base64";
+import {LogError} from "./log";
+
+async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLElement) {
+    const blockchainInput = cardElement.querySelector('.postCardBlockchain, .profileCardBlockchain') as HTMLInputElement;
+    const addressInput = cardElement.querySelector('.postCardAddress, .profileCardAddressInput') as HTMLInputElement;
+    if (blockchainInput && addressInput) {
+        const blockchain = blockchainInput.value;
+        const address = addressInput.value;
+        if (blockchain && address && IsValidAddress(address, blockchain)) {
+            try {
+                const avatarUrl = await WalletGetAvatar(blockchain, address);
+                if (avatarUrl && avatarUrl !== "") {
+                    avatarImg.src = XSSSanitizeUrl(avatarUrl);
+                }
+            } catch (error) {
+                LogError("Failed to fetch avatar: " + error);
+            }
+        }
+    }
+}
 
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
@@ -61,6 +80,9 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     } else {
         avatarImg.src = XSSSanitizeUrl(postData.avatarSrc);
     }
+    avatarImg.addEventListener("load", function(): void {
+        handleAvatarLoad(avatarImg, postDiv);
+    });
     postHeaderDiv.classList.add("postCardHeaderDiv");
     postAuthorLink.classList.add("postCardAuthorLink");
     postAuthorLink.href = XSSSanitizeUrl(walletAddressLink);
