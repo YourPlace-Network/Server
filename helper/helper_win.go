@@ -237,13 +237,13 @@ func install() bool {
 	}
 }
 func uninstall(keepUploads, keepBlockchain bool) {
-	host.StopScheduledTask(serviceName)
-	host.RemoveScheduledTask(serviceName)
-	host.KillProcess("YourPlace" + host.BinaryExtension)
-	host.KillProcess("YourPlaceIpfs" + host.BinaryExtension)
-	host.KillProcess("YourPlaceFfmpeg" + host.BinaryExtension)
-	removeFirewallRule(4002, "YourPlaceIPFS")
-	removeFirewallRule(42424, "YourPlace")
+	//host.StopScheduledTask(serviceName)
+	//host.RemoveScheduledTask(serviceName)
+	//host.KillProcess("YourPlace" + host.BinaryExtension)
+	//host.KillProcess("YourPlaceIpfs" + host.BinaryExtension)
+	//host.KillProcess("YourPlaceFfmpeg" + host.BinaryExtension)
+	//removeFirewallRule(4002, "YourPlaceIPFS")
+	//removeFirewallRule(42424, "YourPlace")
 	runPowershellUninstaller(keepUploads, keepBlockchain)
 	_ = removeUninstaller()
 	// uninstallCleanupJob() // try the scheduled task cleanup method
@@ -703,7 +703,9 @@ func isVersionUpdated() bool {
 func runPowershellUninstaller(keepUploads, keepBlockchain bool) {
 	LogDebug("Running PowerShell uninstaller")
 	scriptPath := "C:\\ProgramData\\YourPlace\\uninstall.ps1"
+	LogDebug("US 1")
 	_, err := os.Stat(scriptPath)
+	LogDebug("US 2")
 	if err != nil {
 		LogError("Uninstall script not found: " + err.Error())
 		return
@@ -720,16 +722,23 @@ func runPowershellUninstaller(keepUploads, keepBlockchain bool) {
 	if keepBlockchain {
 		args = append(args, "-keepBlockchain")
 	}
+	LogDebug("US 3")
+	LogDebug("Args: " + fmt.Sprintf("%v", args))
 	// Create the PowerShell process with proper flags to detach it
 	cmd := exec.Command("powershell.exe", args...)
+
+	LogDebug("Running PowerShell: " + cmd.String())
 	LogDebug(cmd.Path)
 	// Use the Windows-specific CREATE_NEW_PROCESS_GROUP flag
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP | 0x00000008, // 0x00000008 is DETACHED_PROCESS
-		HideWindow:    true,
+		//CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP | 0x00000008, // 0x00000008 is DETACHED_PROCESS
+		HideWindow: true,
 	}
 	// Start the process (not cmd.Run() which would wait for completion)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err = cmd.Start()
+	LogDebug("Hello")
 	if err != nil {
 		LogError("Error starting PowerShell process: " + err.Error())
 		return
