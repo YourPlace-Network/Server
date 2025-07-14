@@ -53,7 +53,6 @@ function Main() {
         Write-Output "This script must be run as an administrator" | Out-File -FilePath $LogPath -Append
         exit 1
     }
-
     $keepUpload = $true
     $keepBlockchain = $false
     foreach ($arg in $args) {
@@ -63,10 +62,8 @@ function Main() {
             $keepBlockchain = $true
         }
     }
-
     Write-Output "Removing scheduled tasks..." | Out-File -FilePath $LogPath -Append
     schtasks /Delete /TN "YourPlaceHelper" /F 2>$null
-
     Write-Output "Stopping running processes..." | Out-File -FilePath $LogPath -Append
     $ProcessPatterns = @("YourPlace*", "YourPlace-*", "YourPlaceHelper", "YourPlaceIpfs", "YourPlaceFfmpeg")
     foreach ($pattern in $ProcessPatterns) {
@@ -82,8 +79,6 @@ function Main() {
         }
     }
     Start-Sleep -Milliseconds 500
-
-
     Write-Output "Removing application files..." | Out-File -FilePath $LogPath -Append
     Remove-Item -Path "C:\Users\$YourPlaceUser\AppData\Local\YourPlace" -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable removeError
     if ($removeError) {
@@ -105,16 +100,11 @@ function Main() {
             if ($handleOutput) {
                 Write-Output "Handle.exe found these processes using the directory:" | Out-File -FilePath $LogPath -Append
                 $handleOutput | Out-File -FilePath $LogPath -Append
-
-                # Parse the output to get process names
                 $handleOutput | ForEach-Object {
                     if ($_ -match "^(\S+)\s+pid:\s+(\d+)") {
                         $procName = $Matches[1]
                         $procId = $Matches[2]
                         Write-Output "Process $procName (PID: $procId) has a handle on the directory" | Out-File -FilePath $LogPath -Append
-
-                        # Optionally kill the process
-                        # Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
                     }
                 }
             } else {
