@@ -116,7 +116,44 @@ function Main() {
 
     Write-Output "Removing data files..." | Out-File -FilePath $LogPath -Append
     $dataFolder = "C:\Users\$YourPlaceUser\YourPlace"
-    if ($KeepUpload) {
+    if ($keepBlockchain -and $KeepUpload) {
+        # Both are true - keep both .db files and upload folders
+        $allItems = Get-ChildItem -Path "C:\Users\$YourPlaceUser\YourPlace" -Recurse -Force
+        $foldersToKeep = @(".ipfs", "upload")
+        foreach ($item in $allItems) {
+            # Skip database files
+            if (-not $item.PSIsContainer -and $item.Extension -eq ".db") {
+                Write-Output "Keeping Database File: $($item.FullName)" | Out-File -FilePath $LogPath -Append
+                Reset-Database($item.FullName)
+                continue
+            }
+            # Skip upload folders
+            if ($item.PSIsContainer -and $foldersToKeep -contains $item.Name) {
+                Write-Output "Keeping Data Folder: $($item.FullName)" | Out-File -FilePath $LogPath -Append
+                continue
+            }
+            # Delete everything else
+            Write-Output "Deleting: $($item.FullName)" | Out-File -FilePath $LogPath -Append
+            Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    elseif ($keepBlockchain) {
+        # Only keep blockchain
+        $allItems = Get-ChildItem -Path "C:\Users\$YourPlaceUser\YourPlace" -Recurse -Force
+        foreach ($item in $allItems) {
+            # Skip the database file
+            if (-not $item.PSIsContainer -and $item.Extension -eq ".db") {
+                Write-Output "Keeping Database File: $($item.FullName)" | Out-File -FilePath $LogPath -Append
+                Reset-Database($item.FullName)
+                continue
+            }
+            # Delete everything else
+            Write-Output "Deleting: $($item.FullName)" | Out-File -FilePath $LogPath -Append
+            Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    elseif ($KeepUpload) {
+        # Only keep upload
         Write-Output "Keeping uploaded files..." | Out-File -FilePath $LogPath -Append
         if (Test-Path -Path $dataFolder) {
             $foldersToKeep = @(".ipfs", "upload")
@@ -127,20 +164,14 @@ function Main() {
                     Write-Output "Keeping Data Folder: $($item.FullName)" | Out-File -FilePath $LogPath -Append
                     continue
                 }
-                if ($keepBlockchain) {
-                    # Skip the database file
-                    if (-not $item.PSIsContainer -and $item.Extension -eq ".db") {
-                        Write-Output "Keeping Database File: $( $item.FullName )" | Out-File -FilePath $LogPath -Append
-                        Reset-Database($item.Path)
-                        continue
-                    }
-                }
                 # Delete everything else
                 Write-Output "Deleting: $($item.FullName)" | Out-File -FilePath $LogPath -Append
                 Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
-    } else {
+    }
+    else {
+        # Keep nothing
         Write-Output "Removing all user data..." | Out-File -FilePath $LogPath -Append
         Remove-Item -Path "C:\Users\$YourPlaceUser\YourPlace" -Recurse -Force -ErrorAction SilentlyContinue
     }
