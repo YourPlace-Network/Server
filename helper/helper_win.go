@@ -20,8 +20,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -235,13 +237,6 @@ func install() bool {
 	}
 }
 func uninstall(keepUploads, keepBlockchain bool) {
-	host.StopScheduledTask(serviceName)
-	host.RemoveScheduledTask(serviceName)
-	host.KillProcess("YourPlace" + host.BinaryExtension)
-	host.KillProcess("YourPlaceIpfs" + host.BinaryExtension)
-	host.KillProcess("YourPlaceFfmpeg" + host.BinaryExtension)
-	removeFirewallRule(4002, "YourPlaceIPFS")
-	removeFirewallRule(42424, "YourPlace")
 	runPowershellUninstaller(keepUploads, keepBlockchain)
 	_ = removeUninstaller()
 	// uninstallCleanupJob() // try the scheduled task cleanup method
@@ -404,6 +399,75 @@ func haltRestarter(c *cron.Cron) {
 }
 
 // Helper Functions
+func GetProcessOwnerAsUser(processName string) (*user.User, error) {
+	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0) // First, find the process
+	if err != nil {
+		return nil, err
+	}
+	defer windows.CloseHandle(snapshot)
+	var procEntry windows.ProcessEntry32
+	procEntry.Size = uint32(unsafe.Sizeof(procEntry))
+	if err := windows.Process32First(snapshot, &procEntry); err != nil {
+		return nil, err
+	}
+	counter := 0
+	for {
+		exeName := windows.UTF16ToString(procEntry.ExeFile[:])
+		if strings.HasPrefix(exeName, processName) {
+			return getProcessOwnerByPIDAsUser(procEntry.ProcessID) // Found the process, now get its owner
+		}
+		if err := windows.Process32Next(snapshot, &procEntry); err != nil {
+			break
+		}
+		counter++
+		if counter >= 5 {
+			break
+		}
+	}
+	return nil, LogErrorReturn("process not found: " + processName)
+}
+func getProcessOwnerByPIDAsUser(pid uint32) (*user.User, error) {
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION, false, pid)
+	if err != nil {
+		return nil, err
+	}
+	defer windows.CloseHandle(handle)
+	var token windows.Token
+	err = windows.OpenProcessToken(handle, windows.TOKEN_QUERY, &token)
+	if err != nil {
+		return nil, err
+	}
+	defer token.Close()
+	tokenUser, err := token.GetTokenUser()
+	if err != nil {
+		return nil, err
+	}
+	sidString := tokenUser.User.Sid.String()
+	account, domain, _, err := tokenUser.User.Sid.LookupAccount("")
+	if err != nil {
+		return nil, err
+	}
+	username := account
+	if domain != "" && domain != "." {
+		username = domain + "\\" + account
+	}
+	u, err := user.Lookup(account)
+	if err != nil {
+		if domain != "" && domain != "." { // If that fails, try with domain\account
+			u, err = user.Lookup(username)
+			if err != nil {
+				// If both fail, try looking up by SID
+				u, err = user.LookupId(sidString)
+				if err != nil {
+					return nil, fmt.Errorf("failed to lookup user: %v", err)
+				}
+			}
+		} else {
+			return nil, err
+		}
+	}
+	return u, nil
+}
 func registerUninstaller() {
 	uninstallFolder := "C:\\ProgramData\\YourPlace"
 	host.CreateFolder(uninstallFolder)
@@ -653,21 +717,17 @@ func runPowershellUninstaller(keepUploads, keepBlockchain bool) {
 	if keepBlockchain {
 		args = append(args, "-keepBlockchain")
 	}
-	// Create the PowerShell process with proper flags to detach it
 	cmd := exec.Command("powershell.exe", args...)
-	LogDebug(cmd.Path)
-	// Use the Windows-specific CREATE_NEW_PROCESS_GROUP flag
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP | 0x00000008, // 0x00000008 is DETACHED_PROCESS
-		HideWindow:    true,
+		HideWindow: true,
 	}
-	// Start the process (not cmd.Run() which would wait for completion)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err = cmd.Start()
 	if err != nil {
 		LogError("Error starting PowerShell process: " + err.Error())
 		return
 	}
-	// Immediately disconnect from the child process
 	err = cmd.Process.Release()
 	if err != nil {
 		LogError("Error releasing PowerShell process: " + err.Error())
@@ -678,8 +738,9 @@ func runPowershellUninstaller(keepUploads, keepBlockchain bool) {
 
 // Logging Functions
 func LogInit(name string) *os.File {
-	user, _ := os.UserHomeDir()
-	logDir := filepath.Join(user, "YourPlace")
+	user, _ := GetProcessOwnerAsUser("YourPlace")
+	homeDir := user.HomeDir
+	logDir := filepath.Join(homeDir, "YourPlace")
 	logPath := filepath.Join(logDir, name+".log")
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {

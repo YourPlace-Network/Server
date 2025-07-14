@@ -34,6 +34,7 @@ window.DisconnectWalletCallback = function() {};
             arrowLeft: document.getElementById("arrowLeft")! as HTMLDivElement,
             birthDate: document.getElementById("birthDate")! as HTMLInputElement,
             birthDateEpoch: document.getElementById("birthDateEpoch")! as HTMLInputElement,
+            calendarIcon: document.getElementById("calendarIcon")! as HTMLElement,
             btnLogin: document.getElementById("btnLogin")! as HTMLButtonElement,
             buttonFour: document.getElementById("buttonFour")! as HTMLButtonElement,
             buttonOne: document.getElementById("buttonOne")! as HTMLButtonElement,
@@ -65,7 +66,7 @@ window.DisconnectWalletCallback = function() {};
         DisconnectWallet().then();
         const minAge = new Date();
         minAge.setFullYear(minAge.getFullYear() - 13);
-        flatpickr("#birthDate", {dateFormat: "Y-m-d", allowInput: true, altInput: true, altFormat: "F j, Y", maxDate: minAge, minDate: "1900-01-01", enableTime: false,
+        const birthDatePicker = flatpickr("#birthDate", {dateFormat: "Y-m-d", allowInput: true, altInput: true, altFormat: "F j, Y", maxDate: minAge, minDate: "1900-01-01", enableTime: false,
             onChange: function (selectedDates: Date[], dateStr: string, instance) {
                 const epochMs = selectedDates[0].getTime();
                 const epochSeconds = Math.floor(epochMs / 1000);
@@ -217,6 +218,13 @@ window.DisconnectWalletCallback = function() {};
             ShowModalLogin();
         });
         DOM.startInstallBtn.addEventListener("click", startInstall);
+        DOM.calendarIcon.addEventListener("click", function() {
+            if (Array.isArray(birthDatePicker)) {
+                birthDatePicker[0].open();
+            } else {
+                birthDatePicker.open();
+            }
+        });
         DOM.collapseOne.addEventListener("hidden.bs.collapse", function () {
             DOM.checkOne.style.display = "inline-block";
             stepOneComplete = true;
