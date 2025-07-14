@@ -33,8 +33,40 @@ var prefixPostExclusions = []string{"/login"}                                   
 
 func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Early return for excluded paths
-		if IsRequestExcluded(c) {
+		isExcluded := IsRequestExcluded(c)
+		// Always try to set context variables if valid cookie exists
+		authCookie, authCookieErr := c.Request.Cookie("yp_auth")
+		// Cache cookie validation result to avoid multiple PBKDF2 operations
+		var validAuthCookie bool
+		var address, blockchain string
+		var authDataValid bool
+
+		if authCookieErr == nil {
+			validAuthCookie = security.ValidateCookie(authCookie, cryptoSeed, database)
+			if validAuthCookie {
+				var err1, err2 error
+				address, err1 = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
+				blockchain, err2 = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
+				authDataValid = (err1 == nil && err2 == nil)
+
+				if authDataValid {
+					c.Set("accountAddress", address)
+					c.Set("blockchain", blockchain)
+					// Only increment cookie for non-excluded paths to avoid unnecessary operations
+					if !isExcluded {
+						err := security.IncrementCookie(c, cryptoSeed, database)
+						if err != nil {
+							core.LogDebug("Auth middleware - Failed to increment cookie: " + err.Error())
+							security.InvalidateCookie(authCookie, cryptoSeed, database)
+							c.Redirect(http.StatusFound, "/login")
+							c.Abort()
+							return
+						}
+					}
+				}
+			}
+		}
+		if isExcluded { // Early return for excluded paths (after setting context if possible)
 			c.Next()
 			return
 		}
@@ -49,51 +81,55 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusMethodNotAllowed)
 			return
 		}
-		// Check for auth cookie
-		authCookie, err := c.Request.Cookie("yp_auth")
-		if err != nil { // If there is no yp_auth cookie in the request
-			//core.LogDebug("No auth cookie. Redirecting to login")
-			c.Redirect(http.StatusFound, "/login"+redirect) // Redirect to the login page
-			c.Abort()                                       // You're on the /login page, and no cookie is expected
-			return
-		}
-		// Validate cookie
-		authenticated := security.ValidateCookie(authCookie, cryptoSeed, database) // Check if the cookie is valid
-		if !authenticated {
+		// Use cached validation results to avoid redundant PBKDF2 operations
+		if authCookieErr != nil || !validAuthCookie {
+			if authCookieErr != nil { // The cookie doesn't exist, so redirect to /login
+				c.Redirect(http.StatusFound, "/login"+redirect)
+				c.Abort()
+				return
+			}
+			// Cookie exists but is invalid
 			security.InvalidateCookie(authCookie, cryptoSeed, database)
 			c.Redirect(http.StatusFound, "/login"+redirect)
 			c.Abort()
 			return
 		}
-		// Extract values from cookie
-		address, err := security.GetCookieValue(authCookie, cryptoSeed, "address", database)
-		if err != nil { // If the cookie is valid, but can't get the address value, send back to /login
-			core.LogDebug("Auth middleware - Failed to get address value from cookie: " + err.Error())
-			security.InvalidateCookie(authCookie, cryptoSeed, database)
-			c.Redirect(http.StatusFound, "/login"+redirect)
-			c.Abort()
-			return
+		// Use cached auth data if available, otherwise extract values
+		if !authDataValid {
+			var err error
+			address, err = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
+			if err != nil { // If the cookie is valid, but can't get the address value, send back to /login
+				core.LogDebug("Auth middleware - Failed to get address value from cookie: " + err.Error())
+				security.InvalidateCookie(authCookie, cryptoSeed, database)
+				c.Redirect(http.StatusFound, "/login"+redirect)
+				c.Abort()
+				return
+			}
+			blockchain, err = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
+			if err != nil { // If the cookie is valid, but can't get the value, send back to /login
+				core.LogDebug("Auth middleware - Failed to get blockchain value from cookie: " + err.Error())
+				security.InvalidateCookie(authCookie, cryptoSeed, database)
+				c.Redirect(http.StatusFound, "/login"+redirect)
+				c.Abort()
+				return
+			}
+			// Set context values
+			c.Set("accountAddress", address)
+			c.Set("blockchain", blockchain)
 		}
-		blockchain, err := security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
-		if err != nil { // If the cookie is valid, but can't get the value, send back to /login
-			core.LogDebug("Auth middleware - Failed to get blockchain value from cookie: " + err.Error())
-			security.InvalidateCookie(authCookie, cryptoSeed, database)
-			c.Redirect(http.StatusFound, "/login"+redirect)
-			c.Abort()
-			return
+		// Increment cookie to prevent against misuse (only if not already done)
+		if authDataValid && isExcluded {
+			// Cookie was already incremented in the first section for non-excluded paths
+		} else if !authDataValid {
+			err := security.IncrementCookie(c, cryptoSeed, database)
+			if err != nil {
+				core.LogDebug("Auth middleware - Failed to increment cookie: " + err.Error())
+				security.InvalidateCookie(authCookie, cryptoSeed, database)
+				c.Redirect(http.StatusFound, "/login"+redirect)
+				c.Abort()
+				return
+			}
 		}
-		// Increment cookie to prevent against misuse
-		err = security.IncrementCookie(c, cryptoSeed, database)
-		if err != nil {
-			core.LogDebug("Auth middleware - Failed to increment cookie: " + err.Error())
-			security.InvalidateCookie(authCookie, cryptoSeed, database)
-			c.Redirect(http.StatusFound, "/login"+redirect)
-			c.Abort()
-			return
-		}
-		// Set context values and continue
-		c.Set("accountAddress", address) // set values in request context
-		c.Set("blockchain", blockchain)
 		c.Next()
 	}
 }

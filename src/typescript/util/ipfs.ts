@@ -85,7 +85,6 @@ export function GetIPFSFile(cid: string): Promise<Blob> {
         throw new Error("Failed to fetch IPFS file: " + error);
     }
 }
-
 async function downloadFromIpfs(cid: string): Promise<Blob> {
     const ipfsNodeUrl = "http://localhost:42425";
     try {
@@ -150,6 +149,72 @@ async function downloadFromIpfs(cid: string): Promise<Blob> {
     } catch (error) {
         console.error("Error downloading file from IPFS:", error);
         throw error;
+    }
+}
+
+/* --- Image Loading with Timeout --- */
+export async function loadImageWithTimeout(url: string, timeoutMs: number = 5000): Promise<boolean> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        let timeoutId: number;
+        let resolved = false;
+        
+        const cleanup = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            resolved = true;
+        };
+        
+        img.onload = () => {
+            if (!resolved) {
+                cleanup();
+                resolve(true);
+            }
+        };
+        
+        img.onerror = () => {
+            if (!resolved) {
+                cleanup();
+                LogError(`Failed to load image: ${url}`);
+                resolve(false);
+            }
+        };
+        
+        // Set timeout
+        timeoutId = window.setTimeout(() => {
+            if (!resolved) {
+                cleanup();
+                LogError(`Image load timeout (${timeoutMs}ms): ${url}`);
+                resolve(false);
+            }
+        }, timeoutMs);
+        
+        // Start loading
+        img.src = url;
+    });
+}
+export async function checkIPFSContentExists(cid: string, timeoutMs: number = 3000): Promise<boolean> {
+    try {
+        const url = CIDToSubdomainURL(cid);
+        if (!url) return false;
+        // Use HEAD request to check if content exists without downloading
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const response = await fetch(url, {
+                method: 'HEAD',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return response.ok;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            LogError(`IPFS content check failed for ${cid}: ${error}`);
+            return false;
+        }
+    } catch (error) {
+        LogError(`IPFS content existence check error: ${error}`);
+        return false;
     }
 }
 

@@ -556,32 +556,43 @@ func InstallAutorun() bool {
 	}
 	return true
 }
-func IsOnBattery() bool { //TODO: I cant really test this because I dont have a windows machine with a battery
+func IsOnBattery() bool {
 	cmd := exec.Command("wmic", "path", "Win32_Battery", "get", "DeviceID", "/format:list")
 	output, err := cmd.Output()
 	if err != nil {
+		// If wmic fails, assume no battery (desktop system)
 		return false
 	}
-	if !strings.Contains(string(output), "DeviceID") {
+	// Check if there are any battery devices
+	outputStr := strings.TrimSpace(string(output))
+	if !strings.Contains(outputStr, "DeviceID=") {
+		// No battery devices found - this is a desktop system
 		return false
 	}
+	// System has batteries, now check their status
 	cmd = exec.Command("wmic", "path", "Win32_Battery", "get", "BatteryStatus")
 	output, err = cmd.Output()
 	if err != nil {
 		core.LogError("Could not get battery status: " + err.Error())
+		// If we can't get battery status but batteries exist, assume plugged in
 		return false
 	}
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(lines) < 2 {
+		// No status data available, assume plugged in
 		return false
 	}
 	statusLine := strings.TrimSpace(lines[1])
 	var status int
 	_, err = fmt.Sscanf(statusLine, "%d", &status)
 	if err != nil {
+		// Cannot parse status, assume plugged in
 		return false
 	}
-	return !(status == 2 || status == 3 || status == 6 || status == 7)
+	// Battery status codes:
+	// 1 = Other, 2 = Unknown, 3 = Fully Charged, 4 = Low, 5 = Critical, 6 = Charging, 7 = Charging and High, 8 = Charging and Low, 9 = Charging and Critical, 10 = Undefined, 11 = Partially Charged
+	// Return true only if status indicates battery power (not charging/charged)
+	return status == 1 || status == 4 || status == 5 || status == 11
 }
 func AddSecret(name string, secret string) {
 	cred := wincred.NewGenericCredential(name)

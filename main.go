@@ -313,6 +313,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	} else {
 		routes.ProfileRoutes(router, title, database, _blockchain, cryptoSeed, gateway)
 		routes.PostRoutes(router, database)
+		routes.FeedRoutes(router, database)
 		routes.FilesRoutes(router, database)
 		routes.IPFSRoutes(router, database, ipfs, port)
 		routes.MentalHealthRoutes(router, title, database, cryptoSeed, gateway)
@@ -376,10 +377,11 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 			blockchain.IndexerClearOldCachedPosts(database)
 		})
 		blockchain.IndexerRestartJobs(database, "base") // set any jobs to "failed" that were left hanging on startup
-		c.AddFunc("@every 1m", func() {
+		c.AddFunc("@every 5m", func() {
 			indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
 			indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
-			if host.IsOnBattery() && !indexerOnBatteryBool { // Don't run the indexer if the computer is on battery
+			isOnBattery := host.IsOnBattery()
+			if isOnBattery && !indexerOnBatteryBool { // Don't run the indexer if the computer is on battery
 				core.LogDebug("Host is on battery - skipping indexer run")
 				blockchain.IndexerStop()
 				return

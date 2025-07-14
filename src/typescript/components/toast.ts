@@ -1,3 +1,5 @@
+import {LogError} from "../util/log";
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/toast.scss"
 import {HttpGetJson} from "../util/network";
@@ -6,9 +8,18 @@ import {XSSSanitizeTextUrl} from "../util/security";
 // HTML Template:  {{template "toast" .}}
 
 export async function GetToasts() {
-    let result = await HttpGetJson("/notification/toasts");
-    if (result[1]["toasts"]) {
-        ShowToast(result[1]["toasts"]);
+    try {
+        // Add timeout for toast fetching to prevent blocking
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Toast fetch timeout")), 5000);
+        });
+        const fetchPromise = HttpGetJson("/notification/toasts");
+        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        if (result && result[1] && result[1]["toasts"]) {
+            ShowToast(result[1]["toasts"]);
+        }
+    } catch (error) {
+        LogError("Failed to fetch toasts (non-critical): " + error);
     }
 }
 function CreateToast(autohide: boolean = false, delay: number = 2000, showCloseBtn: boolean = true): HTMLDivElement {

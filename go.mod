@@ -22,6 +22,7 @@ require (
 	github.com/jackpal/gateway v1.0.16
 	github.com/multiformats/go-multiaddr v0.15.0
 	github.com/ncruces/go-dns v1.2.7
+	github.com/oschwald/geoip2-golang v1.11.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/wealdtech/go-ens/v3 v3.6.0
 	golang.org/x/crypto v0.38.0
@@ -152,6 +153,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/onsi/ginkgo/v2 v2.22.2 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	github.com/oschwald/maxminddb-golang v1.13.0 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect

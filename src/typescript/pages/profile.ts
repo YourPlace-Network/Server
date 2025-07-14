@@ -10,10 +10,11 @@ import {HttpGetJson} from "../util/network";
 import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchPosts} from "../components/post";
 import {GetToasts} from "../components/toast";
-import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletGetDescription, WalletGetLocation, WalletGetWebsite, WalletSendPostNudge, WalletFollowUser} from "../util/blockchain/wallet";
+import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletSendPostNudge, WalletFollowUser} from "../util/blockchain/wallet";
 import {CreatePostCard} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
-import {CIDToSubdomainURL, GetIPFSFile} from "../util/ipfs";
+import {CIDToSubdomainURL, loadImageWithTimeout} from "../util/ipfs";
+import PersistentCache from "../util/cache";
 
 declare global { // Extend the window interface with public objects
     interface Window {
@@ -69,37 +70,55 @@ declare global { // Extend the window interface with public objects
             likesNum: document.getElementById("likesNum")! as HTMLDivElement,
         }
         let copiedTooltip: any;
+        const profileCache = new PersistentCache({
+            defaultTtl: 1800000, // 30 minutes
+            keyPrefix: "profile_"
+        });
 
         // --------- Page Functions --------- //
         async function init() {
             let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});}); // enable tooltips
             await updateProfile();
-            await GetToasts();
+            GetToasts().catch(error => LogError("Toast loading failed: " + error)); // Load toasts in background - don't block profile loading
             copiedTooltip = new window.bootstrap.Tooltip(DOM.profileAddressCopy, {title: "Copied", trigger: "manual", placement: "right"});
         }
-        async function updateProfile() {
+        async function updateProfile() { // "main" method for loading the profile and it's data
             let requestedAddress = DOM.injectedAddress.value;
-            LogInfo("address: " + requestedAddress);
             let requestedBlockchain = DOM.injectedBlockchain.value;
             if (!requestedAddress || !IsValidAddress(requestedAddress, requestedBlockchain)) {
                 LogError("profile.ts updateProfile() - invalid address");
                 return;
             }
-            await allSettledWithTimeout([
-                displayPosts(requestedBlockchain, requestedAddress),
-                renderProfileAddress(requestedAddress),
-                renderProfileName(requestedBlockchain, requestedAddress),
-                renderProfileAvatar(requestedBlockchain, requestedAddress),
-                // renderProfileBanner(requestedBlockchain, requestedAddress),
-                renderProfileDescription(requestedBlockchain, requestedAddress),
-                renderProfileLocation(requestedBlockchain, requestedAddress),
-                renderProfileWebsite(requestedBlockchain, requestedAddress),
-                renderProfileBirthdate(requestedBlockchain, requestedAddress),
-                renderProfileJoinedDate(requestedBlockchain, requestedAddress),
-                renderProfileFollowerCount(requestedBlockchain, requestedAddress),
-            ], 60000);
-            renderGuestView().then();
+            const profileKey = `${requestedBlockchain}_${requestedAddress}`;
+            const cached = profileCache.get(profileKey);
+            if (cached && cached.profileData) {
+                await displayPosts(requestedBlockchain, requestedAddress);
+                await renderProfileFromCache(cached.profileData, requestedBlockchain, requestedAddress);
+                await renderGuestView();
+                return;
+            }
+            // Phase 1: Load critical profile info immediately (address only)
+            await renderProfileAddress(requestedAddress);
+            // Phase 2: Load profile data in background
+            const profileDataPromise = HttpGetJson(`/profile/data/${requestedBlockchain}/${requestedAddress}`);
+            // Phase 3: Load posts in parallel (non-blocking)
+            const postsPromise = displayPosts(requestedBlockchain, requestedAddress);
+            // Handle profile data response
+            try {
+                const response = await profileDataPromise;
+                if (response[0] === 200 && response[1]?.profileData) {
+                    profileCache.set(profileKey, { profileData: response[1].profileData });
+                    await renderProfileFromCache(response[1].profileData, requestedBlockchain, requestedAddress);
+                } else {
+                    LogError("Failed to fetch profile data - profile will show minimal info");
+                }
+            } catch (error) {
+                LogError("Profile data fetch failed: " + error);
+            }
+            // Wait for posts to finish loading, then render guest view
+            await postsPromise;
+            await renderGuestView();
         }
         async function displayPosts(blockchain: string, address: string) { // adds posts to the DOM
             let posts = await FetchPosts(blockchain, address);
@@ -117,169 +136,28 @@ declare global { // Extend the window interface with public objects
             }
         }
 
+        // --------- Profile Data Helpers --------- //
+        async function renderProfileFromCache(profileData: any, blockchain: string, address: string) {
+            await renderProfileAddress(address);
+            await renderProfileNameFromData(profileData.name, blockchain, address);
+            await renderProfileAvatarFromData(profileData.avatarAddress, blockchain, address);
+            await renderProfileDescriptionFromData(profileData.description);
+            await renderProfileLocationFromData(profileData.location);
+            await renderProfileWebsiteFromData(profileData.website);
+            await renderProfileBirthdateFromData(profileData.birthdate);
+            await renderProfileJoinedDateFromData(profileData.joinedDate);
+            await renderProfileFollowerCountFromData(profileData.followerCount);
+            if (profileData.bannerAddress) {
+                await renderProfileBannerFromData(profileData.bannerAddress);
+            }
+        }
+
         // --------- Profile Render --------- //
         async function renderProfileAddress(address: string) {
             let truncatedAddress = truncateAddress(address);
             DOM.profileAddressFull.value = XSSSanitizeValue(address);
             DOM.profileAddress.textContent = truncatedAddress;
             DOM.profileAddressLink.href = XSSSanitizeUrl(WalletGetExplorerAddressLink(address));
-        }
-        async function renderProfileName(blockchain: string, address: string) {
-            let name = await WalletGetName(blockchain, address);
-            if (name === null || name.length === 0) {
-                let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
-                if (response[0] === 200) {
-                    if (!response[1] || response[1].name.length < 1) {
-                        name = truncateAddress(address);
-                    } else {
-                        name = response[1].name;
-                    }
-                } else {
-                    name = truncateAddress(address);
-                }
-            }
-            if (typeof name === "string") {
-                DOM.profileName.textContent = name;
-            }
-            const updatePostAuthors = () => {
-                const avatarAuthors = document.querySelectorAll("b.postCardAuthor");
-                if (avatarAuthors.length > 0 && typeof name === "string") {
-                    avatarAuthors.forEach((b: Element) => {
-                        if (b instanceof HTMLElement) {
-                            b.textContent = name;
-                        }
-                    });
-                } else if (avatarAuthors.length === 0) {
-                    // Posts might not be rendered yet, try again in a bit
-                    setTimeout(updatePostAuthors, 100);
-                }
-            };
-            updatePostAuthors();
-        }
-        async function renderProfileAvatar(blockchain: string, address: string) {
-            let avatarURL = await WalletGetAvatar(blockchain, address); // get the avatar from the blockchain
-            if (IsValidURL(avatarURL)) {
-                DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
-                populatePostCards();
-                return;
-            } else if (IsValidIpfsCid(avatarURL)) {
-                avatarURL = CIDToSubdomainURL(avatarURL);
-                DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
-                return;
-            }
-        }
-        async function renderProfileBanner(blockchain: string, address: string) {
-            const response = await HttpGetJson("/profile/banner/" + blockchain + "/" + address);
-            if (response[0] === 200 && response[1]?.bannerAddress) {
-                let bannerAddress = response[1].bannerAddress;
-                if (bannerAddress.startsWith("ipfs://")) {
-                    bannerAddress = CIDToSubdomainURL(bannerAddress);
-                    if (bannerAddress) {
-                        const img = new Image();
-                        img.crossOrigin = "anonymous";
-                        img.onload = () => {
-                            DOM.profileBanner.src = img.src;
-                        };
-                        img.onerror = () => {
-                            LogError("Failed to load banner image");
-                        };
-                        img.src = bannerAddress; // Start the loading process
-                    } else {
-                        LogError("Invalid banner address");
-                    }
-                } else if (IsValidURL(bannerAddress)) {
-                    DOM.profileBanner.src = XSSSanitizeUrl(bannerAddress);
-                }
-            }
-        }
-        async function renderProfileDescription(blockchain: string, address: string) {
-            let description = await WalletGetDescription(blockchain, address);
-            if (description != null && description.length > 0) {
-                DOM.profileDescription.textContent = description;
-            } else {
-                let response = await HttpGetJson("/profile/description/" + blockchain + "/" + address);
-                if (response[0] === 200) {
-                    if (!response[1] || response[1].description.length < 1) {
-                        return;
-                    }
-                    DOM.profileDescription.textContent = response[1].description;
-                }
-            }
-        }
-        async function renderProfileLocation(blockchain: string, address: string) {
-            let location = await WalletGetLocation(blockchain, address);
-            if (location != null && location.length > 0) {
-                DOM.profileLocation.textContent = location;
-            } else {
-                let response = await HttpGetJson("/profile/location/" + blockchain + "/" + address);
-                if (response[0] === 200) {
-                    if (!response[1] || response[1].location.length < 1) {
-                        return;
-                    }
-                    DOM.profileLocation.textContent = response[1].location;
-                }
-            }
-        }
-        async function renderProfileWebsite(blockchain: string, address: string) {
-            let website = await WalletGetWebsite(blockchain, address);
-            if (website != null && website.href.length > 0) {
-                DOM.profileWebsite.href = XSSSanitizeUrl(website.href);
-                DOM.profileWebsite.textContent = website.hostname;
-            } else {
-                let response = await HttpGetJson("/profile/website/" + blockchain + "/" + address);
-                if (response[0] === 200) {
-                    if (!response[1] || response[1].website.length < 1) {
-                        return;
-                    }
-                    let website = response[1].website;
-                    let url: string
-                    try {
-                        const check = new URL(website);
-                        url = website;
-                    } catch {
-                        url = "https://" + website;
-                    }
-                    DOM.profileWebsite.href = XSSSanitizeUrl(url);
-                    DOM.profileWebsite.textContent = website;
-                }
-            }
-        }
-        async function renderProfileBirthdate(blockchain: string, address: string) {
-            let response = await HttpGetJson("/profile/birthdate/" + blockchain + "/" + address);
-            if (response[0] === 200) {
-                let birthdate = response[1].birthdate;
-                if (!birthdate || birthdate == 0) {
-                    return;
-                }
-                let birthdateformatted = new Date(birthdate * 1000).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                });
-                DOM.profileBirthdate.textContent = birthdateformatted.toString();
-            }
-        }
-        async function renderProfileJoinedDate(blockchain: string, address: string) {
-            let response = await HttpGetJson("/profile/joinedDate/" + blockchain + "/" + address);
-            if (response[0] === 200) {
-                let joinedDate = response[1].joinedDate;
-                if (!joinedDate || joinedDate == 0) {
-                    return;
-                }
-                let joineddateformatted = new Date(joinedDate * 1000).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                });
-                DOM.profileJoined.textContent = joineddateformatted;
-            }
-        }
-        async function renderProfileFollowerCount(blockchain: string, address: string) {
-            let response = await HttpGetJson("/profile/followerCount/" + blockchain + "/" + address);
-            if (response[0] === 200) {
-                let followerCount = response[1].followerCount;
-                DOM.followerCount.textContent = followerCount;
-            }
         }
         async function renderGuestView() {
             // Edit the profile view, depending on if the viewer is the owner of the profile or not
@@ -333,6 +211,118 @@ declare global { // Extend the window interface with public objects
             window.location.href = "/logout";
         }
 
+        // --------- Cache Render Helper Functions --------- //
+        async function renderProfileNameFromData(cachedName: string, blockchain: string, address: string) {
+            // First try ENS lookup (same as original renderProfileName)
+            let name = await WalletGetName(blockchain, address);
+            if (name === null || name.length === 0) {
+                // Fall back to cached database name
+                name = cachedName && cachedName.length > 0 ? cachedName : truncateAddress(address);
+            }
+            DOM.profileName.textContent = name;
+            const updatePostAuthors = () => {
+                const avatarAuthors = document.querySelectorAll("b.postCardAuthor");
+                if (avatarAuthors.length > 0 && typeof name === "string") {
+                    avatarAuthors.forEach((b: Element) => {
+                        if (b instanceof HTMLElement) {
+                            b.textContent = name;
+                        }
+                    });
+                } else if (avatarAuthors.length === 0) {
+                    setTimeout(updatePostAuthors, 100);
+                }
+            };
+            updatePostAuthors();
+        }
+        async function renderProfileAvatarFromData(avatarAddress: string, blockchain: string, address: string) {
+            let avatarURL = avatarAddress;
+            if (!avatarAddress) { // If no cached avatar, try blockchain lookup
+                avatarURL = await WalletGetAvatar(blockchain, address);
+            }
+            if (IsValidURL(avatarURL)) {
+                const success = await loadImageWithTimeout(avatarURL, 3000);
+                if (success) {
+                    DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
+                } else {
+                    DOM.profileAvatar.src = "/static/image/avatar.png";
+                    LogError(`Avatar failed to load, using default: ${avatarURL}`);
+                }
+            } else if (IsValidIpfsCid(avatarURL)) {
+                const ipfsURL = CIDToSubdomainURL(avatarURL);
+                if (ipfsURL) {
+                    const success = await loadImageWithTimeout(ipfsURL, 3000);
+                    if (success) {
+                        DOM.profileAvatar.src = XSSSanitizeUrl(ipfsURL);
+                    } else {
+                        DOM.profileAvatar.src = "/static/image/avatar.png";
+                        LogError(`IPFS avatar failed to load, using default: ${ipfsURL}`);
+                    }
+                }
+            }
+        }
+        async function renderProfileDescriptionFromData(description: string) {
+            if (description && description.length > 0) {
+                DOM.profileDescription.textContent = description;
+            }
+        }
+        async function renderProfileLocationFromData(location: string) {
+            if (location && location.length > 0) {
+                DOM.profileLocation.textContent = location;
+            }
+        }
+        async function renderProfileWebsiteFromData(website: string) {
+            if (website && website.length > 0) {
+                try {
+                    const url = new URL(website.startsWith('http') ? website : `https://${website}`);
+                    DOM.profileWebsite.href = XSSSanitizeUrl(url.href);
+                    DOM.profileWebsite.textContent = url.hostname;
+                } catch {
+                    DOM.profileWebsite.href = XSSSanitizeUrl(`https://${website}`);
+                    DOM.profileWebsite.textContent = website;
+                }
+            }
+        }
+        async function renderProfileBirthdateFromData(birthdate: number) {
+            if (birthdate && birthdate > 0) {
+                const birthdateFormatted = new Date(birthdate * 1000).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+                DOM.profileBirthdate.textContent = birthdateFormatted;
+            }
+        }
+        async function renderProfileJoinedDateFromData(joinedDate: number) {
+            if (joinedDate && joinedDate > 0) {
+                const joinedDateFormatted = new Date(joinedDate * 1000).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+                DOM.profileJoined.textContent = joinedDateFormatted;
+            }
+        }
+        async function renderProfileFollowerCountFromData(followerCount: number) {
+            DOM.followerCount.textContent = followerCount ? followerCount.toString() : "0";
+        }
+        async function renderProfileBannerFromData(bannerAddress: string) {
+            if (bannerAddress && bannerAddress.length > 0) {
+                let bannerURL = bannerAddress;
+                if (bannerAddress.startsWith("ipfs://")) {
+                    bannerURL = CIDToSubdomainURL(bannerAddress);
+                }
+                if (IsValidURL(bannerURL)) {
+                    const success = await loadImageWithTimeout(bannerURL, 3000);
+                    if (success) {
+                        DOM.profileBanner.src = XSSSanitizeUrl(bannerURL);
+                    } else {
+                        DOM.profileBanner.src = "/static/image/banner.jpg";
+                        LogError(`Banner failed to load, using default`);
+                    }
+                }
+            }
+        }
+
         // --------- Helper Functions --------- //
         function truncateAddress(address: string) {
             let length = address.length;
@@ -342,41 +332,6 @@ declare global { // Extend the window interface with public objects
             let end = address.slice(endIndex, length);
             return first + middle + end;
         }
-        function populatePostCards() {
-            let avatarURL = DOM.profileAvatar.src;
-            // Update post avatars
-            const avatarImages = document.querySelectorAll("img.postCardAvatar");
-            avatarImages.forEach((img: Element) => {
-                if (img instanceof HTMLImageElement) {
-                    img.src = XSSSanitizeUrl(avatarURL);
-                }
-            });
-        }
-        const timeoutPromise = (timeoutMs: number): Promise<never> => {
-            return new Promise((_, reject) => {
-                setTimeout(() => {
-                    reject(new Error("Promise timed out"));
-                }, timeoutMs);
-            });
-        };
-        const allSettledWithTimeout = async <T>(promises: Promise<T>[], timeoutMs: number): Promise<PromiseSettledResult<T>[]> => {
-            try {
-                return await Promise.race([
-                    Promise.allSettled(promises),
-                    timeoutPromise(timeoutMs).then(() => {
-                        throw new Error(`Operation timed out after ${timeoutMs}ms`);
-                    })
-                ]);
-            } catch (error) {
-                // If timeout occurs, return partially settled promises
-                console.error("Operation timed out:", error);
-                // Return array of settled results, with pending ones marked as rejected with timeout reason
-                return promises.map((_, index) => ({
-                    status: "rejected" as const,
-                    reason: new Error(`Promise #${index} timed out after ${timeoutMs}ms`)
-                }));
-            }
-        };
 
         // --------- Event Handlers --------- //
         DOM.btnPosts.addEventListener("click", function () {

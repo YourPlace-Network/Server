@@ -88,6 +88,31 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		c.HTML(http.StatusOK, "src/templates/pages/profile.tmpl", responseJson)
 	})
+	router.GET("/profile/data/:blockchain/:address", func(c *gin.Context) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
+			return
+		}
+		address := c.Param("address")
+		if !security.IsValidAddress(address, blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
+			return
+		}
+		profileData := gin.H{
+			"name":          database.ProfileGetName(address, blockchainParam),
+			"description":   database.ProfileGetDescription(address, blockchainParam),
+			"location":      database.ProfileGetLocation(address, blockchainParam),
+			"website":       database.ProfileGetWebsite(address, blockchainParam),
+			"birthdate":     database.ProfileGetBirthDate(address, blockchainParam),
+			"joinedDate":    database.ProfileGetJoinedDate(address, blockchainParam),
+			"followerCount": database.ProfileGetFollowerCount(address, blockchainParam),
+			"avatarAddress": database.ProfileGetAvatar(address, blockchainParam),
+			"bannerAddress": database.ProfileGetBanner(address, blockchainParam),
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "profileData": profileData})
+	})
+
 	router.GET("/profile/name/:blockchain/:address", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchainParam) {
