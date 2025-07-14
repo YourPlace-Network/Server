@@ -91,11 +91,9 @@ function Main() {
     #            Write-Output "Could not download Handle.exe: $_" | Out-File -FilePath $LogPath -Append
     #        }
     #    }
-
     #    if (Test-Path $handlePath) {
     #        Write-Output "Running Handle.exe to find locks..." | Out-File -FilePath $LogPath -Append
     #        $handleOutput = & $handlePath -nobanner -accepteula "C:\Users\$YourPlaceUser\AppData\Local\YourPlace" 2>$null
-
     #        if ($handleOutput) {
     #            Write-Output "Handle.exe found these processes using the directory:" | Out-File -FilePath $LogPath -Append
     #            $handleOutput | Out-File -FilePath $LogPath -Append
@@ -109,7 +107,7 @@ function Main() {
     #        } else {
     #           Write-Output "Handle.exe found no locks on the directory" | Out-File -FilePath $LogPath -Append
     #        }
-    # }
+    #   }
     #}
 
     Write-Output "Removing shortcuts..." | Out-File -FilePath $LogPath -Append
