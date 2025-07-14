@@ -2,7 +2,7 @@ Set-Location "C:\Windows\Temp"
 Write-Output "Changed working directory to: $(Get-Location)" | Out-File -FilePath $LogPath -Append
 
 # Small delay to ensure the directory change takes effect
-Start-Sleep -Milliseconds 500
+Start-Sleep -Milliseconds 1000
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser
 
 Install-Module -Name SQLite -Force
