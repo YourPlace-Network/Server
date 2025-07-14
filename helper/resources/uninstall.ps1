@@ -80,37 +80,37 @@ function Main() {
     Start-Sleep -Milliseconds 500
     Write-Output "Removing application files..." | Out-File -FilePath $LogPath -Append
     Remove-Item -Path "C:\Users\$YourPlaceUser\AppData\Local\YourPlace" -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable removeError
-    if ($removeError) {
-        Write-Output "ERROR: Failed to remove AppData\Local\YourPlace: $removeError" | Out-File -FilePath $LogPath -Append
-        $handlePath = "$env:TEMP\handle64.exe"
-        if (-not (Test-Path $handlePath)) {
-            Write-Output "Downloading Handle.exe to check file locks..." | Out-File -FilePath $LogPath -Append
-            try {
-                Invoke-WebRequest -Uri "https://live.sysinternals.com/handle64.exe" -OutFile $handlePath -ErrorAction Stop
-            } catch {
-                Write-Output "Could not download Handle.exe: $_" | Out-File -FilePath $LogPath -Append
-            }
-        }
+    #if ($removeError) {
+    #    Write-Output "ERROR: Failed to remove AppData\Local\YourPlace: $removeError" | Out-File -FilePath $LogPath -Append
+    #    $handlePath = "$env:TEMP\handle64.exe"
+    #    if (-not (Test-Path $handlePath)) {
+    #        Write-Output "Downloading Handle.exe to check file locks..." | Out-File -FilePath $LogPath -Append
+    #        try {
+    #            Invoke-WebRequest -Uri "https://live.sysinternals.com/handle64.exe" -OutFile $handlePath -ErrorAction Stop
+    #        } catch {
+    #            Write-Output "Could not download Handle.exe: $_" | Out-File -FilePath $LogPath -Append
+    #        }
+    #    }
 
-        if (Test-Path $handlePath) {
-            Write-Output "Running Handle.exe to find locks..." | Out-File -FilePath $LogPath -Append
-            $handleOutput = & $handlePath -nobanner -accepteula "C:\Users\$YourPlaceUser\AppData\Local\YourPlace" 2>$null
+    #    if (Test-Path $handlePath) {
+    #        Write-Output "Running Handle.exe to find locks..." | Out-File -FilePath $LogPath -Append
+    #        $handleOutput = & $handlePath -nobanner -accepteula "C:\Users\$YourPlaceUser\AppData\Local\YourPlace" 2>$null
 
-            if ($handleOutput) {
-                Write-Output "Handle.exe found these processes using the directory:" | Out-File -FilePath $LogPath -Append
-                $handleOutput | Out-File -FilePath $LogPath -Append
-                $handleOutput | ForEach-Object {
-                    if ($_ -match "^(\S+)\s+pid:\s+(\d+)") {
-                        $procName = $Matches[1]
-                        $procId = $Matches[2]
-                        Write-Output "Process $procName (PID: $procId) has a handle on the directory" | Out-File -FilePath $LogPath -Append
-                    }
-                }
-            } else {
-                Write-Output "Handle.exe found no locks on the directory" | Out-File -FilePath $LogPath -Append
-            }
-        }
-    }
+    #        if ($handleOutput) {
+    #            Write-Output "Handle.exe found these processes using the directory:" | Out-File -FilePath $LogPath -Append
+    #            $handleOutput | Out-File -FilePath $LogPath -Append
+    #            $handleOutput | ForEach-Object {
+    #                if ($_ -match "^(\S+)\s+pid:\s+(\d+)") {
+    #                   $procName = $Matches[1]
+    #                   $procId = $Matches[2]
+    #                    Write-Output "Process $procName (PID: $procId) has a handle on the directory" | Out-File -FilePath $LogPath -Append
+    #                }
+    #            }
+    #        } else {
+    #           Write-Output "Handle.exe found no locks on the directory" | Out-File -FilePath $LogPath -Append
+    #        }
+    # }
+    #}
 
     Write-Output "Removing shortcuts..." | Out-File -FilePath $LogPath -Append
     Remove-Item -Path "C:\Users\$YourPlaceUser\Desktop\YourPlace.lnk" -Force -ErrorAction SilentlyContinue
