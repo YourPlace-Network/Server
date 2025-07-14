@@ -48,7 +48,6 @@ function Reset-Database($databasePath) {
     $connection.Close()
 }
 function Main() {
-    Write-Output "logpath vairable: $LogPath" | Out-File -FilePath $LogPath -Append
     if (-not (Test-Administrator)) {
         Write-Output "This script must be run as an administrator" | Out-File -FilePath $LogPath -Append
         exit 1
