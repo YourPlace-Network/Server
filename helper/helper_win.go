@@ -410,12 +410,17 @@ func GetProcessOwnerAsUser(processName string) (*user.User, error) {
 	if err := windows.Process32First(snapshot, &procEntry); err != nil {
 		return nil, err
 	}
+	counter := 0
 	for {
 		exeName := windows.UTF16ToString(procEntry.ExeFile[:])
 		if strings.HasPrefix(exeName, processName) {
 			return getProcessOwnerByPIDAsUser(procEntry.ProcessID) // Found the process, now get its owner
 		}
 		if err := windows.Process32Next(snapshot, &procEntry); err != nil {
+			break
+		}
+		counter++
+		if counter >= 5 {
 			break
 		}
 	}
