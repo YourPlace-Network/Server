@@ -854,7 +854,15 @@ const tips = [
     "Don't store things in the oven when it's off. People don't look before turning it on, and it can cause a fire",
     "Don't litter. Every time you do, it takes away a piece of your humanity and makes the world a bit uglier place",
     "Balance is found by solving problems. It's not found by getting angry and acting out",
-
+    "You don't need to be a genius to be successful. A simple formula for that is: 1) work really hard 2) make some sacrifices to your personal life 3) build and keep key relationships 4) find people to like and advocate for you",
+    "If your ideological opponents are reduced to making rage-cartoons online, then you've won",
+    "The entire point of life is to have kids and keep life going. Sure, you can find satisfaction without them; but you'll never be able to understand a huge piece of the human existence",
+    "Be wary of anybody who says \"the science is settled\". Scientific knowledge is always evolving and saying it's settled is one of the least scientific things to say",
+    "Parents, if a random adult comes up to your kid and starts talking to them in public, get that child out of there immediately",
+    "Leaving your enemies alive could be a huge mistake. Especially if they have a tendency to violently attack you without warning",
+    "You don't have to keep around dangerous and dumb friends just because there's some kind of past \"history\" between you two",
+    "Once you initiate violence of any kind, then you have no right to say what the response is",
+    "If anyone has to tell you that they're \"high value\" or some variation thereof, that means they're not",
 
 
 ];

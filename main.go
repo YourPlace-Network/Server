@@ -377,7 +377,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 			blockchain.IndexerClearOldCachedPosts(database)
 		})
 		blockchain.IndexerRestartJobs(database, "base") // set any jobs to "failed" that were left hanging on startup
-		c.AddFunc("@every 5m", func() {
+		c.AddFunc("@every 2m", func() {
 			indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
 			indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
 			isOnBattery := host.IsOnBattery()
@@ -386,6 +386,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 				blockchain.IndexerStop()
 				return
 			}
+			core.LogDebug("Starting Base Indexer Run")
 			blockchain.IndexerFetchData(database, _blockchain, "base")
 		})
 	}

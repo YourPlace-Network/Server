@@ -97,10 +97,11 @@ func (base *Base) GetBlockNumber() (*big.Int, error) {
 	for {
 		err := base.RpcClient.CallContext(context.Background(), &result, "eth_blockNumber")
 		if err != nil {
+			core.LogDebug("GetBlockNumber(): Error getting Base block number: " + err.Error())
 			rpcError++
 			time.Sleep(1 * time.Second)
 			if rpcError >= 20 {
-				return &big.Int{}, core.LogWarningReturn("Could not get current Base block number: " + err.Error())
+				return &big.Int{}, core.LogWarningReturn("Could not get current Base block number. To many errors on RPC call")
 			}
 		}
 		break

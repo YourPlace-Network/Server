@@ -6,7 +6,6 @@ declare global { // Extend the window interface with public callback objects
         DisconnectWalletCallback: () => void;
     }
 }
-
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
 

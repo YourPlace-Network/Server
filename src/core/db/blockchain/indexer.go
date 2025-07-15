@@ -500,8 +500,12 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 		_Database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1]) // default rate limit for default nodes
 	}
 	chainLatestBlock, err := _Blockchain.GetLatestBlock(chainName) // Get the latest block number from the blockchain RPC node
-	if err != nil || chainLatestBlock.Cmp(big.NewInt(0)) == 0 {    // Error checking the latest block number we got from the RPC node
-		core.LogError("Could not get Base latest block number - Will try again on next indexer run")
+	if err != nil {
+		core.LogDebug("Could not get Base latest block number: GetLatestBlock returned error: " + err.Error())
+		return "", "", nil, 0, 0, nil // bail out
+	}
+	if chainLatestBlock.Cmp(big.NewInt(0)) == 0 { // Error checking the latest block number we got from the RPC node
+		core.LogDebug("Could not get Base latest block number: " + chainLatestBlock.String())
 		return "", "", nil, 0, 0, nil // bail out
 	}
 	chainEarliestBlock := _Blockchain.GetEarliestBlock(chainName)                  // Get the earliest block number that a YourPlace post existed (YourPlace genesis block)
