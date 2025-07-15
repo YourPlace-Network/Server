@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -368,6 +369,33 @@ func RunShellCommandNoWaitEnv(command string, env []string) {
 	if err != nil {
 		core.LogWarn("Could not start command: " + _command + "\n" + err.Error())
 	}
+}
+func RunAsSpecificUser(user *user.User, exePath string) error {
+	taskName := "YourPlaceRestart_" + strconv.FormatInt(time.Now().Unix(), 10)
+
+	// Create and run immediately
+	cmd := exec.Command("schtasks", "/create", "/f",
+		"/tn", taskName,
+		"/tr", exePath,
+		"/sc", "once",
+		"/st", "00:00",
+		"/ru", user.Username,
+		"/rl", "LIMITED")
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	cmd = exec.Command("schtasks", "/run", "/tn", taskName)
+	err := cmd.Run()
+
+	// Cleanup
+	go func() {
+		time.Sleep(5 * time.Second)
+		exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run()
+	}()
+
+	return err
 }
 func RunAsUser(exePath string) error {
 	// Run an EXE with drop privileges - this function must be run as admin

@@ -351,6 +351,10 @@ func update() bool {
 	return true
 }
 func restart() bool {
+	user, _ := GetProcessOwnerAsUser("YourPlace", "YourPlaceIpfs", "YourPlaceHelper", "YourPlaceFfmpeg")
+	LogDebug("user: " + user.Name)
+	LogDebug("home: " + user.HomeDir)
+	execPath := filepath.Join(user.HomeDir, "AppData", "Local", "YourPlace", "YourPlace.exe")
 	// Kill running YourPlace processes
 	for _, proc := range []string{"YourPlace", "YourPlaceIpfs", "YourPlaceFfmpeg"} {
 		procName := proc + host.BinaryExtension
@@ -370,9 +374,9 @@ func restart() bool {
 	}
 	time.Sleep(2 * time.Second)
 	// Restart YourPlace executable
-	execPath := host.GetInstallDir() + "YourPlace" + host.BinaryExtension
+	LogDebug("Restart executable: " + execPath)
 	for attempt := 1; attempt <= 10; attempt++ {
-		err := host.RunAsUser(execPath)
+		err := host.RunAsSpecificUser(user, execPath)
 		if err != nil {
 			LogDebug("Failed to start YourPlace: " + err.Error())
 			time.Sleep(1 * time.Second)
@@ -399,7 +403,7 @@ func haltRestarter(c *cron.Cron) {
 }
 
 // Helper Functions
-func GetProcessOwnerAsUser(processName string) (*user.User, error) {
+func GetProcessOwnerAsUser(processName string, excludePrefixes ...string) (*user.User, error) {
 	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0) // First, find the process
 	if err != nil {
 		return nil, err
@@ -414,13 +418,22 @@ func GetProcessOwnerAsUser(processName string) (*user.User, error) {
 	for {
 		exeName := windows.UTF16ToString(procEntry.ExeFile[:])
 		if strings.HasPrefix(exeName, processName) {
-			return getProcessOwnerByPIDAsUser(procEntry.ProcessID) // Found the process, now get its owner
+			excluded := false
+			for _, excludedPrefix := range excludePrefixes {
+				if strings.HasPrefix(exeName, excludedPrefix) {
+					excluded = true
+					break
+				}
+			}
+			if !excluded {
+				return getProcessOwnerByPIDAsUser(procEntry.ProcessID) // Found the process, now get its owner
+			}
 		}
 		if err := windows.Process32Next(snapshot, &procEntry); err != nil {
 			break
 		}
 		counter++
-		if counter >= 5 {
+		if counter >= 10000 { //We are iterating through every single running process on the machine so it has to break after an unreasonable amount of processes
 			break
 		}
 	}
@@ -738,7 +751,7 @@ func runPowershellUninstaller(keepUploads, keepBlockchain bool) {
 
 // Logging Functions
 func LogInit(name string) *os.File {
-	user, _ := GetProcessOwnerAsUser("YourPlace")
+	user, _ := GetProcessOwnerAsUser("YourPlace", "YourPlaceHelper", "YourPlaceIpfs", "YourPlaceFfmpeg")
 	homeDir := user.HomeDir
 	logDir := filepath.Join(homeDir, "YourPlace")
 	logPath := filepath.Join(logDir, name+".log")
