@@ -1097,6 +1097,23 @@ func (db *SQLite) ProfileGetFollowerCount(address string, blockchain string) *in
 	}
 	return &postCount
 }
+func (db *SQLite) ProfileGetFollowingCount(address string, blockchain string) *int64 {
+	var postCount int64 = 0
+	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE followerAddress = ? AND followerBlockchain = ?", address, blockchain)
+	if err != nil {
+		core.LogError("Could not get following count from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&postCount)
+		if err != nil {
+			core.LogError("Could not parse database rows for following count: " + err.Error())
+			return nil
+		}
+	}
+	return &postCount
+}
 func (db *SQLite) ProfileIsFollower(followeeAddress string, followeeBlockchain string, followerAddress string, followerBlockchain string) bool {
 	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE followeeAddress = ? AND followeeBlockchain = ? AND followerAddress = ? AND followerBlockchain = ?", followeeAddress, followeeBlockchain, followerAddress, followerBlockchain)
 	if err != nil {

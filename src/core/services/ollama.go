@@ -35,11 +35,11 @@ func OllamaSetup() bool {
 func OllamaHealthCheck() error {
 	resp, err := http.Get("http://localhost:" + OllamaPort + "/api/ps")
 	if err != nil {
-		return core.LogErrorReturn("Failed to check ollama health: " + err.Error())
+		return core.LogDebugReturn("Failed to check ollama health: " + err.Error())
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return core.LogErrorReturn("Ollama health check failed: " + resp.Status)
+		return core.LogDebugReturn("Ollama health check failed: " + resp.Status)
 	}
 	return nil
 }
@@ -51,11 +51,11 @@ func OllamaDownloadModel(modelName string) error {
 	}
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
-		return core.LogErrorReturn("Ollama model download, failed to marshal json: " + err.Error())
+		return core.LogDebugReturn("Ollama model download, failed to marshal json: " + err.Error())
 	}
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
-		return core.LogErrorReturn("Ollama model download, failed to create request: " + err.Error())
+		return core.LogDebugReturn("Ollama model download, failed to create request: " + err.Error())
 	}
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{
@@ -63,12 +63,12 @@ func OllamaDownloadModel(modelName string) error {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return core.LogErrorReturn("Ollama model download, failed to download model: " + err.Error())
+		return core.LogDebugReturn("Ollama model download, failed to download model: " + err.Error())
 	}
 	defer resp.Body.Close()
 	// Check status code
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return core.LogErrorReturn(fmt.Sprintf("Ollama model download failed with status code: %d", resp.StatusCode))
+		return core.LogDebugReturn(fmt.Sprintf("Ollama model download failed with status code: %d", resp.StatusCode))
 	}
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
@@ -80,7 +80,7 @@ func OllamaDownloadModel(modelName string) error {
 		}
 		err = json.Unmarshal(scanner.Bytes(), &progressResponse)
 		if err != nil {
-			core.LogError("Ollama model download, failed to decode response: " + err.Error())
+			core.LogDebug("Ollama model download, failed to decode response: " + err.Error())
 			continue // skip malformed json
 		}
 		if progressResponse.Total > 0 {
@@ -91,7 +91,7 @@ func OllamaDownloadModel(modelName string) error {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return core.LogErrorReturn("Ollama model download, failed to read response: " + err.Error())
+		return core.LogDebugReturn("Ollama model download, failed to read response: " + err.Error())
 	}
 	return nil
 }

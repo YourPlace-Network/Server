@@ -26,7 +26,7 @@ const (
 	saveInterval   = 100  // save progress every # of blocks
 	throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
 	batchSizeLimit = 25   // The maximum number of blocks to fetch in a single batch RPC call
-	workerCount    = 25   // Number of worker threads to use for processing batches
+	workerCount    = 10   // Number of worker threads to use for processing batches
 )
 
 var (
@@ -237,14 +237,15 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	var wg sync.WaitGroup
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
-		go func() {
+		go func(workerID int) {
+			time.Sleep(time.Duration(workerID) * 100 * time.Millisecond) // Stagger the start of each worker to avoid API rate limiting upon startup
 			defer wg.Done()
 			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlockBigInt, targetLatestBlock, batchSize, "forward", errorChan)
 			if err != nil {
 				core.LogError("Worker thread failed: " + err.Error())
 				errorChan <- err // Send the error to the error channel
 			}
-		}()
+		}(i)
 	}
 	// Wait for completion or error
 	done := make(chan struct{})
@@ -342,14 +343,15 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	var wg sync.WaitGroup
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1) // Add a worker to the wait group
-		go func() {
+		go func(workerID int) {
+			time.Sleep(time.Duration(workerID) * 100 * time.Millisecond) // Stagger the start of each worker to avoid API rate limiting upon startup
 			defer wg.Done()
 			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward", errorChan)
 			if err != nil {
 				core.LogError("Worker encountered an error: " + err.Error())
 				errorChan <- err // Send the error to the error channel
 			}
-		}()
+		}(i)
 	}
 	// Wait for completion or error
 	done := make(chan struct{})
@@ -432,14 +434,15 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	var wg sync.WaitGroup
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
-		go func() {
+		go func(workerID int) {
+			time.Sleep(time.Duration(workerID) * 100 * time.Millisecond) // Stagger the start of each worker to avoid API rate limiting upon startup
 			defer wg.Done()
 			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, &targetEarliestBlockBigInt, targetLatestBlock, batchSize, "backward", errorChan)
 			if err != nil {
 				core.LogError("Worker encountered an error: " + err.Error())
 				errorChan <- err
 			}
-		}()
+		}(i)
 	}
 	// Wait for completion or error
 	done := make(chan struct{})

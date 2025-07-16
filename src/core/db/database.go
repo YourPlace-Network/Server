@@ -440,6 +440,14 @@ func (db *Database) ProfileGetFollowerCount(address string, blockchain string) *
 	}
 	return followerCount
 }
+func (db *Database) ProfileGetFollowingCount(address string, blockchain string) *int64 {
+	var followingCount *int64
+	switch db.Engine {
+	case "sqlite":
+		followingCount = db.sqlite.ProfileGetFollowingCount(address, blockchain)
+	}
+	return followingCount
+}
 func (db *Database) ProfileIsFollower(address string, blockchain string, followerAddress string, followerBlockchain string) bool {
 	switch db.Engine {
 	case "sqlite":
