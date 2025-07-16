@@ -100,15 +100,16 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			return
 		}
 		profileData := gin.H{
-			"name":          database.ProfileGetName(address, blockchainParam),
-			"description":   database.ProfileGetDescription(address, blockchainParam),
-			"location":      database.ProfileGetLocation(address, blockchainParam),
-			"website":       database.ProfileGetWebsite(address, blockchainParam),
-			"birthdate":     database.ProfileGetBirthDate(address, blockchainParam),
-			"joinedDate":    database.ProfileGetJoinedDate(address, blockchainParam),
-			"followerCount": database.ProfileGetFollowerCount(address, blockchainParam),
-			"avatarAddress": database.ProfileGetAvatar(address, blockchainParam),
-			"bannerAddress": database.ProfileGetBanner(address, blockchainParam),
+			"name":           database.ProfileGetName(address, blockchainParam),
+			"description":    database.ProfileGetDescription(address, blockchainParam),
+			"location":       database.ProfileGetLocation(address, blockchainParam),
+			"website":        database.ProfileGetWebsite(address, blockchainParam),
+			"birthdate":      database.ProfileGetBirthDate(address, blockchainParam),
+			"joinedDate":     database.ProfileGetJoinedDate(address, blockchainParam),
+			"followerCount":  database.ProfileGetFollowerCount(address, blockchainParam),
+			"followingCount": database.ProfileGetFollowingCount(address, blockchainParam),
+			"avatarAddress":  database.ProfileGetAvatar(address, blockchainParam),
+			"bannerAddress":  database.ProfileGetBanner(address, blockchainParam),
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "profileData": profileData})
 	})

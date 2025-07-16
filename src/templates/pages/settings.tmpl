@@ -280,7 +280,7 @@
                                                         <label for="baseIndexerProgress" class="form-label" id="baseIndexerProgressLabel">Indexer Progress:</label>
                                                         <div class="progress" id="baseIndexerProgressDiv">
                                                             <div id="baseIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
-                                                            <div id="baseIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="baseIndexerCachedPercent">80%</span></div>
+                                                            <div id="baseIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="baseIndexerCachedPercent">0%</span></div>
                                                             <div id="baseIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
                                                         </div>
 
@@ -300,6 +300,147 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Ethereum -->
+                                <div class="row">
+                                    <div class="col-sm-12 centerColumn">
+                                        <div class="accordion accordion-flush" id="ethAccordion">
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingEth">
+                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEth" aria-expanded="false" aria-controls="collapseEth">
+                                                        <img src="/static/image/ethereum.svg" class="settingsBlockchainImg" alt=""><b>Ethereum</b>
+                                                    </button>
+                                                </h2>
+                                                <div id="collapseEth" class="accordion-collapse collapse" aria-labelledby="headingEth" data-bs-parent="#ethAccordion">
+                                                    <div class="accordion-body">
+                                                        <div id="EthFullNodeDiv" disabled>
+                                                            <div class="form-check form-switch" id="ethFullNodeSwitch">
+                                                                <input class="form-check-input" type="checkbox" role="switch" id="ethFullNodeCheckbox" disabled>
+                                                                <label class="form-check-label" for="ethFullNodeCheckbox">Run Full Node</label>
+                                                            </div>
+                                                            <div id="ethFullNodeDataDirectoryDiv">
+                                                                <label for="ethDataDirectory" class="form-label">Node Data Directory</label>
+                                                                <div class="input-group mb-3" id="ethFullNodeInputDiv">
+                                                                    <input type="text" class="form-control" id="ethDataDirectory">
+                                                                    <button class="btn btn-primary btn-outline-secondary" id="ethDefaultDataDirectoryBtn" type="button">Default</button>
+                                                                    <button class="btn btn-primary btn-outline-secondary" id="ethSaveDataDirectoryBtn" type="button">Save</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label for="ethURL" id="ethUrlLabel" class="form-label">Ethereum RPC URL</label>
+                                                        <div class="input-group mb-3" id="ethUrlInputDiv">
+                                                            <input type="text" class="form-control" id="ethURL">
+                                                            <button class="btn btn-primary btn-outline-secondary" id="defaultEthURLBtn" type="button">Default</button>
+                                                            <button class="btn btn-primary btn-outline-secondary" id="saveEthURLBtn" type="button">Save</button>
+                                                        </div>
+
+                                                        <label for="ethThrottle" class="form-label" id="ethThrottleLabel">Server Throttle: <div id="ethThrottleNumber"></div> Requests-Per-Second</label>
+                                                        <div class="input-group mb3">
+                                                            <datalist id="ethThrottleMarkers">
+                                                                <option value="0" label="0"></option>
+                                                                <option value="10" label="10"></option>
+                                                                <option value="50" label="50"></option>
+                                                                <option value="100" label="100"></option>
+                                                                <option value="250" label="250"></option>
+                                                                <option value="500" label="500"></option>
+                                                                <option value="1000" label="1000"></option>
+                                                            </datalist>
+                                                            <input type="range" class="form-range" id="ethThrottle" min="0" max="1000" step="10" value="0" list="ethThrottleMarkers">
+                                                            <div id="ethThrottleTooltip" class="rangeTooltip" role="tooltip">
+                                                                <div class="throttle-tooltip-inner"></div>
+                                                                <div class="throttle-tooltip-arrow"></div>
+                                                            </div>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label for="ethIndexerProgress" class="form-label" id="ethIndexerProgressLabel">Indexer Progress:</label>
+                                                        <div class="progress" id="ethIndexerProgressDiv">
+                                                            <div id="ethIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                            <div id="ethIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="ethIndexerCachedPercent">0%</span></div>
+                                                            <div id="ethIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        </div>
+
+                                                        <div id="ethIndexerReset">
+                                                            <button class="btn btn-primary" id="ethIndexerResetBtn">Reset Indexer</button>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label class="form-label" for="ethPostHistoryDays" id="ethPostHistoryDaysLabel">Post History To Keep (days)</label>
+                                                        <div class="input-group mb3">
+                                                            <input type="number" class="form-control" id="ethPostHistoryDays" placeholder="Days" min="1" max="365" step="1" data-bind="value:ethPostHistoryDays" />
+                                                            <button class="btn btn-primary" id="saveEthPostHistoryDaysBtn">Save</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Algorand -->
+                                <div class="row">
+                                    <div class="col-sm-12 centerColumn">
+                                        <div class="accordion accordion-flush" id="algoAccordion">
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingAlgo">
+                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAlgo" aria-expanded="false" aria-controls="collapseAlgo">
+                                                        <img src="/static/image/algorand.svg" class="settingsBlockchainImg" alt=""><b>Algorand</b>
+                                                    </button>
+                                                </h2>
+                                                <div id="collapseAlgo" class="accordion-collapse collapse" aria-labelledby="headingAlgo" data-bs-parent="#algoAccordion">
+                                                    <div class="accordion-body">
+                                                        <label for="algoURL" id="algoUrlLabel" class="form-label">Algorand RPC URL</label>
+                                                        <div class="input-group mb-3" id="algoUrlInputDiv">
+                                                            <input type="text" class="form-control" id="algoURL">
+                                                            <button class="btn btn-primary btn-outline-secondary" id="defaultAlgoURLBtn" type="button">Default</button>
+                                                            <button class="btn btn-primary btn-outline-secondary" id="saveAlgoURLBtn" type="button">Save</button>
+                                                        </div>
+
+                                                        <label for="algoThrottle" class="form-label" id="algoThrottleLabel">Server Throttle: <div id="algoThrottleNumber"></div> Requests-Per-Second</label>
+                                                        <div class="input-group mb3">
+                                                            <datalist id="algoThrottleMarkers">
+                                                                <option value="0" label="0"></option>
+                                                                <option value="10" label="10"></option>
+                                                                <option value="50" label="50"></option>
+                                                                <option value="100" label="100"></option>
+                                                                <option value="250" label="250"></option>
+                                                                <option value="500" label="500"></option>
+                                                                <option value="1000" label="1000"></option>
+                                                            </datalist>
+                                                            <input type="range" class="form-range" id="algoThrottle" min="0" max="1000" step="10" value="0" list="algoThrottleMarkers">
+                                                            <div id="algoThrottleTooltip" class="rangeTooltip" role="tooltip">
+                                                                <div class="throttle-tooltip-inner"></div>
+                                                                <div class="throttle-tooltip-arrow"></div>
+                                                            </div>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label for="algoIndexerProgress" class="form-label" id="algoIndexerProgressLabel">Indexer Progress:</label>
+                                                        <div class="progress" id="algoIndexerProgressDiv">
+                                                            <div id="algoIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                            <div id="algoIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="algoIndexerCachedPercent">0%</span></div>
+                                                            <div id="algoIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        </div>
+
+                                                        <div id="algoIndexerReset">
+                                                            <button class="btn btn-primary" id="algoIndexerResetBtn">Reset Indexer</button>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label class="form-label" for="algoPostHistoryDays" id="algoPostHistoryDaysLabel">Post History To Keep (days)</label>
+                                                        <div class="input-group mb3">
+                                                            <input type="number" class="form-control" id="algoPostHistoryDays" placeholder="Days" min="1" max="365" step="1" data-bind="value:algoPostHistoryDays" />
+                                                            <button class="btn btn-primary" id="saveAlgoPostHistoryDaysBtn">Save</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     </div>

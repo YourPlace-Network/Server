@@ -147,6 +147,7 @@ declare global { // Extend the window interface with public objects
             await renderProfileBirthdateFromData(profileData.birthdate);
             await renderProfileJoinedDateFromData(profileData.joinedDate);
             await renderProfileFollowerCountFromData(profileData.followerCount);
+            await renderProfileFollowingCountFromData(profileData.followingCount);
             if (profileData.bannerAddress) {
                 await renderProfileBannerFromData(profileData.bannerAddress);
             }
@@ -304,6 +305,9 @@ declare global { // Extend the window interface with public objects
         }
         async function renderProfileFollowerCountFromData(followerCount: number) {
             DOM.followerCount.textContent = followerCount ? followerCount.toString() : "0";
+        }
+        async function renderProfileFollowingCountFromData(followingCount: number) {
+            DOM.followingCount.textContent = followingCount ? followingCount.toString() : "0";
         }
         async function renderProfileBannerFromData(bannerAddress: string) {
             if (bannerAddress && bannerAddress.length > 0) {
