@@ -372,8 +372,6 @@ func RunShellCommandNoWaitEnv(command string, env []string) {
 }
 func RunAsSpecificUser(user *user.User, exePath string) error {
 	taskName := "YourPlaceRestart_" + strconv.FormatInt(time.Now().Unix(), 10)
-
-	// Create and run immediately
 	cmd := exec.Command("schtasks", "/create", "/f",
 		"/tn", taskName,
 		"/tr", exePath,
@@ -381,20 +379,15 @@ func RunAsSpecificUser(user *user.User, exePath string) error {
 		"/st", "00:00",
 		"/ru", user.Username,
 		"/rl", "LIMITED")
-
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-
 	cmd = exec.Command("schtasks", "/run", "/tn", taskName)
 	err := cmd.Run()
-
-	// Cleanup
 	go func() {
 		time.Sleep(5 * time.Second)
 		exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run()
 	}()
-
 	return err
 }
 func RunAsUser(exePath string) error {
