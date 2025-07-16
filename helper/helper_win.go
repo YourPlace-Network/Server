@@ -757,7 +757,7 @@ func LogInit(name string) *os.File {
 	homeDir := user.HomeDir
 	logDir := filepath.Join(homeDir, "YourPlace")
 	logPath := filepath.Join(logDir, name+".log")
-	err := os.MkdirAll(logDir, 0755)
+	err = os.MkdirAll(logDir, 0755)
 	if err != nil {
 		return nil
 	}
