@@ -386,7 +386,10 @@ func RunAsSpecificUser(user *user.User, exePath string) error {
 	err := cmd.Run()
 	go func() {
 		time.Sleep(5 * time.Second)
-		exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run()
+		err := exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run()
+		if err != nil {
+			fmt.Println("could not delete task: " + taskName + ": " + err.Error())
+		}
 	}()
 	return err
 }
