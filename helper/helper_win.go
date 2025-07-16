@@ -750,7 +750,10 @@ func runPowershellUninstaller(keepUploads, keepBlockchain bool) {
 
 // Logging Functions
 func LogInit(name string) *os.File {
-	user, _ := GetProcessOwnerAsUser("YourPlace", "YourPlaceHelper", "YourPlaceIpfs", "YourPlaceFfmpeg")
+	user, err := GetProcessOwnerAsUser("YourPlace", "YourPlaceHelper", "YourPlaceIpfs", "YourPlaceFfmpeg")
+	if err != nil {
+		fmt.Println("Error getting user: " + err.Error())
+	}
 	homeDir := user.HomeDir
 	logDir := filepath.Join(homeDir, "YourPlace")
 	logPath := filepath.Join(logDir, name+".log")
