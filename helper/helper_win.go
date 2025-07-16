@@ -352,8 +352,6 @@ func update() bool {
 }
 func restart() bool {
 	user, _ := GetProcessOwnerAsUser("YourPlace", "YourPlaceIpfs", "YourPlaceHelper", "YourPlaceFfmpeg")
-	LogDebug("user: " + user.Name)
-	LogDebug("home: " + user.HomeDir)
 	execPath := filepath.Join(user.HomeDir, "AppData", "Local", "YourPlace", "YourPlace.exe")
 	// Kill running YourPlace processes
 	for _, proc := range []string{"YourPlace", "YourPlaceIpfs", "YourPlaceFfmpeg"} {
@@ -374,7 +372,6 @@ func restart() bool {
 	}
 	time.Sleep(2 * time.Second)
 	// Restart YourPlace executable
-	LogDebug("Restart executable: " + execPath)
 	for attempt := 1; attempt <= 10; attempt++ {
 		err := host.RunAsSpecificUser(user, execPath)
 		if err != nil {
@@ -414,8 +411,8 @@ func GetProcessOwnerAsUser(processName string, excludePrefixes ...string) (*user
 	if err := windows.Process32First(snapshot, &procEntry); err != nil {
 		return nil, err
 	}
-	counter := 0
-	for {
+	searchTimeout := time.Now().Add(10 * time.Second)
+	for time.Now().Before(searchTimeout) {
 		exeName := windows.UTF16ToString(procEntry.ExeFile[:])
 		if strings.HasPrefix(exeName, processName) {
 			excluded := false
@@ -426,16 +423,15 @@ func GetProcessOwnerAsUser(processName string, excludePrefixes ...string) (*user
 				}
 			}
 			if !excluded {
-				return getProcessOwnerByPIDAsUser(procEntry.ProcessID) // Found the process, now get its owner
+				return getProcessOwnerByPIDAsUser(procEntry.ProcessID)
 			}
 		}
 		if err := windows.Process32Next(snapshot, &procEntry); err != nil {
 			break
 		}
-		counter++
-		if counter >= 10000 { //We are iterating through every single running process on the machine so it has to break after an unreasonable amount of processes
-			break
-		}
+	}
+	if !time.Now().Before(searchTimeout) {
+		LogWarn("Process search timed out after 10 seconds")
 	}
 	return nil, LogErrorReturn("process not found: " + processName)
 }
