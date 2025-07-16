@@ -351,7 +351,10 @@ func update() bool {
 	return true
 }
 func restart() bool {
-	user, _ := GetProcessOwnerAsUser("YourPlace", "YourPlaceIpfs", "YourPlaceHelper", "YourPlaceFfmpeg")
+	user, err := GetProcessOwnerAsUser("YourPlace", "YourPlaceIpfs", "YourPlaceHelper", "YourPlaceFfmpeg")
+	if err != nil {
+		LogError("Could not get YourPlace process owner: " + err.Error())
+	}
 	execPath := filepath.Join(user.HomeDir, "AppData", "Local", "YourPlace", "YourPlace.exe")
 	// Kill running YourPlace processes
 	for _, proc := range []string{"YourPlace", "YourPlaceIpfs", "YourPlaceFfmpeg"} {
