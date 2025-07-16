@@ -434,7 +434,7 @@ func GetProcessOwnerAsUser(processName string, excludePrefixes ...string) (*user
 		}
 	}
 	if !time.Now().Before(searchTimeout) {
-		LogWarn("Process search timed out after 10 seconds")
+		LogDebug("Process search timed out after 10 seconds")
 	}
 	return nil, LogErrorReturn("process not found: " + processName)
 }
