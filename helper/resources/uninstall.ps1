@@ -136,8 +136,7 @@ function Main() {
             Write-Output "Deleting: $($item.FullName)" | Out-File -FilePath $LogPath -Append
             Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
         }
-    }
-    elseif ($keepBlockchain) {
+    } elseif ($keepBlockchain) {
         # Only keep blockchain
         $allItems = Get-ChildItem -Path "C:\Users\$YourPlaceUser\YourPlace" -Recurse -Force
         foreach ($item in $allItems) {
@@ -151,8 +150,7 @@ function Main() {
             Write-Output "Deleting: $($item.FullName)" | Out-File -FilePath $LogPath -Append
             Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
         }
-    }
-    elseif ($KeepUpload) {
+    } elseif ($KeepUpload) {
         # Only keep upload
         Write-Output "Keeping uploaded files..." | Out-File -FilePath $LogPath -Append
         if (Test-Path -Path $dataFolder) {
@@ -169,8 +167,7 @@ function Main() {
                 Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
-    }
-    else {
+    } else {
         # Keep nothing
         Write-Output "Removing all user data..." | Out-File -FilePath $LogPath -Append
         Remove-Item -Path "C:\Users\$YourPlaceUser\YourPlace" -Recurse -Force -ErrorAction SilentlyContinue
