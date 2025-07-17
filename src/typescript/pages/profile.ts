@@ -10,7 +10,7 @@ import {HttpGetJson} from "../util/network";
 import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchPosts} from "../components/post";
 import {GetToasts} from "../components/toast";
-import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletSendPostNudge, WalletFollowUser} from "../util/blockchain/wallet";
+import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletSendPostNudge, WalletFollowUser, WalletUnfollowUser, GetChain} from "../util/blockchain/wallet";
 import {CreatePostCard} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {CIDToSubdomainURL, loadImageWithTimeout} from "../util/ipfs";
@@ -41,6 +41,8 @@ declare global { // Extend the window interface with public objects
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
             emptyContentDivPlaceHolder: document.getElementById("emptyContentDivPlaceHolder")! as HTMLDivElement,
             followBtn: document.getElementById("followBtn")! as HTMLButtonElement,
+            followBtnLabel: document.getElementById("followBtnLabel")! as HTMLSpanElement,
+            followImg: document.getElementById("followImg")! as HTMLElement,
             profileAddressLink: document.getElementById("profileAddressLink")! as HTMLAnchorElement,
             profileAvatar: document.getElementById("profileAvatar")! as HTMLImageElement,
             profileBanner: document.getElementById("profileBanner")! as HTMLImageElement,
@@ -70,6 +72,7 @@ declare global { // Extend the window interface with public objects
             likesNum: document.getElementById("likesNum")! as HTMLDivElement,
         }
         let copiedTooltip: any;
+        let isFollowing = false;
         const profileCache = new PersistentCache({
             defaultTtl: 1800000, // 30 minutes
             keyPrefix: "profile_"
@@ -137,6 +140,31 @@ declare global { // Extend the window interface with public objects
         }
 
         // --------- Profile Data Helpers --------- //
+        async function checkFollowStatus(profileAddress: string, profileBlockchain: string) {
+            let userAddress = GetAddress();
+            let userBlockchain = GetChain();
+            if (!userAddress || !userBlockchain) {
+                return false;
+            }
+            try {
+                let response = await HttpGetJson(`/profile/isFollower/${profileBlockchain}/${profileAddress}/${userBlockchain}/${userAddress}`);
+                if (response[0] === 200 && response[1]?.isFollower !== undefined) {
+                    return response[1].isFollower;
+                }
+            } catch (error) {
+                LogError("Failed to check follow status: " + error);
+            }
+            return false;
+        }
+        function updateFollowButton() {
+            if (isFollowing) {
+                DOM.followBtnLabel.textContent = "Unfollow";
+                DOM.followImg.className = "bi-person-dash";
+            } else {
+                DOM.followBtnLabel.textContent = "Follow";
+                DOM.followImg.className = "bi-person-plus";
+            }
+        }
         async function renderProfileFromCache(profileData: any, blockchain: string, address: string) {
             await renderProfileAddress(address);
             await renderProfileNameFromData(profileData.name, blockchain, address);
@@ -170,6 +198,8 @@ declare global { // Extend the window interface with public objects
             };
             let postCount = Number(DOM.postsNum.textContent);
             if (DOM.isGuest.value === "true") {
+                isFollowing = await checkFollowStatus(DOM.injectedAddress.value, DOM.injectedBlockchain.value);
+                updateFollowButton();
                 DOM.profileEditBtn.style.display = "none";
                 DOM.followBtn.style.display = "block";
                 DOM.placeHolderH3.textContent = "Nothing posted yet";
@@ -356,13 +386,24 @@ declare global { // Extend the window interface with public objects
                 copiedTooltip.hide();
             }, 1000);
         });
-        DOM.followBtn.addEventListener("click", function() {
+        DOM.followBtn.addEventListener("click", async function() {
             let toAddress = DOM.profileAddressFull.value;
             if (!toAddress || !IsValidAddress(toAddress)) {
                 return;
             }
             let toBlockchain = DOM.injectedBlockchain.value;
-            WalletFollowUser(toAddress, toBlockchain).then();
+            try {
+                if (isFollowing) {
+                    await WalletUnfollowUser(toAddress, toBlockchain);
+                    isFollowing = false;
+                } else {
+                    await WalletFollowUser(toAddress, toBlockchain);
+                    isFollowing = true;
+                }
+                updateFollowButton();
+            } catch (error) {
+                LogError("Failed to update follow status: " + error);
+            }
         });
 
         init().then();

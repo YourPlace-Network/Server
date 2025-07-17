@@ -863,6 +863,7 @@ const tips = [
     "You don't have to keep around dangerous and dumb friends just because there's some kind of past \"history\" between you two",
     "Once you initiate violence of any kind, then you have no right to say what the response is",
     "If anyone has to tell you that they're \"high value\" or some variation thereof, that means they're not",
+    "If someone is shooting a particular gun for the first time, only load 1 round for safety until they can handle it",
 
 
 ];
