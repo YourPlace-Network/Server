@@ -22,6 +22,7 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 - s = settings
 
 ### Payload Tags
+Payload tags are special tags that the user can type themselves that exist in the post body. Those tags are the basis of communities and topics on YourPlace, and allow people to congregate around a topic or perform a specific action.
 - \# = hashtag
 - $ = cashtag
 - @ = mention
