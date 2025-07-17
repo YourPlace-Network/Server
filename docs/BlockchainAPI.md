@@ -1,4 +1,4 @@
-# Blockhain API
+# Blockchain API
 Communicating with YourPlace on the blockchain requires a unified API.
 JSON was chosen to provide a succinct, human-readable mechanism to send
 messages via blockchain. These messages will be what is stored on the
