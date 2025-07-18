@@ -865,7 +865,6 @@ const tips = [
     "If anyone has to tell you that they're \"high value\" or some variation thereof, that means they're not",
     "If someone is shooting a particular gun for the first time, only load 1 round for safety until they can handle it",
 
-
 ];
 
 (function initialize() {
