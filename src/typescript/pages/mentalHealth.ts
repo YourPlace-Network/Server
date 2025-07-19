@@ -864,6 +864,31 @@ const tips = [
     "Once you initiate violence of any kind, then you have no right to say what the response is",
     "If anyone has to tell you that they're \"high value\" or some variation thereof, that means they're not",
     "If someone is shooting a particular gun for the first time, only load 1 round for safety until they can handle it",
+    "Don't talk shit about your boss",
+    "Women, don't reject men just to boost your ego",
+    "You can't just let men who would burn down your history for laughs get off with a slap on the wrist. You need to send a message",
+    "Kids won't \"just grow out of it.\" They need to be taught and mentored out of their ridiculous childish ideas. Adults must tell kids that their ideas are wrong, and they have to explain why",
+    "Most people underestimate how much insistence you need about norms for them to work",
+    "Men, if a girl ever says \"I don't think your gf likes me\" to you, then she is hitting on you",
+    "Single people - it is important to distinguish between filtering and selection criteria for your partner. It's important to SELECT for values / goals / competency / etc. It's fine to FILTER for income / looks / etc. at the top of the funnel, but SELECTING on those things is risky. If you aren't getting what you want, you can adjust and widen your filters, but don't compromise on selection",
+    "There's a fine line between free speech, and providing material support or resources to designated terrorist organizations. And you kinda don't want a judge and jury (or a smart bomb) to make that call for you",
+    "Freedom is good. Creativity is good. Get smarter and better from adversity",
+    "Young career people: be easy to root for - Show up early. Do what you say you're doing to do. Take things off others plates. Stay late. Work weekends. Have a great attitude. Don't gossip, whine, or complain. Be easy to work with and hard to compete against",
+    "Everyone must choose one of two pains: The pain of discipline or the pain of regret",
+    "Stop needing your family and friends to agree with your goals before you pursue them",
+    "It's your job to have the highest quality standards of anybody you work with. You'll face pressure to lower them every day. Don't do it. If you can set a high bar and simply maintain it, you'll do very well for yourself",
+    "Beware: learning more is a smart person's favorite form of procrastination",
+    "Most people pray for signs, then walk right past them",
+    "Some people will turn down a once in a lifetime opportunity for no good reason, which they often come to regret. Seeing and acting on opportunity is what divides middling and massive success",
+    "Those trying to bring you down are already beneath you",
+    "There are certain rules in the world that nobody will tell you, because they only work as effective rules when they are unstated. They exist *explicitly* to see if you have the ability to identify them without anyone telling you",
+    "It's very important not to have relationships with people who view you as less than equal. It's not safe, even if you're physically stronger",
+    "A child not embraced by the village will burn it down to feel its warmth",
+    "Good ideas do not require force",
+    "Never quit something with great long-term potential just because you can't deal with the stress of the moment",
+    "\"I'd work hard if they paid me a lot!\" is the cope they tell. People who get paid a lot work hard regardless of pay. That's how they got there",
+
+
 
 ];
 
