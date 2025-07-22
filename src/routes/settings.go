@@ -225,6 +225,10 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"logs": log, "logPath": logPath})
 	})
+	router.GET("/settings/database/snapshotDirectory", func(c *gin.Context) {
+		snapshotPath := host.GetDataDir() + "yourplace.sqlite.snapshot"
+		c.SecureJSON(http.StatusOK, gin.H{"snapshotDirectory": snapshotPath})
+	})
 
 	router.POST("/settings/uploadDirectory", func(c *gin.Context) {
 		type Payload struct {
@@ -421,11 +425,9 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/database/exportSnapshot", func(c *gin.Context) {
-		importDB := host.GetDataDir() + "yourplace.db"
-		exportDB := host.GetDataDir() + "yourplace.db.snapshot"
+		exportDB := host.GetDataDir() + "yourplace.sqlite.snapshot"
 		host.DeleteIfExists(exportDB)
-		host.CopyFile(importDB, exportDB)
-		err := db.SanitizeDatabase(exportDB)
+		err := database.ExportSnapshot(exportDB)
 		if err != nil {
 			core.LogDebug("Error sanitizing database: " + err.Error())
 			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "failure"})

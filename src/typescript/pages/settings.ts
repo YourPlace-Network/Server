@@ -14,7 +14,7 @@ import {
 } from "../components/modalDialog";
 import {ShowModalYesNoHTML} from "../components/modalYesNo";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
-import {ShowSavedToast} from "../components/toast";
+import {ShowSavedToast, ShowToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
 
 
@@ -38,8 +38,9 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             baseURL: document.getElementById("baseURL")! as HTMLInputElement,
             baseIndexerResetBtn: document.getElementById("baseIndexerResetBtn")! as HTMLButtonElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
-            databaseExportSnapshotBtn: document.getElementById("databaseExportSnapshotBtn")! as HTMLButtonElement,
+            databaseExportSnapshotBtn: document.getElementById("databaseSnapshotBtn")! as HTMLButtonElement,
             databaseImportSnapshotBtn: document.getElementById("databaseImportSnapshotBtn")! as HTMLButtonElement,
+            databaseSnapshotDirectory: document.getElementById("databaseSnapshotDirectory")! as HTMLDivElement,
             defaultBaseURLBtn: document.getElementById("defaultBaseURLBtn")! as HTMLButtonElement,
             defaultUploadDirectoryBtn: document.getElementById("defaultUploadDirectoryBtn")! as HTMLButtonElement,
             helperVersionText: document.getElementById("helperVersionText")! as HTMLSpanElement,
@@ -99,6 +100,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                     getIpfsPinning(),
                     getDebugMode(),
                     getServerVersion(),
+                    getDatabaseSnapshotDirectory(),
                 ]);
             } catch (error) {
                 LogError("Error initializing settings page: " + error);
@@ -346,6 +348,12 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 return "";
             }
         }
+        async function getDatabaseSnapshotDirectory() {
+            let response = await HttpGetJson("/settings/database/snapshotDirectory");
+            if (response[0] === 200) {
+                DOM.databaseSnapshotDirectory.textContent = "Export location: " + DOMPurify.sanitize(response[1].snapshotDirectory);
+            }
+        }
         async function getServerLogs() {
             DOM.logsView.textContent = "";
             let response = await HttpGetJson("/settings/server/logs/view");
@@ -558,9 +566,9 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             const data = {
                 snapshot: "export",
             }
-            let response = await HttpPostJson("/settings/server/databaseSnapshot", data, DOM.csrfToken.value);
+            let response = await HttpPostJson("/settings/database/exportSnapshot", data, DOM.csrfToken.value);
             if (response[0] === 200) {
-                ShowSavedToast();
+                ShowToast("Database snapshot exported!");
             } else {
                 ShowDialogModal(response[1].status);
             }
@@ -684,6 +692,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.baseThrottle!.addEventListener("change", setBaseThrottle);
         DOM.baseSaveDataDirectoryBtn!.addEventListener("click", setBaseDataDirectory);
         DOM.baseIndexerResetBtn!.addEventListener("click", setBaseIndexerReset);
+        DOM.databaseExportSnapshotBtn!.addEventListener("click", setDatabaseExportSnapshot);
         DOM.defaultBaseURLBtn!.addEventListener("click", setDefaultBaseURL);
         DOM.defaultUploadDirectoryBtn!.addEventListener("click", setDefaultUploadDirectory);
         DOM.saveBaseURLBtn!.addEventListener("click", setBaseURL);

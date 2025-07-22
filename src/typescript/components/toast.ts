@@ -52,7 +52,7 @@ function CreateToast(autohide: boolean = false, delay: number = 2000, showCloseB
     toastDiv.appendChild(toastFlex);
     return toastDiv;
 }
-function ShowToast(message: string) {
+export function ShowToast(message: string) {
     let toastDiv = CreateToast();
     toastDiv.children[0].children[0].innerHTML = XSSSanitizeTextUrl(message);
     document.getElementById("toastContainer")!.appendChild(toastDiv);
