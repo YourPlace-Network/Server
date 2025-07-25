@@ -6,7 +6,7 @@ for the application. This code is stateful using localstorage to keep a few valu
 */
 import {Transaction} from "algosdk";
 import {algoConnectSession, algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
-import {baseAuthLogin, baseConnectWallet, baseDisconnectWallet, baseFollowUser, baseGetAvatar, baseGetENSText, baseGetName, baseGetNFTs, baseIsWalletConnected, baseSetAvatar, baseSetBanner, baseSetBirthday, baseSetDescription, baseSetLocation, baseSetName, baseSetWebsite, baseSubmitPost, baseSubmitPostAttach, baseTxn, mainnetBase} from "./base";
+import {baseAuthLogin, baseConnectWallet, baseDisconnectWallet, baseFollowUser, baseUnfollowUser, baseGetAvatar, baseGetENSText, baseGetName, baseGetNFTs, baseIsWalletConnected, baseSetAvatar, baseSetBanner, baseSetBirthday, baseSetDescription, baseSetLocation, baseSetName, baseSetWebsite, baseSubmitPost, baseSubmitPostAttach, baseTxn, mainnetBase} from "./base";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
@@ -421,6 +421,25 @@ export async function WalletFollowUser(toAddress: string, toBlockchain: string):
             break;
         case "cbwalletbase":
             let txID = await baseFollowUser(toAddress, toBlockchain);
+            if (txID) {
+                return txID.toString();
+            }
+            break;
+    }
+    return "";
+}
+export async function WalletUnfollowUser(toAddress: string, toBlockchain: string): Promise<string> {
+    let wallet = GetWallet()!;
+    let loggedInAddress = GetAddress()!;
+    if (toAddress === loggedInAddress) {
+        ShowDialogModal("You can't unfollow yourself, silly :D How did you even do that??");
+        return "";
+    }
+    switch (wallet) {
+        case "pera":
+            break;
+        case "cbwalletbase":
+            let txID = await baseUnfollowUser(toAddress, toBlockchain);
             if (txID) {
                 return txID.toString();
             }

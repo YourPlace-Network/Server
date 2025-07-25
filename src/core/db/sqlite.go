@@ -1604,6 +1604,28 @@ func (db *SQLite) OnchainF(txHash string, blockchain string, followerAddress str
 		core.LogError("Could not tokenize the follow in the database: " + err.Error())
 	}
 }
+func (db *SQLite) OnchainFU(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
+	// Check if the follow relationship exists before attempting to remove it
+	followQuery := "SELECT 1 FROM onchain_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(followQuery, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
+	if err != nil {
+		core.LogError("Could not check if the follow exists in the database: " + err.Error())
+		return
+	}
+	followExists := rows.Next() // if rows.Next() returns true, then at least 1 row exists, indicating the relationship exists
+	rows.Close()
+	if !followExists {
+		// Don't process the unfollow if the follow relationship doesn't exist (drop the transaction)
+		core.LogDebug("Unfollow transaction dropped: follow relationship does not exist")
+		return
+	}
+	// Remove the follow relationship from the database
+	query := "DELETE FROM onchain_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ?"
+	_, err = db.runParamSQLUpdate(query, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
+	if err != nil {
+		core.LogError("Could not remove the follow relationship from the database: " + err.Error())
+	}
+}
 
 // --- Followers Feed Functions --- //
 func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int) []map[string]interface{} {

@@ -67,4 +67,11 @@ export let YP = {
         }
         return `yp/1/f:${JSON.stringify(payload)}`
     },
+    unfollow: function(toAddress: string, toBlockchain: string): string {
+        const payload = {
+            a: toAddress,
+            b: toBlockchain,
+        }
+        return `yp/1/fu:${JSON.stringify(payload)}`
+    },
 }

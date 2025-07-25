@@ -768,6 +768,32 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 				}
 				_Database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
 				break
+			case "u":
+				blockchainPayload, ok1 := payloadObject["b"]
+				addressPayload, ok2 := payloadObject["a"]
+				if !ok1 || !ok2 {
+					core.LogDebug("Unfollow action missing required fields")
+					break
+				}
+				blockchainStr, ok1 := blockchainPayload.(string)
+				addressStr, ok2 := addressPayload.(string)
+				if !ok1 || !ok2 {
+					core.LogDebug("Unfollow action fields are not strings")
+					break
+				}
+				if !security.IsValidBlockchain(blockchainStr) {
+					core.LogDebug("Invalid blockchain in unfollow action")
+					break
+				}
+				if !security.IsValidAddress(addressStr, blockchainStr) {
+					core.LogDebug("Invalid address in unfollow action")
+					break
+				}
+				if fromAddress == addressStr && blockchain == blockchainStr { // Ignore self-unfollow attempts
+					break
+				}
+				_Database.OnchainFU(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
+				break
 			}
 			break
 		case 'm': // Metadata Actions

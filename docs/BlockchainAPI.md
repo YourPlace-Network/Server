@@ -1,4 +1,4 @@
-# Blockhain API
+# Blockchain API
 Communicating with YourPlace on the blockchain requires a unified API.
 JSON was chosen to provide a succinct, human-readable mechanism to send
 messages via blockchain. These messages will be what is stored on the
@@ -7,6 +7,10 @@ will need to understand this layout to be able to speak to the network.
 
 ### Structure
 `yp/1/p:{"p":"payload"}` = YourPlace/Version/Action:{JSON}
+
+### Implementation Status
+🚢 = Currently implemented and shipped in indexer and client
+Actions without 🚢 are documented but not yet implemented or shipped to users
 
 ### Actions Prefixes
 Actions are the 1 to 5 long character code between the `/` and `:` in the structure of the message. The first character is the "prefix" and the remaining characters are the "postfix". This established an action category (prefix) and specific action tag (postfix) for every API payload.
@@ -18,6 +22,7 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 - s = settings
 
 ### Payload Tags
+Payload tags are special tags that the user can type themselves that exist in the post body. Those tags are the basis of communities and topics on YourPlace, and allow people to congregate around a topic or perform a specific action.
 - \# = hashtag
 - $ = cashtag
 - @ = mention
@@ -25,22 +30,28 @@ Actions are the 1 to 5 long character code between the `/` and `:` in the struct
 - \<\> = NFT
 
 # JSON API
+### Enrollment (to yourself)
+- `yp/1/e:{"e":"url"}` - Enroll/register server endpoint URL
+
 ### Posting (to yourself)
 - `yp/1/p:{"p":"payload"}` - Post a message 🚢
-- `yp/1/pa:{"p":"payload","a":[["ipfs://CID/path.exe","application/vnd.microsoft.portable-executable",4096,"filename.exe"],["ipfs://CID2/path2.jpg","image/jpeg",2048,"filename.jpg"]]}` - Post a message with file attachment(s) [{path, mimetype, size}]
+- `yp/1/pa:{"p":"payload","a":[["ipfs://CID/path.exe","application/vnd.microsoft.portable-executable",4096,"filename.exe"],["ipfs://CID2/path2.jpg","image/jpeg",2048,"filename.jpg"]]}` - Post a message with file attachment(s) [{path, mimetype, size, filename}] 🚢
 - `yp/1/pr:{"txh":"txnHash"}` - Repost a post
 - `yp/1/pry:{"txh":"txnHash","p":"payload"}` - Reply to a post (to original poster)
 - `yp/1/prp:{"txh":"txnHash","p":"payload"}` - Repost a post with a message
 - `yp/1/pe:{"txh":"txnHash","p":"payload"}` - Edit a post
 - `yp/1/par:{"txh":"txnHash"}` - Archive a post
+
 ### Reaction (to yourself)
 - `yp/1/rl:{"txh":"txnHash"}` - Like a post
 - `yp/1/rdl:{"txh":"txnHash"}` - Dislike a post
+
 ### Following (to yourself)
 - `yp/1/f:{"a":"address", "b":"blockchain"}` - Follow an address at a blockchain 🚢
-- `yp/1/fu:{"a":"address", "b":"blockchain"}` - Unfollow an address at a blockchain
+- `yp/1/fu:{"a":"address", "b":"blockchain"}` - Unfollow an address at a blockchain 🚢
 - `yp/1/fh:{"h#":"#hashtag"}` - Follow a hashtag on all blockchains
 - `yp/1/fuh:{"h#":"#hashtag"}` - Unfollow a hashtag on all blockchains
+
 ### Metadata (to yourself)
 - `yp/1/mn:{"n":"name"}` - Update name 🚢
 - `yp/1/ma:{"a":"ipfs://CID"}` - Update avatar Img (IPFS) 🚢

@@ -337,6 +337,12 @@ func (db *Database) OnchainF(txHash string, blockchain string, followerAddress s
 		db.sqlite.OnchainF(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	}
 }
+func (db *Database) OnchainFU(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainFU(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
+	}
+}
 
 // --- Search Functions --- //
 func (db *Database) SearchGetPosts(query string) []map[string]interface{} {

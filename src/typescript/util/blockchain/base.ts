@@ -292,6 +292,12 @@ export async function baseFollowUser(toAddress: string, toBlockchain: string) {
     const txnID = await baseTxn(address, jsonData);
     return txnID;
 }
+export async function baseUnfollowUser(toAddress: string, toBlockchain: string) {
+    let address = GetAddress()!;
+    let jsonData = YP.unfollow(toAddress, toBlockchain);
+    const txnID = await baseTxn(address, jsonData);
+    return txnID;
+}
 
 // ---------- Get Functions ---------- //
 async function baseGetURL(): Promise<string|null> {
