@@ -603,7 +603,6 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 			placeholders[i] = "?"
 		}
 		var insertSQL string
-		core.LogDebug("table name: " + tableName)
 		insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
 		statement, err := tx.Prepare(insertSQL)
 		if err != nil {

@@ -50,28 +50,20 @@ rm -rf "/Users/$CONSOLE_USER/Library/Caches/YourPlace/"*
 
 # Handle user data based on flags
 if [ $KEEP_UPLOAD -eq 1 ] || [ $KEEP_BLOCKCHAIN -eq 1 ]; then
-    # Keep specific data based on flags
     cd "/Users/$CONSOLE_USER/YourPlace/" 2>/dev/null
     if [ $? -eq 0 ]; then
-        # Remove all files and directories except those we want to keep
         find . -mindepth 1 -maxdepth 1 | while read -r item; do
             base=$(basename "$item")
-            # Check if we should keep this item
             if [ $KEEP_UPLOAD -eq 1 ] && [ "$base" == "uploads" ]; then
                 continue
             elif [ $KEEP_BLOCKCHAIN -eq 1 ] && [ "$base" == "yourplace.sqlite.db" ]; then
                 continue
             else
-                # Remove this item
                 rm -rf "$item"
             fi
         done
-        # Clean up .ipfs directory unless we're keeping uploads
-        if [ $KEEP_UPLOAD -eq 0 ]; then
-            rm -rf .ipfs
-        fi
+        rm -rf .ipfs
     fi
 else
-    # Delete all user data
     rm -rf "/Users/$CONSOLE_USER/YourPlace/"*
 fi

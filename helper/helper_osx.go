@@ -231,15 +231,12 @@ func uninstallYourPlace(keepUpload, keepBlockchain bool) error {
 	shell := "/bin/bash"
 	script := "/Library/Application Support/YourPlace/uninstall.sh"
 	args := []string{shell, script}
-
-	// Add flags based on what to keep
 	if keepUpload {
 		args = append(args, "keepUpload")
 	}
 	if keepBlockchain {
 		args = append(args, "keepBlockchain")
 	}
-
 	env := os.Environ()
 	procAttr := &syscall.ProcAttr{
 		Env: env, // Pass current working environment
