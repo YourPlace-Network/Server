@@ -603,11 +603,8 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 			placeholders[i] = "?"
 		}
 		var insertSQL string
-		if strings.HasPrefix(tableName, "onchain_") || tableName == "postsBackfill" {
-			insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
-		} else {
-			insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", tableName, strings.Join(placeholders, ", "), strings.Join(placeholders, ", "))
-		}
+		core.LogDebug("table name: " + tableName)
+		insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
 		statement, err := tx.Prepare(insertSQL)
 		if err != nil {
 			tx.Rollback()

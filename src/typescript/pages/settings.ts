@@ -577,7 +577,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             const data = {
                 snapshot: "import",
             }
-            let response = await HttpPostJson("/settings/server/databaseSnapshot", data, DOM.csrfToken.value);
+            let response = await HttpPostJson("/settings/database/importSnapshot", data, DOM.csrfToken.value);
             if (response[0] === 200) {
                 ShowSavedToast();
             } else {
@@ -693,6 +693,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.baseSaveDataDirectoryBtn!.addEventListener("click", setBaseDataDirectory);
         DOM.baseIndexerResetBtn!.addEventListener("click", setBaseIndexerReset);
         DOM.databaseExportSnapshotBtn!.addEventListener("click", setDatabaseExportSnapshot);
+        DOM.databaseImportSnapshotBtn!.addEventListener("click", setDatabaseImportSnapshot);
         DOM.defaultBaseURLBtn!.addEventListener("click", setDefaultBaseURL);
         DOM.defaultUploadDirectoryBtn!.addEventListener("click", setDefaultUploadDirectory);
         DOM.saveBaseURLBtn!.addEventListener("click", setBaseURL);

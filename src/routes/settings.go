@@ -436,8 +436,8 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportDB})
 	})
 	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
-		importPath := host.GetDataDir() + "yourplace.db.snapshot"
-		// todo halt indexer prior to import
+		importPath := host.GetDataDir() + "yourplace.sqlite.snapshot"
+		blockchain.IndexerStop()
 		err := database.ImportSnapshot(importPath)
 		if err != nil {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "failed", "error": err.Error()})
