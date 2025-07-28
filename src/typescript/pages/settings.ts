@@ -38,7 +38,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             baseURL: document.getElementById("baseURL")! as HTMLInputElement,
             baseIndexerResetBtn: document.getElementById("baseIndexerResetBtn")! as HTMLButtonElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
-            databaseExportSnapshotBtn: document.getElementById("databaseSnapshotBtn")! as HTMLButtonElement,
+            databaseExportSnapshotBtn: document.getElementById("databaseExportSnapshotBtn")! as HTMLButtonElement,
             databaseImportSnapshotBtn: document.getElementById("databaseImportSnapshotBtn")! as HTMLButtonElement,
             databaseSnapshotDirectory: document.getElementById("databaseSnapshotDirectory")! as HTMLDivElement,
             defaultBaseURLBtn: document.getElementById("defaultBaseURLBtn")! as HTMLButtonElement,
@@ -351,7 +351,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         async function getDatabaseSnapshotDirectory() {
             let response = await HttpGetJson("/settings/database/snapshotDirectory");
             if (response[0] === 200) {
-                DOM.databaseSnapshotDirectory.textContent = "Export location: " + DOMPurify.sanitize(response[1].snapshotDirectory);
+                DOM.databaseSnapshotDirectory.textContent = "Export location: " + response[1].snapshotDirectory;
             }
         }
         async function getServerLogs() {
@@ -579,7 +579,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             }
             let response = await HttpPostJson("/settings/database/importSnapshot", data, DOM.csrfToken.value);
             if (response[0] === 200) {
-                ShowSavedToast();
+                ShowToast("Database snapshot imported!");
             } else {
                 ShowDialogModal(response[1].status);
             }

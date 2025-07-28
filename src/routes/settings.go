@@ -425,7 +425,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/database/exportSnapshot", func(c *gin.Context) {
-		exportDB := host.GetDataDir() + "yourplace.sqlite.snapshot"
+		exportDB := host.GetDataDir() + "yourplace.db.snapshot"
 		host.DeleteIfExists(exportDB)
 		err := database.ExportSnapshot(exportDB)
 		if err != nil {
@@ -436,8 +436,15 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportDB})
 	})
 	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
-		importPath := host.GetDataDir() + "yourplace.sqlite.snapshot"
+		importPath := host.GetDataDir() + "yourplace.db.snapshot"
 		blockchain.IndexerStop()
+		for i := 0; i < 12; i++ {
+			uuids := database.IndexerGetRunningJobsUUIDs()
+			if len(uuids) == 0 {
+				break
+			}
+			time.Sleep(5 * time.Second)
+		}
 		err := database.ImportSnapshot(importPath)
 		if err != nil {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "failed", "error": err.Error()})

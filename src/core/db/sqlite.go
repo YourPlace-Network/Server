@@ -205,10 +205,10 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
 		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
 		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT)",
-		"postsBackfill": "CREATE TABLE IF NOT EXISTS postsBackfill (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER)",
-		"authNonce":     "CREATE TABLE IF NOT EXISTS authNonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
-		"authExpired":   "CREATE TABLE IF NOT EXISTS authExpired (uuid TEXT PRIMARY KEY, status TEXT)",
-		"loginNonce":    "CREATE TABLE IF NOT EXISTS loginNonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
+		"indexer_jobs":  "CREATE TABLE IF NOT EXISTS indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER)",
+		"auth_nonce":    "CREATE TABLE IF NOT EXISTS auth_nonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
+		"auth_expired":  "CREATE TABLE IF NOT EXISTS auth_expired (uuid TEXT PRIMARY KEY, status TEXT)",
+		"login_nonce":   "CREATE TABLE IF NOT EXISTS login_nonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
 		"onchain_post":  "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', toAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
 		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', birthdate INTEGER DEFAULT NULL, server TEXT DEFAULT '', " +
 			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
@@ -249,7 +249,7 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 		"onchain_meta",
 		"onchain_block",
 		"onchain_follow",
-		"postsBackfill",
+		"indexer_jobs",
 		"file_txn_hash",
 		"files",
 	}
@@ -603,7 +603,12 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 			placeholders[i] = "?"
 		}
 		var insertSQL string
-		insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
+		noQuoteTableName := strings.Trim(tableName, `"`)
+		if noQuoteTableName == "indexer_jobs" {
+			insertSQL = fmt.Sprintf("INSERT OR REPLACE INTO %s (%s) VALUES (%s)", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
+		} else {
+			insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
+		}
 		statement, err := tx.Prepare(insertSQL)
 		if err != nil {
 			tx.Rollback()
@@ -750,9 +755,9 @@ func SanitizeSQLiteDatabase(path string) error {
 		return core.LogErrorReturn("Could not open sqlite db: " + err.Error())
 	}
 	// Scrub it clean
-	queries := []string{"TRUNCATE TABLE IF EXISTS authExpired",
-		"TRUNCATE TABLE IF EXISTS authNonce",
-		"TRUNCATE TABLE IF EXISTS loginNonce",
+	queries := []string{"TRUNCATE TABLE IF EXISTS auth_expired",
+		"TRUNCATE TABLE IF EXISTS auth_nonce",
+		"TRUNCATE TABLE IF EXISTS login_nonce",
 		"TRUNCATE TABLE IF EXISTS files",
 		"TRUNCATE TABLE IF EXISTS meta",
 		"TRUNCATE TABLE IF EXISTS settings",
@@ -1213,7 +1218,7 @@ func (db *SQLite) SearchGetProfiles(query string) []map[string]interface{} {
 
 // --- Auth Functions --- //
 func (db *SQLite) AuthGetNonceStatus(nonce string) string {
-	rows, err := db.runParamSQLSelect("SELECT status FROM authNonce WHERE nonce = ?", nonce)
+	rows, err := db.runParamSQLSelect("SELECT status FROM auth_nonce WHERE nonce = ?", nonce)
 	if err != nil {
 		core.LogError("Could not get nonce status from the database: " + err.Error())
 		return ""
@@ -1231,25 +1236,25 @@ func (db *SQLite) AuthGetNonceStatus(nonce string) string {
 	return ""
 }
 func (db *SQLite) AuthUpdateNonce(nonce string, status string) {
-	_, err := db.runParamSQLUpdate("INSERT INTO authNonce (nonce, status) VALUES (?, ?) ON CONFLICT (nonce) DO UPDATE SET status = excluded.status", nonce, status)
+	_, err := db.runParamSQLUpdate("INSERT INTO auth_nonce (nonce, status) VALUES (?, ?) ON CONFLICT (nonce) DO UPDATE SET status = excluded.status", nonce, status)
 	if err != nil {
 		core.LogError("Could not update auth nonce in database: " + err.Error())
 	}
 }
 func (db *SQLite) AuthDeleteNonce(nonce string) {
-	_, err := db.runParamSQLUpdate("DELETE FROM authNonce WHERE nonce = ?", nonce)
+	_, err := db.runParamSQLUpdate("DELETE FROM auth_nonce WHERE nonce = ?", nonce)
 	if err != nil {
 		core.LogError("Could not delete the auth nonce from the database: " + err.Error())
 	}
 }
 func (db *SQLite) AuthExpireCookie(uuid string) {
-	_, err := db.runParamSQLUpdate("INSERT INTO authExpired (uuid, status) VALUES (?, 'expired') ON CONFLICT (uuid) DO UPDATE SET status = 'expired'", uuid)
+	_, err := db.runParamSQLUpdate("INSERT INTO auth_expired (uuid, status) VALUES (?, 'expired') ON CONFLICT (uuid) DO UPDATE SET status = 'expired'", uuid)
 	if err != nil {
 		core.LogError("Could not expire the auth cookie from the database: " + err.Error())
 	}
 }
 func (db *SQLite) AuthGetCookieStatus(uuid string) string {
-	rows, err := db.runParamSQLSelect("SELECT status FROM authExpired WHERE uuid = ?", uuid)
+	rows, err := db.runParamSQLSelect("SELECT status FROM auth_expired WHERE uuid = ?", uuid)
 	if err != nil {
 		core.LogError("Could not get the auth cookie status from the database: " + err.Error())
 		return ""
@@ -1267,20 +1272,20 @@ func (db *SQLite) AuthGetCookieStatus(uuid string) string {
 	return ""
 }
 func (db *SQLite) AuthUpdateLoginNonce(nonce string, domain string, expiration uint64, nonceHash string) {
-	query := "INSERT INTO loginNonce (nonce, domain, expiration, nonceHash) VALUES (?, ?, ?, ?) ON CONFLICT (nonce) DO NOTHING"
+	query := "INSERT INTO login_nonce (nonce, domain, expiration, nonceHash) VALUES (?, ?, ?, ?) ON CONFLICT (nonce) DO NOTHING"
 	_, err := db.runParamSQLUpdate(query, nonce, domain, expiration, nonceHash)
 	if err != nil {
-		core.LogError("Could not update loginNonce: " + err.Error())
+		core.LogError("Could not update login_nonce: " + err.Error())
 	}
 }
 func (db *SQLite) AuthDeleteLoginNonce(nonce string) {
-	_, err := db.runParamSQLUpdate("DELETE FROM loginNonce WHERE nonce = ?", nonce)
+	_, err := db.runParamSQLUpdate("DELETE FROM login_nonce WHERE nonce = ?", nonce)
 	if err != nil {
 		core.LogError("Could not delete the login nonce from the database: " + err.Error())
 	}
 }
 func (db *SQLite) AuthExpireLoginNonce() {
-	_, err := db.runParamSQLUpdate("DELETE FROM loginNonce WHERE expiration < ?", core.GetTimestamp())
+	_, err := db.runParamSQLUpdate("DELETE FROM login_nonce WHERE expiration < ?", core.GetTimestamp())
 	if err != nil {
 		core.LogError("Could not delete any expired login nonces from the database: " + err.Error())
 	}
@@ -1344,7 +1349,7 @@ func (db *SQLite) GetFileHashFromUUID(uuid string) string {
 func (db *SQLite) IndexerCreateJob(uuid string, blockchain string) {
 	core.LogDebug("IndexerCreateJob(): " + uuid + " - " + blockchain)
 	timestamp := core.GetTimestamp()
-	query := "INSERT INTO postsBackfill (uuid, blockchain, headBlock, status, tailBlock, timestamp) VALUES (?, ?, 0, 'pending', 0, ?) ON CONFLICT (uuid) DO UPDATE SET status = excluded.status, tailBlock = excluded.tailBlock, timestamp = excluded.timestamp"
+	query := "INSERT INTO indexer_jobs (uuid, blockchain, headBlock, status, tailBlock, timestamp) VALUES (?, ?, 0, 'pending', 0, ?) ON CONFLICT (uuid) DO UPDATE SET status = excluded.status, tailBlock = excluded.tailBlock, timestamp = excluded.timestamp"
 	core.LogDebug("IndexerCreateJob(): " + query)
 	_, err := db.runParamSQLUpdate(query, uuid, blockchain, timestamp)
 	if err != nil {
@@ -1352,7 +1357,7 @@ func (db *SQLite) IndexerCreateJob(uuid string, blockchain string) {
 	}
 }
 func (db *SQLite) IndexerGetJobUUID(blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT uuid FROM postsBackfill WHERE blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect("SELECT uuid FROM indexer_jobs WHERE blockchain = ?", blockchain)
 	if err != nil {
 		core.LogError("Could not get the indexer job UUID from the database: " + err.Error())
 		return ""
@@ -1370,7 +1375,7 @@ func (db *SQLite) IndexerGetJobUUID(blockchain string) string {
 	return ""
 }
 func (db *SQLite) IndexerGetJobStatus(uuid string) string {
-	rows, err := db.runParamSQLSelect("SELECT status FROM postsBackfill WHERE uuid = ?", uuid)
+	rows, err := db.runParamSQLSelect("SELECT status FROM indexer_jobs WHERE uuid = ?", uuid)
 	if err != nil {
 		core.LogError("Could not get the indexer job status from the database: " + err.Error())
 		return ""
@@ -1388,7 +1393,7 @@ func (db *SQLite) IndexerGetJobStatus(uuid string) string {
 	return ""
 }
 func (db *SQLite) IndexerGetHeadBlock(uuid string) uint64 {
-	rows, err := db.runParamSQLSelect("SELECT headBlock FROM postsBackfill WHERE uuid = ?", uuid)
+	rows, err := db.runParamSQLSelect("SELECT headBlock FROM indexer_jobs WHERE uuid = ?", uuid)
 	if err != nil {
 		core.LogError("Could not get the indexer head block from the database: " + err.Error())
 		return 0
@@ -1406,7 +1411,7 @@ func (db *SQLite) IndexerGetHeadBlock(uuid string) uint64 {
 	return 0
 }
 func (db *SQLite) IndexerGetTailBlock(uuid string) uint64 {
-	rows, err := db.runParamSQLSelect("SELECT tailBlock FROM postsBackfill WHERE uuid = ?", uuid)
+	rows, err := db.runParamSQLSelect("SELECT tailBlock FROM indexer_jobs WHERE uuid = ?", uuid)
 	if err != nil {
 		core.LogError("Could not get the indexer tail block from the database: " + err.Error())
 		return 0
@@ -1424,7 +1429,7 @@ func (db *SQLite) IndexerGetTailBlock(uuid string) uint64 {
 	return 0
 }
 func (db *SQLite) IndexerGetRunningJobsUUIDs() []string {
-	rows, err := db.getRows("SELECT uuid FROM postsBackfill WHERE status = 'running'")
+	rows, err := db.getRows("SELECT uuid FROM indexer_jobs WHERE status = 'running'")
 	if err != nil {
 		core.LogError("Could not find the running indexer job UUIDs from the database: " + err.Error())
 		return []string{}
@@ -1444,20 +1449,20 @@ func (db *SQLite) IndexerGetRunningJobsUUIDs() []string {
 }
 func (db *SQLite) IndexerUpdateJobStatus(uuid string, status string) {
 	timestamp := core.GetTimestamp()
-	_, err := db.runParamSQLUpdate("UPDATE postsBackfill SET status = ?, timestamp = ? WHERE uuid = ?", status, timestamp, uuid)
+	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET status = ?, timestamp = ? WHERE uuid = ?", status, timestamp, uuid)
 	db.runSQL("PRAGMA wal_checkpoint(FULL)")
 	if err != nil {
 		core.LogError("Could not update the indexer job status in the database: " + err.Error())
 	}
 }
 func (db *SQLite) IndexerUpdateHeadBlock(uuid string, headBlock uint64) {
-	_, err := db.runParamSQLUpdate("UPDATE postsBackfill SET headBlock = ?, timestamp = ? WHERE uuid = ?", headBlock, core.GetTimestamp(), uuid)
+	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET headBlock = ?, timestamp = ? WHERE uuid = ?", headBlock, core.GetTimestamp(), uuid)
 	if err != nil {
 		core.LogError("Could not update the indexer head block in the database: " + err.Error())
 	}
 }
 func (db *SQLite) IndexerUpdateTailBlock(uuid string, tailBlock uint64) {
-	_, err := db.runParamSQLUpdate("UPDATE postsBackfill SET tailBlock = ?, timestamp = ? WHERE uuid = ?", tailBlock, core.GetTimestamp(), uuid)
+	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET tailBlock = ?, timestamp = ? WHERE uuid = ?", tailBlock, core.GetTimestamp(), uuid)
 	if err != nil {
 		core.LogError("Could not update the indexer tail block in the database: " + err.Error())
 	}
@@ -1470,7 +1475,7 @@ func (db *SQLite) IndexerAddPost(txHash string, blockchain string, fromAddress s
 	}
 }
 func (db *SQLite) IndexerResetJobs(blockchain string) {
-	_, err := db.runParamSQLUpdate("UPDATE postsBackfill SET status = 'pending', headBlock = 0, tailBlock = 0, timestamp = ? WHERE blockchain = ?", core.GetTimestamp(), blockchain)
+	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET status = 'pending', headBlock = 0, tailBlock = 0, timestamp = ? WHERE blockchain = ?", core.GetTimestamp(), blockchain)
 	if err != nil {
 		core.LogError("Could not reset the indexer in the database: " + err.Error())
 	}
