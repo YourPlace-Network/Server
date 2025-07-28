@@ -438,18 +438,22 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
 		importPath := host.GetDataDir() + "yourplace.db.snapshot"
 		blockchain.IndexerStop()
-		for i := 0; i < 100; i++ {
-			uuids := database.IndexerGetRunningJobsUUIDs()
-			if len(uuids) == 0 {
-				break
+		database.MetaUpdateValue("importStatus", "running")
+		go func() {
+			for i := 0; i < 100; i++ {
+				uuids := database.IndexerGetRunningJobsUUIDs()
+				if len(uuids) == 0 {
+					break
+				}
+				time.Sleep(5 * time.Second)
 			}
-			time.Sleep(5 * time.Second)
-		}
-		err := database.ImportSnapshot(importPath)
-		if err != nil {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "failed", "error": err.Error()})
-			return
-		}
+			err := database.ImportSnapshot(importPath)
+			if err != nil {
+				database.MetaUpdateValue("importStatus", "failed")
+				return
+			}
+			database.MetaUpdateValue("importStatus", "complete")
+		}()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "importPath": importPath})
 	})
 	router.POST("/settings/content/ipfsPinning", func(c *gin.Context) {
