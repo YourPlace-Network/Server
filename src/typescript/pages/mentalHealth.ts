@@ -887,6 +887,8 @@ const tips = [
     "Good ideas do not require force",
     "Never quit something with great long-term potential just because you can't deal with the stress of the moment",
     "\"I'd work hard if they paid me a lot!\" is the cope they tell. People who get paid a lot work hard regardless of pay. That's how they got there",
+    "Over-pay people who are doing good work for you. Then keep them close. If they stop doing good work, then reevaluate",
+    "Once negative sentiment starts, it's extremely difficult to stop. It spreads like fire and can burn down you and everything you've built",
 
 
 

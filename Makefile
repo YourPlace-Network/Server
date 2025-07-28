@@ -80,6 +80,7 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@echo $(VERSION) > src/core/host/bin/helper/osx/helper.version
 	go build -o target/YourPlaceHelper helper/helper_osx.go
 	go build -o target/YourPlace main.go
+	chmod +x resources/osx/askpass.sh
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh
 endif
@@ -105,6 +106,7 @@ else ifeq ($(DETECTED_OS),Darwin)
 	go build -o target/YourPlaceHelper helper/helper_osx.go
 	cp -rf target/YourPlaceHelper src/core/host/bin/helper/osx/YourPlaceHelper
 	go build -o target/YourPlace main.go
+	chmod +x resources/osx/askpass.sh
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh dev
 endif
@@ -128,7 +130,7 @@ run:
 ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe
 else ifeq ($(DETECTED_OS),Darwin)
-	rm -rf ~/YourPlace/debug
+	rm -rf ~/YourPlace/debug # Ensure debug file is removed
 	./target/YourPlace-$(VERSION)
 endif
 
@@ -138,7 +140,7 @@ ifeq ($(DETECTED_OS),Windows_NT)
 else ifeq ($(DETECTED_OS),Darwin)
 	mkdir -p ~/YourPlace && touch ~/YourPlace/debug
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
-	sudo -A installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
+	SUDO_ASKPASS=resources/osx/askpass.sh sudo -A installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
 endif
 
 dbg_gateway_run:
@@ -155,7 +157,7 @@ ifeq ($(DETECTED_OS),Windows_NT)
 else ifeq ($(DETECTED_OS),Darwin)
 	mkdir -p ~/YourPlace && touch ~/YourPlace/debug && touch ~/YourPlace/noindexer
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
-	sudo -A installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
+	SUDO_ASKPASS=resources/osx/askpass.sh installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
 endif
 
 dbg_nohelper_noindexer_run:
