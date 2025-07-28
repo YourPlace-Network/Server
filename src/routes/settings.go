@@ -443,7 +443,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			if len(uuids) == 0 {
 				break
 			}
-			time.Sleep(2 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 		err := database.ImportSnapshot(importPath)
 		if err != nil {
