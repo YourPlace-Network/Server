@@ -135,6 +135,14 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 	})
+	router.GET("/settings/database/importSnapshotStatus", func(c *gin.Context) {
+		status := database.MetaGetValue("importSnapshotStatus")
+		c.SecureJSON(http.StatusOK, gin.H{"status": status})
+	})
+	router.GET("/settings/database/exportSnapshotStatus", func(c *gin.Context) {
+		status := database.MetaGetValue("exportSnapshotStatus")
+		c.SecureJSON(http.StatusOK, gin.H{"status": status})
+	})
 	router.GET("/settings/indexer/status", func(c *gin.Context) {
 		baseUUID := database.IndexerGetJobUUID("base")
 		baseIndexerStatus := database.IndexerGetJobStatus(baseUUID)
@@ -426,19 +434,23 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.POST("/settings/database/exportSnapshot", func(c *gin.Context) {
 		exportDB := host.GetDataDir() + "yourplace.db.snapshot"
-		host.DeleteIfExists(exportDB)
-		err := database.ExportSnapshot(exportDB)
-		if err != nil {
-			core.LogDebug("Error sanitizing database: " + err.Error())
-			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "failure"})
-			return
-		}
+		database.MetaUpdateValue("exportSnapshotStatus", "running")
+		go func() {
+			host.DeleteIfExists(exportDB)
+			err := database.ExportSnapshot(exportDB)
+			if err != nil {
+				core.LogDebug("Error sanitizing database: " + err.Error())
+				database.MetaUpdateValue("exportSnapshotStatus", "failed")
+				return
+			}
+			database.MetaUpdateValue("exportSnapshotStatus", "complete")
+		}()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportDB})
 	})
 	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
 		importPath := host.GetDataDir() + "yourplace.db.snapshot"
+		database.MetaUpdateValue("importSnapshotStatus", "running")
 		blockchain.IndexerStop()
-		database.MetaUpdateValue("importStatus", "running")
 		go func() {
 			for i := 0; i < 100; i++ {
 				uuids := database.IndexerGetRunningJobsUUIDs()
@@ -449,10 +461,10 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			}
 			err := database.ImportSnapshot(importPath)
 			if err != nil {
-				database.MetaUpdateValue("importStatus", "failed")
+				database.MetaUpdateValue("importSnapshotStatus", "failed")
 				return
 			}
-			database.MetaUpdateValue("importStatus", "complete")
+			database.MetaUpdateValue("importSnapshotStatus", "complete")
 		}()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "importPath": importPath})
 	})

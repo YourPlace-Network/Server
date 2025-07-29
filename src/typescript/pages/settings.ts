@@ -563,26 +563,72 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             }
         }
         async function setDatabaseExportSnapshot() {
+            const originalText = DOM.databaseExportSnapshotBtn.textContent;
+            DOM.databaseExportSnapshotBtn.disabled = true;
+            DOM.databaseExportSnapshotBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Exporting...';
             const data = {
                 snapshot: "export",
             }
             let response = await HttpPostJson("/settings/database/exportSnapshot", data, DOM.csrfToken.value);
             if (response[0] === 200) {
-                ShowToast("Database snapshot exported!");
+                ShowToast("Database snapshot export started");
             } else {
                 ShowDialogModal(response[1].status);
+                DOM.databaseExportSnapshotBtn.textContent = originalText;
+                DOM.databaseExportSnapshotBtn.disabled = false;
+                return
             }
+            const interval = setInterval(async() => {
+                let response = await HttpGetJson("/settings/database/exportSnapshotStatus");
+                if (response[0] === 200) {
+                    let status = response[1].status;
+                    if (status == "complete") {
+                        ShowToast("Database snapshot exported");
+                        DOM.databaseExportSnapshotBtn.textContent = originalText;
+                        DOM.databaseExportSnapshotBtn.disabled = false;
+                        clearInterval(interval);
+                    } else if (status == "failed") {
+                        ShowToast("Failed to export database snapshot");
+                        DOM.databaseExportSnapshotBtn.textContent = originalText;
+                        DOM.databaseExportSnapshotBtn.disabled = false;
+                        clearInterval(interval);
+                    }
+                }
+            }, 5000)
         }
         async function setDatabaseImportSnapshot() {
+            const originalText = DOM.databaseImportSnapshotBtn.textContent;
+            DOM.databaseImportSnapshotBtn.disabled = true;
+            DOM.databaseImportSnapshotBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
             const data = {
                 snapshot: "import",
             }
             let response = await HttpPostJson("/settings/database/importSnapshot", data, DOM.csrfToken.value);
             if (response[0] === 200) {
-                ShowToast("Database snapshot imported!");
+                ShowToast("Database snapshot import started");
             } else {
                 ShowDialogModal(response[1].status);
+                DOM.databaseImportSnapshotBtn.textContent = originalText;
+                DOM.databaseImportSnapshotBtn.disabled = false;
+                return
             }
+            const interval = setInterval(async() => {
+                let response = await HttpGetJson("/settings/database/importSnapshotStatus");
+                if (response[0] === 200) {
+                    let status = response[1].status;
+                    if (status == "complete") {
+                        ShowToast("Database snapshot imported");
+                        DOM.databaseImportSnapshotBtn.textContent = originalText;
+                        DOM.databaseImportSnapshotBtn.disabled = false;
+                        clearInterval(interval);
+                    } else if (status == "failed") {
+                        ShowToast("Failed to import database snapshot");
+                        DOM.databaseImportSnapshotBtn.textContent = originalText;
+                        DOM.databaseImportSnapshotBtn.disabled = false;
+                        clearInterval(interval);
+                    }
+                }
+            }, 5000)
         }
         async function setDebugMode() {
             const data = {
