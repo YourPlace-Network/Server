@@ -294,10 +294,20 @@ func LogInit(name string) *os.File {
 	user, err := getProcessUserInfo("YourPlace")
 	homeDir := user.HomeDir
 	logDir := filepath.Join(homeDir, "Library", "Logs", "YourPlace")
-	err = os.MkdirAll(logDir, 0755)
 	if err != nil {
 		fmt.Println("Error creating log directory: " + err.Error())
 		return nil
+	}
+	maxAttempts := 12
+	for i := 0; i < maxAttempts; i++ {
+		if _, err := os.Stat(logDir); err == nil {
+			break
+		}
+		if i == maxAttempts-1 {
+			fmt.Fprintf(os.Stdout, "Log directory does not exist after 60 seconds: %s\n", logDir)
+			os.Exit(1)
+		}
+		time.Sleep(5 * time.Second)
 	}
 	logFile := filepath.Join(logDir, "yourplacehelper.log")
 	file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
