@@ -303,7 +303,7 @@ func LogInit(name string) *os.File {
 		if _, err := os.Stat(logDir); err == nil {
 			break
 		}
-		if i == maxAttempts-1 {
+		if i >= maxAttempts-1 {
 			fmt.Fprintf(os.Stdout, "Log directory does not exist after 60 seconds: %s\n", logDir)
 			os.Exit(1)
 		}
