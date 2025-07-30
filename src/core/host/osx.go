@@ -263,7 +263,6 @@ func GetSecret(name string) string {
 	}
 	return strings.TrimSpace(string(output))
 }
-func ShowSplashScreen() {}
 
 /* ------ OS Specific Business Logic ------ */
 func InstallIPFS() bool {

@@ -61,9 +61,8 @@ var (
 )
 
 func main() {
-	time.Sleep(3 * time.Second)          // Sleep for 1 second to allow the previous instance to close
+	time.Sleep(3 * time.Second)          // Sleep to allow the previous instance to close
 	logFile := core.LogInit("yourplace") // Initialize the logger
-	host.ShowSplashScreen()              // Show loading splash screen
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
 	core.LogDebug("Runtime User: " + host.GetUsername())
 
