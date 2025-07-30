@@ -1,9 +1,24 @@
 #!/bin/bash
 
-KEEP_DATA=0
-if [ "$1" == "data" ]; then
-    KEEP_DATA=1
-fi
+KEEP_UPLOAD=0
+KEEP_BLOCKCHAIN=0
+
+# Parse command line arguments
+for arg in "$@"; do
+    case $arg in
+        keepUpload)
+            KEEP_UPLOAD=1
+            ;;
+        keepBlockchain)
+            KEEP_BLOCKCHAIN=1
+            ;;
+        data)
+            # Legacy support for keeping all data
+            KEEP_UPLOAD=1
+            KEEP_BLOCKCHAIN=1
+            ;;
+    esac
+done
 
 CONSOLE_USER=$(stat -f "%Su" /dev/console)
 CONSOLE_UID=$(id -u "$CONSOLE_USER")
@@ -32,9 +47,23 @@ sleep 2
 sudo rm -rf "/Applications/YourPlace.app"
 sudo rm -rf "/Library/Logs/YourPlace"
 rm -rf "/Users/$CONSOLE_USER/Library/Caches/YourPlace/"*
-if [ $KEEP_DATA -eq 1 ]; then # delete all user data except the .db files
-  find "/Users/$CONSOLE_USER/YourPlace/" -type f ! -name "*.db" -delete
-  find "/Users/$CONSOLE_USER/YourPlace/" -type d -empty -delete
-else # delete all user data
-  rm -rf "/Users/$CONSOLE_USER/YourPlace/"*
+
+# Handle user data based on flags
+if [ $KEEP_UPLOAD -eq 1 ] || [ $KEEP_BLOCKCHAIN -eq 1 ]; then
+    cd "/Users/$CONSOLE_USER/YourPlace/" 2>/dev/null
+    if [ $? -eq 0 ]; then
+        find . -mindepth 1 -maxdepth 1 | while read -r item; do
+            base=$(basename "$item")
+            if [ $KEEP_UPLOAD -eq 1 ] && [ "$base" == "uploads" ]; then
+                continue
+            elif [ $KEEP_BLOCKCHAIN -eq 1 ] && [ "$base" == "yourplace.sqlite.db" ]; then
+                continue
+            else
+                rm -rf "$item"
+            fi
+        done
+        rm -rf .ipfs
+    fi
+else
+    rm -rf "/Users/$CONSOLE_USER/YourPlace/"*
 fi

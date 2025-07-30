@@ -52,8 +52,8 @@ function CreateToast(autohide: boolean = false, delay: number = 2000, showCloseB
     toastDiv.appendChild(toastFlex);
     return toastDiv;
 }
-function ShowToast(message: string) {
-    let toastDiv = CreateToast();
+export function ShowToast(message: string) {
+    let toastDiv = CreateToast(true, 2000, false);
     toastDiv.children[0].children[0].innerHTML = XSSSanitizeTextUrl(message);
     document.getElementById("toastContainer")!.appendChild(toastDiv);
     let toast = new window.bootstrap.Toast(toastDiv, {});

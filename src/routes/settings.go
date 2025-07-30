@@ -135,6 +135,14 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 	})
+	router.GET("/settings/database/importSnapshotStatus", func(c *gin.Context) {
+		status := database.MetaGetValue("importSnapshotStatus")
+		c.SecureJSON(http.StatusOK, gin.H{"status": status})
+	})
+	router.GET("/settings/database/exportSnapshotStatus", func(c *gin.Context) {
+		status := database.MetaGetValue("exportSnapshotStatus")
+		c.SecureJSON(http.StatusOK, gin.H{"status": status})
+	})
 	router.GET("/settings/indexer/status", func(c *gin.Context) {
 		baseUUID := database.IndexerGetJobUUID("base")
 		baseIndexerStatus := database.IndexerGetJobStatus(baseUUID)
@@ -224,6 +232,10 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			logPath = ""
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"logs": log, "logPath": logPath})
+	})
+	router.GET("/settings/database/snapshotDirectory", func(c *gin.Context) {
+		snapshotPath := host.GetDataDir() + "yourplace.db.snapshot"
+		c.SecureJSON(http.StatusOK, gin.H{"snapshotDirectory": snapshotPath})
 	})
 
 	router.POST("/settings/uploadDirectory", func(c *gin.Context) {
@@ -421,26 +433,39 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/database/exportSnapshot", func(c *gin.Context) {
-		importDB := host.GetDataDir() + "yourplace.db"
 		exportDB := host.GetDataDir() + "yourplace.db.snapshot"
-		host.DeleteIfExists(exportDB)
-		host.CopyFile(importDB, exportDB)
-		err := db.SanitizeDatabase(exportDB)
-		if err != nil {
-			core.LogDebug("Error sanitizing database: " + err.Error())
-			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "failure"})
-			return
-		}
+		database.MetaUpdateValue("exportSnapshotStatus", "running")
+		go func() {
+			host.DeleteIfExists(exportDB)
+			err := database.ExportSnapshot(exportDB)
+			if err != nil {
+				core.LogDebug("Error sanitizing database: " + err.Error())
+				database.MetaUpdateValue("exportSnapshotStatus", "failed")
+				return
+			}
+			database.MetaUpdateValue("exportSnapshotStatus", "complete")
+		}()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportDB})
 	})
 	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
 		importPath := host.GetDataDir() + "yourplace.db.snapshot"
-		// todo halt indexer prior to import
-		err := database.ImportSnapshot(importPath)
-		if err != nil {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "failed", "error": err.Error()})
-			return
-		}
+		database.MetaUpdateValue("importSnapshotStatus", "running")
+		blockchain.IndexerStop()
+		go func() {
+			for i := 0; i < 100; i++ {
+				uuids := database.IndexerGetRunningJobsUUIDs()
+				if len(uuids) == 0 {
+					break
+				}
+				time.Sleep(5 * time.Second)
+			}
+			err := database.ImportSnapshot(importPath)
+			if err != nil {
+				database.MetaUpdateValue("importSnapshotStatus", "failed")
+				return
+			}
+			database.MetaUpdateValue("importSnapshotStatus", "complete")
+		}()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "importPath": importPath})
 	})
 	router.POST("/settings/content/ipfsPinning", func(c *gin.Context) {
