@@ -35,6 +35,28 @@ Output YourPlace binary will be in the `target/` directory
 
 See the [Makefile](https://github.com/YourPlace-Network/Server/blob/main/Makefile) for more build targets
 
+## Install Artifacts
+
+These are the files and directories that YourPlace creates on your system during installation
+
+### OSX
+
+* ~/Library/Logs/YourPlace/yourplace.log (application logs)
+* /Library/Application Support/YourPlace/ on OSX (scripts directory)
+* ~/YourPlace/ on OSX (data directory)
+* /Library/LaunchDaemons/com.yourplace.network.plist (launch daemon)
+* /Library/LaunchAgents/com.yourplace.network.plist (launch agent)
+* /tmp/YourPlaceHelper.sock (socket for the helper app)
+
+### Windows
+
+* C:\Users\USERNAME\YourPlace\* on Windows (data directory)
+* C:\AppData\Local\YourPlace\* on Windows (install directory)
+
+## Updating
+
+Navigate to [Settings > Server Info](http://localhost:42424/settings#serverInfo) in the YourPlace interface, and click the "Check for Updates" button. If an update is available, it will open the page for you to download it. This will become an auto-update mechanism soon.
+
 ## Uninstalling
 
 YourPlace uses the standard OS interface such as add/remove programs. But there is also an "Uninstall" button in [Settings > Server Info](http://localhost:42424/settings#serverInfo) that starts the same workflow

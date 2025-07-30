@@ -889,8 +889,10 @@ const tips = [
     "\"I'd work hard if they paid me a lot!\" is the cope they tell. People who get paid a lot work hard regardless of pay. That's how they got there",
     "Over-pay people who are doing good work for you. Then keep them close. If they stop doing good work, then reevaluate",
     "Once negative sentiment starts, it's extremely difficult to stop. It spreads like fire and can burn down you and everything you've built",
-
-
+    "Don't complain about people, unless you actively need to highlight a problem. Think of social complaining like a fart. Let it out and apologize if you have pain and need it resolved. But try not to rip one with everyone around, when it benefits nobody. It's just leaves everyone with a bad smell, and no real reason for it",
+    "If you allow them, and without decentralized services, companies will create a sort of pseudo-government on the internet that will be accountable to nobody and can block you at a whim",
+    "Just because something can get hacked, doesn't mean you should operate with less security",
+    
 
 ];
 

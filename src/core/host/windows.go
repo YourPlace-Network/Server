@@ -638,7 +638,6 @@ func GetSecret(name string) string {
 	}
 	return string(cred.CredentialBlob)
 }
-func ShowSplashScreen() {}
 
 // ------ Scheduled Task Functions (Admin) ------ //
 func InstallScheduledTask(serviceName string) {

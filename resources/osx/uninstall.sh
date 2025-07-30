@@ -46,7 +46,9 @@ sleep 2
 # Remove the application & artifacts
 sudo rm -rf "/Applications/YourPlace.app"
 sudo rm -rf "/Library/Logs/YourPlace"
-rm -rf "/Users/$CONSOLE_USER/Library/Caches/YourPlace/"*
+sudo rm -rf "/Users/$CONSOLE_USER/Library/Caches/YourPlace"
+sudo rm -rf "/Users/$CONSOLE_USER/Library/Logs/YourPlace"
+sudo rm -rf "/tmp/YourPlaceHelper.sock"
 
 # Handle user data based on flags
 if [ $KEEP_UPLOAD -eq 1 ] || [ $KEEP_BLOCKCHAIN -eq 1 ]; then
