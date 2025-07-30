@@ -579,6 +579,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 return
             }
             const interval = setInterval(async() => {
+                // Polls backend every 5 second for database snapshot export status
                 let response = await HttpGetJson("/settings/database/exportSnapshotStatus");
                 if (response[0] === 200) {
                     let status = response[1].status;
@@ -593,6 +594,11 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                         DOM.databaseExportSnapshotBtn.disabled = false;
                         clearInterval(interval);
                     }
+                } else {
+                    ShowToast("Cannot get database export status")
+                    DOM.databaseExportSnapshotBtn.textContent = originalText;
+                    DOM.databaseExportSnapshotBtn.disabled = false;
+                    clearInterval(interval);
                 }
             }, 5000)
         }
@@ -613,6 +619,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 return
             }
             const interval = setInterval(async() => {
+                // Polls backend every 5 seconds for status of database snapshot import
                 let response = await HttpGetJson("/settings/database/importSnapshotStatus");
                 if (response[0] === 200) {
                     let status = response[1].status;
@@ -627,6 +634,11 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                         DOM.databaseImportSnapshotBtn.disabled = false;
                         clearInterval(interval);
                     }
+                } else {
+                    ShowToast("Cannot get database import status")
+                    DOM.databaseImportSnapshotBtn.textContent = originalText;
+                    DOM.databaseImportSnapshotBtn.disabled = false;
+                    clearInterval(interval);
                 }
             }, 5000)
         }
