@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Uninstall script for YourPlace on macOS. Lives in "/Library/Application\ Support/YourPlace/uninstall.sh"
+
 KEEP_UPLOAD=0
 KEEP_BLOCKCHAIN=0
 
