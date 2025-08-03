@@ -290,7 +290,7 @@ func IsEmbeddedFileEqual(embeddedFile []byte, diskFilePath string) bool {
 func UnzipFile(path string, destination string) error {
 	zipFile, err := zip.OpenReader(path)
 	if err != nil {
-		return _core.LogErrorReturn("Could not get ipfs zip file: " + err.Error())
+		return _core.LogErrorReturn("Could not get zip file: " + err.Error())
 	}
 	defer zipFile.Close()
 	for _, file := range zipFile.File {
@@ -340,17 +340,32 @@ func UntarFile(path string, destination string) {
 			_core.LogError("error untarring file: " + err.Error())
 			return
 		}
-		filePath := destination + header.Name
-		file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
-		if err != nil {
-			_core.LogError("could not create new file to untar to: " + err.Error())
-			return
+		filePath := filepath.Join(destination, header.Name)
+		if header.FileInfo().IsDir() {
+			err := os.MkdirAll(filePath, os.FileMode(header.Mode))
+			if err != nil {
+				_core.LogError("could not create directory: " + err.Error())
+				return
+			}
+		} else {
+			// Ensure parent directory exists
+			err := os.MkdirAll(filepath.Dir(filePath), 0755)
+			if err != nil {
+				_core.LogError("could not create parent directory: " + err.Error())
+				return
+			}
+			file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			if err != nil {
+				_core.LogError("could not create new file to untar to: " + err.Error())
+				return
+			}
+			if _, err := io.Copy(file, tarReader); err != nil {
+				_core.LogError("could not copy contents to the destination untar file: " + err.Error())
+				file.Close()
+				return
+			}
+			file.Close()
 		}
-		if _, err := io.Copy(file, tarReader); err != nil {
-			_core.LogError("could not copy contents to the destination untar file: " + err.Error())
-			return
-		}
-		file.Close()
 	}
 }
 func GetDomainName() string {

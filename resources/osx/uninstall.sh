@@ -69,5 +69,5 @@ if [ $KEEP_UPLOAD -eq 1 ] || [ $KEEP_BLOCKCHAIN -eq 1 ]; then
         rm -rf .ipfs
     fi
 else
-    rm -rf "/Users/$CONSOLE_USER/YourPlace/"*
+    rm -rf "/Users/$CONSOLE_USER/YourPlace/"
 fi
