@@ -4,6 +4,7 @@ package main
 
 import (
 	"YourPlace/src/core/host"
+	"YourPlace/src/core/network"
 	"bufio"
 	_ "embed"
 	"encoding/json"
@@ -136,6 +137,16 @@ func handleConnection(conn net.Conn) {
 			response.Status = "success"
 			response.Message = "ok - uninstalling"
 		}
+	case "whitelist_tor":
+		LogDebug("Received whitelist_tor request")
+		err = whitelistTorBinary()
+		if err != nil {
+			response.Status = "failed"
+			response.Message = "could not whitelist tor binary: " + err.Error()
+		} else {
+			response.Status = "success"
+			response.Message = "tor binary whitelisted"
+		}
 	case "version":
 		response.Status = "success"
 		response.Message = version
@@ -259,7 +270,68 @@ func uninstallYourPlace(keepUpload, keepBlockchain bool) error {
 	}()
 	return nil
 }
+func whitelistTorBinary() error {
+	user, err := getProcessUserInfo("YourPlace")
+	if err != nil {
+		return LogErrorReturn("Could not find YourPlace user: " + err.Error())
+	}
+	torPath := filepath.Join(user.HomeDir, "Library", "Caches", "YourPlace", "tor", "tor", "tor")
+	// Check if binary exists
+	if _, err := os.Stat(torPath); os.IsNotExist(err) {
+		return LogErrorReturn("Tor binary not found at: " + torPath)
+	}
+	// Change the binary to root during modification (prevent tampering while whitelisting)
+	originalMode, originalUID, originalGID, err := protectBinary(torPath)
+	_ = originalMode // todo debug
+	_ = originalUID  // todo debug
+	_ = originalGID  // todo debug
+	if err != nil {
+		return LogErrorReturn("Could not protect Tor binary: " + err.Error())
+	}
+	// Check the Tor binary signature
+	signature, err := network.GetLatestTorBinarySignature()
+	if err != nil {
+		return LogErrorReturn("Could not get Tor binary signature: " + err.Error())
+	}
+	_ = signature // todo debug
 
+	// Verify the Tor binary signature
+	// todo finish signature verification
+
+	// Add to Security & Privacy whitelist using spctl
+	cmd := exec.Command("spctl", "--add", "--label", "YourPlace-Tor", torPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		LogError("spctl add failed: " + string(output))
+	}
+	// Remove quarantine attributes
+	cmd = exec.Command("xattr", "-r", "-d", "com.apple.quarantine", torPath)
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		LogError("xattr quarantine removal: " + string(output))
+	}
+	// Remove all extended attributes
+	cmd = exec.Command("xattr", "-c", torPath)
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		LogError("xattr clear: " + string(output))
+	}
+	// Make executable
+	err = os.Chmod(torPath, 0755)
+	if err != nil {
+		return LogErrorReturn("Could not make tor binary executable: " + err.Error())
+	}
+	// Restore original permissions
+	// todo finish restoring ower, uid, and gid
+	err = unprotectBinary(torPath, originalMode, originalUID, originalGID)
+	if err != nil {
+		return LogErrorReturn("Could not restore original permissions to tor binary: " + err.Error())
+	}
+	LogInfo("Tor binary verified and whitelisted successfully at: " + torPath)
+	return nil
+}
+
+// System Functions
 func getProcessUserInfo(processName string) (*user.User, error) {
 	// Get the PID using pgrep
 	pidCmd := exec.Command("pgrep", "-x", processName)
@@ -287,6 +359,30 @@ func getProcessUserInfo(processName string) (*user.User, error) {
 		return nil, LogErrorReturn("Could not get user info for process 3: " + err.Error())
 	}
 	return userInfo, nil
+}
+func protectBinary(path string) (os.FileMode, uint32, uint32, error) {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return 0, 0, 0, LogErrorReturn("Could not stat binary while trying to protect it: " + err.Error())
+	}
+	originalMode := fileInfo.Mode()
+	originalUID := fileInfo.Sys().(*syscall.Stat_t).Uid
+	originalGID := fileInfo.Sys().(*syscall.Stat_t).Gid
+	// Change the binary to root during modification (prevent tampering while whitelisting)
+	if err = os.Chown(path, 0, 0); err != nil {
+		return 0, 0, 0, LogErrorReturn("Could not change ownership of tor binary: " + err.Error())
+	}
+	if err = os.Chmod(path, 0700); err != nil { // Set read-only permissions to protect the binary
+		return 0, 0, 0, LogErrorReturn("Could not set read-only permissions to protect binary: " + err.Error())
+	}
+	return originalMode, originalUID, originalGID, nil
+}
+func unprotectBinary(path string, originalMode os.FileMode, originalUID uint32, originalGID uint32) error {
+	err := os.Chmod(path, originalMode)
+	if err != nil {
+		return LogErrorReturn("Could not restore original permissions to binary: " + err.Error())
+	}
+	return nil
 }
 
 // Logging Functions

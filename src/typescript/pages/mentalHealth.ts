@@ -892,7 +892,14 @@ const tips = [
     "Don't complain about people, unless you actively need to highlight a problem. Think of social complaining like a fart. Let it out and apologize if you have pain and need it resolved. But try not to rip one with everyone around, when it benefits nobody. It's just leaves everyone with a bad smell, and no real reason for it",
     "If you allow them, and without decentralized services, companies will create a sort of pseudo-government on the internet that will be accountable to nobody and can block you at a whim",
     "Just because something can get hacked, doesn't mean you should operate with less security",
-    
+    "After a major breakup, an immediate rebound partner is probably not going to be a healthy relationship either. A good next partner will know that you need time to heal before moving on",
+    "Believe in the sanctity of innocent people",
+    "Some people ask for evidence of a claim, but will still reject it when presented with the facts. They don't actually want the evidence. They just want to delay the inevitability of them being wrong. They're trying to stall for time",
+    "It's possible to be extremely smart or talented, but still not have the attitude or temperament for a high-performing job",
+    "How you act is significantly more important than how you feel or what you say",
+    "If you want to donate, give your money to organizations that bring water and food to people in need. Make sure they show the results",
+
+
 
 ];
 

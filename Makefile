@@ -76,9 +76,12 @@ ifeq ($(DETECTED_OS),Windows_NT)
 else ifeq ($(DETECTED_OS),Darwin)
 	$(NPX) webpack --config src/typescript/webpack.prod.js
 	mkdir -p src/core/host/bin/helper/osx/
+	go generate
+	touch src/core/host/bin/helper/osx/YourPlaceHelper
 	VERSION=$(shell grep 'version.*=.*"' helper/helper_osx.go | cut -d'"' -f2)
 	@echo $(VERSION) > src/core/host/bin/helper/osx/helper.version
 	go build -o target/YourPlaceHelper helper/helper_osx.go
+	cp -rf target/YourPlaceHelper src/core/host/bin/helper/osx/YourPlaceHelper
 	go build -o target/YourPlace main.go
 	chmod +x resources/osx/askpass.sh
 	chmod +x resources/osx/osx_packager.sh
@@ -131,6 +134,7 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe
 else ifeq ($(DETECTED_OS),Darwin)
 	rm -rf ~/YourPlace/debug # Ensure debug file is removed
+	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	./target/YourPlace-$(VERSION)
 endif
 
@@ -138,31 +142,31 @@ dbg_run:
 ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe -d=true -u=false
 else ifeq ($(DETECTED_OS),Darwin)
-	mkdir -p ~/YourPlace && touch ~/YourPlace/debug
+	mkdir -p ~/YourPlace && touch ~/YourPlace/debug # Add debug file flag
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	SUDO_ASKPASS=resources/osx/askpass.sh sudo -A installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
+	open -n /Applications/YourPlace.app
 endif
 
 dbg_gateway_run:
 ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe -d=true -u=false -g=true
 else ifeq ($(DETECTED_OS),Darwin)
-	./target/YourPlace-$(VERSION) -d=true -u=false -g=true
-	# open ./target/YourPlace.app --args "-d=true -u=false"
+	mkdir -p ~/YourPlace && touch ~/YourPlace/debug # Add debug file flag
+    @VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
+    SUDO_ASKPASS=resources/osx/askpass.sh sudo -A installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
+	open -n /Applications/YourPlace.app --args -g=true
 endif
 
 dbg_noindexer_run:
 ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe -d=true -u=false -i=false
 else ifeq ($(DETECTED_OS),Darwin)
-	mkdir -p ~/YourPlace && touch ~/YourPlace/debug && touch ~/YourPlace/noindexer
+	mkdir -p ~/YourPlace && touch ~/YourPlace/debug && touch ~/YourPlace/noindexer # Add debug file flag
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	SUDO_ASKPASS=resources/osx/askpass.sh installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
+	open -n /Applications/YourPlace.app --args -i=false
 endif
 
-dbg_nohelper_noindexer_run:
-ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlace.exe -d=true -u=false -i=false -h=false
-else ifeq ($(DETECTED_OS),Darwin)
-	./target/YourPlace -d=true -u=false -i=false -h=false
-endif
+testing:
+	go run test.go
