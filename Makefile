@@ -145,7 +145,6 @@ else ifeq ($(DETECTED_OS),Darwin)
 	mkdir -p ~/YourPlace && touch ~/YourPlace/debug # Add debug file flag
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	SUDO_ASKPASS=resources/osx/askpass.sh sudo -A installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
-	open -n /Applications/YourPlace.app
 endif
 
 dbg_gateway_run:
@@ -155,7 +154,6 @@ else ifeq ($(DETECTED_OS),Darwin)
 	mkdir -p ~/YourPlace && touch ~/YourPlace/debug # Add debug file flag
     @VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
     SUDO_ASKPASS=resources/osx/askpass.sh sudo -A installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
-	open -n /Applications/YourPlace.app --args -g=true
 endif
 
 dbg_noindexer_run:
@@ -165,7 +163,6 @@ else ifeq ($(DETECTED_OS),Darwin)
 	mkdir -p ~/YourPlace && touch ~/YourPlace/debug && touch ~/YourPlace/noindexer # Add debug file flag
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	SUDO_ASKPASS=resources/osx/askpass.sh installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
-	open -n /Applications/YourPlace.app --args -i=false
 endif
 
 testing:
