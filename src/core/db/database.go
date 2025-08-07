@@ -468,3 +468,24 @@ func (db *Database) GetFollowersFeed(followerAddress string, followerBlockchain 
 	}
 	return nil
 }
+
+// --- Notifications --- //
+func (db *Database) NotificationInsert(uid string, message string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.NotificationInsert(uid, message)
+	}
+}
+func (db *Database) NotificationDismiss(uid string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.NotificationDismiss(uid)
+	}
+}
+func (db *Database) NotificationGetActive() []map[string]string {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.NotificationGetActive()
+	}
+	return nil
+}

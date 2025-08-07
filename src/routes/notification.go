@@ -10,33 +10,79 @@ import (
 	"net/http"
 )
 
+type NotificationObject struct {
+	UID         string `json:"uid"`
+	Type        string `json:"type"`
+	Message     string `json:"message"`
+	Dismissable bool   `json:"dismissable"`
+}
+
 func NotificationRoutes(router *gin.Engine, database *db.Database) {
-	router.GET("/notification/toasts", func(c *gin.Context) {
-		rpcToasts := GetDefaultRPCNodeNotification(database)
-		updateToasts := GetServerUpdateNotification()
-		toasts := append(rpcToasts, updateToasts...)
-		c.SecureJSON(http.StatusOK, gin.H{"toasts": toasts})
+	router.GET("/notification", func(c *gin.Context) {
+		notifications := GetAllNotifications(database)
+		c.SecureJSON(http.StatusOK, gin.H{"notifications": notifications})
+	})
+	router.GET("/notification/:uid", func(c *gin.Context) {
+		uid := c.Param("uid")
+		if uid == "" {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "Missing notification UID"})
+			return
+		}
+		notifications := GetAllNotifications(database)
+		for _, notification := range notifications {
+			if notification.UID == uid {
+				c.SecureJSON(http.StatusOK, notification)
+				return
+			}
+		}
+		c.SecureJSON(http.StatusNotFound, gin.H{"error": "Notification not found"})
+	})
+	router.POST("/notification/dismiss/:uid", func(c *gin.Context) {
+		uid := c.Param("uid")
+		if uid == "" {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "Missing notification UID"})
+			return
+		}
+		database.NotificationDismiss(uid)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "dismissed"})
 	})
 }
 
-func GetDefaultRPCNodeNotification(database *db.Database) []string {
+func GetAllNotifications(database *db.Database) []NotificationObject {
+	var notifications []NotificationObject
+	dbNotifications := database.NotificationGetActive()
+	for _, dbNotif := range dbNotifications {
+		notifications = append(notifications, NotificationObject{
+			UID:         dbNotif["uid"],
+			Type:        "user",
+			Message:     dbNotif["message"],
+			Dismissable: true,
+		})
+	}
+	systemNotifications := getSystemNotifications(database)
+	notifications = append(notifications, systemNotifications...)
+	return notifications
+}
+func getSystemNotifications(database *db.Database) []NotificationObject {
+	var notifications []NotificationObject
 	baseURL := database.SettingsGetValue("baseURL")
 	if baseURL == blockchain.DefaultBlockchainNodes["base"][0] {
-		return []string{"You are using a blockchain node which is causing slow performance. <a href=\"/settings#collapseBase\" class=\"toastLink\">Click here</a> to set your own blockchain RPC node"}
+		notifications = append(notifications, NotificationObject{
+			UID:         "system_rpc_slow",
+			Type:        "system",
+			Message:     "You are using a blockchain node which is causing slow performance. <a href=\"/settings#collapseBase\" class=\"toastLink\">Click here</a> to set your own blockchain RPC node",
+			Dismissable: false,
+		})
 	}
-	return nil
-}
-func GetServerUpdateNotification() []string {
 	serverVersion := host.GetServerVersion()
-	if serverVersion == "" {
-		return nil
-	}
 	latestVersion := services.GetLatestServerVersion()
-	if latestVersion == "" {
-		return nil
+	if serverVersion != "" && latestVersion != "" && security.IsVersionGreater(serverVersion, latestVersion) {
+		notifications = append(notifications, NotificationObject{
+			UID:         "system_update_available",
+			Type:        "system",
+			Message:     "A new update is available. <a href=\"https://yourplace.network/download\" class=\"toastLink\" target=\"_blank\">Click here</a> to download",
+			Dismissable: false,
+		})
 	}
-	if security.IsVersionGreater(serverVersion, latestVersion) {
-		return []string{"A new update is available. <a href=\"https://yourplace.network/download\" class=\"toastLink\" target=\"_blank\">Click here</a> to download"}
-	}
-	return nil
+	return notifications
 }

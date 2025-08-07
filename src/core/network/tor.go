@@ -10,7 +10,14 @@ import (
 
 func StartTorHiddenService() (string, error) {
 	host.CreateFolder(host.GetInstallDir() + "tor/hidden_service")
-	host.RunShellCommandNoWait(host.GetInstallDir() + "tor/tor/tor --RunAsDaemon 1 --HiddenServiceDir " + host.GetInstallDir() + "tor/hidden_service --HiddenServicePort 42424")
+	host.RunShellCommandNoWait(host.GetInstallDir() + "tor/tor/YourPlaceTor --RunAsDaemon 1 --HiddenServiceDir " + host.GetInstallDir() + "tor/hidden_service --HiddenServicePort 42424")
+	return "", nil
+}
+func StopTorHiddenService() (string, error) {
+	ret := host.KillProcess("YourPlaceTor")
+	if ret != true {
+		return "", core.LogErrorReturn("Error stopping YourPlaceTor")
+	}
 	return "", nil
 }
 func DownloadTor() (string, error) {
@@ -30,7 +37,7 @@ func DownloadTor() (string, error) {
 			core.LogWarn("Could not whitelist Tor binary via helper - may need manual approval")
 		}
 	}
-	return host.GetInstallDir() + "tor/tor/tor", nil
+	return host.GetInstallDir() + "tor/tor/YourPlaceTor", nil
 }
 func GetLatestTorBinarySignature() (string, error) {
 	_, version, err := GetLatestTorLinkAndVersion()

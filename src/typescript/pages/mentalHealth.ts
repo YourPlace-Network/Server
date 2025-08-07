@@ -898,6 +898,11 @@ const tips = [
     "It's possible to be extremely smart or talented, but still not have the attitude or temperament for a high-performing job",
     "How you act is significantly more important than how you feel or what you say",
     "If you want to donate, give your money to organizations that bring water and food to people in need. Make sure they show the results",
+    "People who want something for nothing usually end up with nothing",
+    "When travelling, especially at popular tourist spots, don't take anything from someone on the street if it's \"free\" or a \"gift\". They'll turn around and demand money and tell the police you stole it",
+    "Whoever controls the military has all the power",
+    "Avoid changing things unless you already kinda know the outcome",
+
 
 
 
