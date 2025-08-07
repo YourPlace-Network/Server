@@ -22,19 +22,27 @@ func StopTorHiddenService() (string, error) {
 }
 func DownloadTor() (string, error) {
 	downloadLink, version, err := GetLatestTorLinkAndVersion()
-	core.LogDebug("Found Tor version: " + version)
+	core.LogDebug("Found TOR version: " + version)
 	host.DeleteIfExists(host.GetInstallDir() + "tor.tar.gz")
 	host.DeleteIfExists(host.GetInstallDir() + "tor")
 	err = HttpGetFile(downloadLink, host.GetInstallDir()+"tor.tar.gz")
 	if err != nil {
-		return "", core.LogErrorReturn("Error downloading Tor: " + err.Error())
+		return "", core.LogErrorReturn("Error downloading TOR: " + err.Error())
 	}
 	host.CreateFolder(host.GetInstallDir() + "tor")
 	host.UntarFile(host.GetInstallDir()+"tor.tar.gz", host.GetInstallDir()+"tor/")
-	// Whitelist the Tor binary on macOS to bypass ASP security policy
 	if host.GetOS() == "darwin" {
-		if !host.HelperWhitelistTor() {
-			core.LogWarn("Could not whitelist Tor binary via helper - may need manual approval")
+		// Whitelist the TOR binary on macOS to bypass ASP security policy
+		status, err := host.HelperCall("whitelist_tor")
+		if err != nil {
+			return "", core.LogErrorReturn("Could not whitelist TOR binary: " + err.Error())
+		}
+		if status == "success" {
+			core.LogInfo("Tor binary whitelisted successfully")
+			return host.GetInstallDir() + "tor/tor/YourPlaceTor", nil
+		} else {
+			core.LogError("Could not whitelist tor binary: " + status)
+			return "", core.LogErrorReturn("Could not whitelist TOR binary: " + status)
 		}
 	}
 	return host.GetInstallDir() + "tor/tor/YourPlaceTor", nil

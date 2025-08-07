@@ -469,17 +469,3 @@ func HelperPing() bool {
 	core.LogError("Could not ping helper 3: too may attempts")
 	return false
 }
-func HelperWhitelistTor() bool {
-	status, err := HelperCall("whitelist_tor")
-	if err != nil {
-		core.LogError("Could not whitelist tor binary: " + err.Error())
-		return false
-	}
-	if status == "success" {
-		core.LogInfo("Tor binary whitelisted successfully")
-		return true
-	} else {
-		core.LogError("Could not whitelist tor binary: " + status)
-		return false
-	}
-}

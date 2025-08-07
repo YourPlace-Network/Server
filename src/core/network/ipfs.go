@@ -276,7 +276,6 @@ func (node *IPFS) IPFSCheckPinServiceHealth(serviceName string) bool {
 	}
 	return true
 }
-
 func (node *IPFS) IPFSPinFile(cid string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -291,6 +290,24 @@ func (node *IPFS) IPFSPinFile(cid string) error {
 	_core.LogDebug("Successfully pinned file with CID: " + cid)
 	return nil
 }
+func (node *IPFS) IPFSRemotePinFile(cid string, name string) error {
+	var requestString string
+	if name != "" {
+		requestString = fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/add?arg=%s&name=%s", node.port, cid, name)
+	} else {
+		requestString = fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/add?arg=%s", node.port, cid)
+	}
+	response, err := HttpPost(requestString)
+	if err != nil {
+		return _core.LogErrorReturn("Could not remotely pin file to IPFS: " + err.Error() + " - " + response)
+	}
+	if strings.Contains(response, "error") {
+		return _core.LogErrorReturn("IPFS remote pin error: " + response)
+	}
+	_core.LogDebug("Successfully remotely pinned file with CID: " + cid + " - " + response)
+	return nil
+}
+
 func UpdateIPFSConfig(port uint64) {
 	path := host.GetDataDir() + ".ipfs" + host.PathSeparator + "config"
 	jsonData, err := os.ReadFile(path)

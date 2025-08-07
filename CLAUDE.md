@@ -106,8 +106,8 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 ## Contributing
 
 ### Style Guidelines
-- See the file docs/notes/StyleGuide.md for specific conventions
-- Avoid adding unnecessary new-line characters in the code. Follow the existing style.
+- See the file `docs/notes/StyleGuide.md` for specific conventions
+- Avoid adding unnecessary new-line characters in the code. Bias towards not adding new-lines between function names, because when the code is folded in the IDE, it's easier to see all the function names together. Follow the existing new-line style.
 - Only add comments where necessary to clarify complex logic. Follow the existing comment style conventions.
 - When adding a new item into a list, ensure it is alphabetically sorted. If the list isn't sorted already, then sort it alphabetically using the most obvious identifier.
 - Write clean, maintainable code with clear variable names that follows the existing naming conventions.
@@ -115,3 +115,5 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - If you have any questions, need clarifications, or are unsure about something, ask the developer before proceeding with any changes.
 - Only implement the feature requested in a minimal and elegant way that is readable and consistent with the existing architecture of the project.
 - Don't build, delete or refactor anything that the developer didn't directly ask for.
+- Prioritize using the built-in and pre-created functions located in `src/core/` and `src/typescript/components/` and `src/typescript/util/` over standard lib and 3rd party code.
+- Bias towards writing your own implementation of a function rather than using a 3rd party library, unless the 3rd party library is already used in the project as a direct dependency.

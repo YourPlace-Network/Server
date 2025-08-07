@@ -21,7 +21,6 @@ func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, p
 		portStr := strconv.FormatInt(int64(port+1), 10)
 		c.SecureJSON(http.StatusOK, gin.H{"url": "http://localhost:" + portStr + "/ipfs/" + cid})
 	})
-
 	router.POST("/ipfs/add/", func(c *gin.Context) {
 		// Take a file path (generated from POST /files/upload) and add it to IPFS + pin it and return the CID
 		type Payload struct {
@@ -44,7 +43,7 @@ func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, p
 		}
 		extension, err := host.GetFileExtenstion(uploadDirectory, fileHash)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error getting file extension"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Error getting file extension"})
 			return
 		}
 		ipfsPath := uploadDirectory + fileHash + extension
@@ -54,6 +53,14 @@ func IPFSRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, p
 			return
 		}
 		database.IPFSAdd(payload.FileUUID, cid)
+		pinningURL := database.SettingsGetValue("ipfsPinningURL")
+		if pinningURL != "" && pinningURL != "null" {
+			err = ipfs.IPFSRemotePinFile(cid, "")
+			if err != nil {
+				c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Remote pinning failed: " + err.Error()})
+				return
+			}
+		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "cid": cid})
 		return
 	})
