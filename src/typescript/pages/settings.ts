@@ -242,7 +242,10 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             let response = await HttpGetJson("/settings/indexer/running");
             if (response[0] === 200) {
                 DOM.indexerRunCheckbox.checked = response[1].indexerRunning;
-                DOM.indexerOnBatteryCheckbox.disabled = false;
+                if (response[1].indexerRunning == true) {
+                    DOM.indexerStatusText.textContent = "Warming Up";
+                    DOM.indexerStatusText.style.color = "#D3D3D3";
+                }
             }
         }
         async function getIndexerStatus() {
@@ -255,9 +258,12 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 } else if (status == "complete") {
                     DOM.indexerStatusText.textContent = "Complete"
                     DOM.indexerStatusText.style.color = "green";
-                } else if (status == "failed" || status == "stopped") {
-                    DOM.indexerStatusText.textContent = "Stopped / Failed"
+                } else if (status == "stopped") {
+                    DOM.indexerStatusText.textContent = "Stopped"
                     DOM.indexerStatusText.style.color = "#D3D3D3";
+                } else if (status == "failed") {
+                    DOM.indexerStatusText.textContent = "Failed"
+                    DOM.indexerStatusText.style.color = "red";
                 } else {
                     DOM.indexerStatusText.textContent = status;
                     DOM.indexerStatusText.style.color = "yellow";
@@ -303,8 +309,12 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         async function getIpfsPinning() {
             let response = await HttpGetJson("/settings/content/ipfsPinning");
             if (response[0] === 200) {
-                DOM.ipfsPinningURL.value = response[1].pinningURL;
-                DOM.ipfsPinningKey.value = response[1].pinningKey;
+                DOM.ipfsPinningURL.value = response[1].pinningURL || "";
+                if (response[1].pinningURL && response[1].pinningURL !== "" && response[1].pinningKey && response[1].pinningKey !== "") {
+                    DOM.ipfsPinningKey.value = "**********";
+                } else {
+                    DOM.ipfsPinningKey.value = "";
+                }
             } else {
                 ShowDialogModal("Failed to get IPFS Pinning settings");
             }
@@ -552,6 +562,10 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             }
         }
         async function setIPFSPinning() {
+            if (DOM.ipfsPinningKey.value === "**********") {
+                ShowDialogModal("Please enter a new pinning key or clear the field to remove the pinning service");
+                return;
+            }
             const data = {
                 pinningURL: DOM.ipfsPinningURL.value,
                 pinningKey: DOM.ipfsPinningKey.value,
@@ -559,6 +573,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             let response = await HttpPostJson("/settings/content/ipfsPinning", data, DOM.csrfToken.value);
             if (response[0] === 200) {
                 ShowSavedToast();
+                await getIpfsPinning();
             } else {
                 ShowDialogModal(response[1].status);
             }
@@ -780,6 +795,11 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             ShowDialogModalHTML("Please create an account and an <b>API Key</b> from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your <b>JWT (secret access token)</b> to the IPFS Pinning settings page");
         });
         DOM.saveIpfsPinningBtn.addEventListener("click", setIPFSPinning);
+        DOM.ipfsPinningKey.addEventListener("focus", function() {
+            if (DOM.ipfsPinningKey.value === "**********") {
+                DOM.ipfsPinningKey.value = "";
+            }
+        });
         DOM.serverDebugModeCheckbox.addEventListener("change", setDebugMode);
         DOM.serverUpdateBtn.addEventListener("click", getServerUpdates);
         DOM.serverUninstallBtn.addEventListener("click", setUninstall);
