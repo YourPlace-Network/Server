@@ -7,6 +7,8 @@ import {HttpGetJson} from "../util/network";
 import {IsValidURL, XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {CIDToSubdomainURL} from "../util/ipfs";
+import {LogError} from "../util/log";
+import {GetNotifications} from "../components/toast";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -118,7 +120,6 @@ import {CIDToSubdomainURL} from "../util/ipfs";
                 console.error("Error loading followers feed:", error);
             }
         }
-
         async function handleSearch() {
             DOM.resultsDiv.replaceChildren();
             DOM.followersFeedDiv.style.display = "none";
@@ -252,6 +253,8 @@ import {CIDToSubdomainURL} from "../util/ipfs";
 
             await Promise.all(profilePromises);
         }
+
+        /* --- Searching debounce functions --- */
         function debounce<T extends (...args: any[]) => void>(func: T, delay: number): (...args: Parameters<T>) => void {
             let timeoutId: number;
             return (...args: Parameters<T>) => {
@@ -265,12 +268,13 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             handleSearch().then();
         };
         const debounceHandler = debounce(handleInput, 2000);
-
         ["keyup", "cut", "paste"].forEach(event => DOM.searchInput.addEventListener(event, debounceHandler, false));
 
+        /* --- Initialize page variables and start loading --- */
         DOM.searchInput.value = "";
         DOM.resultsDiv.style.display = "none"; // Initialize followers feed on page load
         DOM.followersFeedDiv.style.display = "block";
-        loadFollowersFeed();
+        GetNotifications().catch(error => LogError("Notification loading failed: " + error)); // Load notifications in background - don't block page loading
+        loadFollowersFeed().then();
     }
 })();

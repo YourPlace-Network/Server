@@ -75,6 +75,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             serverLogsViewBtn: document.getElementById("serverLogsViewBtn")! as HTMLButtonElement,
             helperLogsViewBtn: document.getElementById("helperLogsViewBtn")! as HTMLButtonElement,
             logsView: document.getElementById("logsView")! as HTMLDivElement,
+            torHiddenServiceCheck: document.getElementById("torHiddenServiceCheck")! as HTMLInputElement,
         }
         let popperInstance: Instance | null = null;
 
@@ -675,6 +676,18 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 }
             }
         }
+        async function setTorHiddenService() {
+            const data = {
+                enabled: DOM.torHiddenServiceCheck.checked,
+            }
+            let response = await HttpPostJson("/settings/privacy/torHiddenService", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                ShowSavedToast();
+            } else {
+                DOM.torHiddenServiceCheck.checked = !DOM.torHiddenServiceCheck.checked;
+                ShowDialogModal(response[1].status || "Failed to toggle TOR hidden service");
+            }
+        }
 
         /* Throttle Slider */
         const getThumbElement = (): HTMLElement => {
@@ -772,6 +785,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.serverUninstallBtn.addEventListener("click", setUninstall);
         DOM.serverLogsViewBtn.addEventListener("click", getServerLogs);
         DOM.helperLogsViewBtn.addEventListener("click", getHelperLogs);
+        DOM.torHiddenServiceCheck.addEventListener("change", setTorHiddenService);
 
         init().then();
     }

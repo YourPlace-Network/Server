@@ -527,4 +527,31 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "failed"})
 		}
 	})
+	router.POST("/settings/privacy/torHiddenService", func(c *gin.Context) {
+		type Payload struct {
+			Enabled bool `json:"enabled" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid TOR hidden service JSON"})
+			return
+		}
+		if payload.Enabled {
+			_, err = network.StartTorHiddenService()
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Failed to start TOR hidden service"})
+				return
+			}
+			database.SettingsUpdateValue("torHiddenService", "true")
+		} else {
+			_, err = network.StopTorHiddenService()
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Failed to stop TOR hidden service"})
+				return
+			}
+			database.SettingsUpdateValue("torHiddenService", "false")
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "enabled": payload.Enabled})
+	})
 }

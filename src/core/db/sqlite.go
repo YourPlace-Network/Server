@@ -46,7 +46,7 @@ func (db *SQLite) Init(path string) {
 	}
 }
 
-// --- SQL Functions --- //
+// --- SQL --- //
 func (db *SQLite) runSQL(query string) {
 	_, err := db.database.Exec(query)
 	if err != nil {
@@ -140,7 +140,7 @@ func (db *SQLite) deleteTable(name string) {
 	db.runSQL(query)
 }
 
-// --- Helper Functions --- //
+// --- Helper --- //
 func sanitizeSQLiteTableName(payload string) string {
 	// Remove any character that isn't alphanumeric or an underscore
 	reg := regexp.MustCompile(`[^a-zA-Z0-9_]+`)
@@ -215,6 +215,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, address TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"csrf_tokens":    "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
+		"notifications":  "CREATE TABLE IF NOT EXISTS notifications (uid TEXT PRIMARY KEY, message TEXT, timestamp INTEGER DEFAULT 0)",
 	}
 	for _, createStatement := range tables {
 		err := db.execWithRetry(ctx, createStatement, 3)
@@ -771,7 +772,7 @@ func SanitizeSQLiteDatabase(path string) error {
 	return nil
 }
 
-// --- Metadata & Settings Functions --- //
+// --- Metadata & Settings --- //
 func (db *SQLite) MetaUpdateValue(key string, value string) {
 	query := "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value"
 	_, err := db.runParamSQLUpdate(query, key, value)
@@ -844,7 +845,7 @@ func (db *SQLite) SettingsDeleteValue(key string) error {
 	return nil
 }
 
-// --- Profile Functions --- //
+// --- Profile --- //
 func (db *SQLite) ProfileGetName(address string, blockchain string) string {
 	rows, err := db.runParamSQLSelect("SELECT name FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
 	if err != nil {
@@ -1136,7 +1137,7 @@ func (db *SQLite) ProfileIsFollower(followeeAddress string, followeeBlockchain s
 	return false
 }
 
-// --- Search Functions --- //
+// --- Search --- //
 func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 	var posts []map[string]interface{}
 	search := "%" + query + "%"
@@ -1216,7 +1217,7 @@ func (db *SQLite) SearchGetProfiles(query string) []map[string]interface{} {
 	return profiles
 }
 
-// --- Auth Functions --- //
+// --- Auth --- //
 func (db *SQLite) AuthGetNonceStatus(nonce string) string {
 	rows, err := db.runParamSQLSelect("SELECT status FROM auth_nonce WHERE nonce = ?", nonce)
 	if err != nil {
@@ -1310,7 +1311,7 @@ func (db *SQLite) AuthGetServerOwnerAddress() string {
 	return ""
 }
 
-// --- File & IPFS Functions --- //
+// --- File & IPFS --- //
 func (db *SQLite) FileAdd(fileUUID string, fileHash string, mimeType string, fileName string, size int64) {
 	query := "INSERT INTO files (fileUUID, fileHash, mimeType, fileName, size, addedDate) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
 	_, err := db.runParamSQLUpdate(query, fileUUID, fileHash, mimeType, fileName, size, core.GetTimestamp())
@@ -1345,7 +1346,7 @@ func (db *SQLite) GetFileHashFromUUID(uuid string) string {
 	return ""
 }
 
-// --- Indexer Functions --- //
+// --- Indexer --- //
 func (db *SQLite) IndexerCreateJob(uuid string, blockchain string) {
 	core.LogDebug("IndexerCreateJob(): " + uuid + " - " + blockchain)
 	timestamp := core.GetTimestamp()
@@ -1481,7 +1482,7 @@ func (db *SQLite) IndexerResetJobs(blockchain string) {
 	}
 }
 
-// --- Onchain Tokenized Functions --- //
+// --- Onchain Tokenized --- //
 func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
 	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
@@ -1631,7 +1632,7 @@ func (db *SQLite) OnchainFU(txHash string, blockchain string, followerAddress st
 	}
 }
 
-// --- Followers Feed Functions --- //
+// --- Followers Feed --- //
 func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int) []map[string]interface{} {
 	var posts []map[string]interface{}
 	query := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, p.blockchain 
@@ -1695,4 +1696,36 @@ func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain st
 		posts = append(posts, post)
 	}
 	return posts
+}
+
+// --- Notifications --- //
+func (db *SQLite) NotificationInsert(uid string, message string) {
+	_, err := db.runParamSQLUpdate("INSERT INTO notifications (uid, message, timestamp) VALUES (?, ?, ?)", uid, message, core.GetTimestamp())
+	if err != nil {
+		core.LogError("Could not insert notification: " + err.Error())
+	}
+}
+func (db *SQLite) NotificationDismiss(uid string) {
+	_, err := db.runParamSQLUpdate("DELETE FROM notifications WHERE uid = ?", uid)
+	if err != nil {
+		core.LogError("Could not dismiss notification: " + err.Error())
+	}
+}
+func (db *SQLite) NotificationGetActive() []map[string]string {
+	rows, err := db.runParamSQLSelect("SELECT uid, message FROM notifications")
+	if err != nil {
+		core.LogError("Could not get active notifications: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	var notifications []map[string]string
+	for rows.Next() {
+		var uid, message string
+		if err := rows.Scan(&uid, &message); err != nil {
+			core.LogError("Could not scan notification row: " + err.Error())
+			continue
+		}
+		notifications = append(notifications, map[string]string{"uid": uid, "message": message})
+	}
+	return notifications
 }
