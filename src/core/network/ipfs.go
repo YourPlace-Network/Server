@@ -278,10 +278,9 @@ func (node *IPFS) IPFSCheckPinServiceHealth(serviceName string) bool {
 }
 
 func (node *IPFS) IPFSPinFile(cid string) error {
-	return nil // todo fix this
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cidPath, err := ipfspath.NewPath(cid)
+	cidPath, err := ipfspath.NewPath("/ipfs/" + cid)
 	if err != nil {
 		return _core.LogErrorReturn("Could not create IPFS path from CID: " + err.Error())
 	}
@@ -289,6 +288,7 @@ func (node *IPFS) IPFSPinFile(cid string) error {
 	if err != nil {
 		return _core.LogErrorReturn("Could not pin file to IPFS: " + err.Error())
 	}
+	_core.LogDebug("Successfully pinned file with CID: " + cid)
 	return nil
 }
 func UpdateIPFSConfig(port uint64) {

@@ -102,3 +102,16 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - All external network requests go through validation
 - Content sanitization and XSS protection on user inputs
 - Encrypted session management with secure cookie flags
+
+## Contributing
+
+### Style Guidelines
+- See the file docs/notes/StyleGuide.md for specific conventions
+- Avoid adding unnecessary new-line characters in the code. Follow the existing style.
+- Only add comments where necessary to clarify complex logic. Follow the existing comment style conventions.
+- When adding a new item into a list, ensure it is alphabetically sorted. If the list isn't sorted already, then sort it alphabetically using the most obvious identifier.
+- Write clean, maintainable code with clear variable names that follows the existing naming conventions.
+- Don't attempt to compile or run any code in this repository. The developer will do that for you, and provide any feedback you need.
+- If you have any questions, need clarifications, or are unsure about something, ask the developer before proceeding with any changes.
+- Only implement the feature requested in a minimal and elegant way that is readable and consistent with the existing architecture of the project.
+- Don't build, delete or refactor anything that the developer didn't directly ask for.
