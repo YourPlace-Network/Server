@@ -16,10 +16,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"github.com/getlantern/systray"
-	"github.com/gin-contrib/gzip"
-	"github.com/gin-gonic/gin"
-	_cron "github.com/robfig/cron/v3"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -29,6 +25,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/getlantern/systray"
+	"github.com/gin-contrib/gzip"
+	"github.com/gin-gonic/gin"
+	_cron "github.com/robfig/cron/v3"
 )
 
 //go:embed src/templates
@@ -210,7 +211,7 @@ func main() {
 	StartWebServer(database, _blockchain, ipfs, installed, logFile)
 
 	// --- Systray --- //
-	systray.Run(SystrayOnReady, SystrayOnExit)
+	systray.Run(func() { SystrayOnReady(database) }, func() { host.Shutdown(0) })
 
 	host.Shutdown(0)
 }
@@ -424,7 +425,7 @@ func CustomGinRecovery() gin.HandlerFunc {
 }
 
 // --- Systray Functions --- //
-func SystrayOnReady() {
+func SystrayOnReady(database *db.Database) {
 	systray.SetTemplateIcon(favicon, favicon)
 	if runtime.GOOS == "windows" {
 		systray.SetIcon(favicon)
@@ -432,13 +433,14 @@ func SystrayOnReady() {
 	}
 	systray.SetTooltip("YourPlace Server")
 	mUI := systray.AddMenuItem("Open YourPlace", "Open YourPlace in your browser")
+	mUI.SetIcon(favicon)
 	mSettings := systray.AddMenuItem("Settings", "YourPlace Settings")
 	mQuit := systray.AddMenuItem("Quit", "Quit YourPlace Server")
 	go func() {
 		for {
 			select {
 			case <-mQuit.ClickedCh:
-				SystrayOnExit()
+				host.Shutdown(0)
 			case <-mUI.ClickedCh:
 				host.OpenBrowser(protocol + "://" + domain + ":" + strconv.Itoa(port))
 			case <-mSettings.ClickedCh:
@@ -446,7 +448,4 @@ func SystrayOnReady() {
 			}
 		}
 	}()
-}
-func SystrayOnExit() {
-	host.Shutdown(0)
 }

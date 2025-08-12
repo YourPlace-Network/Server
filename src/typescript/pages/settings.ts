@@ -1,3 +1,5 @@
+import {Sleep} from "../util/time";
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss";
 import "../../scss/pages/settings.scss";
@@ -685,7 +687,9 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 }
                 let response = await HttpPostJson("/settings/uninstall", data, DOM.csrfToken.value);
                 if (response[0] === 200) {
-                    ShowDialogModal("Uninstalling YourPlace...");
+                    ShowDialogModal("Uninstalling YourPlace...\nPlease Wait");
+                    await Sleep(10000);
+                    window.location.href = "https://yourplace.network/uninstall";
                 } else {
                     ShowDialogModal(response[1].message);
                 }
