@@ -902,8 +902,18 @@ const tips = [
     "When travelling, especially at popular tourist spots, don't take anything from someone on the street if it's \"free\" or a \"gift\". They'll turn around and demand money and tell the police you stole it",
     "Whoever controls the military has all the power",
     "Avoid changing things unless you already kinda know the outcome",
-
-
+    "Approach every situation with bravery and positivity. Assess the situation, collect as much information as possible, then decide if you want to continue engaging with that situation or not",
+    "Keep politics out of infrastructure. You really don't want your water, power, bank, internet or other company discriminating against you",
+    "If a company or group finds a way around the spirit of a good law, then just get enough people together and make a new law to fix it",
+    "Real intelligence is the ability to create outcomes that are beneficial to yourself and your goals",
+    "The influencer culture you see online, is not normal reality",
+    "Just because you're right, doesn't mean you're going to win",
+    "If you and your spouse raise kids, know that division of labor is important. And then don't get resentful down the line about your respective responsibilities. Just be happy you have another person to help you, and kids to care for you in old age",
+    "Resentment and self-pity starts as a single snowflake. And if not controlled for, can turn into a blizzard that will freeze and kill you",
+    "Even if the other man is evil, don't start the violence. It automatically gives them the moral high ground, and that might be enough to tip history into their favor",
+    "In a business deal, if something feels wrong or you're not happy with the terms, then just walk away first. It preserves your dignity, and they may counter with a better offer. Just don't chase bad deals because they don't often become good ones",
+    "When selling things, try to give good people good deals. You can even ask them to pay it forward. It'll causes a ripple of goodness within good people",
+    "It's ok to believe in God. It's ok to not believe in god",
 
 
 ];

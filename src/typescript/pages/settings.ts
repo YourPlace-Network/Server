@@ -575,7 +575,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 ShowSavedToast();
                 await getIpfsPinning();
             } else {
-                ShowDialogModal(response[1].status);
+                ShowDialogModal(response[1].status || "Failed to save IPFS pinning settings");
             }
         }
         async function setDatabaseExportSnapshot() {
@@ -696,7 +696,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
                 enabled: DOM.torHiddenServiceCheck.checked,
             }
             let response = await HttpPostJson("/settings/privacy/torHiddenService", data, DOM.csrfToken.value);
-            if (response[0] === 200) {
+            if (response[0] === 200 && response[1].status === "success") {
                 ShowSavedToast();
             } else {
                 DOM.torHiddenServiceCheck.checked = !DOM.torHiddenServiceCheck.checked;

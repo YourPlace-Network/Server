@@ -165,5 +165,13 @@ else ifeq ($(DETECTED_OS),Darwin)
 	SUDO_ASKPASS=resources/osx/askpass.sh installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
 endif
 
+dbg_noinstall_run:
+ifeq ($(DETECTED_OS),Windows_NT)
+	target\\YourPlace-$(VERSION).exe -d=true -u=false
+else ifeq ($(DETECTED_OS),Darwin)
+	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
+	./target/YourPlace -d=true -u=false
+endif
+
 testing:
 	go run test.go

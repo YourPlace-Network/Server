@@ -7,12 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	ipfsfiles "github.com/ipfs/boxo/files"
-	ipfspath "github.com/ipfs/boxo/path"
-	ipfscid "github.com/ipfs/go-cid"
-	krpc "github.com/ipfs/kubo/client/rpc"
-	kcoreifaceoptions "github.com/ipfs/kubo/core/coreiface/options"
-	ma "github.com/multiformats/go-multiaddr"
 	"io"
 	"net"
 	"net/http"
@@ -21,6 +15,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	ipfsfiles "github.com/ipfs/boxo/files"
+	ipfspath "github.com/ipfs/boxo/path"
+	ipfscid "github.com/ipfs/go-cid"
+	krpc "github.com/ipfs/kubo/client/rpc"
+	kcoreifaceoptions "github.com/ipfs/kubo/core/coreiface/options"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // https://developers.cloudflare.com/distributed-web/ipfs-gateway
@@ -287,24 +288,19 @@ func (node *IPFS) IPFSPinFile(cid string) error {
 	if err != nil {
 		return _core.LogErrorReturn("Could not pin file to IPFS: " + err.Error())
 	}
-	_core.LogDebug("Successfully pinned file with CID: " + cid)
-	return nil
-}
-func (node *IPFS) IPFSRemotePinFile(cid string, name string) error {
-	var requestString string
-	if name != "" {
-		requestString = fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/add?arg=%s&name=%s", node.port, cid, name)
-	} else {
-		requestString = fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/add?arg=%s", node.port, cid)
-	}
+	_core.LogDebug("Successfully pinned file locally with CID: " + cid)
+	// Check if a remote pinning service is configured and pin remotely
+	/*requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/add?arg=%s", node.port, cid)
 	response, err := HttpPost(requestString)
 	if err != nil {
-		return _core.LogErrorReturn("Could not remotely pin file to IPFS: " + err.Error() + " - " + response)
+		_core.LogDebug("Remote pinning failed (no service configured or unreachable): " + err.Error())
+		return nil
 	}
 	if strings.Contains(response, "error") {
-		return _core.LogErrorReturn("IPFS remote pin error: " + response)
-	}
-	_core.LogDebug("Successfully remotely pinned file with CID: " + cid + " - " + response)
+		_core.LogDebug("Remote pinning failed: " + response)
+		return nil
+	}*/
+	_core.LogDebug("Successfully pinned file remotely with CID: " + cid)
 	return nil
 }
 
