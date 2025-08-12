@@ -10,13 +10,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	_ "github.com/glebarez/go-sqlite"
-	"github.com/google/uuid"
 	"io"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	_ "github.com/glebarez/go-sqlite"
+	"github.com/google/uuid"
 )
 
 type SQLite struct {
@@ -205,7 +206,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
 		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
 		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT)",
-		"indexer_jobs":  "CREATE TABLE IF NOT EXISTS indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER)",
+		"indexer_jobs":  "CREATE TABLE IF NOT EXISTS indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
 		"auth_nonce":    "CREATE TABLE IF NOT EXISTS auth_nonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
 		"auth_expired":  "CREATE TABLE IF NOT EXISTS auth_expired (uuid TEXT PRIMARY KEY, status TEXT)",
 		"login_nonce":   "CREATE TABLE IF NOT EXISTS login_nonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
@@ -1350,7 +1351,7 @@ func (db *SQLite) GetFileHashFromUUID(uuid string) string {
 func (db *SQLite) IndexerCreateJob(uuid string, blockchain string) {
 	core.LogDebug("IndexerCreateJob(): " + uuid + " - " + blockchain)
 	timestamp := core.GetTimestamp()
-	query := "INSERT INTO indexer_jobs (uuid, blockchain, headBlock, status, tailBlock, timestamp) VALUES (?, ?, 0, 'pending', 0, ?) ON CONFLICT (uuid) DO UPDATE SET status = excluded.status, tailBlock = excluded.tailBlock, timestamp = excluded.timestamp"
+	query := "INSERT INTO indexer_jobs (uuid, blockchain, headBlock, status, tailBlock, timestamp, rps) VALUES (?, ?, 0, 'pending', 0, ?, 0) ON CONFLICT (uuid) DO UPDATE SET status = excluded.status, tailBlock = excluded.tailBlock, timestamp = excluded.timestamp"
 	core.LogDebug("IndexerCreateJob(): " + query)
 	_, err := db.runParamSQLUpdate(query, uuid, blockchain, timestamp)
 	if err != nil {
@@ -1466,6 +1467,12 @@ func (db *SQLite) IndexerUpdateTailBlock(uuid string, tailBlock uint64) {
 	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET tailBlock = ?, timestamp = ? WHERE uuid = ?", tailBlock, core.GetTimestamp(), uuid)
 	if err != nil {
 		core.LogError("Could not update the indexer tail block in the database: " + err.Error())
+	}
+}
+func (db *SQLite) IndexerUpdateJobSpeed(uuid string, speed uint64) {
+	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET rps = ? WHERE uuid = ?", speed, uuid)
+	if err != nil {
+		core.LogError("Could not update the indexer job speed in the database: " + err.Error())
 	}
 }
 func (db *SQLite) IndexerAddPost(txHash string, blockchain string, fromAddress string, toAddress string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {

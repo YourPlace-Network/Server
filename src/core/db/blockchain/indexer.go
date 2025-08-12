@@ -157,27 +157,27 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 	switch databaseStatus { // Post fill job dispatch, based on last job status
 	case "pending":
 		core.LogDebug("Starting pending job from the beginning")
-		IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock)
+		IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock, database)
 	case "failed":
 		core.LogDebug("Restarting failed job from where it left off")
 		if databaseTailBlock == 0 { // If a full fill job started, but failed before the tail block was written, start all over
 			IndexerRestartJobs(_Database, chainName)
-			IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock)
+			IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock, database)
 			return
 		}
 		if databaseTailBlock > chainEarliestBlock.Uint64() { // if a backfill job failed, restart it
-			IndexerBaseBackFill(blockchain.Base, uuid, chainLatestBlock)
+			IndexerBaseBackFill(blockchain.Base, uuid, chainLatestBlock, database)
 		} else { // if a front fill job failed, restart it
-			IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock)
+			IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock, database)
 		}
 	case "complete": // If everything is backfilled, then just process the newest blocks
 		core.LogDebug("Last job completed successfully. Getting new blocks")
-		IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock)
+		IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock, database)
 	}
 }
 
 // --- Base Indexer Functions --- //
-func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
+func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, database *db.Database) {
 	// (old) head block <----- latest block (starting traversal @ latest block)
 	// head block -----> latest block (starting traversal @ head block)
 	core.LogDebug("--- IndexerBaseFrontFill()")
@@ -221,7 +221,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	atomic.StoreInt64(&activeRequestsCount, 0)
 	atomic.StoreInt64(&totalRequestsCount, 0)
 
-	go startThrottleController(uuid, baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
+	go startThrottleController(uuid, baseThrottle, rateLimiter, database) // Start the throttle controller in a separate goroutine
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		if breakPoint(uuid) {
@@ -278,7 +278,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	_Database.IndexerUpdateHeadBlock(uuid, uint64(finalBlockIndex))
 	_Database.IndexerUpdateJobStatus(uuid, "complete")
 }
-func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
+func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, database *db.Database) {
 	// earliest block <----- tail block (starting traversal @ tail block)—
 	core.LogDebug("--- IndexerBaseBackFill() ---")
 	direction := "backward"
@@ -333,7 +333,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	atomic.StoreInt64(&totalRequestsCount, 0)
 
 	// Start the throttle controller in a separate goroutine
-	go startThrottleController(uuid, baseThrottle, rateLimiter)
+	go startThrottleController(uuid, baseThrottle, rateLimiter, database)
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		if breakPoint(uuid) {
@@ -391,7 +391,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	_Database.IndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
 	_Database.IndexerUpdateJobStatus(uuid, "complete")
 }
-func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
+func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, database *db.Database) {
 	// earliest block <----- latest block (starting traversal @ latest block)
 	core.LogDebug("--- IndexerBaseFullFill()")
 	direction := "backward"
@@ -430,7 +430,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	atomic.StoreInt64(&activeRequestsCount, 0)
 	atomic.StoreInt64(&totalRequestsCount, 0)
 
-	go startThrottleController(uuid, baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
+	go startThrottleController(uuid, baseThrottle, rateLimiter, database) // Start the throttle controller in a separate goroutine
 
 	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 		if breakPoint(uuid) {
@@ -639,7 +639,7 @@ func configureRateLimiter(throttleValue int) *rate.Limiter { // Function to conf
 	burstCapacity := throttleValue // Allow burst up to the full throttle value
 	return rate.NewLimiter(rate.Limit(requestsPerSecond), burstCapacity)
 }
-func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *rate.Limiter) {
+func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *rate.Limiter, database *db.Database) {
 	ticker := time.NewTicker(30 * time.Second) // Adjust every N-seconds
 	defer ticker.Stop()
 	const (
@@ -662,6 +662,8 @@ func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *
 			if actualRPS < 0.1 { // Not enough data yet
 				continue
 			}
+			// Update the RPS in the database (rounded to nearest integer)
+			database.IndexerUpdateJobSpeed(uuid, uint64(actualRPS+0.5))
 			ratio := actualRPS / targetRPS
 			// Only adjust if we're significantly outside the tolerance range
 			if ratio < (1.0-tolerance) || ratio > (1.0+tolerance) {
@@ -679,9 +681,9 @@ func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *
 						dynamicThrottleMultiplier = minMultiplier
 					}
 				}
-				core.LogDebug("Throttle adjustment:\tactual=" + strconv.FormatFloat(actualRPS, 'f', 2, 64) +
-					"\ttarget=" + strconv.FormatFloat(targetRPS, 'f', 2, 64) +
-					"\tmultiplier=" + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+				//core.LogDebug("Throttle adjustment:\tactual=" + strconv.FormatFloat(actualRPS, 'f', 2, 64) +
+				//	"\ttarget=" + strconv.FormatFloat(targetRPS, 'f', 2, 64) +
+				//	"\tmultiplier=" + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 				throttleControlMutex.Unlock()
 				// Update the rate limiter with the new rate
 				newRate := calculateDynamicRate(targetThrottleValue, 1)
@@ -1115,6 +1117,16 @@ func IndexerStop() {
 	if IsIndexing && indexerCancel != nil {
 		indexerCancel = make(chan bool, 1)
 		indexerCancel <- true
+	}
+}
+func ToggleIndexer(database *db.Database) {
+	// Toggle the indexer on and off with a single function call
+	indexerRunning := database.SettingsGetValue("indexerRunning")
+	if indexerRunning == "true" {
+		database.SettingsUpdateValue("indexerRunning", "false")
+		IndexerStop()
+	} else {
+		database.SettingsUpdateValue("indexerRunning", "true")
 	}
 }
 

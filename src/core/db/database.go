@@ -263,6 +263,12 @@ func (db *Database) IndexerUpdateTailBlock(uuid string, tailBlock uint64) {
 		db.sqlite.IndexerUpdateTailBlock(uuid, tailBlock)
 	}
 }
+func (db *Database) IndexerUpdateJobSpeed(uuid string, rps uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.IndexerUpdateJobSpeed(uuid, rps)
+	}
+}
 func (db *Database) IndexerAddPost(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
 	switch db.Engine {
 	case "sqlite":

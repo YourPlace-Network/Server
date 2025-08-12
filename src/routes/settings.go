@@ -9,11 +9,12 @@ import (
 	"YourPlace/src/core/network"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
-	"github.com/gin-gonic/gin"
 	"math/big"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool, ipfs *network.IPFS, debug bool) {
