@@ -8,14 +8,15 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/rpc"
-	"golang.org/x/time/rate"
 	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/rpc"
+	"golang.org/x/time/rate"
 )
 
 // 0 --- Earliest --- Tail --- Head --- Latest
@@ -612,7 +613,7 @@ func calculateOptimalBatchSize(throttleValue int) *big.Int { // Function to calc
 }
 func configureRateLimiter(throttleValue int) *rate.Limiter { // Function to configure rate limiter based on throttle and batch size
 	requestsPerSecond := calculateDynamicRate(throttleValue, 1)
-	burstCapacity := workerCount // Allow each worker to have one token
+	burstCapacity := throttleValue // Allow burst up to the full throttle value
 	return rate.NewLimiter(rate.Limit(requestsPerSecond), burstCapacity)
 }
 func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *rate.Limiter) {
@@ -635,11 +636,11 @@ func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *
 			}
 			actualRPS := globalRequestTracker.GetRequestsPerSecond()
 			targetRPS := float64(targetThrottleValue)
-			if actualRPS < 1.0 { // Not enough data yet
+			if actualRPS < 0.1 { // Not enough data yet
 				continue
 			}
 			ratio := actualRPS / targetRPS
-			// Only adjust if we're outside the tolerance range
+			// Only adjust if we're significantly outside the tolerance range
 			if ratio < (1.0-tolerance) || ratio > (1.0+tolerance) {
 				throttleControlMutex.Lock()
 				if ratio < (1.0 - tolerance) {
@@ -649,8 +650,8 @@ func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *
 						dynamicThrottleMultiplier = maxMultiplier
 					}
 				} else if ratio > (1.0 + tolerance) {
-					// We're going too fast, decrease multiplier
-					dynamicThrottleMultiplier -= adjustmentStep
+					// We're going too fast, decrease multiplier aggressively to prevent rate limiting
+					dynamicThrottleMultiplier -= adjustmentStep * 2 // Decrease faster to avoid hitting rate limits
 					if dynamicThrottleMultiplier < minMultiplier {
 						dynamicThrottleMultiplier = minMultiplier
 					}
@@ -940,6 +941,7 @@ BATCHRPCCALL:
 		return nil
 	}
 	err := base.RpcClient.BatchCallContext(context.Background(), batch)
+
 	if err != nil {
 		core.LogDebug("Could not perform RPC call from rpcBatchGetBlockByNumber, backing off: " + err.Error())
 		rpcErrorCount++
@@ -988,15 +990,18 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 			return nil
 		}
 		batchArray := batch.([]big.Int) // Get the batch of blocks
-		// Wait for rate limit token immediately when we get work
-		err := rateLimiter.Wait(context.Background())
-		if err != nil {
-			return core.LogErrorReturn("Rate limiter wait failed: " + err.Error())
+		_batchSize := len(batchArray)
+		// Wait for rate limit tokens based on the actual number of ETH requests in batch
+		for i := 0; i < _batchSize; i++ {
+			err := rateLimiter.Wait(context.Background())
+			if err != nil {
+				return core.LogErrorReturn("Rate limiter wait failed: " + err.Error())
+			}
 		}
-		// Record the requests being made
-		requestTracker.RecordRequests(1)
+		// Record the actual number of RPC requests being made (one per block in batch)
+		requestTracker.RecordRequests(_batchSize)
 		if globalRequestTracker != nil {
-			globalRequestTracker.RecordRequests(1)
+			globalRequestTracker.RecordRequests(_batchSize)
 		}
 		if breakPoint(sequentialTracker.uuid) { // Check for cancellation before RPC call
 			return nil
@@ -1047,7 +1052,7 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 			nextExpected := sequentialTracker.GetNextExpectedBlock()
 			mod := nextExpected % reportInterval
 			if mod == 0 {
-				indexerPrintProgress(targetEarliestBlock, targetLatestBlock, big.NewInt(nextExpected), batchSize, direction, requestTracker)
+				indexerPrintProgress(targetEarliestBlock, targetLatestBlock, big.NewInt(nextExpected), big.NewInt(int64(_batchSize)), direction, requestTracker)
 			}
 		}
 	}

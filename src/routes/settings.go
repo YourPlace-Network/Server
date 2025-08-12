@@ -493,7 +493,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		if success {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "IPFS URL and Key saved"})
 		} else {
-			c.SecureJSON(http.StatusInternalServerError, gin.H{})
+			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "Failed to configure IPFS pinning service. Please check your URL and credentials."})
 		}
 	})
 	router.POST("/settings/server/debug", func(c *gin.Context) {
