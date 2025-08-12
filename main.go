@@ -12,6 +12,7 @@ import (
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"YourPlace/src/routes"
+	"crypto/tls"
 	"embed"
 	"encoding/hex"
 	"flag"
@@ -288,6 +289,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.Use(middleware.LoopbackMiddleware(port))
 	router.Use(middleware.LoopbackRedirectMiddleware(port))
+	router.Use(middleware.GatewayMiddleware(gateway))
 	router.Use(middleware.CSRFMiddleware(middleware.CSRFConfig{CryptoSeed: cryptoSeed}))
 	router.Use(middleware.AuthMiddleware(cryptoSeed, database))
 	if !installed {
@@ -325,30 +327,63 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	}
 	// --- Start Web Server Loop --- //
 	var srv *http.Server
-	if protocol == "http" {
-		srv = &http.Server{
-			Addr:              "0.0.0.0:" + strconv.Itoa(port),
-			Handler:           router,
-			ReadTimeout:       30 * time.Second,
-			WriteTimeout:      60 * time.Second,
-			IdleTimeout:       120 * time.Second,
-			ReadHeaderTimeout: 20 * time.Second,
-			MaxHeaderBytes:    1 << 20, // 1 MB max header size
-		}
-		go func() {
-			err := srv.ListenAndServe()
-			if err != nil {
-				core.LogFatal("Could not start server: " + err.Error())
-			}
-		}()
-		for i := 0; i < 10; i++ {
-			time.Sleep(500 * time.Millisecond)
-			if network.IsTCPPortOpen("127.0.0.1", port) {
-				break
-			}
-		}
-		PostServerRun(database)
+	srv = &http.Server{
+		Addr:              "127.0.0.1:" + strconv.Itoa(port),
+		Handler:           router,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 20 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1 MB max header size
 	}
+	go func() {
+		err := srv.ListenAndServe()
+		if err != nil {
+			core.LogFatal("Could not start server: " + err.Error())
+		}
+	}()
+
+	if gateway { // Gateway mode TLS server
+		certPath := host.GetDataDir() + "cert.pem"
+		keyPath := host.GetDataDir() + "cert.key"
+		if host.DoesExist(certPath) && host.DoesExist(keyPath) {
+			core.LogInfo("Starting TLS server on port 443 for gateway mode")
+			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+			if err != nil {
+				core.LogError("Could not load TLS certificate: " + err.Error())
+			}
+			tlsConfig := &tls.Config{
+				Certificates: []tls.Certificate{cert},
+				MinVersion:   tls.VersionTLS12,
+			}
+			tlsSrv := &http.Server{
+				Addr:              "0.0.0.0:443",
+				Handler:           router,
+				ReadTimeout:       30 * time.Second,
+				WriteTimeout:      60 * time.Second,
+				IdleTimeout:       120 * time.Second,
+				ReadHeaderTimeout: 20 * time.Second,
+				MaxHeaderBytes:    1 << 20, // 1 MB max header size
+				TLSConfig:         tlsConfig,
+			}
+			go func() {
+				err = tlsSrv.ListenAndServeTLS("", "")
+				if err != nil {
+					core.LogError("Could not start TLS server: " + err.Error())
+				}
+			}()
+		} else {
+			core.LogError("Gateway mode enabled but cert.pem or cert.key not found in data directory")
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		time.Sleep(500 * time.Millisecond)
+		if network.IsTCPPortOpen("127.0.0.1", port) {
+			break
+		}
+	}
+	PostServerRun(database)
 }
 func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 	// --- Scheduled Jobs --- //
