@@ -46,8 +46,10 @@ Monitors RPC request rates for dynamic throttling and rate limit compliance.
 
 - **Worker Count**: 10 concurrent threads by default
 - **Batch Processing**: Up to 25 blocks per RPC batch call
-- **Rate Limiting**: Dynamic throttling based on RPC node limits
+- **Rate Limiting**: Coordinated throttling with cross-worker synchronization
+- **Worker Staggering**: 500ms-1000ms randomized startup delays
 - **Error Handling**: Exponential backoff with 120 retry limit
+- **Request Coordination**: Global mutex prevents simultaneous token acquisition
 
 ### 4. Dynamic Throttle Control
 
@@ -56,6 +58,25 @@ The indexer implements adaptive rate limiting:
 - Adjusts multiplier (0.1x to 100x) based on performance
 - Prevents rate limit violations while maximizing throughput
 - Updates every 30 seconds with 10% tolerance
+
+### 5. Concurrency & Coordination Architecture
+
+#### Rate Limiter Coordination
+- **Global Mutex**: `rateLimiterMutex` serializes token acquisition across workers
+- **Prevents**: Multiple workers simultaneously acquiring tokens causing RPS spikes
+- **Token Strategy**: Each worker waits for tokens equal to their batch size
+
+#### Cross-Worker Tracking
+- **Atomic Counters**: 
+  - `activeRequestsCount`: Currently executing RPC requests
+  - `totalRequestsCount`: Total requests processed
+- **Lock-Free**: Real-time visibility without mutex overhead
+- **Coordination**: Enables better throttling decisions
+
+#### Worker Startup Management
+- **Staggered Launch**: Base delay (500ms × workerID) + random jitter (0-500ms)
+- **Total Range**: 500ms-1000ms startup distribution
+- **Purpose**: Prevents coordinated worker bursts at startup
 
 ## Protocol Transaction Processing
 
@@ -136,11 +157,14 @@ The indexer calls specific database methods for each transaction type:
 ## Performance Optimizations
 
 1. **Batch RPC Calls**: Multiple blocks per request
-2. **Parallel Processing**: 10 concurrent workers
-3. **Dynamic Rate Limiting**: Adaptive throttling
+2. **Parallel Processing**: 10 concurrent workers with coordinated rate limiting
+3. **Dynamic Rate Limiting**: Adaptive throttling with cross-worker coordination
 4. **Sequential Tracking**: Out-of-order completion handling
 5. **Memory Efficient**: Streaming block processing
 6. **Checkpoint System**: Regular progress saves
+7. **Request Coordination**: Global mutex prevents RPS spikes from simultaneous workers
+8. **Atomic Counters**: Lock-free tracking of active requests across workers
+9. **Accurate Request Timing**: Records completion times instead of start times
 
 ## Monitoring & Logging
 
@@ -156,5 +180,50 @@ The architecture supports additional blockchains through:
 - Blockchain-specific earliest block detection
 - Chain-specific transaction format handlers
 - Independent job tracking per blockchain
+
+## Debugging & Manual Control
+
+### Check Indexer Status
+```sql
+SELECT blockchain, status, head_block, tail_block 
+FROM indexer_jobs WHERE blockchain = 'base';
+```
+
+### Essential Manual Operations
+
+⚠️ **Stop indexer before making changes**
+
+#### Re-index from Specific Block
+```sql
+-- Re-index from block 12345678 forward
+UPDATE indexer_jobs 
+SET head_block = 12345678, status = 'complete'
+WHERE blockchain = 'base';
+```
+
+#### Reset to Full Re-index
+```sql
+-- Start completely over
+UPDATE indexer_jobs 
+SET head_block = 0, tail_block = 0, status = 'pending'
+WHERE blockchain = 'base';
+```
+
+#### Skip to Latest (Emergency)
+```sql
+-- Jump to latest block (skips historical data)
+UPDATE indexer_jobs 
+SET head_block = (latest_block_number), status = 'complete'
+WHERE blockchain = 'base';
+```
+
+### Throttle Control
+```sql
+-- Reduce for testing/debugging
+UPDATE settings SET value = '10' WHERE key = 'baseThrottle';
+
+-- Increase for faster sync
+UPDATE settings SET value = '30' WHERE key = 'baseThrottle';
+```
 
 This indexer design ensures reliable, efficient processing of YourPlace social media data across multiple blockchain networks while maintaining data integrity and system performance.

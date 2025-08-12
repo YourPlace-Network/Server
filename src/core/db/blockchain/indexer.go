@@ -9,10 +9,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math/big"
+	"math/rand"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -39,6 +41,9 @@ var (
 	dynamicThrottleMultiplier = 1.0
 	throttleControlMutex      sync.RWMutex    // Protects dynamicThrottleMultiplier
 	globalRequestTracker      *RequestTracker // Global request tracker to monitor request rates across all workers
+	rateLimiterMutex          sync.Mutex      // Serializes rate limiter token acquisition across workers
+	activeRequestsCount       int64           // Atomic counter for currently active RPC requests across all workers
+	totalRequestsCount        int64           // Atomic counter for total RPC requests processed across all workers
 )
 
 type SequentialBlockTracker struct {
@@ -212,6 +217,9 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	sequentialTracker := NewSequentialBlockTracker(targetEarliestBlockBigInt.Int64(), uuid, _Database, direction)
 	globalRequestTracker = NewRequestTracker()
 	errorChan := make(chan error, workerCount)
+	// Reset atomic counters for new indexing session
+	atomic.StoreInt64(&activeRequestsCount, 0)
+	atomic.StoreInt64(&totalRequestsCount, 0)
 
 	go startThrottleController(uuid, baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
 
@@ -239,7 +247,10 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 		go func(workerID int) {
-			time.Sleep(time.Duration(workerID) * 100 * time.Millisecond) // Stagger the start of each worker to avoid API rate limiting upon startup
+			// Stagger worker startup: 500ms base + up to 500ms jitter = 500ms-1000ms total
+			baseDelay := time.Duration(workerID) * 500 * time.Millisecond
+			jitter := time.Duration(rand.Intn(500)) * time.Millisecond
+			time.Sleep(baseDelay + jitter)
 			defer wg.Done()
 			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlockBigInt, targetLatestBlock, batchSize, "forward", errorChan)
 			if err != nil {
@@ -317,6 +328,9 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	sequentialTracker := NewSequentialBlockTracker(targetLatestBlock.Int64(), uuid, _Database, direction) // Sequential block tracker starting from the highest block
 	globalRequestTracker = NewRequestTracker()                                                            // Request tracker to monitor request rates
 	errorChan := make(chan error, workerCount)                                                            // Channel to handle errors from workers
+	// Reset atomic counters for new indexing session
+	atomic.StoreInt64(&activeRequestsCount, 0)
+	atomic.StoreInt64(&totalRequestsCount, 0)
 
 	// Start the throttle controller in a separate goroutine
 	go startThrottleController(uuid, baseThrottle, rateLimiter)
@@ -345,7 +359,10 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1) // Add a worker to the wait group
 		go func(workerID int) {
-			time.Sleep(time.Duration(workerID) * 100 * time.Millisecond) // Stagger the start of each worker to avoid API rate limiting upon startup
+			// Stagger worker startup: 500ms base + up to 500ms jitter = 500ms-1000ms total
+			baseDelay := time.Duration(workerID) * 500 * time.Millisecond
+			jitter := time.Duration(rand.Intn(500)) * time.Millisecond
+			time.Sleep(baseDelay + jitter)
 			defer wg.Done()
 			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward", errorChan)
 			if err != nil {
@@ -409,6 +426,9 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	sequentialTracker := NewSequentialBlockTracker(targetLatestBlock.Int64(), uuid, _Database, direction) // Sequential block tracker starting from the highest block
 	globalRequestTracker = NewRequestTracker()
 	errorChan := make(chan error, workerCount) // Channel to handle errors from workers
+	// Reset atomic counters for new indexing session
+	atomic.StoreInt64(&activeRequestsCount, 0)
+	atomic.StoreInt64(&totalRequestsCount, 0)
 
 	go startThrottleController(uuid, baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
 
@@ -436,7 +456,10 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int) {
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 		go func(workerID int) {
-			time.Sleep(time.Duration(workerID) * 100 * time.Millisecond) // Stagger the start of each worker to avoid API rate limiting upon startup
+			// Stagger worker startup: 500ms base + up to 500ms jitter = 500ms-1000ms total
+			baseDelay := time.Duration(workerID) * 500 * time.Millisecond
+			jitter := time.Duration(rand.Intn(500)) * time.Millisecond
+			time.Sleep(baseDelay + jitter)
 			defer wg.Done()
 			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, &targetEarliestBlockBigInt, targetLatestBlock, batchSize, "backward", errorChan)
 			if err != nil {
@@ -991,23 +1014,32 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 		}
 		batchArray := batch.([]big.Int) // Get the batch of blocks
 		_batchSize := len(batchArray)
+		// Serialize token acquisition across all workers to prevent simultaneous RPS spikes
+		rateLimiterMutex.Lock()
 		// Wait for rate limit tokens based on the actual number of ETH requests in batch
 		for i := 0; i < _batchSize; i++ {
 			err := rateLimiter.Wait(context.Background())
 			if err != nil {
+				rateLimiterMutex.Unlock()
 				return core.LogErrorReturn("Rate limiter wait failed: " + err.Error())
 			}
 		}
-		// Record the actual number of RPC requests being made (one per block in batch)
+		rateLimiterMutex.Unlock()
+		if breakPoint(sequentialTracker.uuid) { // Check for cancellation before RPC call
+			return nil
+		}
+		// Track active requests with atomic counters for cross-worker coordination
+		atomic.AddInt64(&activeRequestsCount, int64(_batchSize))
+		atomic.AddInt64(&totalRequestsCount, int64(_batchSize))
+		// Make the RPC call
+		blocks := rpcBatchGetBlockByNumber(uuid, base, batchArray)
+		// Decrement active requests after RPC call completes
+		atomic.AddInt64(&activeRequestsCount, -int64(_batchSize))
+		// Record the actual number of RPC requests completed (one per block in batch) with completion time
 		requestTracker.RecordRequests(_batchSize)
 		if globalRequestTracker != nil {
 			globalRequestTracker.RecordRequests(_batchSize)
 		}
-		if breakPoint(sequentialTracker.uuid) { // Check for cancellation before RPC call
-			return nil
-		}
-		// Make the RPC call
-		blocks := rpcBatchGetBlockByNumber(uuid, base, batchArray)
 		if blocks == nil {
 			continue // Skip processing if blocks are nil
 		}
