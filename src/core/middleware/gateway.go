@@ -13,14 +13,16 @@ func GatewayMiddleware(gateway bool) gin.HandlerFunc {
 			path := c.Request.URL.Path
 			method := c.Request.Method
 
-			// Blacklist API endpoints when in gateway mode
-			blacklistedPaths := []string{
-				"/files/",
+			blacklistedPathTuples := [][]string{
+				{"/files", "POST"},
+				{"/settings", "POST"},
+				{"/setup", "POST"}, {"/setup", "GET"},
+				{"/notifications", "POST"},
 			}
 
-			for _, blacklistedPath := range blacklistedPaths {
-				if strings.HasPrefix(path, blacklistedPath) && method == "POST" {
-					c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+			for _, blacklistedPath := range blacklistedPathTuples {
+				if strings.HasPrefix(path, blacklistedPath[0]) && method == blacklistedPath[1] {
+					c.AbortWithStatusJSON(http.StatusMethodNotAllowed, gin.H{
 						"status": "Function disabled in gateway mode",
 					})
 					return
