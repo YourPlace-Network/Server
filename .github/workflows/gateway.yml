@@ -1,4 +1,4 @@
-name: Ubuntu
+name: Gateway
 
 on:
   workflow_dispatch:
@@ -10,8 +10,6 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      with:
-        lfs: true
 
     - name: Extract Version From Go Code
       id: get_version
@@ -19,7 +17,7 @@ jobs:
         VERSION=$(grep -Po 'version = "\K[^"]*' main.go)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "Version found: $VERSION"
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
@@ -42,3 +40,9 @@ jobs:
     - name: Run Make Build
       run: |
         make clean build
+
+    # SSH into server and drop binaries
+
+    # SSH into server and drop certs
+
+    # SSH into server and start service
