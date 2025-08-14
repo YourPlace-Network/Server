@@ -947,6 +947,7 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 	}
 }
 func rpcBatchGetBlockByNumber(uuid string, base *Base, batchBlockNumbers []big.Int) []map[string]interface{} {
+	batchSize := len(batchBlockNumbers)
 	// Create the batch RPC call
 	var batch []rpc.BatchElem
 	for _, blockNumber := range batchBlockNumbers {
@@ -958,39 +959,74 @@ func rpcBatchGetBlockByNumber(uuid string, base *Base, batchBlockNumbers []big.I
 		}
 		batch = append(batch, request)
 	}
-	// Make the RPC call
+	// Make the RPC call with retry only for connection errors
 	rpcErrorCount := 0
-	var blocks []map[string]interface{}
+	rateLimitErrorCount := 0
 BATCHRPCCALL:
+	var blocks []map[string]interface{}
 	if breakPoint(uuid) {
 		return nil
 	}
 	err := base.RpcClient.BatchCallContext(context.Background(), batch)
-
 	if err != nil {
 		core.LogDebug("Could not perform RPC call from rpcBatchGetBlockByNumber, backing off: " + err.Error())
-		rpcErrorCount++
-		backoff := (rpcErrorCount + 1) * 2
-		time.Sleep(time.Duration(backoff) * time.Second) // exponential backoff
-		if rpcErrorCount >= 120 {
-			core.LogDebug("Backfill failed too many times: " + err.Error())
-			_Database.IndexerUpdateJobStatus(uuid, "failed")
-			return nil
+		// Check if this is a rate-limiting error
+		if strings.Contains(strings.ToLower(err.Error()), "rps limit") || strings.Contains(strings.ToLower(err.Error()), "rate limit") {
+			rateLimitErrorCount++
+			// Calculate backoff based on batch size and rate limit severity
+			baseBackoff := rateLimitErrorCount * rateLimitErrorCount // 1, 4, 9, 16 seconds...
+			batchPenalty := batchSize / 5                            // Add penalty based on batch size (1 second per 5 requests)
+			backoff := baseBackoff + batchPenalty
+			if backoff > 120 { // Cap at 2 minutes
+				backoff = 120
+			}
+			core.LogDebug("Rate limit detected for batch of " + strconv.Itoa(batchSize) + " requests, backing off for " + strconv.Itoa(backoff) + " seconds")
+			time.Sleep(time.Duration(backoff) * time.Second)
+			// Reduce throttle multiplier on rate limits
+			throttleControlMutex.Lock()
+			dynamicThrottleMultiplier *= 0.7 // Reduce to 70% on rate limit errors
+			if dynamicThrottleMultiplier < 0.1 {
+				dynamicThrottleMultiplier = 0.1 // Don't go below 10% of original rate
+			}
+			core.LogDebug("Reducing throttle multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+			throttleControlMutex.Unlock()
+			if rateLimitErrorCount >= 20 {
+				core.LogDebug("Too many rate limit errors, failing batch")
+				_Database.IndexerUpdateJobStatus(uuid, "failed")
+				return nil
+			}
+		} else {
+			// Regular connection errors use standard exponential backoff
+			rpcErrorCount++
+			backoff := (rpcErrorCount + 1) * 2
+			time.Sleep(time.Duration(backoff) * time.Second)
+			if rpcErrorCount >= 120 {
+				core.LogDebug("Backfill failed too many times: " + err.Error())
+				_Database.IndexerUpdateJobStatus(uuid, "failed")
+				return nil
+			}
 		}
 		goto BATCHRPCCALL
 	}
+	// Process batch results - check for rate limits in individual responses
+	hasRateLimitError := false
+	rateLimitCount := 0
 	i := 0
 	for _, elem := range batch { // Loop through each block in the batch response
 		if breakPoint(uuid) {
 			return nil
 		}
 		if elem.Error != nil {
-			core.LogDebug("Could not get block data from rpcBatchGetBlockByNumber: " + elem.Error.Error())
-			core.LogDebug("index: " + batchBlockNumbers[i].String())
-			core.LogDebug("method: " + elem.Method)
-			println("Args: ", elem.Args)
-			println("result: ", elem.Result)
-			blocks = append(blocks, nil) // Append nil to the blocks to maintain array alignment
+			errorMsg := elem.Error.Error()
+			core.LogDebug("Could not get block data from rpcBatchGetBlockByNumber: " + errorMsg)
+			core.LogDebug("\tindex: " + batchBlockNumbers[i].String())
+			core.LogDebug("\tmethod: " + elem.Method)
+			// Check for rate limiting in individual responses
+			if strings.Contains(strings.ToLower(errorMsg), "rps limit") || strings.Contains(strings.ToLower(errorMsg), "rate limit") {
+				hasRateLimitError = true
+				rateLimitCount++
+			}
+			blocks = append(blocks, nil) // Append nil to maintain array alignment
 		} else {
 			if elem.Result == nil {
 				blocks = append(blocks, nil) // Append nil if the result to maintain array alignment
@@ -1004,6 +1040,20 @@ BATCHRPCCALL:
 			}
 		}
 		i++
+	}
+	// If we detected rate limit errors in responses, reduce throttle and return partial results
+	if hasRateLimitError {
+		throttleControlMutex.Lock()
+		// Reduce throttle based on the percentage of requests that were rate limited
+		rateLimitRatio := float64(rateLimitCount) / float64(batchSize)
+		reductionFactor := 0.15 + (rateLimitRatio * 0.25) // Reduce by 15-40% based on how many were rate-limited
+		dynamicThrottleMultiplier *= (1.0 - reductionFactor)
+		if dynamicThrottleMultiplier < 0.1 {
+			dynamicThrottleMultiplier = 0.1 // Don't go below 10% of the original rate
+		}
+		core.LogDebug("\tRate limit in batch response: " + strconv.Itoa(rateLimitCount) + "/" + strconv.Itoa(batchSize) +
+			" requests throttled, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+		throttleControlMutex.Unlock()
 	}
 	return blocks
 }
@@ -1045,14 +1095,17 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 		if blocks == nil {
 			continue // Skip processing if blocks are nil
 		}
+		// Collect failed blocks for re-queuing
+		var failedBlocks []big.Int
 		// Process each block and update the block index as we go
 		for i, block := range blocks {
 			if i >= len(batchArray) { // Safety check
 				break
 			}
 			if block == nil {
-				sequentialTracker.MarkBlockProcessed(batchArray[i].Int64(), direction)
-				continue // Skip nil blocks
+				// Don't mark failed blocks as processed - add them for retry
+				failedBlocks = append(failedBlocks, batchArray[i])
+				continue // Skip nil blocks but don't mark as processed
 			}
 			currentBlockNumber := batchArray[i].Int64()
 			transactionsRaw, exists := block["transactions"]
@@ -1087,6 +1140,21 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 			mod := nextExpected % reportInterval
 			if mod == 0 {
 				indexerPrintProgress(targetEarliestBlock, targetLatestBlock, big.NewInt(nextExpected), big.NewInt(int64(_batchSize)), direction, requestTracker)
+			}
+		}
+		// Re-queue failed blocks individually with backoff if any failed
+		if len(failedBlocks) > 0 {
+			core.LogDebug("Re-queuing " + strconv.Itoa(len(failedBlocks)) + " failed blocks individually")
+			// Apply exponential backoff before re-queuing failed blocks
+			backoffTime := len(failedBlocks) * 1 // 1 second per failed block
+			if backoffTime > 30 {
+				backoffTime = 30 // Cap at 30 seconds
+			}
+			time.Sleep(time.Duration(backoffTime) * time.Second)
+			// Re-queue failed blocks individually to avoid batch amplification
+			for _, failedBlock := range failedBlocks {
+				singleBlockBatch := []big.Int{failedBlock}
+				batchJobQueue.Enqueue(singleBlockBatch)
 			}
 		}
 	}
