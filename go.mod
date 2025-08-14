@@ -2,6 +2,17 @@ module YourPlace
 
 go 1.25.0
 
+ignore (
+	node_modules
+	src/www
+	src/typescript
+	src/scss
+	resources
+	docs
+	.github
+	.claude
+)
+
 require (
 	github.com/algorand/go-algorand-sdk/v2 v2.9.1
 	github.com/chromedp/cdproto v0.0.0-20250713235838-3ec7dc2cfcb5
