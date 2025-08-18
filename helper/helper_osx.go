@@ -271,11 +271,11 @@ func uninstallYourPlace(keepUpload, keepBlockchain bool) error {
 	return nil
 }
 func whitelistTorBinary() error {
-	user, err := getProcessUserInfo("YourPlace")
+	userName, err := getProcessUserInfo("YourPlace")
 	if err != nil {
 		return LogErrorReturn("Could not find YourPlace user: " + err.Error())
 	}
-	torPath := filepath.Join(user.HomeDir, "Library", "Caches", "YourPlace", "tor", "tor", "tor")
+	torPath := filepath.Join(userName.HomeDir, "Library", "Caches", "YourPlace", "tor", "tor", "tor")
 	// Check if binary exists
 	if _, err := os.Stat(torPath); os.IsNotExist(err) {
 		return LogErrorReturn("Tor binary not found at: " + torPath)
@@ -387,13 +387,13 @@ func unprotectBinary(path string, originalMode os.FileMode, originalUID uint32, 
 
 // Logging Functions
 func LogInit(name string) *os.File {
-	user, err := getProcessUserInfo("YourPlace")
-	homeDir := user.HomeDir
-	logDir := filepath.Join(homeDir, "Library", "Logs", "YourPlace")
+	userName, err := getProcessUserInfo("YourPlace")
 	if err != nil {
-		fmt.Println("Error creating log directory: " + err.Error())
+		fmt.Println("Error getting YourPlace user: " + err.Error())
 		return nil
 	}
+	homeDir := userName.HomeDir
+	logDir := filepath.Join(homeDir, "Library", "Logs", "YourPlace")
 	maxAttempts := 12
 	for i := 0; i < maxAttempts; i++ {
 		if _, err := os.Stat(logDir); err == nil {
