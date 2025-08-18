@@ -486,7 +486,8 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		url := payload.PinningURL
 		if !security.IsHttpProtocol(payload.PinningURL) {
-			url = "https://" + url
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning URL or Key"})
+			return
 		}
 		host.AddSecret("ipfsPinningKey", security.SanitizeNonPrintable(payload.PinningKey))
 		database.SettingsUpdateValue("ipfsPinningURL", url)

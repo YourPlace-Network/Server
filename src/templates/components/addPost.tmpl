@@ -6,17 +6,6 @@
                 <div id="addPostLinkPreview"></div>
                 <div class="container-fluid" id="addPostControls">
                     <div class="row">
-                        <div class="col" id="uploadBtnColumn">
-                            <button type="button" class="btn btn-primary" id="btnUploadFile" data-bs-toggle="tooltip" title="Attach a file to the post">
-                                <i class="bi bi-upload" id="uploadFileBtnImg"></i> Upload File</button>
-                            <input type="file" name="file" id="file" multiple hidden>
-                        </div>
-                        <div class="col" id="savePostColumn">
-                            <div class="form-check form-switch" id="savedPostCheckboxDiv" data-bs-toggle="tooltip" title="Save this post to the blockchain forever">
-                                <input class="form-check-input" type="checkbox" role="switch" id="savedPostCheckbox" checked disabled>
-                                <label class="form-check-label" for="savedPostCheckbox" id="savedPostCheckboxLabel">Save Post</label>
-                            </div>
-                        </div>
                         <div class="col" id="postColumn">
                             <div class="row justify-content-end" id="spiceometerRow">
                                 <div id="spiceometerDiv">
@@ -24,7 +13,24 @@
                                 </div>
                             </div>
                             <div class="row justify-content-end" id="postBtnRow">
-                                <button type="button" class="btn btn-primary" id="submitPostButton">Post</button>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-secondary" id="submitPostButton">Post</button>
+                                    <button type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" data-bs-reference="parent">
+                                        <span class="visually-hidden">Posting Options</span>
+                                    </button>
+                                    <ul class="dropdown-menu" id="postDropdownMenu">
+                                        <li><div class="form-check form-switch" id="savedPostCheckboxDiv" data-bs-toggle="tooltip" title="Save this post to the blockchain forever">
+                                                <input class="form-check-input" type="checkbox" role="switch" id="savedPostCheckbox" checked disabled>
+                                                <label class="form-check-label" for="savedPostCheckbox" id="savedPostCheckboxLabel">Save Post</label>
+                                            </div></li>
+                                        <li><button type="button" class="btn btn-primary" id="btnUploadFile" data-bs-toggle="tooltip" title="Attach a file to the post">
+                                                <i class="bi bi-upload" id="uploadFileBtnImg"></i> Upload File</button>
+                                            <input type="file" name="file" id="file" multiple hidden></li>
+                                        <!--<li><a class="dropdown-item" href="#">Something else here</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="#">Separated link</a></li>-->
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
