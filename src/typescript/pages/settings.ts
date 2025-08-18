@@ -78,6 +78,7 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             helperLogsViewBtn: document.getElementById("helperLogsViewBtn")! as HTMLButtonElement,
             logsView: document.getElementById("logsView")! as HTMLDivElement,
             torHiddenServiceCheck: document.getElementById("torHiddenServiceCheck")! as HTMLInputElement,
+            collapseContent: document.getElementById("collapseContent")! as HTMLDivElement,
         }
         let popperInstance: Instance | null = null;
 
@@ -86,24 +87,18 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
 
             try {
                 await Promise.all([
-                    getUploadDirectory(),
                     getBaseURL(),
                     getPostHistoryDays(),
                     getBaseIndexerProgress(),
                     getBaseThrottle(),
                     getBaseFullNode(),
                     getBaseDataDirectory(),
-                    getSpiceometer(),
-                    getOllamaEnabled(),
-                    getOllamaModelEnabled(),
                     getIndexerOnBattery(),
                     getIndexerRunning(),
                     getIndexerStatus(),
                     getNetworkPorts(),
-                    getIpfsPinning(),
                     getDebugMode(),
                     getServerVersion(),
-                    getDatabaseSnapshotDirectory(),
                 ]);
             } catch (error) {
                 LogError("Error initializing settings page: " + error);
@@ -810,6 +805,16 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.serverLogsViewBtn.addEventListener("click", getServerLogs);
         DOM.helperLogsViewBtn.addEventListener("click", getHelperLogs);
         DOM.torHiddenServiceCheck.addEventListener("change", setTorHiddenService);
+
+        /* On-Demand Loading */
+        DOM.collapseContent.addEventListener("show.bs.collapse", function() {
+            getUploadDirectory().then();
+            getIpfsPinning().then();
+            getDatabaseSnapshotDirectory().then();
+            getSpiceometer().then();
+            getOllamaEnabled().then();
+            getOllamaModelEnabled().then();
+        });
 
         init().then();
     }

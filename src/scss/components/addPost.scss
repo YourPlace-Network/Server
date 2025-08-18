@@ -94,12 +94,20 @@
 #savedPostCheckbox {
   cursor: pointer;
 }
+#postBtnRow {
+  max-width: 30%;
+  float: right;
+}
 #submitPostButton {
   position: relative;
   width: 4em;
   height: 2em;
   float: right;
   font-size: 25px;
+}
+#postDropdownMenu {
+  padding: 0.3em;
+  border: 2px white;
 }
 #algoLogo {
   height: 20px;

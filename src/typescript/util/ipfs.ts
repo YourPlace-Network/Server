@@ -159,19 +159,19 @@ export async function loadImageWithTimeout(url: string, timeoutMs: number = 5000
         img.crossOrigin = "anonymous";
         let timeoutId: number;
         let resolved = false;
-        
         const cleanup = () => {
             if (timeoutId) clearTimeout(timeoutId);
             resolved = true;
+            img.onload = null;
+            img.onerror = null;
+            img.src = "";
         };
-        
         img.onload = () => {
             if (!resolved) {
                 cleanup();
                 resolve(true);
             }
         };
-        
         img.onerror = () => {
             if (!resolved) {
                 cleanup();
@@ -179,8 +179,6 @@ export async function loadImageWithTimeout(url: string, timeoutMs: number = 5000
                 resolve(false);
             }
         };
-        
-        // Set timeout
         timeoutId = window.setTimeout(() => {
             if (!resolved) {
                 cleanup();
@@ -188,8 +186,6 @@ export async function loadImageWithTimeout(url: string, timeoutMs: number = 5000
                 resolve(false);
             }
         }, timeoutMs);
-        
-        // Start loading
         img.src = url;
     });
 }

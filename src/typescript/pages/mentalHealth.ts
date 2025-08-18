@@ -914,8 +914,28 @@ const tips = [
     "In a business deal, if something feels wrong or you're not happy with the terms, then just walk away first. It preserves your dignity, and they may counter with a better offer. Just don't chase bad deals because they don't often become good ones",
     "When selling things, try to give good people good deals. You can even ask them to pay it forward. It'll causes a ripple of goodness within good people",
     "It's ok to believe in God. It's ok to not believe in god",
+    "Those \"charming quirks\" you had in your 20s, can become a liability and social hindrance in your 30s and beyond",
+    "A lot of childless people will cope really hard about not having kids. They'll tell everyone they enjoy the freedom and show off their travel pictures. But deep down many of them know they missed out, will be alone later in life, and nobody will remember their name after they're gone",
+    "There are two types of people: those who do things, and those who don't. The ones who don't do things often talk about doing things, write about doing things, debate doings things, or pretend to do things",
+    "If you're a lower income person, you're not going to climb the socio-economic ladder by caring a lot about work-life balance. The hard workers and over achievers make the money. You may disagree with that dynamic, but that's just how life is",
+    "If you're young and have no family, then it's foolish to care about work-life balance, because you don't actually have a life yet. Personal hobbies don't count",
+    "If you are 27 and you do not see a path to owning a home at 35 in your current city or career, then you should plan to change either your career or your city by 30",
+    "We all have millimeter-precision actuators running at ~50Hz, all on a processor that supports consciousness running at 20W. The human body is a crazy and impressive machine, so take care of it",
+    "Outside entities will test your mind, and if they can take hold, will torture you until insanity. Only stronger minds can resist these influences. And living a clean life helps",
+    "The mind is like a radio. It's a receiver, a transmitter, a filter, and a tuner. If you have some noise or static in the system, you need to carefully tune and fix it so the music of life comes in clear",
+    "Medicine is very often helpful. And sometimes there are other solutions that can fundamentally solve the problem. Exercises, diet changes and other safe therapies should be considered too",
+    "Negativity is a fisherman. They'll bait you with painful memories from the past, or conspiracies about yourself and others, and try to reel you in. Don't take the bait",
+    "You have to break the trauma cycle - Whatever it takes",
+    "Be careful with isolation. Too long alone, will eventually suck you in and you'll drown in the darkness",
+    "Some drugs aren't about cures. Some drugs are about control",
+    "You don't condemn an entire species, culture, or religion as being entirely imperfect based on the action of a few",
+    "You are worthy to exist. Be good, compassionate, kind and full of love",
+    "Don't listen to the voice that tells you to not find help. Ignore the thing that says society will condemn or imprison you for having negative thoughts. It's a lie designed to prevent you from finding freedom. Seek positive family, medical specialists, and even good religious leaders",
+    "Yelling \"NO\" and \"STOP\" to the police is not going to work. Your only option is to comply, then let lawyers figure it out",
+    "Having a realistic attitude about yourself and \"the system\" is necessary to getting ahead in life",
 
 
+    
 ];
 
 (function initialize() {

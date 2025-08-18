@@ -420,7 +420,6 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 				blockchain.IndexerStop()
 				return
 			}
-			core.LogDebug("Starting Base Indexer Run")
 			blockchain.IndexerFetchData(database, _blockchain, "base")
 		})
 	}
