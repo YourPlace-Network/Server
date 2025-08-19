@@ -933,6 +933,7 @@ const tips = [
     "Don't listen to the voice that tells you to not find help. Ignore the thing that says society will condemn or imprison you for having negative thoughts. It's a lie designed to prevent you from finding freedom. Seek positive family, medical specialists, and even good religious leaders",
     "Yelling \"NO\" and \"STOP\" to the police is not going to work. Your only option is to comply, then let lawyers figure it out",
     "Having a realistic attitude about yourself and \"the system\" is necessary to getting ahead in life",
+    "Dystopia always tries to disguise itself as a utopia",
 
 
     
