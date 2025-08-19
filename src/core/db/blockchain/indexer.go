@@ -982,9 +982,9 @@ BATCHRPCCALL:
 			}
 			core.LogDebug("Rate limit detected for batch of " + strconv.Itoa(batchSize) + " requests, backing off for " + strconv.Itoa(backoff) + " seconds")
 			time.Sleep(time.Duration(backoff) * time.Second)
-			// Reduce throttle multiplier on rate limits
+			// Reduce throttle multiplier on rate limits (entire batch failed)
 			throttleControlMutex.Lock()
-			dynamicThrottleMultiplier *= 0.7 // Reduce to 70% on rate limit errors
+			dynamicThrottleMultiplier *= 0.90 // Reduce to 90% on rate limit errors
 			if dynamicThrottleMultiplier < 0.1 {
 				dynamicThrottleMultiplier = 0.1 // Don't go below 10% of original rate
 			}
@@ -1041,19 +1041,19 @@ BATCHRPCCALL:
 		}
 		i++
 	}
-	// If we detected rate limit errors in responses, reduce throttle and return partial results
-	if hasRateLimitError {
+	// Only reduce throttle if ALL requests in the batch were rate limited
+	if hasRateLimitError && rateLimitCount == batchSize {
 		throttleControlMutex.Lock()
-		// Reduce throttle based on the percentage of requests that were rate limited
-		rateLimitRatio := float64(rateLimitCount) / float64(batchSize)
-		reductionFactor := 0.15 + (rateLimitRatio * 0.25) // Reduce by 15-40% based on how many were rate-limited
-		dynamicThrottleMultiplier *= (1.0 - reductionFactor)
+		// All requests were rate limited, reduce throttle slightly
+		dynamicThrottleMultiplier *= 0.90 // Reduce to 90% when entire batch fails
 		if dynamicThrottleMultiplier < 0.1 {
 			dynamicThrottleMultiplier = 0.1 // Don't go below 10% of the original rate
 		}
-		core.LogDebug("\tRate limit in batch response: " + strconv.Itoa(rateLimitCount) + "/" + strconv.Itoa(batchSize) +
-			" requests throttled, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+		core.LogDebug("\tAll " + strconv.Itoa(batchSize) + " requests in batch were rate limited, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 		throttleControlMutex.Unlock()
+	} else if hasRateLimitError {
+		// Only some requests were rate limited, don't adjust throttle - just re-queue failed requests
+		core.LogDebug("\tPartial rate limiting in batch: " + strconv.Itoa(rateLimitCount) + "/" + strconv.Itoa(batchSize) + " requests throttled, not adjusting global throttle")
 	}
 	return blocks
 }
