@@ -1018,9 +1018,9 @@ BATCHRPCCALL:
 		}
 		if elem.Error != nil {
 			errorMsg := elem.Error.Error()
-			core.LogDebug("Could not get block data from rpcBatchGetBlockByNumber: " + errorMsg)
-			core.LogDebug("\tindex: " + batchBlockNumbers[i].String())
-			core.LogDebug("\tmethod: " + elem.Method)
+			//core.LogDebug("Could not get block data from rpcBatchGetBlockByNumber: " + errorMsg)
+			//core.LogDebug("\tindex: " + batchBlockNumbers[i].String())
+			//core.LogDebug("\tmethod: " + elem.Method)
 			// Check for rate limiting in individual responses
 			if strings.Contains(strings.ToLower(errorMsg), "rps limit") || strings.Contains(strings.ToLower(errorMsg), "rate limit") {
 				hasRateLimitError = true
@@ -1049,7 +1049,7 @@ BATCHRPCCALL:
 		if dynamicThrottleMultiplier < 0.1 {
 			dynamicThrottleMultiplier = 0.1 // Don't go below 10% of the original rate
 		}
-		core.LogDebug("\tAll " + strconv.Itoa(batchSize) + " requests in batch were rate limited, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+		core.LogDebug("All " + strconv.Itoa(batchSize) + " requests in a batch were rate limited, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 		throttleControlMutex.Unlock()
 	} else if hasRateLimitError {
 		// Only some requests were rate limited, don't adjust throttle - just re-queue failed requests
