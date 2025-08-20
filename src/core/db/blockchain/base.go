@@ -7,15 +7,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"math/big"
+	"net/http"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	ens "github.com/wealdtech/go-ens/v3"
-	"io"
-	"math/big"
-	"net/http"
-	"time"
 )
 
 type Base struct {
@@ -39,7 +40,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	//core.LogDebug("Base RPC Request: " + req.URL.String() + " - " + string(body))
 	resp, err := t.transport.RoundTrip(req)
 	if err != nil {
-		core.LogError("Base RPC Response Error: " + err.Error())
+		//core.LogDebug("Base RPC Response Error: " + err.Error())
 		return nil, err
 	}
 	respbody, _ := io.ReadAll(resp.Body)
