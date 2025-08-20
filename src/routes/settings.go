@@ -153,7 +153,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.GET("/settings/indexer/running", func(c *gin.Context) {
 		indexerRunning := database.SettingsGetValue("indexerRunning")
-		core.LogInfo("Indexer running: " + indexerRunning)
 		indexerRunningBool := false
 		if indexerRunning == "true" {
 			indexerRunningBool = true
