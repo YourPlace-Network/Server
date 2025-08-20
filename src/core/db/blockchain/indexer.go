@@ -50,7 +50,6 @@ type SequentialBlockTracker struct {
 	mu                sync.RWMutex
 	processedBlocks   map[int64]bool
 	nextExpectedBlock int64
-	maxPendingBlocks  int64 // Limit memory usage
 	uuid              string
 	database          *db.Database
 	direction         string
@@ -65,7 +64,6 @@ func NewSequentialBlockTracker(startBlock int64, uuid string, database *db.Datab
 	return &SequentialBlockTracker{
 		processedBlocks:   make(map[int64]bool),
 		nextExpectedBlock: startBlock,
-		maxPendingBlocks:  1000000,
 		uuid:              uuid,
 		database:          database,
 		direction:         direction,
@@ -74,10 +72,6 @@ func NewSequentialBlockTracker(startBlock int64, uuid string, database *db.Datab
 func (sbt *SequentialBlockTracker) MarkBlockProcessed(blockNumber int64, direction string) {
 	sbt.mu.Lock()
 	defer sbt.mu.Unlock()
-	if int64(len(sbt.processedBlocks)) > sbt.maxPendingBlocks { // Prevent memory explosion by limiting pending blocks
-		core.LogWarn("SequentialBlockTracker: Maximum pending blocks reached - dropping oldest block")
-		sbt.cleanupOldEntries()
-	}
 	sbt.processedBlocks[blockNumber] = true
 	// Update nextExpectedBlock to the next unprocessed sequential block
 	if direction == "forward" {
@@ -107,14 +101,6 @@ func (sbt *SequentialBlockTracker) HasPendingBlocks() bool {
 	sbt.mu.RLock()
 	defer sbt.mu.RUnlock()
 	return len(sbt.processedBlocks) > 0
-}
-func (sbt *SequentialBlockTracker) cleanupOldEntries() {
-	threshold := int64(1000) // Keep blocks within X of expected
-	for blockNum := range sbt.processedBlocks {
-		if core.Abs(blockNum-sbt.nextExpectedBlock) > threshold {
-			delete(sbt.processedBlocks, blockNum)
-		}
-	}
 }
 
 func NewRequestTracker() *RequestTracker {
@@ -342,7 +328,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	sequentialTracker := NewSequentialBlockTracker(targetLatestBlock.Int64(), uuid, _Database, direction) // Sequential block tracker starting from the highest block
 	globalRequestTracker = NewRequestTracker()                                                            // Request tracker to monitor request rates
 	errorChan := make(chan error, workerCount)                                                            // Channel to handle errors from workers
-	// Reset atomic counters for new indexing session
+	// Reset atomic counters for a new indexing session
 	atomic.StoreInt64(&activeRequestsCount, 0)
 	atomic.StoreInt64(&totalRequestsCount, 0)
 
