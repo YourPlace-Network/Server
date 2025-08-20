@@ -6,10 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	_algotypes "github.com/algorand/go-algorand-sdk/v2/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/google/uuid"
-	"github.com/ipfs/go-cid"
 	"math/big"
 	"net/url"
 	"os"
@@ -19,6 +15,11 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	_algotypes "github.com/algorand/go-algorand-sdk/v2/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/google/uuid"
+	"github.com/ipfs/go-cid"
 )
 
 func CheckPasswordComplexity(password string) (bool, error) {
@@ -484,6 +485,13 @@ func IsHttpProtocol(url string) bool {
 	if strings.HasPrefix(lowerURL, "https:") {
 		return true
 	} else if strings.HasPrefix(lowerURL, "http:") {
+		return true
+	}
+	return false
+}
+func IsHttpsProtocol(url string) bool {
+	lowerURL := strings.ToLower(url)
+	if strings.HasPrefix(lowerURL, "https:") {
 		return true
 	}
 	return false

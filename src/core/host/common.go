@@ -67,11 +67,11 @@ func GetDataDir() string {
 	return path
 }
 func GetHomeDir() string {
-	user, err := os.UserHomeDir()
+	userName, err := os.UserHomeDir()
 	if err != nil {
 		_core.LogError("Could not get home directory: " + err.Error())
 	}
-	return user
+	return userName
 }
 func GetCPUArch() uint32 {
 	if strings.Contains(runtime.GOARCH, "64") {
