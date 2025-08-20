@@ -63,8 +63,8 @@ var (
 )
 
 func main() {
-	time.Sleep(3 * time.Second)          // Sleep to allow the previous instance to close
-	logFile := core.LogInit("yourplace") // Initialize the logger
+	time.Sleep(3 * time.Second)                 // Sleep to allow the previous instance to close
+	logFile := core.LogInit("yourplace", false) // Initialize the logger
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
 	core.LogDebug("Runtime User: " + host.GetUsername())
 
@@ -134,7 +134,7 @@ func main() {
 	// --- Database --- //
 	core.LogDebug("Initializing database")
 	database := new(db.Database)
-	database.Init(host.GetDataDir(), "sqlite")
+	database.Init(host.GetDataDir(), "sqlite", false)
 	if !database.Ping() {
 		core.LogFatal("Could not connect to database")
 	}

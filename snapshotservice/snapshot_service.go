@@ -1,0 +1,68 @@
+package main
+
+import (
+	"YourPlace/src/core"
+	"YourPlace/src/core/db"
+	"YourPlace/src/core/db/blockchain"
+	"YourPlace/src/core/host"
+	"flag"
+	"fmt"
+	_cron "github.com/robfig/cron/v3"
+	"log"
+	"os"
+	"sync"
+)
+
+var (
+	logger      *log.Logger
+	loggerMutex sync.Mutex
+	debug       = false // set via 'd' command line flag or debug file in data directory
+)
+
+const (
+	serviceName = "YourPlaceSnapshot"
+)
+
+func main() {
+	// Parse command line arguments
+	flag.BoolVar(&debug, "d", false, "Enable Debug mode, default: false")
+	flag.Parse()
+
+	// Check for debug file or flag
+	if debug || host.DoesExist(host.GetDataDir()+"debug") {
+		debug = true
+		core.LogInit("YourPlaceSnapshot", false) // Enable verbose logging in debug mode
+		core.LogInfo("Running in debug mode")
+		host.SetEnvVar("YourPlaceSnapshotDebug", "true") // Use same env var as main.go for LogDebug
+	} else {
+		core.LogInit("YourPlaceSnapshot", true) // Quiet logging in production
+		host.DeleteEnvVar("YourPlaceSnapshotDebug")
+	}
+	core.LogInfo("Initializing database")
+	database := new(db.Database)
+	database.Init(host.GetHomeDir()+host.PathSeparator, "sqlite", true)
+	if !database.Ping() {
+		fmt.Println("Could not connect to database")
+	}
+	database.SetDefaults()
+	// Base URL and throttle must be set as environment variables BASE_RPC_URL and BASE_RPC_THROTTLE
+	baseURL := database.SettingsGetValue("baseURL")
+	var baseThrottle string
+	baseURL = os.Getenv("BASE_RPC_URL")
+	baseThrottle = os.Getenv("BASE_RPC_THROTTLE")
+	database.SettingsUpdateValue("baseURL", baseURL)
+	database.SettingsUpdateValue("baseThrottle", baseThrottle)
+	core.LogInfo("Initializing blockchain")
+	_blockchain := new(blockchain.Blockchain)
+	_blockchain.Init(database)
+	c := _cron.New(_cron.WithSeconds())
+	blockchain.IndexerRestartJobs(database, "base")
+	core.LogDebug("trying cron job")
+	c.AddFunc("@every 2m", func() {
+		core.LogInfo("Starting Base indexer run")
+		blockchain.IndexerFetchData(database, _blockchain, "base")
+	})
+	c.Start()
+	<-make(chan struct{})
+
+}
