@@ -49,6 +49,12 @@ func CompareVersionString(version1, version2 string) bool {
 	}
 	return false
 }
+func Abs(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
 
 // Thread Safe Counter
 type ThreadSafeCounter struct {

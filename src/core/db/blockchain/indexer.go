@@ -47,9 +47,10 @@ var (
 )
 
 type SequentialBlockTracker struct {
-	mu                sync.Mutex
+	mu                sync.RWMutex
 	processedBlocks   map[int64]bool
 	nextExpectedBlock int64
+	maxPendingBlocks  int64 // Limit memory usage
 	uuid              string
 	database          *db.Database
 	direction         string
@@ -64,6 +65,7 @@ func NewSequentialBlockTracker(startBlock int64, uuid string, database *db.Datab
 	return &SequentialBlockTracker{
 		processedBlocks:   make(map[int64]bool),
 		nextExpectedBlock: startBlock,
+		maxPendingBlocks:  1000000,
 		uuid:              uuid,
 		database:          database,
 		direction:         direction,
@@ -72,6 +74,10 @@ func NewSequentialBlockTracker(startBlock int64, uuid string, database *db.Datab
 func (sbt *SequentialBlockTracker) MarkBlockProcessed(blockNumber int64, direction string) {
 	sbt.mu.Lock()
 	defer sbt.mu.Unlock()
+	if int64(len(sbt.processedBlocks)) > sbt.maxPendingBlocks { // Prevent memory explosion by limiting pending blocks
+		core.LogWarn("SequentialBlockTracker: Maximum pending blocks reached - dropping oldest block")
+		sbt.cleanupOldEntries()
+	}
 	sbt.processedBlocks[blockNumber] = true
 	// Update nextExpectedBlock to the next unprocessed sequential block
 	if direction == "forward" {
@@ -93,14 +99,22 @@ func (sbt *SequentialBlockTracker) MarkBlockProcessed(blockNumber int64, directi
 	}
 }
 func (sbt *SequentialBlockTracker) GetNextExpectedBlock() int64 {
-	sbt.mu.Lock()
-	defer sbt.mu.Unlock()
+	sbt.mu.RLock()
+	defer sbt.mu.RUnlock()
 	return sbt.nextExpectedBlock
 }
 func (sbt *SequentialBlockTracker) HasPendingBlocks() bool {
-	sbt.mu.Lock()
-	defer sbt.mu.Unlock()
+	sbt.mu.RLock()
+	defer sbt.mu.RUnlock()
 	return len(sbt.processedBlocks) > 0
+}
+func (sbt *SequentialBlockTracker) cleanupOldEntries() {
+	threshold := int64(1000) // Keep blocks within X of expected
+	for blockNum := range sbt.processedBlocks {
+		if core.Abs(blockNum-sbt.nextExpectedBlock) > threshold {
+			delete(sbt.processedBlocks, blockNum)
+		}
+	}
 }
 
 func NewRequestTracker() *RequestTracker {
@@ -1041,18 +1055,18 @@ BATCHRPCCALL:
 		}
 		i++
 	}
-	// Only reduce throttle if ALL requests in the batch were rate limited
+	// Only reduce throttle if ALL requests in the batch were rate-limited
 	if hasRateLimitError && rateLimitCount == batchSize {
 		throttleControlMutex.Lock()
 		// All requests were rate limited, reduce throttle slightly
-		dynamicThrottleMultiplier *= 0.90 // Reduce to 90% when entire batch fails
+		dynamicThrottleMultiplier *= 0.90 // Reduce to 90% when the entire batch fails
 		if dynamicThrottleMultiplier < 0.1 {
 			dynamicThrottleMultiplier = 0.1 // Don't go below 10% of the original rate
 		}
 		core.LogDebug("All " + strconv.Itoa(batchSize) + " requests in a batch were rate limited, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 		throttleControlMutex.Unlock()
 	} else if hasRateLimitError {
-		// Only some requests were rate limited, don't adjust throttle - just re-queue failed requests
+		// Only some requests were rate-limited, don't adjust throttle, just re-queue failed requests
 		core.LogDebug("\tPartial rate limiting in batch: " + strconv.Itoa(rateLimitCount) + "/" + strconv.Itoa(batchSize) + " requests throttled, not adjusting global throttle")
 	}
 	return blocks
@@ -1183,8 +1197,10 @@ func IndexerStop() {
 	defer IndexerMutex.Unlock()
 	core.LogDebug("Received Indexer Stop Request")
 	if IsIndexing && indexerCancel != nil {
-		indexerCancel = make(chan bool, 1)
-		indexerCancel <- true
+		select {
+		case indexerCancel <- true:
+		default: // Channel already has a value, don't block
+		}
 	}
 }
 func ToggleIndexer(database *db.Database) {
