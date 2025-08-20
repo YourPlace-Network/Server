@@ -1,5 +1,3 @@
-import {Sleep} from "../util/time";
-
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss";
 import "../../scss/pages/settings.scss";
@@ -8,17 +6,12 @@ import DOMPurify from "dompurify";
 import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError, LogInfo} from "../util/log";
 import {createPopper, type Instance} from "@popperjs/core";
-import {
-    DisableDialogModalOkBtn,
-    EnableDialogModalOkBtn,
-    ShowDialogModal,
-    ShowDialogModalHTML,
-} from "../components/modalDialog";
+import {DisableDialogModalOkBtn, EnableDialogModalOkBtn, ShowDialogModal, ShowDialogModalHTML} from "../components/modalDialog";
 import {ShowModalYesNoHTML} from "../components/modalYesNo";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {ShowSavedToast, ShowToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
-
+import {Sleep} from "../util/time";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -78,37 +71,16 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
             helperLogsViewBtn: document.getElementById("helperLogsViewBtn")! as HTMLButtonElement,
             logsView: document.getElementById("logsView")! as HTMLDivElement,
             torHiddenServiceCheck: document.getElementById("torHiddenServiceCheck")! as HTMLInputElement,
+            collapseContent: document.getElementById("collapseContent")! as HTMLDivElement,
+            collapseBlockchain: document.getElementById("collapseBlockchain")! as HTMLDivElement,
+            collapseBase: document.getElementById("collapseBase")! as HTMLDivElement,
+            collapseServerInfo: document.getElementById("collapseServerInfo")! as HTMLDivElement,
+            collapseNetworking: document.getElementById("collapseNetworking")! as HTMLDivElement,
         }
         let popperInstance: Instance | null = null;
 
         async function init() {
             InitTooltips();
-
-            try {
-                await Promise.all([
-                    getUploadDirectory(),
-                    getBaseURL(),
-                    getPostHistoryDays(),
-                    getBaseIndexerProgress(),
-                    getBaseThrottle(),
-                    getBaseFullNode(),
-                    getBaseDataDirectory(),
-                    getSpiceometer(),
-                    getOllamaEnabled(),
-                    getOllamaModelEnabled(),
-                    getIndexerOnBattery(),
-                    getIndexerRunning(),
-                    getIndexerStatus(),
-                    getNetworkPorts(),
-                    getIpfsPinning(),
-                    getDebugMode(),
-                    getServerVersion(),
-                    getDatabaseSnapshotDirectory(),
-                ]);
-            } catch (error) {
-                LogError("Error initializing settings page: " + error);
-            }
-
             ExpandAccordionByHash();
 
             /* Cron Jobs */
@@ -810,6 +782,36 @@ import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
         DOM.serverLogsViewBtn.addEventListener("click", getServerLogs);
         DOM.helperLogsViewBtn.addEventListener("click", getHelperLogs);
         DOM.torHiddenServiceCheck.addEventListener("change", setTorHiddenService);
+
+        /* On-Demand Loading */
+        DOM.collapseContent.addEventListener("show.bs.collapse", function() {
+            getUploadDirectory().then();
+            getIpfsPinning().then();
+            getDatabaseSnapshotDirectory().then();
+            getSpiceometer().then();
+            getOllamaEnabled().then();
+            getOllamaModelEnabled().then();
+        });
+        DOM.collapseBlockchain.addEventListener("show.bs.collapse", function() {
+            getIndexerOnBattery().then();
+            getIndexerRunning().then();
+            getIndexerStatus().then();
+        });
+        DOM.collapseBase.addEventListener("show.bs.collapse", function() {
+            getBaseURL().then();
+            getPostHistoryDays().then();
+            getBaseIndexerProgress().then();
+            getBaseThrottle().then();
+            getBaseFullNode().then();
+            getBaseDataDirectory().then();
+        });
+        DOM.collapseServerInfo.addEventListener("show.bs.collapse", function() {
+            getDebugMode().then();
+            getServerVersion().then();
+        });
+        DOM.collapseNetworking.addEventListener("show.bs.collapse", function() {
+            getNetworkPorts().then();
+        });
 
         init().then();
     }

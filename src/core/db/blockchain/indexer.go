@@ -47,7 +47,7 @@ var (
 )
 
 type SequentialBlockTracker struct {
-	mu                sync.Mutex
+	mu                sync.RWMutex
 	processedBlocks   map[int64]bool
 	nextExpectedBlock int64
 	uuid              string
@@ -93,13 +93,13 @@ func (sbt *SequentialBlockTracker) MarkBlockProcessed(blockNumber int64, directi
 	}
 }
 func (sbt *SequentialBlockTracker) GetNextExpectedBlock() int64 {
-	sbt.mu.Lock()
-	defer sbt.mu.Unlock()
+	sbt.mu.RLock()
+	defer sbt.mu.RUnlock()
 	return sbt.nextExpectedBlock
 }
 func (sbt *SequentialBlockTracker) HasPendingBlocks() bool {
-	sbt.mu.Lock()
-	defer sbt.mu.Unlock()
+	sbt.mu.RLock()
+	defer sbt.mu.RUnlock()
 	return len(sbt.processedBlocks) > 0
 }
 
@@ -328,7 +328,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	sequentialTracker := NewSequentialBlockTracker(targetLatestBlock.Int64(), uuid, _Database, direction) // Sequential block tracker starting from the highest block
 	globalRequestTracker = NewRequestTracker()                                                            // Request tracker to monitor request rates
 	errorChan := make(chan error, workerCount)                                                            // Channel to handle errors from workers
-	// Reset atomic counters for new indexing session
+	// Reset atomic counters for a new indexing session
 	atomic.StoreInt64(&activeRequestsCount, 0)
 	atomic.StoreInt64(&totalRequestsCount, 0)
 
@@ -983,9 +983,9 @@ BATCHRPCCALL:
 			}
 			core.LogDebug("Rate limit detected for batch of " + strconv.Itoa(batchSize) + " requests, backing off for " + strconv.Itoa(backoff) + " seconds")
 			time.Sleep(time.Duration(backoff) * time.Second)
-			// Reduce throttle multiplier on rate limits
+			// Reduce throttle multiplier on rate limits (entire batch failed)
 			throttleControlMutex.Lock()
-			dynamicThrottleMultiplier *= 0.7 // Reduce to 70% on rate limit errors
+			dynamicThrottleMultiplier *= 0.90 // Reduce to 90% on rate limit errors
 			if dynamicThrottleMultiplier < 0.1 {
 				dynamicThrottleMultiplier = 0.1 // Don't go below 10% of original rate
 			}
@@ -1019,9 +1019,9 @@ BATCHRPCCALL:
 		}
 		if elem.Error != nil {
 			errorMsg := elem.Error.Error()
-			core.LogDebug("Could not get block data from rpcBatchGetBlockByNumber: " + errorMsg)
-			core.LogDebug("\tindex: " + batchBlockNumbers[i].String())
-			core.LogDebug("\tmethod: " + elem.Method)
+			//core.LogDebug("Could not get block data from rpcBatchGetBlockByNumber: " + errorMsg)
+			//core.LogDebug("\tindex: " + batchBlockNumbers[i].String())
+			//core.LogDebug("\tmethod: " + elem.Method)
 			// Check for rate limiting in individual responses
 			if strings.Contains(strings.ToLower(errorMsg), "rps limit") || strings.Contains(strings.ToLower(errorMsg), "rate limit") {
 				hasRateLimitError = true
@@ -1042,19 +1042,19 @@ BATCHRPCCALL:
 		}
 		i++
 	}
-	// If we detected rate limit errors in responses, reduce throttle and return partial results
-	if hasRateLimitError {
+	// Only reduce throttle if ALL requests in the batch were rate-limited
+	if hasRateLimitError && rateLimitCount == batchSize {
 		throttleControlMutex.Lock()
-		// Reduce throttle based on the percentage of requests that were rate limited
-		rateLimitRatio := float64(rateLimitCount) / float64(batchSize)
-		reductionFactor := 0.15 + (rateLimitRatio * 0.25) // Reduce by 15-40% based on how many were rate-limited
-		dynamicThrottleMultiplier *= (1.0 - reductionFactor)
+		// All requests were rate limited, reduce throttle slightly
+		dynamicThrottleMultiplier *= 0.90 // Reduce to 90% when the entire batch fails
 		if dynamicThrottleMultiplier < 0.1 {
 			dynamicThrottleMultiplier = 0.1 // Don't go below 10% of the original rate
 		}
-		core.LogDebug("\tRate limit in batch response: " + strconv.Itoa(rateLimitCount) + "/" + strconv.Itoa(batchSize) +
-			" requests throttled, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+		core.LogDebug("All " + strconv.Itoa(batchSize) + " requests in a batch were rate limited, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 		throttleControlMutex.Unlock()
+	} else if hasRateLimitError {
+		// Only some requests were rate-limited, don't adjust throttle, just re-queue failed requests
+		core.LogDebug("\tPartial rate limiting in batch: " + strconv.Itoa(rateLimitCount) + "/" + strconv.Itoa(batchSize) + " requests throttled, not adjusting global throttle")
 	}
 	return blocks
 }
@@ -1184,8 +1184,10 @@ func IndexerStop() {
 	defer IndexerMutex.Unlock()
 	core.LogDebug("Received Indexer Stop Request")
 	if IsIndexing && indexerCancel != nil {
-		indexerCancel = make(chan bool, 1)
-		indexerCancel <- true
+		select {
+		case indexerCancel <- true:
+		default: // Channel already has a value, don't block
+		}
 	}
 }
 func ToggleIndexer(database *db.Database) {

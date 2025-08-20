@@ -270,12 +270,12 @@ declare global { // Extend the window interface with public objects
             if (!avatarAddress) { // If no cached avatar, try blockchain lookup
                 avatarURL = await WalletGetAvatar(blockchain, address);
             }
+            DOM.profileAvatar.src = "/static/image/avatar.png"; // Clear any existing avatar loading to prevent memory leaks
             if (IsValidURL(avatarURL)) {
                 const success = await loadImageWithTimeout(avatarURL, 3000);
                 if (success) {
                     DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
                 } else {
-                    DOM.profileAvatar.src = "/static/image/avatar.png";
                     LogError(`Avatar failed to load, using default: ${avatarURL}`);
                 }
             } else if (IsValidIpfsCid(avatarURL)) {
@@ -285,7 +285,6 @@ declare global { // Extend the window interface with public objects
                     if (success) {
                         DOM.profileAvatar.src = XSSSanitizeUrl(ipfsURL);
                     } else {
-                        DOM.profileAvatar.src = "/static/image/avatar.png";
                         LogError(`IPFS avatar failed to load, using default: ${ipfsURL}`);
                     }
                 }
