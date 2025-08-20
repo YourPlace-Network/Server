@@ -53,6 +53,9 @@ else ifeq ($(DETECTED_OS),Darwin)
 	go clean
 endif
 
+snapshot_clean:
+	-pkill -f YourPlaceSnapshot
+
 install:
 	$(NPM) install
 
@@ -175,3 +178,42 @@ endif
 
 testing:
 	go run test.go
+
+# --- Snapshot Service Commands --- #
+snapshot_build:
+ifeq ($(DETECTED_OS),Windows_NT)
+	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
+	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win\helper.version')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force; '1.0.0' | Out-File -FilePath 'src\core\host\bin\helper\win\helper.version' -NoNewline }"
+	go build -ldflags "-s -w" -o target\YourPlaceSnapshot.exe snapshotservice\snapshot_service.go
+else ifeq ($(DETECTED_OS),Darwin)
+	mkdir -p target/
+	mkdir -p src/core/host/bin/helper/osx/
+	@if [ ! -f src/core/host/bin/helper/osx/helper.version ]; then echo "1.0.0" > src/core/host/bin/helper/osx/helper.version; fi
+	go build -ldflags "-s -w" -o target/YourPlaceSnapshot snapshotservice/snapshot_service.go
+endif
+
+snapshot_run:
+ifeq ($(DETECTED_OS),Windows_NT)
+	target\\YourPlaceSnapshot.exe
+else ifeq ($(DETECTED_OS),Darwin)
+	./target/YourPlaceSnapshot
+endif
+
+snapshot_dbg_build:
+ifeq ($(DETECTED_OS),Windows_NT)
+	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
+	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win\helper.version')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force; '1.0.0' | Out-File -FilePath 'src\core\host\bin\helper\win\helper.version' -NoNewline }"
+	go build -o target\YourPlaceSnapshot.exe snapshotservice\snapshot_service.go
+else ifeq ($(DETECTED_OS),Darwin)
+	mkdir -p target/
+	mkdir -p src/core/host/bin/helper/osx/
+	@if [ ! -f src/core/host/bin/helper/osx/helper.version ]; then echo "1.0.0" > src/core/host/bin/helper/osx/helper.version; fi
+	go build -o target/YourPlaceSnapshot snapshotservice/snapshot_service.go
+endif
+
+snapshot_dbg_run:
+ifeq ($(DETECTED_OS),Windows_NT)
+	target\\YourPlaceSnapshot.exe -d=true
+else ifeq ($(DETECTED_OS),Darwin)
+	./target/YourPlaceSnapshot -d=true
+endif

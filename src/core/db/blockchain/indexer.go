@@ -571,9 +571,10 @@ func dispatchTransaction(block map[string]interface{}, transaction map[string]in
 	//parentTxHash := "" // todo - figure out comment logic hierarchy
 	timestampHexStr := block["timestamp"].(string)[2:]
 	timestamp, _ := strconv.ParseUint(timestampHexStr, 16, 64)
-	if isTimestampExpired(int64(*databaseHistoryDaysInt), int64(timestamp)) { // skip transactions older than the cached history limit
+	//TODO: Properly handle indexing only posts up to a specific age. -1 = infinite age.
+	/*if isTimestampExpired(int64(*databaseHistoryDaysInt), int64(timestamp)) { // skip transactions older than the cached history limit
 		return 2
-	}
+	}*/
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
 		core.LogDebug("YourPlace transaction found on " + blockchain + ": " + txHash)
 		tokenizeYourPlaceTransaction(blockchain, transaction, timestamp, blockIndex.Uint64())
