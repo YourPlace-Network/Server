@@ -524,6 +524,299 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 	core.LogInfo("SQLite Snapshot Exported Successfully To: " + exportPath)
 	return nil
 }
+func (db *SQLite) ExportSnapshotsForService(exportDir string) error {
+	if db.database == nil {
+		return core.LogErrorReturn("Database connection not initialized")
+	}
+	// Age thresholds in days - 0 means no filtering (all data)
+	ageThresholds := []int{30, 60, 90, 180, 240, 365, 0}
+	// Current timestamp for age calculations
+	currentTime := core.GetTimestamp()
+	for _, ageDays := range ageThresholds {
+		// Determine export file path
+		var exportPath string
+		if ageDays == 0 {
+			exportPath = exportDir + "yourplacecomplete.db.snapshot"
+			core.LogDebug("Exporting SQLite Snapshot (all data) to: " + exportPath)
+		} else {
+			exportPath = exportDir + fmt.Sprintf("yourplacelast%d.db.snapshot", ageDays)
+			core.LogDebug(fmt.Sprintf("Exporting SQLite Snapshot (%d days) to: %s", ageDays, exportPath))
+		}
+		// Calculate cutoff timestamp (in seconds)
+		var cutoffTimestamp uint64
+		if ageDays > 0 {
+			cutoffTimestamp = currentTime - uint64(ageDays*24*60*60)
+		}
+		// Tables to export
+		tables := []string{
+			"onchain_post",
+			"onchain_meta",
+			"onchain_block",
+			"onchain_follow",
+			"indexer_jobs",
+			"file_txn_hash",
+			"files",
+		}
+		// Create buffer to hold the serialized data
+		var buffer bytes.Buffer
+		// Create metadata for the export
+		metaData := map[string]interface{}{
+			"timestamp":  currentTime,
+			"version":    "1.0",
+			"tables":     tables,
+			"age_days":   ageDays,
+			"age_cutoff": cutoffTimestamp,
+		}
+		// Create the output file
+		exportFile, err := os.Create(exportPath)
+		if err != nil {
+			return core.LogErrorReturn("Could not create export file: " + err.Error())
+		}
+		defer exportFile.Close()
+		// Use a gzip writer for compression
+		gzWriter, err := gzip.NewWriterLevel(exportFile, gzip.BestCompression)
+		if err != nil {
+			return core.LogErrorReturn("Could not create gzip writer: " + err.Error())
+		}
+		defer gzWriter.Close()
+		// First write the metadata
+		metaJSON, err := json.Marshal(metaData)
+		if err != nil {
+			return core.LogErrorReturn("Could not serialize metadata: " + err.Error())
+		}
+		// Write metadata length as a binary header (4 bytes)
+		binary.Write(gzWriter, binary.LittleEndian, uint32(len(metaJSON)))
+		// Write metadata
+		_, err = gzWriter.Write(metaJSON)
+		if err != nil {
+			return core.LogErrorReturn("Could not write metadata: " + err.Error())
+		}
+		// Export each table directly to the compressed stream
+		for _, table := range tables {
+			core.LogDebug("Exporting table: " + table)
+			// Get table schema - use parameterized query to prevent SQL injection
+			rows, err := db.runParamSQLSelect("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", table)
+			if err != nil {
+				return core.LogErrorReturn("Could not get table schema: " + err.Error())
+			}
+			var createStatement string
+			if rows.Next() {
+				err = rows.Scan(&createStatement)
+				if err != nil {
+					rows.Close()
+					return core.LogErrorReturn("Could not read table schema: " + err.Error())
+				}
+			}
+			rows.Close()
+			if createStatement == "" {
+				return core.LogErrorReturn("Table not found: " + table)
+			}
+			// Reset buffer
+			buffer.Reset()
+			// Write schema to buffer
+			err = binary.Write(&buffer, binary.LittleEndian, uint32(len(createStatement)))
+			if err != nil {
+				return core.LogErrorReturn("Could not write schema length: " + err.Error())
+			}
+			_, err = buffer.WriteString(createStatement)
+			if err != nil {
+				return core.LogErrorReturn("Could not write schema: " + err.Error())
+			}
+			// Get data from the table with age filtering for onchain_post
+			var dataRows *sql.Rows
+			if table == "onchain_post" && ageDays > 0 {
+				// For onchain_post table with age filtering, clear the data column for old posts
+				dataRows, err = db.runParamSQLSelect(`
+					SELECT txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp,
+					CASE WHEN timestamp >= ? THEN data ELSE '' END as data
+					FROM onchain_post`, cutoffTimestamp)
+			} else {
+				// For all other tables or unfiltered export, get all data normally
+				dataRows, err = db.runParamSQLSelect("SELECT * FROM " + sanitizeSQLiteTableName(table))
+			}
+			if err != nil {
+				return core.LogErrorReturn("Could not get table data: " + err.Error())
+			}
+			// Get column information
+			columns, err := dataRows.Columns()
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not get column information: " + err.Error())
+			}
+			// Serialize column count and names
+			err = binary.Write(&buffer, binary.LittleEndian, uint32(len(columns)))
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not write column count: " + err.Error())
+			}
+			for _, column := range columns {
+				err = binary.Write(&buffer, binary.LittleEndian, uint32(len(column)))
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not write column name length: " + err.Error())
+				}
+				_, err = buffer.WriteString(column)
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not write column name: " + err.Error())
+				}
+			}
+			// Count rows (first pass)
+			rowCount := 0
+			for dataRows.Next() {
+				rowCount++
+			}
+			// Check for error in first pass
+			err = dataRows.Err()
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not read rows: " + err.Error())
+			}
+			dataRows.Close()
+			// Write row count
+			err = binary.Write(&buffer, binary.LittleEndian, uint32(rowCount))
+			if err != nil {
+				return core.LogErrorReturn("Could not write row count: " + err.Error())
+			}
+			// If there are no rows, continue to next table
+			if rowCount == 0 {
+				// Write this table's buffer to compressed file
+				_, err = gzWriter.Write(buffer.Bytes())
+				if err != nil {
+					return core.LogErrorReturn("Could not write table buffer: " + err.Error())
+				}
+				continue
+			}
+			// Get data again for second pass
+			if table == "onchain_post" && ageDays > 0 {
+				dataRows, err = db.runParamSQLSelect(`
+					SELECT txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp,
+					CASE WHEN timestamp >= ? THEN data ELSE '' END as data
+					FROM onchain_post`, cutoffTimestamp)
+			} else {
+				dataRows, err = db.runParamSQLSelect("SELECT * FROM " + sanitizeSQLiteTableName(table))
+			}
+			if err != nil {
+				return core.LogErrorReturn("Could not get table data (second pass): " + err.Error())
+			}
+			// Write this table's header to compressed file now
+			_, err = gzWriter.Write(buffer.Bytes())
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not write table header: " + err.Error())
+			}
+			// Reset buffer for row data
+			buffer.Reset()
+			rowBuffer := bytes.NewBuffer(nil)
+			// Serialize each row
+			rowsProcessed := 0
+			values := make([]interface{}, len(columns))
+			valuePointers := make([]interface{}, len(columns))
+			for i := range values {
+				valuePointers[i] = &values[i]
+			}
+			for dataRows.Next() {
+				err = dataRows.Scan(valuePointers...)
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not scan row: " + err.Error())
+				}
+				// Reset row buffer
+				rowBuffer.Reset()
+				// Serialize each value in the row
+				for _, value := range values {
+					if value == nil {
+						// Write a type indicator for NULL (0)
+						err = rowBuffer.WriteByte(0)
+						if err != nil {
+							dataRows.Close()
+							return core.LogErrorReturn("Could not write NULL indicator: " + err.Error())
+						}
+					} else {
+						// Determine the type and serialize accordingly
+						switch v := value.(type) {
+						case int64:
+							rowBuffer.WriteByte(1) // Type indicator for int64
+							binary.Write(rowBuffer, binary.LittleEndian, v)
+						case float64:
+							rowBuffer.WriteByte(2) // Type indicator for float64
+							binary.Write(rowBuffer, binary.LittleEndian, v)
+						case []byte:
+							rowBuffer.WriteByte(3) // Type indicator for []byte
+							binary.Write(rowBuffer, binary.LittleEndian, uint32(len(v)))
+							rowBuffer.Write(v)
+						case string:
+							rowBuffer.WriteByte(4) // Type indicator for string
+							binary.Write(rowBuffer, binary.LittleEndian, uint32(len(v)))
+							rowBuffer.WriteString(v)
+						case time.Time:
+							rowBuffer.WriteByte(5) // Type indicator for time.Time
+							binary.Write(rowBuffer, binary.LittleEndian, v.Unix())
+						default:
+							// For any other type, convert to string
+							str := fmt.Sprintf("%v", v)
+							rowBuffer.WriteByte(4) // Type indicator for string
+							binary.Write(rowBuffer, binary.LittleEndian, uint32(len(str)))
+							rowBuffer.WriteString(str)
+						}
+					}
+				}
+				// Write row length and then row data
+				rowData := rowBuffer.Bytes()
+				err = binary.Write(&buffer, binary.LittleEndian, uint32(len(rowData)))
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not write row length: " + err.Error())
+				}
+				_, err = buffer.Write(rowData)
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not write row data: " + err.Error())
+				}
+				rowsProcessed++
+				// Flush to gzip writer ever 1000 rows to avoid memory buildup
+				if buffer.Len() > 1024*1024 || rowsProcessed%1000 == 0 {
+					_, err = gzWriter.Write(buffer.Bytes())
+					if err != nil {
+						dataRows.Close()
+						return core.LogErrorReturn("Could not write batch of rows to buffer: " + err.Error())
+					}
+					buffer.Reset()
+				}
+				// Log progress for large tables
+				if rowsProcessed%10000 == 0 {
+					core.LogDebug(fmt.Sprintf("Exported %d/%d rows from table %s", rowsProcessed, rowCount, table))
+				}
+			}
+			// Check for error in second pass
+			err = dataRows.Err()
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not read rows (second pass): " + err.Error())
+			}
+			dataRows.Close()
+			// Write any remaining data
+			if buffer.Len() > 0 {
+				_, err = gzWriter.Write(buffer.Bytes())
+				if err != nil {
+					return core.LogErrorReturn("Could not write remaining rows to buffer: " + err.Error())
+				}
+			}
+			core.LogDebug(fmt.Sprintf("Exported %d rows from table %s", rowsProcessed, table))
+		}
+		// Close the gzip writer to flush any remaining data
+		err = gzWriter.Close()
+		if err != nil {
+			return core.LogErrorReturn("Could not close gzip writer: " + err.Error())
+		}
+		if ageDays == 0 {
+			core.LogInfo("SQLite Snapshot (all data) Exported Successfully To: " + exportPath)
+		} else {
+			core.LogInfo(fmt.Sprintf("SQLite Snapshot (%d days) Exported Successfully To: %s", ageDays, exportPath))
+		}
+	}
+	return nil
+}
 func (db *SQLite) ImportSnapshot(importPath string) error {
 	if db.database == nil {
 		return core.LogErrorReturn("Database connection not initialized")

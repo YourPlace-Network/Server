@@ -10,6 +10,7 @@ import (
 	_cron "github.com/robfig/cron/v3"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -41,6 +42,7 @@ func main() {
 	core.LogInfo("Initializing database")
 	database := new(db.Database)
 	database.Init(host.GetHomeDir()+host.PathSeparator, "sqlite", true)
+	snapshotDir := filepath.Join(host.GetHomeDir()+host.PathSeparator, "snapshots")
 	if !database.Ping() {
 		fmt.Println("Could not connect to database")
 	}
@@ -57,10 +59,15 @@ func main() {
 	_blockchain.Init(database)
 	c := _cron.New(_cron.WithSeconds())
 	blockchain.IndexerRestartJobs(database, "base")
-	core.LogDebug("trying cron job")
 	c.AddFunc("@every 2m", func() {
-		core.LogInfo("Starting Base indexer run")
+		core.LogDebug("Starting Base indexer run")
 		blockchain.IndexerFetchData(database, _blockchain, "base")
+	})
+	c.AddFunc("@every 60m", func() {
+		core.LogDebug("Exporting snapshots")
+		host.DeleteAll(snapshotDir)
+		host.CreateFolder(snapshotDir)
+		database.ExportSnapshotsForService(snapshotDir)
 	})
 	c.Start()
 	<-make(chan struct{})
