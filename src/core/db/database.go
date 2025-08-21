@@ -97,6 +97,14 @@ func (db *Database) ExportSnapshot(exportPath string) error {
 		return core.LogErrorReturn("Invalid DB engine selected")
 	}
 }
+func (db *Database) ExportSnapshotsForService(exportPath string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.ExportSnapshotsForService(exportPath)
+	default:
+		return core.LogErrorReturn("Invalid DB engine selected")
+	}
+}
 func (db *Database) ImportSnapshot(importPath string) error {
 	switch db.Engine {
 	case "sqlite":
