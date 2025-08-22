@@ -3,7 +3,7 @@
 ## Running your own gateway
 
 The YourPlace binary has a mode where it allows gateway functionality, in addition to being a YourPlace server.
-Command: ``YourPlace.exe -g=true`` When run in this mode, new gateway pages and functionality are exposed in the local web UI.
+Command: ``YourPlace.exe -g`` When run in this mode, new gateway pages and functionality are exposed in the local web UI.
 
 ### Pros
 
