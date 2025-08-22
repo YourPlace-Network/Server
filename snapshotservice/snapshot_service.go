@@ -25,18 +25,15 @@ const (
 )
 
 func main() {
-	// Parse command line arguments
 	flag.BoolVar(&debug, "d", false, "Enable Debug mode, default: false")
 	flag.Parse()
-
-	// Check for debug file or flag
 	if debug || host.DoesExist(host.GetDataDir()+"debug") {
 		debug = true
-		core.LogInit("YourPlaceSnapshot", false) // Enable verbose logging in debug mode
+		core.LogInit("YourPlaceSnapshot", true)
 		core.LogInfo("Running in debug mode")
-		host.SetEnvVar("YourPlaceSnapshotDebug", "true") // Use same env var as main.go for LogDebug
+		host.SetEnvVar("YourPlaceSnapshotDebug", "true")
 	} else {
-		core.LogInit("YourPlaceSnapshot", true) // Quiet logging in production
+		core.LogInit("YourPlaceSnapshot", true)
 		host.DeleteEnvVar("YourPlaceSnapshotDebug")
 	}
 	core.LogInfo("Initializing database")
