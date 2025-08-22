@@ -6,10 +6,11 @@ import (
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SetupRoutes(router *gin.Engine, database *db.Database, title string, favicon []byte, port int) {
@@ -85,7 +86,9 @@ func SetupRoutes(router *gin.Engine, database *db.Database, title string, favico
 		core.LogDebug("UploadDirectory: " + _uploadDirectory)
 		core.LogDebug("Wallet: " + payload.Wallet)
 		core.LogDebug("Blockchain: " + payload.Blockchain)
+		accountNetwork := payload.Blockchain
 		database.MetaUpdateValue("accountAddress", payload.Address)
+		database.MetaUpdateValue("accountNetwork", accountNetwork)
 		database.SettingsUpdateValue("uploadDirectory", _uploadDirectory)
 		err = os.WriteFile(host.GetInstallDir()+"favicon.ico", favicon, 0644)
 		if err != nil {
