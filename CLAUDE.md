@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Platform-Specific Notes
 - Windows builds create UPX-compressed binaries in `target/YourPlace-<version>.exe`
 - macOS builds create `.pkg` installers via `resources/osx/osx_packager.sh`
-- Helper binaries are platform-specific and embedded into main binary
+- Helper binaries are platform-specific and embedded into the main binary
 
 ## Architecture Overview
 
@@ -48,7 +48,7 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 #### **Decentralized Storage**
 - IPFS node embedded for content storage (port 42425 by default)
 - Content-addressed storage with cryptographic hashing
-- Files pinned locally and distributed across network
+- Files pinned locally and distributed across the network
 - BadBits denylist integration for content moderation
 
 #### **Security Model**
@@ -58,10 +58,10 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - Loopback-only middleware for local-first operation
 
 #### **Database Architecture**
-- SQLite with pluggable database interface
+- SQLite with a pluggable database interface
 - Supports user profiles, posts, blockchain transactions, file metadata
 - Built-in migration system and default value seeding
-- Blockchain indexer populates database from on-chain events
+- Blockchain indexer populates the database from on-chain events
 
 ### Development Workflow
 
@@ -97,7 +97,7 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - Network connectivity and port availability checks built-in
 
 ### Security Considerations
-- Application designed to run as regular user (warns if admin)
+- Application designed to run as a regular user (warns if admin)
 - Mutex prevents multiple instances
 - All external network requests go through validation
 - Content sanitization and XSS protection on user inputs
@@ -110,10 +110,10 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - Avoid adding unnecessary new-line characters in the code. Bias towards not adding new-lines between function names, because when the code is folded in the IDE, it's easier to see all the function names together. Follow the existing new-line style.
 - Only add comments where necessary to clarify complex logic. Follow the existing comment style conventions.
 - When adding a new item into a list, ensure it is alphabetically sorted. If the list isn't sorted already, then sort it alphabetically using the most obvious identifier.
-- Write clean, maintainable code with clear variable names that follows the existing naming conventions.
-- Don't attempt to compile or run any code in this repository. The developer will do that for you, and provide any feedback you need.
+- Write clean, maintainable code with clear variable names that follow the existing naming conventions.
+- Don't attempt to compile or run any code in this repository. The developer will do that for you and provide any feedback you need.
 - If you have any questions, need clarifications, or are unsure about something, ask the developer before proceeding with any changes.
 - Only implement the feature requested in a minimal and elegant way that is readable and consistent with the existing architecture of the project.
-- Don't build, delete or refactor anything that the developer didn't directly ask for.
+- Don't build, delete, or refactor anything that the developer didn't directly ask for.
 - Prioritize using the built-in and pre-created functions located in `src/core/` and `src/typescript/components/` and `src/typescript/util/` over standard lib and 3rd party code.
 - Bias towards writing your own implementation of a function rather than using a 3rd party library, unless the 3rd party library is already used in the project as a direct dependency.

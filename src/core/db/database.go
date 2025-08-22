@@ -181,6 +181,13 @@ func (db *Database) AuthGetServerOwnerAddress() string {
 	}
 	return ""
 }
+func (db *Database) AuthGetServerOwnerNetwork() string {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.AuthGetServerOwnerNetwork()
+	}
+	return ""
+}
 
 // --- Files Functions --- //
 func (db *Database) FileAdd(fileUUID string, fileHash string, mimeType string, fileName string, size int64) {

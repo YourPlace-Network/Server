@@ -247,6 +247,18 @@ func IsValidBlockchain(payload string) bool {
 	}
 	return false
 }
+func IsValidNetwork(payload string) bool {
+	if IsValidBlockchain(payload) {
+		return true
+	}
+	otherValidNetworks := []string{"nostr", "farcaster"}
+	for _, validNetwork := range otherValidNetworks {
+		if strings.EqualFold(validNetwork, strings.ToLower(payload)) {
+			return true
+		}
+	}
+	return false
+}
 func IsValidCID(_cid string) bool {
 	_cid = strings.TrimPrefix(_cid, "ipfs://")
 	_, err := cid.Decode(_cid)

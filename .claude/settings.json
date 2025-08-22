@@ -5,9 +5,15 @@
       "Bash(rg:*)",
       "Bash(grep:*)",
       "Bash(clear)",
+      "Bash(cat:*)",
       "Bash(ls:*)",
       "Bash(chmod:*)",
-      "Bash(xattr:*)"
+      "Bash(xattr:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "mcp__jetbrains__search_in_files_by_text",
+      "mcp__jetbrains__get_file_text_by_path",
+      "mcp__jetbrains__list_directory_tree",
+      "WebSearch"
     ],
     "deny": []
   }
