@@ -1634,6 +1634,25 @@ func (db *SQLite) AuthGetServerOwnerAddress() string {
 	core.LogError("Could not get the server owner address from the database - no entry found")
 	return ""
 }
+func (db *SQLite) AuthGetServerOwnerNetwork() string {
+	rows, err := db.runParamSQLSelect("SELECT value FROM meta WHERE key = 'accountNetwork' LIMIT 1")
+	if err != nil {
+		core.LogError("Could not get the server owner network from the database: " + err.Error())
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var value string
+		err = rows.Scan(&value)
+		if err != nil {
+			core.LogError("Could not get the rows from the server owner network from the database: " + err.Error())
+			return ""
+		}
+		return value
+	}
+	core.LogError("Could not get the server owner network from the database - no entry found")
+	return ""
+}
 
 // --- File & IPFS --- //
 func (db *SQLite) FileAdd(fileUUID string, fileHash string, mimeType string, fileName string, size int64) {
@@ -1822,9 +1841,18 @@ func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, to
 }
 func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
 	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
+	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogError("Could not tokenize the post in the database: " + err.Error())
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		core.LogError("Could not count the post in the database: " + err.Error())
+		return
+	}
+	if rowsAffected == 0 {
+		core.LogDebug("Duplicate post detected, aborting entry")
 		return
 	}
 	for _, attachment := range attachments {
