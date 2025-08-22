@@ -1311,6 +1311,25 @@ func (db *SQLite) AuthGetServerOwnerAddress() string {
 	core.LogError("Could not get the server owner address from the database - no entry found")
 	return ""
 }
+func (db *SQLite) AuthGetServerOwnerNetwork() string {
+	rows, err := db.runParamSQLSelect("SELECT value FROM meta WHERE key = 'accountNetwork' LIMIT 1")
+	if err != nil {
+		core.LogError("Could not get the server owner network from the database: " + err.Error())
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var value string
+		err = rows.Scan(&value)
+		if err != nil {
+			core.LogError("Could not get the rows from the server owner network from the database: " + err.Error())
+			return ""
+		}
+		return value
+	}
+	core.LogError("Could not get the server owner network from the database - no entry found")
+	return ""
+}
 
 // --- File & IPFS --- //
 func (db *SQLite) FileAdd(fileUUID string, fileHash string, mimeType string, fileName string, size int64) {

@@ -51,3 +51,4 @@ identifier.sqlite
 /src/www/fonts/
 /github_secrets/
 test_build
+/.claude/settings.local.json
