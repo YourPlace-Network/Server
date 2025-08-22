@@ -528,12 +528,9 @@ func (db *SQLite) ExportSnapshotsForService(exportDir string) error {
 	if db.database == nil {
 		return core.LogErrorReturn("Database connection not initialized")
 	}
-	// Age thresholds in days - 0 means no filtering (all data)
 	ageThresholds := []int{30, 60, 90, 180, 240, 365, 0}
-	// Current timestamp for age calculations
 	currentTime := core.GetTimestamp()
 	for _, ageDays := range ageThresholds {
-		// Determine export file path
 		var exportPath string
 		if ageDays == 0 {
 			exportPath = exportDir + "yourplacecomplete.db.snapshot"
@@ -774,7 +771,7 @@ func (db *SQLite) ExportSnapshotsForService(exportDir string) error {
 					return core.LogErrorReturn("Could not write row data: " + err.Error())
 				}
 				rowsProcessed++
-				// Flush to gzip writer ever 1000 rows to avoid memory buildup
+				// Flush to gzip writer every 1000 rows to avoid memory buildup
 				if buffer.Len() > 1024*1024 || rowsProcessed%1000 == 0 {
 					_, err = gzWriter.Write(buffer.Bytes())
 					if err != nil {
