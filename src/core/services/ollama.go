@@ -71,7 +71,6 @@ func OllamaDownloadModel(modelName string) error {
 		return core.LogDebugReturn("Ollama model download, failed to download model: " + err.Error())
 	}
 	defer resp.Body.Close()
-	// Check status code
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return core.LogDebugReturn(fmt.Sprintf("Ollama model download failed with status code: %d", resp.StatusCode))
 	}
@@ -95,7 +94,7 @@ func OllamaDownloadModel(modelName string) error {
 			core.LogDebug("Ollama Download Progress: " + progressResponse.Status)
 		}
 	}
-	if err := scanner.Err(); err != nil {
+	if err = scanner.Err(); err != nil {
 		return core.LogDebugReturn("Ollama model download, failed to read response: " + err.Error())
 	}
 	return nil
