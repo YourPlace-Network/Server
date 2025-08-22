@@ -1223,9 +1223,9 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 		core.LogDebug("Post attach action missing required fields")
 		return false
 	}
-	postTextStr, ok1 := postText.(string)
-	attachmentsArray, ok2 := attachmentsRaw.([]interface{}) // ensures array json format for the array containing all attachments
-	if !ok1 || !ok2 {
+	postTextStr, ok3 := postText.(string)
+	attachmentsArray, ok4 := attachmentsRaw.([]interface{}) // ensures array json format for the array containing all attachments
+	if !ok3 || !ok4 {
 		core.LogDebug("Post attach action fields are not properly typed")
 		return false
 	}
