@@ -346,7 +346,7 @@ func update() bool {
 		host.DeleteAll(host.GetInstallDir() + "YourPlace" + host.BinaryExtension)
 		return false
 	}
-	host.RunShellCommandNoWait(host.GetInstallDir() + "YourPlace" + host.BinaryExtension + " -p=true")
+	host.RunShellCommandNoWait(host.GetInstallDir() + "YourPlace" + host.BinaryExtension + " -p")
 
 	return true
 }
