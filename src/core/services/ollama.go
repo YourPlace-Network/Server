@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,7 +19,7 @@ const OllamaPort = "11434"
 func OllamaSetup() bool {
 	err := OllamaHealthCheck()
 	if err != nil {
-		core.LogError("Ollama health check failed: " + err.Error())
+		core.LogDebug("Ollama health check failed during setup: " + err.Error())
 		return false
 	}
 	isDownloaded, err := OllamaIsModelDownloaded(OllamaModel)
@@ -27,7 +28,7 @@ func OllamaSetup() bool {
 	}
 	err = OllamaDownloadModel(OllamaModel)
 	if err != nil {
-		core.LogError("Failed to download model: " + err.Error())
+		core.LogDebug("Failed to download model during Ollama setup: " + err.Error())
 		return false
 	}
 	return true
@@ -35,16 +36,20 @@ func OllamaSetup() bool {
 func OllamaHealthCheck() error {
 	resp, err := http.Get("http://localhost:" + OllamaPort + "/api/ps")
 	if err != nil {
-		return core.LogDebugReturn("Failed to check ollama health: " + err.Error())
+		return errors.New("Ollama health check failed the HTTP request: " + err.Error())
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return core.LogDebugReturn("Ollama health check failed: " + resp.Status)
+		return errors.New("Ollama health check returned non-healthy code: " + resp.Status)
 	}
 	return nil
 }
 func OllamaDownloadModel(modelName string) error {
 	core.LogDebug("Downloading Ollama model: " + modelName)
+	err := OllamaHealthCheck()
+	if err != nil {
+		return core.LogDebugReturn("Ollama health check failed during model download: " + err.Error())
+	}
 	url := "http://localhost:" + OllamaPort + "/api/pull"
 	requestBody := map[string]string{
 		"name": modelName,
@@ -66,7 +71,6 @@ func OllamaDownloadModel(modelName string) error {
 		return core.LogDebugReturn("Ollama model download, failed to download model: " + err.Error())
 	}
 	defer resp.Body.Close()
-	// Check status code
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return core.LogDebugReturn(fmt.Sprintf("Ollama model download failed with status code: %d", resp.StatusCode))
 	}
@@ -90,7 +94,7 @@ func OllamaDownloadModel(modelName string) error {
 			core.LogDebug("Ollama Download Progress: " + progressResponse.Status)
 		}
 	}
-	if err := scanner.Err(); err != nil {
+	if err = scanner.Err(); err != nil {
 		return core.LogDebugReturn("Ollama model download, failed to read response: " + err.Error())
 	}
 	return nil
@@ -98,7 +102,7 @@ func OllamaDownloadModel(modelName string) error {
 func OllamaIsModelDownloaded(modelName string) (bool, error) {
 	resp, err := http.Get("http://localhost:" + OllamaPort + "/api/tags")
 	if err != nil {
-		return false, core.LogErrorReturn("Failed to connect to Ollama API: " + err.Error())
+		return false, core.LogDebugReturn("Failed to connect to Ollama API: " + err.Error())
 	}
 	defer resp.Body.Close()
 	var result struct {
@@ -108,7 +112,7 @@ func OllamaIsModelDownloaded(modelName string) (bool, error) {
 	}
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
-		return false, core.LogErrorReturn("Failed to decode response: " + err.Error())
+		return false, core.LogDebugReturn("Failed to decode response: " + err.Error())
 	}
 	for _, model := range result.Models {
 		if strings.HasPrefix(model.Name, modelName) {
@@ -128,17 +132,17 @@ func OllamaPromptModel(modelName string, prompt string) (string, error) {
 	}
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", core.LogErrorReturn("Error marshaling Ollama request: " + err.Error())
+		return "", core.LogDebugReturn("Error marshaling Ollama request: " + err.Error())
 	}
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
-		return "", core.LogErrorReturn("Error creating Ollama request: " + err.Error())
+		return "", core.LogDebugReturn("Error creating Ollama request: " + err.Error())
 	}
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", core.LogErrorReturn("Error sending Ollama request: " + err.Error())
+		return "", core.LogDebugReturn("Error sending Ollama request: " + err.Error())
 	}
 	defer resp.Body.Close()
 	scanner := bufio.NewScanner(resp.Body)
@@ -157,7 +161,7 @@ func OllamaPromptModel(modelName string, prompt string) (string, error) {
 		}
 	}
 	if err = scanner.Err(); err != nil {
-		return "", core.LogErrorReturn("Error reading Ollama response: " + err.Error())
+		return "", core.LogDebugReturn("Error reading Ollama response: " + err.Error())
 	}
 	return responseString, nil
 }
