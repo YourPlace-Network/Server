@@ -46,6 +46,10 @@ func OllamaHealthCheck() error {
 }
 func OllamaDownloadModel(modelName string) error {
 	core.LogDebug("Downloading Ollama model: " + modelName)
+	err := OllamaHealthCheck()
+	if err != nil {
+		return core.LogDebugReturn("Ollama health check failed during model download: " + err.Error())
+	}
 	url := "http://localhost:" + OllamaPort + "/api/pull"
 	requestBody := map[string]string{
 		"name": modelName,
