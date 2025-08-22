@@ -571,10 +571,9 @@ func dispatchTransaction(block map[string]interface{}, transaction map[string]in
 	//parentTxHash := "" // todo - figure out comment logic hierarchy
 	timestampHexStr := block["timestamp"].(string)[2:]
 	timestamp, _ := strconv.ParseUint(timestampHexStr, 16, 64)
-	//TODO: Properly handle indexing only posts up to a specific age. -1 = infinite age.
-	/*if isTimestampExpired(int64(*databaseHistoryDaysInt), int64(timestamp)) { // skip transactions older than the cached history limit
+	if isTimestampExpired(int64(*databaseHistoryDaysInt), int64(timestamp)) { // skip transactions older than the cached history limit
 		return 2
-	}*/
+	}
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
 		core.LogDebug("YourPlace transaction found on " + blockchain + ": " + txHash)
 		tokenizeYourPlaceTransaction(blockchain, transaction, timestamp, blockIndex.Uint64())
@@ -1224,9 +1223,9 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 		core.LogDebug("Post attach action missing required fields")
 		return false
 	}
-	postTextStr, ok1 := postText.(string)
-	attachmentsArray, ok2 := attachmentsRaw.([]interface{}) // ensures array json format for the array containing all attachments
-	if !ok1 || !ok2 {
+	postTextStr, ok3 := postText.(string)
+	attachmentsArray, ok4 := attachmentsRaw.([]interface{}) // ensures array json format for the array containing all attachments
+	if !ok3 || !ok4 {
 		core.LogDebug("Post attach action fields are not properly typed")
 		return false
 	}
@@ -1238,7 +1237,7 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 			return false
 		}
 		if len(attachmentArray) != 4 {
-			core.LogDebug("attachment array length is not 4")
+			core.LogDebug("Attachment array length is not 4")
 			return false
 		}
 		parsedURL, okURL := attachmentArray[0].(string)
