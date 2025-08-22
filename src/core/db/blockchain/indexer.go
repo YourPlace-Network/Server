@@ -1237,6 +1237,10 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 			core.LogDebug("Post attach action fields are not array")
 			return false
 		}
+		if len(attachmentArray) != 4 {
+			core.LogDebug("attachment array length is not 4")
+			return false
+		}
 		parsedURL, okURL := attachmentArray[0].(string)
 		parsedMimeType, okMimeType := attachmentArray[1].(string)
 		sizeFloat, okSize := attachmentArray[2].(float64)
