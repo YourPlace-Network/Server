@@ -70,6 +70,7 @@ func main() {
 		database.ExportSnapshotsForService(snapshotDir)
 	})
 	c.Start()
+	//TODO: add graceful shutdown
 	<-make(chan struct{})
 
 }
