@@ -8,20 +8,11 @@ import (
 	"flag"
 	"fmt"
 	_cron "github.com/robfig/cron/v3"
-	"log"
-	"os"
 	"path/filepath"
-	"sync"
 )
 
 var (
-	logger      *log.Logger
-	loggerMutex sync.Mutex
-	debug       = false // set via 'd' command line flag or debug file in data directory
-)
-
-const (
-	serviceName = "YourPlaceSnapshot"
+	debug = false // set via 'd' command line flag or debug file in data directory
 )
 
 func main() {
@@ -47,8 +38,8 @@ func main() {
 	// Base URL and throttle must be set as environment variables BASE_RPC_URL and BASE_RPC_THROTTLE
 	baseURL := database.SettingsGetValue("baseURL")
 	var baseThrottle string
-	baseURL = os.Getenv("BASE_RPC_URL")
-	baseThrottle = os.Getenv("BASE_RPC_THROTTLE")
+	baseURL = host.GetEnvVar("BASE_RPC_URL")
+	baseThrottle = host.GetEnvVar("BASE_RPC_THROTTLE")
 	database.SettingsUpdateValue("baseURL", baseURL)
 	database.SettingsUpdateValue("baseThrottle", baseThrottle)
 	core.LogInfo("Initializing blockchain")
