@@ -11,6 +11,8 @@ import (
 	"YourPlace/src/core/services"
 	"math/big"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -448,7 +450,32 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportDB})
 	})
 	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
-		importPath := host.GetDataDir() + "yourplace.db.snapshot"
+		dataDir := host.GetDataDir()
+		pattern := filepath.Join(dataDir, "snapshotsyourplacelast*")
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error searching for snapshot files"})
+			return
+		}
+		if len(matches) == 0 {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"status": "No snapshot file found with prefix 'yourplacelast'"})
+			return
+		}
+		// Use the first matching file (or most recent if multiple)
+		var importPath string
+		if len(matches) == 1 {
+			importPath = matches[0]
+		} else {
+			// If multiple matches, use the most recently modified
+			var latestTime time.Time
+			for _, match := range matches {
+				info, err := os.Stat(match)
+				if err == nil && info.ModTime().After(latestTime) {
+					latestTime = info.ModTime()
+					importPath = match
+				}
+			}
+		}
 		database.MetaUpdateValue("importSnapshotStatus", "running")
 		blockchain.IndexerStop()
 		go func() {

@@ -35,6 +35,9 @@ func GetSelfFullPath() string {
 func Restart() {
 	RunShellCommand("sudo systemctl restart yourplace.service")
 }
+func InstallRunBaseNode() bool {
+	return false
+}
 func OpenBrowser(url string) {
 	exec.Command("xdg-open", url).Start() // linux
 }
