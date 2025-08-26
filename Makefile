@@ -143,7 +143,7 @@ endif
 
 dbg_run:
 ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlace-$(VERSION).exe -d=true -u=false
+	target\\YourPlace-$(VERSION).exe -d -du
 else ifeq ($(DETECTED_OS),Darwin)
 	mkdir -p ~/YourPlace && touch ~/YourPlace/debug # Add debug file flag
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
@@ -152,7 +152,7 @@ endif
 
 dbg_gateway_run:
 ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlace-$(VERSION).exe -d=true -u=false -g=true
+	target\\YourPlace-$(VERSION).exe -d -du -g
 else ifeq ($(DETECTED_OS),Darwin)
 	mkdir -p ~/YourPlace && touch ~/YourPlace/debug # Add debug file flag
     @VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
@@ -161,7 +161,7 @@ endif
 
 dbg_noindexer_run:
 ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlace-$(VERSION).exe -d=true -u=false -i=false
+	target\\YourPlace-$(VERSION).exe -d -du -di
 else ifeq ($(DETECTED_OS),Darwin)
 	mkdir -p ~/YourPlace && touch ~/YourPlace/debug && touch ~/YourPlace/noindexer # Add debug file flag
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
@@ -170,10 +170,10 @@ endif
 
 dbg_noinstall_run:
 ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlace-$(VERSION).exe -d=true -u=false
+	target\\YourPlace-$(VERSION).exe -d -du
 else ifeq ($(DETECTED_OS),Darwin)
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
-	./target/YourPlace -d=true -u=false
+	./target/YourPlace -d -du
 endif
 
 testing:

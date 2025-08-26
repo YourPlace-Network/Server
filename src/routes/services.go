@@ -5,14 +5,15 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 func ServicesRoutes(router *gin.Engine, database *db.Database) {
-	router.GET("/service/ai/ollamaEnabled/", func(c *gin.Context) {
+	router.GET("/service/ai/ollamaEnabled", func(c *gin.Context) {
 		err := services.OllamaHealthCheck()
 		if err != nil {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "disabled"})
@@ -21,7 +22,7 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 		c.SecureJSON(http.StatusOK, gin.H{"status": "enabled"})
 		return
 	})
-	router.GET("/service/ai/ollamaModelEnabled/", func(c *gin.Context) {
+	router.GET("/service/ai/ollamaModelEnabled", func(c *gin.Context) {
 		boolean, err := services.OllamaIsModelDownloaded(services.OllamaModel)
 		if err != nil || !boolean {
 			go func() {
@@ -34,7 +35,7 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 		return
 	})
 
-	router.POST("/service/ai/spiciness/", func(c *gin.Context) {
+	router.POST("/service/ai/spiciness", func(c *gin.Context) {
 		type Payload struct {
 			Quote string `json:"quote" required:"true"`
 		}

@@ -4,13 +4,14 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/security"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain.Blockchain) {
-	router.GET("/s/", func(c *gin.Context) {
+	router.GET("/s", func(c *gin.Context) {
 		query := c.Query("q")
 		if len(query) == 0 {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "no query provided"})

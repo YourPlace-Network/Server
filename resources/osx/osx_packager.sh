@@ -8,7 +8,7 @@ DEV_MODE=0
 DEV_ARG=""
 if [ "$1" == "dev" ]; then
     DEV_MODE=1
-    DEV_ARG="<string>-d=true</string>"
+    DEV_ARG="<string>-d</string>"
 fi
 
 # Extract version number from main.go

@@ -16,10 +16,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Development build**: `npx webpack --config src/typescript/webpack.dev.js`
 
 ### Runtime Flags
-- **Debug mode**: `-d=true` (also creates ~/YourPlace/debug file)
-- **Gateway mode**: `-g=true` (for distributed deployments)  
-- **Disable UI**: `-u=false` (don't auto-open browser)
-- **Disable indexer**: `-i=false` (or create noindexer file)
+- **Debug mode**: `-d` (also creates ~/YourPlace/debug file)
+- **Gateway mode**: `-g` (for distributed deployments)  
+- **Disable UI**: `-du` (don't auto-open browser)
+- **Disable indexer**: `-di` (or create noindexer file)
 - **Crypto seed**: `-c=<64-char-hex>` (for distributed crypto state)
 
 ### Platform-Specific Notes
