@@ -44,7 +44,7 @@ func (db *SQLite) Init(path string) {
 	if filepath.Base(path) == "yourplace.sqlite.db" {
 		err = db.createTables(startupCtx)
 	} else if filepath.Base(path) == "yourplacesnapshot.sqlite.db" {
-		err = db.createTables(startupCtx)
+		err = db.createSnapshotTables(startupCtx)
 	}
 
 	if err != nil {
