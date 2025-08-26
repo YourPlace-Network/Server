@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -28,9 +29,8 @@ type SQLite struct {
 func (db *SQLite) Init(path string) {
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	dbPath := path + "yourplace.sqlite.db"
-	db.path = dbPath
-	database, err := sql.Open("sqlite", dbPath)
+	db.path = path
+	database, err := sql.Open("sqlite", path)
 	if err != nil || database == nil {
 		core.LogFatal("Could not open sqlite db: " + err.Error())
 		return
@@ -1028,7 +1028,7 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 }
 func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[string]interface{} {
 	var posts []map[string]interface{}
-	rowsPosts, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddress = LOWER (?) AND blockchain = ? ORDER BY timestamp DESC", address, blockchain)
+	rowsPosts, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddress = LOWER (?) AND blockchain = ? AND data IS NOT NULL ORDER BY timestamp DESC", address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get user posts from database: " + err.Error())
 		return nil
@@ -1518,9 +1518,18 @@ func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, to
 }
 func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
 	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
+	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogError("Could not tokenize the post in the database: " + err.Error())
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		core.LogError("Could not count the post in the database: " + err.Error())
+		return
+	}
+	if rowsAffected == 0 {
+		core.LogDebug("Duplicate post detected, aborting entry")
 		return
 	}
 	for _, attachment := range attachments {
@@ -1664,7 +1673,7 @@ func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain st
 	query := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, p.blockchain 
 			  FROM onchain_post p 
 			  INNER JOIN onchain_follow f ON p.fromAddress = f.followeeAddress AND p.blockchain = f.followeeBlockchain 
-			  WHERE f.followerAddress = LOWER(?) AND f.followerBlockchain = ? 
+			  WHERE f.followerAddress = LOWER(?) AND f.followerBlockchain = ? AND p.data IS NOT NULL 
 			  ORDER BY p.timestamp DESC 
 			  LIMIT ?`
 
@@ -1754,4 +1763,256 @@ func (db *SQLite) NotificationGetActive() []map[string]string {
 		notifications = append(notifications, map[string]string{"uid": uid, "message": message})
 	}
 	return notifications
+}
+
+// --- Snapshot Service Functions --- //
+func (db *SQLite) exportSnapshots(exportDir string) error { // Exports multiple compressed snapshot files for different post history lengths
+	if db.database == nil {
+		return core.LogErrorReturn("Database connection not initialized")
+	}
+	ageThresholds := []int{30, 60, 90, 180, 240, 365, 0}
+	currentTime := core.GetTimestamp()
+	for _, ageDays := range ageThresholds {
+		var exportPath string
+		var cutoffTimestamp uint64
+		if ageDays > 0 {
+			cutoffTimestamp = currentTime - uint64(ageDays*24*60*60)
+		}
+		if ageDays == 0 {
+			exportPath = filepath.Join(exportDir, "yourplacecomplete.db.snapshot")
+			core.LogDebug("Exporting SQLite Snapshot (all data) to: " + exportPath)
+		} else {
+			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplace%d-%d.db.snapshot", currentTime, cutoffTimestamp))
+			core.LogDebug(fmt.Sprintf("Exporting SQLite Snapshot (%d days) to: %s", ageDays, exportPath))
+		}
+		tables := []string{
+			"onchain_post",
+			"onchain_meta",
+			"onchain_block",
+			"onchain_follow",
+			"indexer_jobs",
+			"file_txn_hash",
+			"files",
+		}
+		var buffer bytes.Buffer
+		metaData := map[string]interface{}{
+			"timestamp":  currentTime,
+			"version":    "1.0",
+			"tables":     tables,
+			"age_days":   ageDays,
+			"age_cutoff": cutoffTimestamp,
+		}
+		exportFile, err := os.Create(exportPath)
+		if err != nil {
+			return core.LogErrorReturn("Could not create export file: " + err.Error())
+		}
+		defer exportFile.Close()
+		gzWriter, err := gzip.NewWriterLevel(exportFile, gzip.BestCompression)
+		if err != nil {
+			return core.LogErrorReturn("Could not create gzip writer: " + err.Error())
+		}
+		defer gzWriter.Close()
+		metaJSON, err := json.Marshal(metaData)
+		if err != nil {
+			return core.LogErrorReturn("Could not serialize metadata: " + err.Error())
+		}
+		binary.Write(gzWriter, binary.LittleEndian, uint32(len(metaJSON)))
+		_, err = gzWriter.Write(metaJSON)
+		for _, table := range tables {
+			core.LogDebug("Exporting table: " + table)
+			rows, err := db.runParamSQLSelect("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", table)
+			if err != nil {
+				return core.LogErrorReturn("Could not get table schema: " + err.Error())
+			}
+			var createStatement string
+			if rows.Next() {
+				err = rows.Scan(&createStatement)
+				if err != nil {
+					rows.Close()
+					return core.LogErrorReturn("Could not read table schema: " + err.Error())
+				}
+			}
+			rows.Close()
+			if createStatement == "" {
+				return core.LogErrorReturn("Table not found: " + table)
+			}
+			buffer.Reset()
+			err = binary.Write(&buffer, binary.LittleEndian, uint32(len(createStatement)))
+			if err != nil {
+				return core.LogErrorReturn("Could not write schema length: " + err.Error())
+			}
+			_, err = buffer.WriteString(createStatement)
+			if err != nil {
+				return core.LogErrorReturn("Could not write schema: " + err.Error())
+			}
+			var dataRows *sql.Rows
+			if table == "onchain_post" && ageDays > 0 {
+				dataRows, err = db.runParamSQLSelect(`
+					SELECT txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp,
+					CASE WHEN timestamp >= ? THEN data ELSE '' END as data
+					FROM onchain_post`, cutoffTimestamp)
+			} else {
+				dataRows, err = db.runParamSQLSelect("SELECT * FROM " + sanitizeSQLiteTableName(table))
+			}
+			if err != nil {
+				return core.LogErrorReturn("Could not get table data: " + err.Error())
+			}
+			columns, err := dataRows.Columns()
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not get column information: " + err.Error())
+			}
+			err = binary.Write(&buffer, binary.LittleEndian, uint32(len(columns)))
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not write column count: " + err.Error())
+			}
+			for _, column := range columns {
+				err = binary.Write(&buffer, binary.LittleEndian, uint32(len(column)))
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not write column name length: " + err.Error())
+				}
+				_, err = buffer.WriteString(column)
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not write column name: " + err.Error())
+				}
+			}
+			rowCount := 0
+			for dataRows.Next() {
+				rowCount++
+			}
+			err = dataRows.Err()
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not read rows: " + err.Error())
+			}
+			dataRows.Close()
+			err = binary.Write(&buffer, binary.LittleEndian, uint32(rowCount))
+			if err != nil {
+				return core.LogErrorReturn("Could not write row count: " + err.Error())
+			}
+			if rowCount == 0 {
+				_, err = gzWriter.Write(buffer.Bytes())
+				if err != nil {
+					return core.LogErrorReturn("Could not write table buffer: " + err.Error())
+				}
+				continue
+			}
+			if table == "onchain_post" && ageDays > 0 {
+				dataRows, err = db.runParamSQLSelect(`
+					SELECT txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp,
+					CASE WHEN timestamp >= ? THEN data ELSE NULL END as data
+					FROM onchain_post`, cutoffTimestamp)
+			} else {
+				dataRows, err = db.runParamSQLSelect("SELECT * FROM " + sanitizeSQLiteTableName(table))
+			}
+			if err != nil {
+				return core.LogErrorReturn("Could not get table data (second pass): " + err.Error())
+			}
+			_, err = gzWriter.Write(buffer.Bytes())
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not write table header: " + err.Error())
+			}
+			buffer.Reset()
+			rowBuffer := bytes.NewBuffer(nil)
+			rowsProcessed := 0
+			values := make([]interface{}, len(columns))
+			valuePointers := make([]interface{}, len(columns))
+			for i := range values {
+				valuePointers[i] = &values[i]
+			}
+			for dataRows.Next() {
+				err = dataRows.Scan(valuePointers...)
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not scan row: " + err.Error())
+				}
+				rowBuffer.Reset()
+				for _, value := range values {
+					if value == nil {
+						err = rowBuffer.WriteByte(0)
+						if err != nil {
+							dataRows.Close()
+							return core.LogErrorReturn("Could not write NULL indicator: " + err.Error())
+						}
+					} else {
+						switch v := value.(type) {
+						case int64:
+							rowBuffer.WriteByte(1) // Type indicator for int64
+							binary.Write(rowBuffer, binary.LittleEndian, v)
+						case float64:
+							rowBuffer.WriteByte(2) // Type indicator for float64
+							binary.Write(rowBuffer, binary.LittleEndian, v)
+						case []byte:
+							rowBuffer.WriteByte(3) // Type indicator for []byte
+							binary.Write(rowBuffer, binary.LittleEndian, uint32(len(v)))
+							rowBuffer.Write(v)
+						case string:
+							rowBuffer.WriteByte(4) // Type indicator for string
+							binary.Write(rowBuffer, binary.LittleEndian, uint32(len(v)))
+							rowBuffer.WriteString(v)
+						case time.Time:
+							rowBuffer.WriteByte(5) // Type indicator for time.Time
+							binary.Write(rowBuffer, binary.LittleEndian, v.Unix())
+						default:
+							// For any other type, convert to string
+							str := fmt.Sprintf("%v", v)
+							rowBuffer.WriteByte(4) // Type indicator for string
+							binary.Write(rowBuffer, binary.LittleEndian, uint32(len(str)))
+							rowBuffer.WriteString(str)
+						}
+					}
+				}
+				rowData := rowBuffer.Bytes()
+				err = binary.Write(&buffer, binary.LittleEndian, uint32(len(rowData)))
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not write row length: " + err.Error())
+				}
+				_, err = buffer.Write(rowData)
+				if err != nil {
+					dataRows.Close()
+					return core.LogErrorReturn("Could not write row data: " + err.Error())
+				}
+				rowsProcessed++
+				if buffer.Len() > 1024*1024 || rowsProcessed%1000 == 0 {
+					_, err = gzWriter.Write(buffer.Bytes())
+					if err != nil {
+						dataRows.Close()
+						return core.LogErrorReturn("Could not write batch of rows to buffer: " + err.Error())
+					}
+					buffer.Reset()
+				}
+				if rowsProcessed%10000 == 0 {
+					core.LogDebug(fmt.Sprintf("Exported %d/%d rows from table %s", rowsProcessed, rowCount, table))
+				}
+			}
+			err = dataRows.Err()
+			if err != nil {
+				dataRows.Close()
+				return core.LogErrorReturn("Could not read rows (second pass): " + err.Error())
+			}
+			dataRows.Close()
+			if buffer.Len() > 0 {
+				_, err = gzWriter.Write(buffer.Bytes())
+				if err != nil {
+					return core.LogErrorReturn("Could not write remaining rows to buffer: " + err.Error())
+				}
+			}
+			core.LogDebug(fmt.Sprintf("Exported %d rows from table %s", rowsProcessed, table))
+		}
+		err = gzWriter.Close()
+		if err != nil {
+			return core.LogErrorReturn("Could not close gzip writer: " + err.Error())
+		}
+		if ageDays == 0 {
+			core.LogInfo("SQLite Snapshot (all data) Exported Successfully To: " + exportPath)
+		} else {
+			core.LogInfo(fmt.Sprintf("SQLite Snapshot (%d days) Exported Successfully To: %s", ageDays, exportPath))
+		}
+	}
+	return nil
 }

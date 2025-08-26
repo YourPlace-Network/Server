@@ -502,3 +502,36 @@ func (db *Database) NotificationGetActive() []map[string]string {
 	}
 	return nil
 }
+
+// --- Snapshot Service Functions --- //
+func (db *Database) SnapshotSetDefaults() {
+	defaults := map[string]string{
+		"historyDays":      "-1",
+		"indexerOnBattery": "true",
+		"indexerRunning":   "true",
+	}
+	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
+		for key, defaultValue := range defaults {
+			var value string
+			err := tx.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
+			if err == sql.ErrNoRows || len(value) == 0 { // If the setting already exists, skip
+				_, err = tx.Exec("INSERT INTO settings (key, value) VALUES (?, ?)", key, defaultValue)
+				if err != nil {
+					return core.LogErrorReturn(fmt.Sprintf("Failed to insert default %s: %w", key, err))
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		core.LogError("Failed to set defaults: " + err.Error())
+	}
+}
+func (db *Database) ExportSnapshots(exportPath string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.exportSnapshots(exportPath)
+	default:
+		return core.LogErrorReturn("Invalid DB engine selected")
+	}
+}
