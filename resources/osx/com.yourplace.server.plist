@@ -7,7 +7,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/Applications/YourPlace.app/Contents/MacOS/YourPlace</string>
-    <string>-u=false</string>$DEV_ARG
+    <string>-du=false</string>$DEV_ARG
   </array>
   <key>WorkingDirectory</key>
   <string>/Applications/YourPlace.app/Contents/MacOS</string>
