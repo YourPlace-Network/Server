@@ -549,7 +549,7 @@ func (db *Database) SnapshotSetDefaults() {
 func (db *Database) ExportSnapshotsForService(exportPath string) error {
 	switch db.Engine {
 	case "sqlite":
-		return db.sqlite.ExportSnapshotsForService(exportPath)
+		return db.sqlite.exportSnapshots(exportPath)
 	default:
 		return core.LogErrorReturn("Invalid DB engine selected")
 	}
