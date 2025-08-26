@@ -41,12 +41,7 @@ func (db *SQLite) Init(path string) {
 	database.SetConnMaxIdleTime(3 * time.Minute)
 	db.database = database
 	// Create Tables
-	if filepath.Base(path) == "yourplace.sqlite.db" {
-		err = db.createTables(startupCtx)
-	} else if filepath.Base(path) == "yourplacesnapshot.sqlite.db" {
-		err = db.createSnapshotTables(startupCtx)
-	}
-
+	err = db.createTables(startupCtx)
 	if err != nil {
 		core.LogError("Could not create tables: " + err.Error())
 	}
@@ -1771,26 +1766,6 @@ func (db *SQLite) NotificationGetActive() []map[string]string {
 }
 
 // --- Snapshot Service Functions --- //
-func (db *SQLite) createSnapshotTables(ctx context.Context) error {
-	tables := map[string]string{
-		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
-		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
-		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT)",
-		"indexer_jobs":  "CREATE TABLE IF NOT EXISTS indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
-		"onchain_post":  "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', toAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', birthdate INTEGER DEFAULT NULL, server TEXT DEFAULT '', " +
-			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
-		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, address TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-	}
-	for _, createStatement := range tables {
-		err := db.execWithRetry(ctx, createStatement, 3)
-		if err != nil {
-			return core.LogErrorReturn("Snapshot table creation failed: " + err.Error())
-		}
-	}
-	return nil
-}
 func (db *SQLite) exportSnapshots(exportDir string) error { // Exports multiple compressed snapshot files for different post history lengths
 	if db.database == nil {
 		return core.LogErrorReturn("Database connection not initialized")
