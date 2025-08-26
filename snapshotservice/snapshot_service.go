@@ -29,9 +29,9 @@ func main() {
 	} else {
 		host.DeleteEnvVar("YourPlaceSnapshotDebug")
 	}
-
 	database := new(db.Database)
-	database.SnapshotInit(dataDir, "sqlite")
+	dbPath := filepath.Join(dataDir, "yourplacesnapshot.sqlite.db")
+	database.Init(dbPath, "sqlite")
 	snapshotDir := filepath.Join(dataDir, "snapshots")
 	if !database.Ping() {
 		core.LogError("Could not connect to database")
