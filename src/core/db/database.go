@@ -19,16 +19,12 @@ type Attachment struct { //we can move this as long as it isn't defined in a pac
 	FileName string
 }
 
-func (db *Database) Init(path string, engine string, snapshotService bool) {
+func (db *Database) Init(path string, engine string) {
 	validEngines := []string{"sqlite"}
 	if !slices.Contains(validEngines, engine) {
 		core.LogFatal("Invalid DB engine selected")
 	}
-	if snapshotService {
-		db.sqlite.Init(path, true)
-	} else {
-		db.sqlite.Init(path, false)
-	}
+	db.sqlite.Init(path)
 	db.Engine = engine
 	// Wait for DB to be ready
 	for i := 0; i < 5; i++ {
@@ -65,42 +61,10 @@ func (db *Database) SetDefaults() {
 		core.LogError("Failed to set defaults: " + err.Error())
 	}
 }
-func (db *Database) SnapshotSetDefaults() {
-	defaults := map[string]string{
-		"historyDays":      "-1",
-		"indexerOnBattery": "true",
-		"indexerRunning":   "true",
-		"badbitsEnabled":   "true",
-	}
-	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
-		for key, defaultValue := range defaults {
-			var value string
-			err := tx.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
-			if err == sql.ErrNoRows || len(value) == 0 { // If the setting already exists, skip
-				_, err = tx.Exec("INSERT INTO settings (key, value) VALUES (?, ?)", key, defaultValue)
-				if err != nil {
-					return core.LogErrorReturn(fmt.Sprintf("Failed to insert default %s: %w", key, err))
-				}
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		core.LogError("Failed to set defaults: " + err.Error())
-	}
-}
 func (db *Database) ExportSnapshot(exportPath string) error {
 	switch db.Engine {
 	case "sqlite":
 		return db.sqlite.ExportSnapshot(exportPath)
-	default:
-		return core.LogErrorReturn("Invalid DB engine selected")
-	}
-}
-func (db *Database) ExportSnapshotsForService(exportPath string) error {
-	switch db.Engine {
-	case "sqlite":
-		return db.sqlite.ExportSnapshotsForService(exportPath)
 	default:
 		return core.LogErrorReturn("Invalid DB engine selected")
 	}
@@ -537,4 +501,56 @@ func (db *Database) NotificationGetActive() []map[string]string {
 		return db.sqlite.NotificationGetActive()
 	}
 	return nil
+}
+
+// --- Snapshot Service Functions --- //
+func (db *Database) SnapshotInit(path string, engine string) {
+	validEngines := []string{"sqlite"}
+	if !slices.Contains(validEngines, engine) {
+		core.LogFatal("Invalid DB engine selected")
+	}
+	db.sqlite.snapshotInit(path)
+	db.Engine = engine
+	// Wait for DB to be ready
+	for i := 0; i < 5; i++ {
+		if db.Ping() {
+			break
+		}
+		time.Sleep(time.Second)
+		if i == 4 {
+			core.LogFatal("Database failed to initialize after 5 attempts")
+		}
+	}
+}
+func (db *Database) SnapshotSetDefaults() {
+	defaults := map[string]string{
+		"historyDays":      "-1",
+		"indexerOnBattery": "true",
+		"indexerRunning":   "true",
+		"badbitsEnabled":   "true",
+	}
+	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
+		for key, defaultValue := range defaults {
+			var value string
+			err := tx.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
+			if err == sql.ErrNoRows || len(value) == 0 { // If the setting already exists, skip
+				_, err = tx.Exec("INSERT INTO settings (key, value) VALUES (?, ?)", key, defaultValue)
+				if err != nil {
+					return core.LogErrorReturn(fmt.Sprintf("Failed to insert default %s: %w", key, err))
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		core.LogError("Failed to set defaults: " + err.Error())
+	}
+}
+func (db *Database) ExportSnapshotsForService(exportPath string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.ExportSnapshotsForService(exportPath)
+	default:
+		return core.LogErrorReturn("Invalid DB engine selected")
+	}
 }

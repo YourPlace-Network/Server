@@ -46,11 +46,11 @@ func getLogDirectory() string {
 	return filepath.Join(home, "YourPlace")
 }
 
-func LogInit(name string, snapshotService bool) *os.File {
+func LogInit(name string) *os.File {
 	var logDir string
-	if snapshotService {
+	if name == "yourplacesnapshot" {
 		homedir, _ := os.UserHomeDir()
-		logDir = filepath.Join(homedir, name)
+		logDir = filepath.Join(homedir, "YourPlaceSnapshot")
 	} else {
 		logDir = getLogDirectory()
 	}

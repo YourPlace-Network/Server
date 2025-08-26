@@ -450,15 +450,14 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportDB})
 	})
 	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
-		dataDir := host.GetDataDir()
-		pattern := filepath.Join(dataDir, "snapshotsyourplacelast*")
+		pattern := filepath.Join(host.GetDataDir(), "snapshotsyourplacelast*")
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error searching for snapshot files"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Error searching for snapshot files"})
 			return
 		}
 		if len(matches) == 0 {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"status": "No snapshot file found with prefix 'yourplacelast'"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "No snapshot file found"})
 			return
 		}
 		// Use the first matching file (or most recent if multiple)
