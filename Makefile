@@ -224,7 +224,7 @@ endif
 
 snapshot_dbg_run:
 ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlaceSnapshot.exe -d=true
+	target\\YourPlaceSnapshot.exe -d
 else ifneq ($(filter $(DETECTED_OS),Darwin Linux),)
-	./target/YourPlaceSnapshot -d=true
+	./target/YourPlaceSnapshot -d
 endif
