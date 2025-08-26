@@ -546,7 +546,7 @@ func (db *Database) SnapshotSetDefaults() {
 		core.LogError("Failed to set defaults: " + err.Error())
 	}
 }
-func (db *Database) ExportSnapshotsForService(exportPath string) error {
+func (db *Database) ExportSnapshots(exportPath string) error {
 	switch db.Engine {
 	case "sqlite":
 		return db.sqlite.exportSnapshots(exportPath)

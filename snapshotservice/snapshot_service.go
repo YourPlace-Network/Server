@@ -61,7 +61,7 @@ func main() {
 		core.LogDebug("Exporting snapshots")
 		host.DeleteAll(snapshotDir)
 		host.CreateFolder(snapshotDir)
-		database.ExportSnapshotsForService(snapshotDir)
+		database.ExportSnapshots(snapshotDir)
 	})
 	c.Start()
 	//TODO: add graceful shutdown
