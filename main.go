@@ -21,6 +21,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -144,7 +145,7 @@ func main() {
 	// --- Database --- //
 	core.LogDebug("Initializing database")
 	database := new(db.Database)
-	database.Init(host.GetDataDir(), "sqlite")
+	database.Init(filepath.Join(host.GetDataDir(), "yourplace.sqlite.db"), "sqlite")
 	if !database.Ping() {
 		core.LogFatal("Could not connect to database")
 	}

@@ -47,7 +47,13 @@ func getLogDirectory() string {
 }
 
 func LogInit(name string) *os.File {
-	logDir := getLogDirectory()
+	var logDir string
+	if name != "yourplace" {
+		homedir, _ := os.UserHomeDir()
+		logDir = filepath.Join(homedir, "YourPlaceSnapshot")
+	} else {
+		logDir = getLogDirectory()
+	}
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		log.Fatal("Failed to create log directory: " + err.Error())
@@ -70,7 +76,7 @@ func LogInfo(message string) {
 func LogDebug(message string) {
 	loggerMutex.Lock()
 	defer loggerMutex.Unlock()
-	if os.Getenv("YourPlaceDebug") == "true" {
+	if os.Getenv("YourPlaceDebug") == "true" || os.Getenv("YourPlaceSnapshotDebug") == "true" {
 		_, _ = fmt.Fprintf(os.Stdout, "%s[DEBUG]%s %s\n", colorPurple, colorNone, message)
 		logger.Printf("[DEBUG] %s\n", message)
 	}
