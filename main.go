@@ -145,8 +145,7 @@ func main() {
 	// --- Database --- //
 	core.LogDebug("Initializing database")
 	database := new(db.Database)
-	dbPath := filepath.Join(host.GetDataDir(), "yourplace.sqlite.db")
-	database.Init(dbPath, "sqlite")
+	database.Init(filepath.Join(host.GetDataDir(), "yourplace.sqlite.db"), "sqlite")
 	if !database.Ping() {
 		core.LogFatal("Could not connect to database")
 	}
