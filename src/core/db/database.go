@@ -527,7 +527,6 @@ func (db *Database) SnapshotSetDefaults() {
 		"historyDays":      "-1",
 		"indexerOnBattery": "true",
 		"indexerRunning":   "true",
-		"badbitsEnabled":   "true",
 	}
 	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
 		for key, defaultValue := range defaults {
