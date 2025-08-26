@@ -1784,12 +1784,12 @@ func (db *SQLite) snapshotInit(path string) {
 	database.SetConnMaxIdleTime(3 * time.Minute)
 	db.database = database
 	// Create Tables
-	err = db.createSnapshotServiceTables(startupCtx)
+	err = db.createSnapshotTables(startupCtx)
 	if err != nil {
 		core.LogError("Could not create tables: " + err.Error())
 	}
 }
-func (db *SQLite) createSnapshotServiceTables(ctx context.Context) error {
+func (db *SQLite) createSnapshotTables(ctx context.Context) error {
 	tables := map[string]string{
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
 		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
@@ -1809,7 +1809,7 @@ func (db *SQLite) createSnapshotServiceTables(ctx context.Context) error {
 	}
 	return nil
 }
-func (db *SQLite) ExportSnapshotsForService(exportDir string) error {
+func (db *SQLite) exportSnapshots(exportDir string) error { // Exports multiple compressed snapshot files for different post history lengths
 	if db.database == nil {
 		return core.LogErrorReturn("Database connection not initialized")
 	}
