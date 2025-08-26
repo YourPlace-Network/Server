@@ -48,7 +48,7 @@ func getLogDirectory() string {
 
 func LogInit(name string) *os.File {
 	var logDir string
-	if name == "yourplacesnapshot" {
+	if name != "yourplace" {
 		homedir, _ := os.UserHomeDir()
 		logDir = filepath.Join(homedir, "YourPlaceSnapshot")
 	} else {

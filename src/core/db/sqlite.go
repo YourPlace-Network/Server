@@ -29,9 +29,8 @@ type SQLite struct {
 func (db *SQLite) Init(path string) {
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	dbPath := path + "yourplace.sqlite.db"
-	db.path = dbPath
-	database, err := sql.Open("sqlite", dbPath)
+	db.path = path
+	database, err := sql.Open("sqlite", path)
 	if err != nil || database == nil {
 		core.LogFatal("Could not open sqlite db: " + err.Error())
 		return
@@ -42,7 +41,12 @@ func (db *SQLite) Init(path string) {
 	database.SetConnMaxIdleTime(3 * time.Minute)
 	db.database = database
 	// Create Tables
-	err = db.createTables(startupCtx)
+	if filepath.Base(path) == "yourplace.sqlite.db" {
+		err = db.createTables(startupCtx)
+	} else if filepath.Base(path) == "yourplacesnapshot.sqlite.db" {
+		err = db.createTables(startupCtx)
+	}
+
 	if err != nil {
 		core.LogError("Could not create tables: " + err.Error())
 	}
@@ -1767,28 +1771,6 @@ func (db *SQLite) NotificationGetActive() []map[string]string {
 }
 
 // --- Snapshot Service Functions --- //
-
-func (db *SQLite) snapshotInit(path string) {
-	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-	dbPath := filepath.Join(path, "yourplacesnapshot.sqlite.db")
-	db.path = dbPath
-	database, err := sql.Open("sqlite", dbPath)
-	if err != nil || database == nil {
-		core.LogFatal("Could not open sqlite db: " + err.Error())
-		return
-	}
-	database.SetMaxOpenConns(50)
-	database.SetMaxIdleConns(20)
-	database.SetConnMaxLifetime(15 * time.Minute)
-	database.SetConnMaxIdleTime(3 * time.Minute)
-	db.database = database
-	// Create Tables
-	err = db.createSnapshotTables(startupCtx)
-	if err != nil {
-		core.LogError("Could not create tables: " + err.Error())
-	}
-}
 func (db *SQLite) createSnapshotTables(ctx context.Context) error {
 	tables := map[string]string{
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
@@ -1817,16 +1799,16 @@ func (db *SQLite) exportSnapshots(exportDir string) error { // Exports multiple 
 	currentTime := core.GetTimestamp()
 	for _, ageDays := range ageThresholds {
 		var exportPath string
+		var cutoffTimestamp uint64
+		if ageDays > 0 {
+			cutoffTimestamp = currentTime - uint64(ageDays*24*60*60)
+		}
 		if ageDays == 0 {
 			exportPath = filepath.Join(exportDir, "yourplacecomplete.db.snapshot")
 			core.LogDebug("Exporting SQLite Snapshot (all data) to: " + exportPath)
 		} else {
-			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplacelast%d.db.snapshot", ageDays))
+			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplace%d-%d.db.snapshot", currentTime, cutoffTimestamp))
 			core.LogDebug(fmt.Sprintf("Exporting SQLite Snapshot (%d days) to: %s", ageDays, exportPath))
-		}
-		var cutoffTimestamp uint64
-		if ageDays > 0 {
-			cutoffTimestamp = currentTime - uint64(ageDays*24*60*60)
 		}
 		tables := []string{
 			"onchain_post",

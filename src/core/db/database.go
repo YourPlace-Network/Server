@@ -504,24 +504,6 @@ func (db *Database) NotificationGetActive() []map[string]string {
 }
 
 // --- Snapshot Service Functions --- //
-func (db *Database) SnapshotInit(path string, engine string) {
-	validEngines := []string{"sqlite"}
-	if !slices.Contains(validEngines, engine) {
-		core.LogFatal("Invalid DB engine selected")
-	}
-	db.sqlite.snapshotInit(path)
-	db.Engine = engine
-	// Wait for DB to be ready
-	for i := 0; i < 5; i++ {
-		if db.Ping() {
-			break
-		}
-		time.Sleep(time.Second)
-		if i == 4 {
-			core.LogFatal("Database failed to initialize after 5 attempts")
-		}
-	}
-}
 func (db *Database) SnapshotSetDefaults() {
 	defaults := map[string]string{
 		"historyDays":      "-1",
