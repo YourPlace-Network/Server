@@ -2,12 +2,13 @@ package middleware
 
 import (
 	"YourPlace/src/core"
-	"github.com/gin-gonic/gin"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type ExceptionRule struct {
@@ -17,7 +18,7 @@ type ExceptionRule struct {
 
 func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clients to originate from 127.0.0.1 for certain API paths
 	// Paths to be included for localhost enforcement, your path must start with one of these prefixes
-	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test"}
+	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test", "/service/ai"}
 
 	return func(c *gin.Context) { // Check if this request matches an exception rule
 		validHosts := map[string]bool{

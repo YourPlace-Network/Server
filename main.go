@@ -51,15 +51,16 @@ var (
 	protocol   = "http"  // http or https
 	tlsCert    = host.GetInstallDir() + "server.cert"
 	tlsKey     = host.GetInstallDir() + "server.key"
-	cryptoSeed = security.RandomBytes(32)
+	cryptoSeed = security.RandomBytes(32) // set in 'c' command line flag
 	domain     = "localhost"
 	port       = 42424
-	debug      = false // set in 'm' command line flag or set debug file in data directory
+	debug      = false // set in 'd' command line flag or set debug file in data directory
 	gateway    = false // set in 'g' command line flag
 	patch      = false // set in 'p' command line flag
-	ui         = true  // set in 'u' command line flag
+	ui         = true  // set in 'du' command line flag
 	indexer    = true  // set in 'i' command line flag
 	shortcut   = false // set in 's' command line flag
+	mcp        = false // set in 'mcp' command line flag
 )
 
 func main() {
@@ -70,14 +71,23 @@ func main() {
 
 	// --- Command Line Arguments --- //
 	var hexString string // Crypto seed hex encoded
-	flag.BoolVar(&debug, "d", false, "Enable Debug mode, default: false")
-	flag.BoolVar(&gateway, "g", false, "Enable Gateway mode, default: false")
-	flag.BoolVar(&ui, "u", true, "Toggle opening browser UI automatically, default: true")
-	flag.BoolVar(&indexer, "i", true, "Toggle automatic blockchain indexing, default: true")
-	flag.BoolVar(&patch, "p", false, "Start patching of YourPlace, default: false")
-	flag.BoolVar(&shortcut, "s", false, "Started server via shortcut, default: false")
+	debugPtr := flag.Bool("d", false, "Enable Debug mode, default: false")
+	gatewayPtr := flag.Bool("g", false, "Enable Gateway mode, default: false")
+	disableUIPtr := flag.Bool("du", false, "Disable opening browser UI, default: false (UI enabled)")
+	disableIndexerPtr := flag.Bool("di", false, "Disable automatic blockchain indexing, default: false (indexer enabled)")
+	patchPtr := flag.Bool("p", false, "Start patching of YourPlace, default: false")
+	shortcutPtr := flag.Bool("s", false, "Started server via shortcut, default: false")
+	mcpPtr := flag.Bool("mcp", false, "Enable MCP server for LLM integration, default: false")
 	flag.StringVar(&hexString, "c", "", "A 32-byte array represented as a 64-character hexadecimal string used to synchronize the cryptographic state in a distributed deployment, default: random 32-byte value") // go run main.go -c=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 	flag.Parse()
+	// Assign parsed flag values to variables
+	debug = *debugPtr
+	gateway = *gatewayPtr
+	ui = !*disableUIPtr           // UI enabled by default, disabled if -du flag is present
+	indexer = !*disableIndexerPtr // Indexer enabled by default, disabled if -di flag is present
+	patch = *patchPtr
+	shortcut = *shortcutPtr
+	mcp = *mcpPtr
 
 	// --- Environment Variables --- //
 	host.SetEnvVar("YourPlaceProtocol", protocol)
@@ -209,7 +219,7 @@ func main() {
 
 	// --- Start Web Server --- //
 	core.LogDebug("Starting web server")
-	StartWebServer(database, _blockchain, ipfs, installed, logFile)
+	StartWebServer(database, _blockchain, ipfs, installed, logFile, mcp)
 
 	// --- Systray --- //
 	systray.Run(func() { SystrayOnReady(database) }, func() { host.Shutdown(0) })
@@ -270,7 +280,7 @@ func PostServerRun(database *db.Database) {
 		database.MetaUpdateValue("ypPortOpen", "true")
 	}
 }
-func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, logFile *os.File) {
+func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, logFile *os.File, mcp bool) {
 	if debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -323,6 +333,9 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 		routes.NotificationRoutes(router, database)
 		if debug {
 			routes.TestRoutes(router, title, gateway)
+		}
+		if mcp {
+			routes.MCPRoutes(router, database)
 		}
 	}
 	// --- Start Web Server Loop --- //

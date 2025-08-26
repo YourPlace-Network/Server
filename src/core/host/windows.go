@@ -213,7 +213,7 @@ func CreateShortcut(port int) {
 		"$shell = New-Object -ComObject WScript.Shell\n" +
 		"$shortcut = $shell.CreateShortcut($shortcutPath)\n" +
 		"$shortcut.TargetPath = $targetPath\n" +
-		"$shortcut.Arguments = '-s=true'\n" +
+		"$shortcut.Arguments = '-s'\n" +
 		"$shortcut.IconLocation = $iconPath\n" +
 		"$shortcut.WindowStyle = 7\n" +
 		"$shortcut.Save()}"
