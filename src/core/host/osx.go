@@ -9,7 +9,6 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
-	"golang.org/x/sys/unix"
 	"log"
 	"net"
 	"os"
@@ -21,6 +20,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 type HelperRequest struct {
@@ -334,21 +335,7 @@ func InstallGethNode() bool {
 func InstallRunBaseNode() bool {
 	return false
 }
-func RunGethNode() bool {
-	return false
-}
-func IsDockerSocketExist() bool {
-	dockerSocketPath := "/var/run/docker.sock"
-	if _, err := os.Stat(dockerSocketPath); os.IsNotExist(err) {
-		return false
-	}
-	conn, err := net.Dial("unix", dockerSocketPath)
-	if err != nil {
-		return false
-	}
-	defer conn.Close()
-	return true
-}
+
 func IsBigSurOrLater() bool {
 	/*var osVersion [256]byte
 	size := uintprt(len(osVersion))
