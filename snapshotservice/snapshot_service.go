@@ -58,7 +58,7 @@ func main() {
 		core.LogDebug("Starting Base indexer run")
 		blockchain.IndexerFetchData(database, _blockchain, "base")
 	})
-	c.AddFunc("@every 1m", func() {
+	c.AddFunc("@every 60m", func() {
 		core.LogDebug("Exporting snapshots")
 		host.DeleteAll(snapshotDir)
 		host.CreateFolder(snapshotDir)
