@@ -33,7 +33,6 @@ func main() {
 	database := new(db.Database)
 	database.SnapshotInit(dataDir, "sqlite")
 	snapshotDir := filepath.Join(dataDir, "snapshots")
-	core.LogDebug("Creating snapshot dir: " + snapshotDir)
 	if !database.Ping() {
 		core.LogError("Could not connect to database")
 		os.Exit(1)
