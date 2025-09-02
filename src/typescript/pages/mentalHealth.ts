@@ -934,7 +934,8 @@ const tips = [
     "Yelling \"NO\" and \"STOP\" to the police is not going to work. Your only option is to comply, then let lawyers figure it out",
     "Having a realistic attitude about yourself and \"the system\" is necessary to getting ahead in life",
     "Dystopia always tries to disguise itself as a utopia",
-
+    "Always be kind - but don't always be nice. A kindness sometimes needs to happen in a not-nice way. Niceness is about how you appear. Kindness is about who you are",
+    "A hole deeper that waist height can be quite dangerous actually",
 
     
 ];
