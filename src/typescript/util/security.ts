@@ -70,26 +70,23 @@ export function XSSSanitizeUrl(href: string): string {
 export function XSSSanitizeTextUrl(payload: string): string {
     const config = {
         ALLOWED_TAGS: ["a"],
-        ALLOWED_ATTR: ["href", "target"],
+        ALLOWED_ATTR: ["href", "target", "class"],
         ADD_ATTR: ["target"],
         SANITIZE_DOM: true,
     };
-    // Add a hook to validate href attributes on links
-    DOMPurify.addHook("beforeSanitizeAttributes", (node) => {
+    DOMPurify.addHook("beforeSanitizeAttributes", (node) => { // Add a hook to validate href attributes on links
         if (node.nodeName === "A" && node.hasAttribute("href")) {
             const href = node.getAttribute("href");
             if (href && !IsValidURL(href)) {
                 node.remove();
             }
-            // Add target="_blank" for external links
-            if (href && IsValidURL(href)) {
+            if (href && IsValidURL(href)) { // Add target="_blank" for external links
                 node.setAttribute("target", "_blank");
             }
         }
     });
     const sanitized = DOMPurify.sanitize(payload, config) as string;
-    // Clean up by removing the hook
-    DOMPurify.removeHook("beforeSanitizeAttributes");
+    DOMPurify.removeHook("beforeSanitizeAttributes"); // Clean up by removing the hook
     return sanitized;
 }
 export function XSSSanitizeValue(value: string): string {

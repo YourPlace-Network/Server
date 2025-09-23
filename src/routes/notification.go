@@ -6,11 +6,14 @@ import (
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-type NotificationObject struct {
+// Types of notifications: system, user
+
+type Notification struct {
 	UID         string `json:"uid"`
 	Type        string `json:"type"`
 	Message     string `json:"message"`
@@ -47,12 +50,11 @@ func NotificationRoutes(router *gin.Engine, database *db.Database) {
 		c.SecureJSON(http.StatusOK, gin.H{"status": "dismissed"})
 	})
 }
-
-func GetAllNotifications(database *db.Database) []NotificationObject {
-	var notifications []NotificationObject
+func GetAllNotifications(database *db.Database) []Notification {
+	var notifications []Notification
 	dbNotifications := database.NotificationGetActive()
 	for _, dbNotif := range dbNotifications {
-		notifications = append(notifications, NotificationObject{
+		notifications = append(notifications, Notification{
 			UID:         dbNotif["uid"],
 			Type:        "user",
 			Message:     dbNotif["message"],
@@ -63,26 +65,30 @@ func GetAllNotifications(database *db.Database) []NotificationObject {
 	notifications = append(notifications, systemNotifications...)
 	return notifications
 }
-func getSystemNotifications(database *db.Database) []NotificationObject {
-	var notifications []NotificationObject
+func getSystemNotifications(database *db.Database) []Notification {
+	var notifications []Notification
 	baseURL := database.SettingsGetValue("baseURL")
 	if baseURL == blockchain.DefaultBlockchainNodes["base"][0] {
-		notifications = append(notifications, NotificationObject{
-			UID:         "system_rpc_slow",
+		notifications = append(notifications, Notification{
+			UID:         "rpc_slow",
 			Type:        "system",
 			Message:     "You are using a blockchain node which is causing slow performance. <a href=\"/settings#collapseBase\" class=\"toastLink\">Click here</a> to set your own blockchain RPC node",
-			Dismissable: false,
+			Dismissable: true,
 		})
 	}
 	serverVersion := host.GetServerVersion()
 	latestVersion := services.GetLatestServerVersion()
 	if serverVersion != "" && latestVersion != "" && security.IsVersionGreater(serverVersion, latestVersion) {
-		notifications = append(notifications, NotificationObject{
-			UID:         "system_update_available",
+		notifications = append(notifications, Notification{
+			UID:         "update_available",
 			Type:        "system",
 			Message:     "A new update is available. <a href=\"https://yourplace.network/download\" class=\"toastLink\" target=\"_blank\">Click here</a> to download",
-			Dismissable: false,
+			Dismissable: true,
 		})
 	}
+	return notifications
+}
+func getUserNotifications(database *db.Database, chain string, address string) []Notification {
+	var notifications []Notification
 	return notifications
 }
