@@ -107,7 +107,8 @@
 }
 #postDropdownMenu {
   padding: 0.3em;
-  border: 2px white;
+  border-color: map.get(global.$colors, "primary");
+  border-width: 1px;
 }
 #algoLogo {
   height: 20px;
@@ -133,7 +134,6 @@
   height: 1.9em;
   width: 6em;
   padding: 0;
-
 }
 #spiceometerText {
   font-size: 1.1em;
