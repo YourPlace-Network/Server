@@ -298,6 +298,9 @@ declare global { // Extend the window interface with public objects
         async function renderProfileLocationFromData(location: string) {
             if (location && location.length > 0) {
                 DOM.profileLocation.textContent = location;
+                DOM.profileLocation.parentElement?.classList.remove("hidden");
+            } else {
+                DOM.profileLocation.parentElement?.classList.add("hidden");
             }
         }
         async function renderProfileWebsiteFromData(website: string) {
@@ -310,6 +313,9 @@ declare global { // Extend the window interface with public objects
                     DOM.profileWebsite.href = XSSSanitizeUrl(`https://${website}`);
                     DOM.profileWebsite.textContent = website;
                 }
+                DOM.profileWebsite.parentElement?.parentElement?.classList.remove("hidden");
+            } else {
+                DOM.profileWebsite.parentElement?.parentElement?.classList.add("hidden");
             }
         }
         async function renderProfileBirthdateFromData(birthdate: number) {
@@ -320,6 +326,9 @@ declare global { // Extend the window interface with public objects
                     year: 'numeric'
                 });
                 DOM.profileBirthdate.textContent = birthdateFormatted;
+                DOM.profileBirthdate.parentElement?.classList.remove("hidden");
+            } else {
+                DOM.profileBirthdate.parentElement?.classList.add("hidden");
             }
         }
         async function renderProfileJoinedDateFromData(joinedDate: number) {
@@ -330,6 +339,9 @@ declare global { // Extend the window interface with public objects
                     year: 'numeric'
                 });
                 DOM.profileJoined.textContent = joinedDateFormatted;
+                DOM.profileJoined.parentElement?.classList.remove("hidden");
+            } else {
+                DOM.profileJoined.parentElement?.classList.add("hidden");
             }
         }
         async function renderProfileFollowerCountFromData(followerCount: number) {

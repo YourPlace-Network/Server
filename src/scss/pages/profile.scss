@@ -211,8 +211,6 @@
   font-size: 1.1rem;
   color: map.get(global.$colors, "text");
 }
-
-
 // -------Edit Profile -------- //
 .editInput,
 #editBanner,
@@ -248,6 +246,11 @@ input[type="file"] {
   }
   #followBtn {
     margin-top: -50px;
+  }
+}
+@media(max-width: 704px) {
+  .navBtnTxt {
+    display: none;
   }
 }
 @media(max-width: 600px) {
