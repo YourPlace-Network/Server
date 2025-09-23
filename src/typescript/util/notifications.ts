@@ -19,6 +19,11 @@ export async function ShowNotifications() { // Main notification dispatcher
     const notifications: Notification[] = notificationsResponse[1].notifications;
     switch (GetPageRoute()) {
         case "": // home page
+            for (const notification of notifications) {
+                if (notification.type === "system") {
+                    ShowToastNotification(notification);
+                }
+            }
             break;
         case "p": // profile page
             for (const notification of notifications) {
