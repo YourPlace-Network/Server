@@ -9,7 +9,7 @@ import {LogError, LogInfo} from "../util/log";
 import {HttpGetJson} from "../util/network";
 import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchPosts} from "../components/post";
-import {GetNotifications} from "../components/toast";
+import {GetNotifications} from "../util/notifications";
 import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletSendPostNudge, WalletFollowUser, WalletUnfollowUser, GetChain} from "../util/blockchain/wallet";
 import {CreatePostCard} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
@@ -83,7 +83,7 @@ declare global { // Extend the window interface with public objects
             let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});}); // enable tooltips
             await updateProfile();
-            GetNotifications().catch(error => LogError("Notification loading failed: " + error)); // Load notifications in background - don't block profile loading
+            GetNotifications().then(); // Load notifications in background - don't block profile loading
             copiedTooltip = new window.bootstrap.Tooltip(DOM.profileAddressCopy, {title: "Copied", trigger: "manual", placement: "right"});
         }
         async function updateProfile() { // "main" method for loading the profile and it's data
@@ -180,6 +180,7 @@ declare global { // Extend the window interface with public objects
                 await renderProfileBannerFromData(profileData.bannerAddress);
             }
         }
+
 
         // --------- Profile Render --------- //
         async function renderProfileAddress(address: string) {
