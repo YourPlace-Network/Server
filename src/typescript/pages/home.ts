@@ -7,7 +7,7 @@ import {HttpGetJson} from "../util/network";
 import {IsValidURL, XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {CIDToSubdomainURL} from "../util/ipfs";
-import {GetNotifications} from "../util/notifications";
+import {ShowNotifications} from "../util/notifications";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -273,7 +273,7 @@ import {GetNotifications} from "../util/notifications";
         DOM.searchInput.value = "";
         DOM.resultsDiv.style.display = "none"; // Initialize followers feed on page load
         DOM.followersFeedDiv.style.display = "block";
-        GetNotifications(); // Load notifications in background - don't block page loading
+        ShowNotifications(); // Load notifications in background - don't block page loading
         loadFollowersFeed().then();
     }
 })();

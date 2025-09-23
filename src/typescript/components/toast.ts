@@ -1,17 +1,17 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/toast.scss"
 import {XSSSanitizeTextUrl} from "../util/security";
-import {DismissNotification, type NotificationObject} from "../util/notifications";
+import {DismissNotification, type Notification} from "../util/notifications";
 
 // HTML Template:  {{template "toast" .}}
 
-function ShowToastNotification(notification: NotificationObject) {
+export function ShowToastNotification(notification: Notification) {
     let toastDiv = CreateToast(notification);
     document.getElementById("toastContainer")!.appendChild(toastDiv);
     let toast = new window.bootstrap.Toast(toastDiv, {});
     toast.show();
 }
-function CreateToast(notification: NotificationObject): HTMLDivElement {
+export function CreateToast(notification: Notification): HTMLDivElement {
     let toastDiv = document.createElement("div");
     toastDiv.className = "toast hide";
     toastDiv.setAttribute("role", "alert");
@@ -46,7 +46,7 @@ function CreateToast(notification: NotificationObject): HTMLDivElement {
     return toastDiv;
 }
 export function ShowToast(message: string) {
-    const notification: NotificationObject = {
+    const notification: Notification = {
         uid: `manual_${Date.now()}`,
         type: "manual",
         message: message,
@@ -55,7 +55,7 @@ export function ShowToast(message: string) {
     ShowToastNotification(notification);
 }
 export function ShowSavedToast() {
-    const notification: NotificationObject = {
+    const notification: Notification = {
         uid: `saved_${Date.now()}`,
         type: "manual",
         message: "Setting Saved!",
