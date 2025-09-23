@@ -56,9 +56,9 @@ func GetAllNotifications(database *db.Database) []Notification {
 	for _, dbNotif := range dbNotifications {
 		notifications = append(notifications, Notification{
 			UID:         dbNotif["uid"],
-			Type:        "user",
+			Type:        dbNotif["type"],
 			Message:     dbNotif["message"],
-			Dismissable: true,
+			Dismissable: dbNotif["dismissable"] == "1",
 		})
 	}
 	systemNotifications := getSystemNotifications(database)

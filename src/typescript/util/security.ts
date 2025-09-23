@@ -28,6 +28,12 @@ export function IsValidIpfsCid(cid: string): boolean {
 }
 export function IsValidURL(url: string): boolean {
     try {
+        if (url.startsWith("/")) { // allow relative URLs that start with "/" for local navigation
+            if (url.toLowerCase().includes("javascript:") || url.toLowerCase().includes("data:")) {
+                return false;
+            }
+            return true;
+        }
         if (url.endsWith(".ipfs.localhost:42426")) { // allow local IPFS node links
             let cid: string = url.substring("ipfs://".length, (url.length - ".ipfs.localhost:42426".length));
             return IsValidIpfsCid(cid);
