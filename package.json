@@ -3,7 +3,7 @@
     "@agoralabs-sh/avm-web-provider": "^1.7.0",
     "@blockshake/defly-connect": "^1.2.1",
     "@coinbase/onchainkit": "^0.38.13",
-    "@coinbase/wallet-sdk": "^4.3.2",
+    "@coinbase/wallet-sdk": "^4.3.7",
     "@ensdomains/ens-contracts": "^1.5.1",
     "@ensdomains/ensjs": "^4.0.2",
     "@floating-ui/dom": "^1.7.0",
