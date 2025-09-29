@@ -243,6 +243,20 @@ func (node *IPFS) IPFSRemoveRemotePinning(name string) bool {
 	_core.LogError("Unexpected response when removing IPFS pinning service: " + response)
 	return false
 }
+func (node *IPFS) IPFSAutoAddRemotePinning(name string) bool {
+	requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/config?bool=true&arg=Pinning.RemoteServices.%s.Policies.MFS.Enable&arg=true", node.port, name)
+	response, err := HttpPost(requestString)
+	if err != nil {
+		_core.LogError("Could not enable auto remote pinning: " + err.Error() + " - " + response)
+		return false
+	}
+	if response == "" || strings.Contains(response, "true") {
+		_core.LogDebug("Auto remote pinning enabled successfully")
+		return true
+	}
+	_core.LogError("Unexpected response when enabling auto remote pinning: " + response)
+	return false
+}
 func (node *IPFS) IPFSCheckPinServiceHealth(serviceName string) bool {
 	listURL := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/service/ls", node.port)
 	response, err := HttpGet(listURL, 10)
