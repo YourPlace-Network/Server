@@ -521,11 +521,23 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		host.DeleteSecret("ipfsPinningKey")
 		host.AddSecret("ipfsPinningKey", security.SanitizeNonPrintable(payload.PinningKey))
 		database.SettingsUpdateValue("ipfsPinningURL", url)
+		_ = ipfs.IPFSRemoveRemotePinning("ipfsPinning")
 		success := ipfs.IPFSAddRemotePinning("ipfsPinning", url, payload.PinningKey)
-		if success {
+		success2 := ipfs.IPFSAutoAddRemotePinning("ipfsPinning")
+		if success && success2 {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "IPFS URL and Key saved"})
 		} else {
 			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "Failed to configure IPFS pinning service. Please check your URL and credentials."})
+		}
+	})
+	router.POST("/settings/content/ipfsPinning/remove", func(c *gin.Context) {
+		host.DeleteSecret("ipfsPinningKey")
+		database.SettingsUpdateValue("ipfsPinningURL", "")
+		success := ipfs.IPFSRemoveRemotePinning("ipfsPinning")
+		if success {
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+		} else {
+			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "failed"})
 		}
 	})
 	router.POST("/settings/server/debug", func(c *gin.Context) {
