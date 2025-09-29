@@ -39,7 +39,7 @@ func CheckPasswordComplexity(password string) (bool, error) {
 	re3 := regexp.MustCompile(`[A-Z]`)
 	match3 := re3.FindString(password)
 	if match3 == "" {
-		return false, errors.New("password must contain at least one lowercase letter")
+		return false, errors.New("password must contain at least one uppercase letter")
 	} else {
 		return true, nil
 	}

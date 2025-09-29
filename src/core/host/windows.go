@@ -15,11 +15,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/danieljoos/wincred"
-	"github.com/go-ole/go-ole"
-	"github.com/go-ole/go-ole/oleutil"
-	"golang.org/x/sys/windows"
-	"golang.org/x/sys/windows/registry"
 	"io"
 	"log"
 	"net"
@@ -35,6 +30,12 @@ import (
 	"time"
 	"unicode/utf16"
 	"unsafe"
+
+	"github.com/danieljoos/wincred"
+	"github.com/go-ole/go-ole"
+	"github.com/go-ole/go-ole/oleutil"
+	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 //go:embed bin/ipfs/win/ipfs.exe
@@ -618,6 +619,10 @@ func IsOnBattery() bool {
 	// Return true only if status indicates battery power (not charging/charged)
 	return status == 1 || status == 4 || status == 5 || status == 11
 }
+func GetLogDirectory() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, "YourPlace")
+}
 func AddSecret(name string, secret string) {
 	cred := wincred.NewGenericCredential(name)
 	cred.CredentialBlob = []byte(secret)
@@ -626,10 +631,6 @@ func AddSecret(name string, secret string) {
 		core.LogError("Failed to store secret: " + name)
 	}
 }
-func GetLogDirectory() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "YourPlace")
-}
 func GetSecret(name string) string {
 	cred, err := wincred.GetGenericCredential(name)
 	if err != nil {
@@ -637,6 +638,9 @@ func GetSecret(name string) string {
 		return ""
 	}
 	return string(cred.CredentialBlob)
+}
+func DeleteSecret(name string) {
+	core.LogWarn("DeleteSecret() not implemented on Windows")
 }
 
 // ------ Scheduled Task Functions (Admin) ------ //

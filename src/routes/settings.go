@@ -505,15 +505,20 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning JSON"})
 			return
 		}
-		if !security.IsValidURL(payload.PinningURL) || len(payload.PinningKey) <= 5 {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning URL or Key"})
+		if !security.IsValidURL(payload.PinningURL) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning URL format"})
+			return
+		}
+		if len(payload.PinningKey) <= 5 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "IPFS Pinning Key must be longer than 5 characters"})
 			return
 		}
 		url := payload.PinningURL
 		if !security.IsHttpProtocol(payload.PinningURL) {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Pinning URL or Key"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "IPFS Pinning URL must use HTTP or HTTPS protocol"})
 			return
 		}
+		host.DeleteSecret("ipfsPinningKey")
 		host.AddSecret("ipfsPinningKey", security.SanitizeNonPrintable(payload.PinningKey))
 		database.SettingsUpdateValue("ipfsPinningURL", url)
 		success := ipfs.IPFSAddRemotePinning("ipfsPinning", url, payload.PinningKey)

@@ -4,7 +4,6 @@ import (
 	_core "YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -209,50 +208,21 @@ func (node *IPFS) IPNSSearchName(name string) ([]string, error) {
 	}
 }
 func (node *IPFS) IPFSAddRemotePinning(name string, url string, key string) bool {
-	type PinningServiceConfig struct {
-		Endpoint string `json:"endpoint"`
-		Key      string `json:"key"`
-	}
-	config := PinningServiceConfig{
-		Endpoint: url,
-		Key:      key,
-	}
-	configBytes, err := json.Marshal(config)
+	requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/service/add?arg=%s&arg=%s&arg=%s", node.port, name, url, key)
+	response, err := HttpPost(requestString)
 	if err != nil {
-		_core.LogError("Could not marshal IPFS pinning service config: " + err.Error())
+		_core.LogError("Could not add IPFS remote pinning service: " + err.Error() + " - " + response)
 		return false
 	}
-	ipfsNodeURL := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/service/add?arg=%s", node.port, name)
-	req, err := http.NewRequestWithContext(context.Background(), "POST", ipfsNodeURL, bytes.NewReader(configBytes))
-	if err != nil {
-		_core.LogError("Could not create HTTP request for IPFS pinning service: " + err.Error())
-		return false
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		_core.LogError("Could not send HTTP request for IPFS pinning service: " + err.Error())
-		return false
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		_core.LogError("Could not add IPFS pinning service: " + resp.Status)
-		return false
-	}
-	response, err := io.ReadAll(resp.Body)
-	if err != nil {
-		_core.LogError("Could not read HTTP response for IPFS pinning service: " + err.Error())
-		return false
-	}
-	if strings.Contains(string(response), "service added") {
-		_core.LogDebug("IPFS pinning service '" + name + "' added successfully")
+	if strings.Contains(response, "service added") || response == "" {
+		_core.LogDebug("IPFS remote pinning service '" + name + "' added successfully")
 		return true
 	}
-	if strings.Contains(string(response), "service already exists") {
-		_core.LogDebug("IPFS pinning service '" + name + "' already exists")
+	if strings.Contains(response, "service already exists") {
+		_core.LogDebug("IPFS remote pinning service '" + name + "' already exists")
 		return true
 	}
-	_core.LogDebug("Unexpected response when adding IPFS pinning service: " + string(response))
+	_core.LogError("Unexpected response when adding IPFS remote pinning service: " + response)
 	return false
 }
 func (node *IPFS) IPFSRemoveRemotePinning(name string) bool {
