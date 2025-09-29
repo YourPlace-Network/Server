@@ -174,12 +174,17 @@ func main() {
 
 	// --- Network Checking --- //
 	core.LogDebug("Checking network")
+	i := 0
 	for {
+		i++
 		time.Sleep(5 * time.Second)
 		if network.IsInternetConnected() {
 			break
 		} else {
 			core.LogDebug("No internet connection - trying again in 5 seconds")
+		}
+		if i >= 12 {
+			break
 		}
 	}
 	publicIP, err := network.GetPublicIP()
