@@ -534,5 +534,4 @@ func (db *Database) ExportSnapshots(exportPath string) error {
 	default:
 		return core.LogErrorReturn("Invalid DB engine selected")
 	}
-	return nil
 }
