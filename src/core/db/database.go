@@ -532,7 +532,7 @@ func (db *Database) ExportSnapshots(exportPath string) error {
 	case "sqlite":
 		return db.sqlite.exportSnapshots(exportPath)
 	default:
-		core.LogError("Invalid DB engine selected")
+		return core.LogErrorReturn("Invalid DB engine selected")
 	}
 	return nil
 }
