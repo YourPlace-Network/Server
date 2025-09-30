@@ -511,6 +511,7 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 	}()
 	indexerRunning := _Database.SettingsGetValue("indexerRunning") // Check if the indexer is globally enabled
 	if indexerRunning != "true" {
+		core.LogDebug("Indexer is disabled in settings")
 		return "", "", nil, 0, 0, nil // bail out
 	}
 	uuid := _Database.IndexerGetJobUUID(chainName) // Lookup the UUID of the blockchain job
@@ -681,9 +682,9 @@ func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *
 						dynamicThrottleMultiplier = minMultiplier
 					}
 				}
-				//core.LogDebug("Throttle adjustment:\tactual=" + strconv.FormatFloat(actualRPS, 'f', 2, 64) +
-				//	"\ttarget=" + strconv.FormatFloat(targetRPS, 'f', 2, 64) +
-				//	"\tmultiplier=" + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+				core.LogDebug("Throttle adjustment:\tactual=" + strconv.FormatFloat(actualRPS, 'f', 2, 64) +
+					"\ttarget=" + strconv.FormatFloat(targetRPS, 'f', 2, 64) +
+					"\tmultiplier=" + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 				throttleControlMutex.Unlock()
 				// Update the rate limiter with the new rate
 				newRate := calculateDynamicRate(targetThrottleValue, 1)

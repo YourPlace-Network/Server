@@ -69,6 +69,8 @@ func main() {
 	logFile := core.LogInit("yourplace") // Initialize the logger
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
 	core.LogDebug("Runtime User: " + host.GetUsername())
+	core.LogDebug("Install Directory: " + host.GetInstallDir())
+	core.LogDebug("Data Directory: " + host.GetDataDir())
 
 	// --- Command Line Arguments --- //
 	var hexString string // Crypto seed hex encoded
@@ -174,12 +176,17 @@ func main() {
 
 	// --- Network Checking --- //
 	core.LogDebug("Checking network")
+	i := 0
 	for {
+		i++
 		time.Sleep(5 * time.Second)
 		if network.IsInternetConnected() {
 			break
 		} else {
 			core.LogDebug("No internet connection - trying again in 5 seconds")
+		}
+		if i >= 12 {
+			break
 		}
 	}
 	publicIP, err := network.GetPublicIP()

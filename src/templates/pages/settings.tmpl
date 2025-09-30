@@ -60,6 +60,7 @@
                                             </div>
                                             <div>
                                                 <button class="btn btn-primary" id="saveIpfsPinningBtn">Save</button>
+                                                <button class="btn btn-primary" id="removeIpfsPinningBtn">Remove</button>
                                             </div>
                                             <div id="ipfsNodeLinkDiv">
                                                 <a id="ipfsNodeLink" href="http://localhost:42425/webui" target="_blank"><img src="/static/image/ipfs.svg" alt="ipfs" id="ipfsSvg"><span>IPFS Node Management</span></a>
@@ -439,6 +440,25 @@
                                                             <input type="number" class="form-control" id="algoPostHistoryDays" placeholder="Days" min="1" max="365" step="1" data-bind="value:algoPostHistoryDays" />
                                                             <button class="btn btn-primary" id="saveAlgoPostHistoryDaysBtn">Save</button>
                                                         </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Solana -->
+                                <div class="row">
+                                    <div class="col-sm-12 centerColumn">
+                                        <div class="accordion accordion-flush" id="solanaAccordion">
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingSolana">
+                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSolana" aria-expanded="false" aria-controls="collapseSolana" disabled>
+                                                        <img src="/static/image/solana.svg" class="settingsBlockchainImg" alt=""><b>Solana (Coming Soon)</b>
+                                                    </button>
+                                                </h2>
+                                                <div id="collapseSolana" class="accordion-collapse collapse" aria-labelledby="headingSolana" data-bs-parent="#solanaAccordion">
+                                                    <div class="accordion-body">
                                                     </div>
                                                 </div>
                                             </div>

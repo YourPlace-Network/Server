@@ -59,6 +59,7 @@ import {Sleep} from "../util/time";
             ipfsPinningKey: document.getElementById("ipfsPinningKey")! as HTMLInputElement,
             pinataLI: document.getElementById("pinataLI")! as HTMLLIElement,
             saveIpfsPinningBtn: document.getElementById("saveIpfsPinningBtn")! as HTMLButtonElement,
+            removeIpfsPinningBtn: document.getElementById("removeIpfsPinningBtn")! as HTMLButtonElement,
             contentAccordion: document.getElementById("contentAccordion")! as HTMLDivElement,
             privacyAccordion: document.getElementById("privacyAccordion")! as HTMLDivElement,
             networkingAccordion: document.getElementById("networkingAccordion")! as HTMLDivElement,
@@ -552,6 +553,14 @@ import {Sleep} from "../util/time";
                 ShowDialogModal(response[1].status || "Failed to save IPFS pinning settings");
             }
         }
+        async function setRemoveIPFSPinning() {
+            let response = await HttpPostJson("/settings/content/ipfsPinning/remove", {}, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                DOM.ipfsPinningURL.value = "";
+                DOM.ipfsPinningKey.value = "";
+                ShowSavedToast();
+            }
+        }
         async function setDatabaseExportSnapshot() {
             const originalText = DOM.databaseExportSnapshotBtn.textContent;
             DOM.databaseExportSnapshotBtn.disabled = true;
@@ -768,9 +777,10 @@ import {Sleep} from "../util/time";
         DOM.pinataLI!.addEventListener("click", function(e) {
             DOM.ipfsPinningURL.value = "https://api.pinata.cloud/psa";
             DOM.ipfsPinningKey.value = "";
-            ShowDialogModalHTML("Please create an account and an <b>API Key</b> from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your <b>JWT (secret access token)</b> to the IPFS Pinning settings page");
+            ShowDialogModalHTML("Please create an account and an <b>API Key</b> from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your <b>JWT (secret access token)</b> to the IPFS Pinning settings page<br><br>Ensure your key has admin and write all privileges");
         });
         DOM.saveIpfsPinningBtn.addEventListener("click", setIPFSPinning);
+        DOM.removeIpfsPinningBtn.addEventListener("click", setRemoveIPFSPinning);
         DOM.ipfsPinningKey.addEventListener("focus", function() {
             if (DOM.ipfsPinningKey.value === "**********") {
                 DOM.ipfsPinningKey.value = "";

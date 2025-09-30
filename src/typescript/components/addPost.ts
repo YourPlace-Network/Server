@@ -88,7 +88,6 @@ import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
         }
         async function showModal() {
             addPostModal.show();
-            await initTinyMCE(); // Load TinyMCE when modal is shown
             if (tinymceLoaded) {
                 (window as any).tinymce.get("addPostText")?.focus();
             }
@@ -232,6 +231,7 @@ import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
         function clickFileInput() {
             DOM.fileInput.click();
         }
+        initTinyMCE().then(); // Pre-load TinyMCE on page load
 
         DOM.addPostButton.addEventListener("click", showModal);
         DOM.submitPostButton.addEventListener("click", submitPost);

@@ -28,6 +28,12 @@ export function IsValidIpfsCid(cid: string): boolean {
 }
 export function IsValidURL(url: string): boolean {
     try {
+        if (url.startsWith("/")) { // allow relative URLs that start with "/" for local navigation
+            if (url.toLowerCase().includes("javascript:") || url.toLowerCase().includes("data:")) {
+                return false;
+            }
+            return true;
+        }
         if (url.endsWith(".ipfs.localhost:42426")) { // allow local IPFS node links
             let cid: string = url.substring("ipfs://".length, (url.length - ".ipfs.localhost:42426".length));
             return IsValidIpfsCid(cid);
@@ -70,26 +76,23 @@ export function XSSSanitizeUrl(href: string): string {
 export function XSSSanitizeTextUrl(payload: string): string {
     const config = {
         ALLOWED_TAGS: ["a"],
-        ALLOWED_ATTR: ["href", "target"],
+        ALLOWED_ATTR: ["href", "target", "class"],
         ADD_ATTR: ["target"],
         SANITIZE_DOM: true,
     };
-    // Add a hook to validate href attributes on links
-    DOMPurify.addHook("beforeSanitizeAttributes", (node) => {
+    DOMPurify.addHook("beforeSanitizeAttributes", (node) => { // Add a hook to validate href attributes on links
         if (node.nodeName === "A" && node.hasAttribute("href")) {
             const href = node.getAttribute("href");
             if (href && !IsValidURL(href)) {
                 node.remove();
             }
-            // Add target="_blank" for external links
-            if (href && IsValidURL(href)) {
+            if (href && IsValidURL(href)) { // Add target="_blank" for external links
                 node.setAttribute("target", "_blank");
             }
         }
     });
     const sanitized = DOMPurify.sanitize(payload, config) as string;
-    // Clean up by removing the hook
-    DOMPurify.removeHook("beforeSanitizeAttributes");
+    DOMPurify.removeHook("beforeSanitizeAttributes"); // Clean up by removing the hook
     return sanitized;
 }
 export function XSSSanitizeValue(value: string): string {

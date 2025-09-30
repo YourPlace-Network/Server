@@ -934,8 +934,12 @@ const tips = [
     "Yelling \"NO\" and \"STOP\" to the police is not going to work. Your only option is to comply, then let lawyers figure it out",
     "Having a realistic attitude about yourself and \"the system\" is necessary to getting ahead in life",
     "Dystopia always tries to disguise itself as a utopia",
-
-
+    "Always be kind - but don't always be nice. A kindness sometimes needs to happen in a not-nice way. Niceness is about how you appear. Kindness is about who you are",
+    "A hole deeper that waist height can be quite dangerous actually",
+    "Do not marry a person where you disagree on the macro issues. Do not build a life with someone that you can't talk about the daily news with. You can disagree on micro things like what to eat and bed time - but not on how the world should operate. That's too big of a difference",
+    "Don't treat cartoon characters like real people, and real people like cartoon characters",
+    "You can't negotiate with people who think it's good when you get killed and bad when they get killed",
+    "It's amazing how many paper tigers fall apart when you just say \"no, we are not doing that.\" Fear is contagious, but so is courage",
     
 ];
 

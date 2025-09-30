@@ -177,7 +177,6 @@ testing:
 	go run test.go
 
 # --- Snapshot Service Commands --- #
-
 snapshot_clean:
 ifeq ($(DETECTED_OS),Windows_NT)
 	-powershell -Command "Get-Process -Name 'YourPlaceSnapshot' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue | Out-Null"
@@ -195,12 +194,12 @@ snapshot_build:
 ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
 	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win\helper.version')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force; '1.0.0' | Out-File -FilePath 'src\core\host\bin\helper\win\helper.version' -NoNewline }"
-	go build -ldflags "-s -w" -o target\YourPlaceSnapshot.exe snapshotservice\snapshot_service.go
+	go build -ldflags "-s -w" -o target\YourPlaceSnapshot.exe snapshot\snapshot.go
 else ifneq ($(filter $(DETECTED_OS),Darwin Linux),)
 	mkdir -p target/
 	mkdir -p src/core/host/bin/helper/osx/
 	@if [ ! -f src/core/host/bin/helper/osx/helper.version ]; then echo "1.0.0" > src/core/host/bin/helper/osx/helper.version; fi
-	go build -ldflags "-s -w" -o target/YourPlaceSnapshot snapshotservice/snapshot_service.go
+	go build -ldflags "-s -w" -o target/YourPlaceSnapshot snapshot/snapshot.go
 endif
 
 snapshot_run:
@@ -214,12 +213,12 @@ snapshot_dbg_build:
 ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
 	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win\helper.version')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force; '1.0.0' | Out-File -FilePath 'src\core\host\bin\helper\win\helper.version' -NoNewline }"
-	go build -o target\YourPlaceSnapshot.exe snapshotservice\snapshot_service.go
+	go build -o target\YourPlaceSnapshot.exe snapshot\snapshot.go
 else ifneq ($(filter $(DETECTED_OS),Darwin Linux),)
 	mkdir -p target/
 	mkdir -p src/core/host/bin/helper/osx/
 	@if [ ! -f src/core/host/bin/helper/osx/helper.version ]; then echo "1.0.0" > src/core/host/bin/helper/osx/helper.version; fi
-	go build -o target/YourPlaceSnapshot snapshotservice/snapshot_service.go
+	go build -o target/YourPlaceSnapshot snapshot/snapshot.go
 endif
 
 snapshot_dbg_run:
