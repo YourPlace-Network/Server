@@ -69,6 +69,8 @@ func main() {
 	logFile := core.LogInit("yourplace") // Initialize the logger
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
 	core.LogDebug("Runtime User: " + host.GetUsername())
+	core.LogDebug("Install Directory: " + host.GetInstallDir())
+	core.LogDebug("Data Directory: " + host.GetDataDir())
 
 	// --- Command Line Arguments --- //
 	var hexString string // Crypto seed hex encoded
