@@ -1804,7 +1804,7 @@ func (db *SQLite) exportSnapshots(exportDir string) error { // Exports multiple 
 		}
 		exportFile, err := os.Create(exportPath)
 		if err != nil {
-			return core.LogErrorReturn("Could not create export file: " + err.Error())
+			core.LogErrorReturn("Could not create export file: " + err.Error())
 		}
 		defer exportFile.Close()
 		gzWriter, err := gzip.NewWriterLevel(exportFile, gzip.BestCompression)
