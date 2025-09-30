@@ -234,6 +234,35 @@ func (node *IPFS) IPFSRemoveRemotePinning(name string) bool {
 	}
 	if strings.Contains(response, "service removed") || response == "" {
 		_core.LogDebug("IPFS pinning service '" + name + "' removed successfully")
+		// Remove the service from the config file as well
+		configPath := host.GetDataDir() + ".ipfs" + host.PathSeparator + "config"
+		jsonData, err := os.ReadFile(configPath)
+		if err != nil {
+			_core.LogError("Could not read IPFS config file: " + err.Error())
+			return true
+		}
+		var parsedData interface{}
+		if err = json.Unmarshal(jsonData, &parsedData); err != nil {
+			_core.LogError("Could not unmarshal IPFS config file: " + err.Error())
+			return true
+		}
+		if rootMap, ok := parsedData.(map[string]interface{}); ok {
+			if pinningKey, ok := rootMap["Pinning"].(map[string]interface{}); ok {
+				if remoteServices, ok := pinningKey["RemoteServices"].(map[string]interface{}); ok {
+					delete(remoteServices, name)
+					modifiedJSON, err := json.MarshalIndent(parsedData, "", "    ")
+					if err != nil {
+						_core.LogError("Could not marshall IPFS config data: " + err.Error())
+						return true
+					}
+					if err = os.WriteFile(configPath, modifiedJSON, 0644); err != nil {
+						_core.LogError("Could not write to IPFS config file: " + err.Error())
+						return true
+					}
+					_core.LogDebug("Removed '" + name + "' from IPFS config file")
+				}
+			}
+		}
 		return true
 	}
 	if strings.Contains(response, "service not found") {
