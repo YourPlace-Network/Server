@@ -264,6 +264,17 @@ func GetSecret(name string) string {
 	}
 	return strings.TrimSpace(string(output))
 }
+func DeleteSecret(name string) {
+	currentUser, _ := user.Current()
+	cmd := exec.Command("security", "delete-generic-password",
+		"-s", security.SanitizePathTraversal(name),
+		"-a", currentUser.Username)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		core.LogError("Failed to delete secret: " + name + " - " + err.Error())
+		return
+	}
+}
 
 /* ------ OS Specific Business Logic ------ */
 func InstallIPFS() bool {

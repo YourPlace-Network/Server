@@ -107,7 +107,7 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 
 ### Style Guidelines
 - See the file `docs/notes/StyleGuide.md` for specific conventions
-- Avoid adding unnecessary new-line characters in the code. Bias towards not adding new-lines between function names, because when the code is folded in the IDE, it's easier to see all the function names together. Follow the existing new-line style.
+- Avoid adding unnecessary new-line characters in the code. Bias towards not adding new-lines between functions, classes or lines in a function, because when the code is folded in the IDE, it's easier to see all the function names together. Follow the existing new-line style.
 - Only add comments where necessary to clarify complex logic. Follow the existing comment style conventions.
 - When adding a new item into a list, ensure it is alphabetically sorted. If the list isn't sorted already, then sort it alphabetically using the most obvious identifier.
 - Write clean, maintainable code with clear variable names that follow the existing naming conventions.

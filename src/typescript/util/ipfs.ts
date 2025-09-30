@@ -222,7 +222,7 @@ export function stringToCID(cid: string): CID {
 async function iterableToBlobArray(asyncIterable: AsyncIterable<Uint8Array>): Promise<BlobPart[]> {
     const blobParts: BlobPart[] = [];
     for await (const chunk of asyncIterable) {
-        blobParts.push(chunk);
+        blobParts.push(new Uint8Array(chunk));
     }
     return blobParts;
 }
