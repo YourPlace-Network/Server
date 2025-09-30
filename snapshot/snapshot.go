@@ -5,11 +5,20 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/host"
+	"context"
 	"flag"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	_cron "github.com/robfig/cron/v3"
 	"os"
 	"path/filepath"
-
-	_cron "github.com/robfig/cron/v3"
+	"regexp"
+	"slices"
+	"strconv"
 )
 
 var (
@@ -62,10 +71,125 @@ func main() {
 		core.LogDebug("Exporting snapshots")
 		host.DeleteAll(snapshotDir)
 		host.CreateFolder(snapshotDir)
-		database.ExportSnapshots(snapshotDir)
+		err := database.ExportSnapshots(snapshotDir)
+		if err != nil {
+			core.LogError("Error exporting snapshots:" + err.Error())
+			return
+		}
+		handleS3Upload(snapshotDir)
 	})
 	c.Start()
-	//TODO: add graceful shutdown
 	<-make(chan struct{})
-
+}
+func handleS3Upload(snapshotDir string) {
+	snapshotFiles, err := filepath.Glob(filepath.Join(snapshotDir, "yourplace*.db.snapshot"))
+	if err != nil {
+		core.LogError("Error globbing snapshot files for S3 upload" + err.Error())
+		return
+	}
+	s3Endpoint := os.Getenv("S3_ENDPOINT")
+	bucketName := os.Getenv("S3_BUCKET_NAME")
+	accessKey := os.Getenv("S3_ACCESS_KEY")
+	secretKey := os.Getenv("S3_SECRET_KEY")
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(
+				accessKey,
+				secretKey,
+				"",
+			),
+		),
+		config.WithRegion("us-east-1"), // this region setting must always be set to us-east-1 when using digitalocean. The actual region is set in the endpoint.
+	)
+	if err != nil {
+		core.LogError("Error loading S3 configuration: " + err.Error())
+		return
+	}
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(s3Endpoint)
+	})
+	uploader := manager.NewUploader(client)
+	for _, file := range snapshotFiles {
+		snapshotFile, err := os.Open(file)
+		if err != nil {
+			core.LogError("Error opening snapshot file: " + err.Error())
+			return
+		}
+		core.LogDebug("Uploading snapshot file: " + file)
+		_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(filepath.Base(file)),
+			Body:   snapshotFile,
+		})
+		if err != nil {
+			core.LogError("Error uploading snapshot file: " + err.Error())
+		}
+		snapshotFile.Close()
+	}
+	var fileNames []string
+	params := &s3.ListObjectsV2Input{
+		Bucket: aws.String(os.Getenv("S3_BUCKET_NAME")),
+	}
+	paginator := s3.NewListObjectsV2Paginator(client, params)
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(context.TODO())
+		if err != nil {
+			core.LogError("Error listing S3 objects: " + err.Error())
+			return
+		}
+		for _, obj := range output.Contents {
+			if obj.Key != nil {
+				fileNames = append(fileNames, *obj.Key)
+			}
+		}
+	}
+	var timestamps []int64
+	for _, fileName := range fileNames {
+		re := regexp.MustCompile(`yourplace(\d+)-`)
+		matches := re.FindStringSubmatch(fileName)
+		timestamp, err := strconv.ParseInt(matches[1], 10, 64)
+		if err != nil {
+			core.LogError("Error parsing timestamp: " + err.Error())
+			return
+		}
+		found := false
+		for _, t := range timestamps {
+			if t == timestamp {
+				found = true
+				break
+			}
+		}
+		if !found {
+			timestamps = append(timestamps, timestamp)
+		}
+	}
+	if len(timestamps) >= 10 {
+		oldest := slices.Min(timestamps)
+		var objectsToDelete []types.ObjectIdentifier
+		for _, fileName := range fileNames {
+			re := regexp.MustCompile(`yourplace(\d+)-`)
+			matches := re.FindStringSubmatch(fileName)
+			if len(matches) > 1 {
+				timestamp, err := strconv.ParseInt(matches[1], 10, 64)
+				if err == nil && timestamp == oldest {
+					objectsToDelete = append(objectsToDelete, types.ObjectIdentifier{
+						Key: aws.String(fileName),
+					})
+				}
+			}
+		}
+		if len(objectsToDelete) > 0 {
+			_, err := client.DeleteObjects(context.TODO(), &s3.DeleteObjectsInput{
+				Bucket: aws.String(bucketName),
+				Delete: &types.Delete{
+					Objects: objectsToDelete,
+				},
+			})
+			if err != nil {
+				core.LogError("Error deleting old snapshot files: " + err.Error())
+			} else {
+				core.LogDebug("Deleted " + strconv.Itoa(len(objectsToDelete)) + " old snapshot files")
+			}
+		}
+	}
 }
