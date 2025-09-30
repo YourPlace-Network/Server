@@ -91,8 +91,6 @@ func handleS3Upload(snapshotDir string) {
 	bucketName := os.Getenv("S3_BUCKET_NAME")
 	accessKey := os.Getenv("S3_ACCESS_KEY")
 	secretKey := os.Getenv("S3_SECRET_KEY")
-	core.LogDebug(accessKey)
-	core.LogDebug(secretKey)
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
