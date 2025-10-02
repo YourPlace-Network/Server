@@ -91,16 +91,25 @@ func handleS3Upload(snapshotDir string) {
 	bucketName := os.Getenv("S3_BUCKET_NAME")
 	accessKey := os.Getenv("S3_ACCESS_KEY")
 	secretKey := os.Getenv("S3_SECRET_KEY")
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(
-				accessKey,
-				secretKey,
-				"",
+	var cfg aws.Config
+	if accessKey != "" && secretKey != "" {
+		// Use static credentials for DigitalOcean Spaces or custom S3
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithCredentialsProvider(
+				credentials.NewStaticCredentialsProvider(
+					accessKey,
+					secretKey,
+					"",
+				),
 			),
-		),
-		config.WithRegion("us-east-1"), // this region setting must always be set to us-east-1 when using digitalocean. The actual region is set in the endpoint.
-	)
+			config.WithRegion("us-east-1"),
+		)
+	} else {
+		// Use IAM role credentials for AWS (ECS task role)
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion("us-east-1"),
+		)
+	}
 	if err != nil {
 		core.LogError("Error loading S3 configuration: " + err.Error())
 		return

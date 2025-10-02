@@ -1,12 +1,6 @@
 name: Snapshot Service
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'snapshot/**'
-      - '.github/workflows/snapshot.yml'
   workflow_dispatch:
 
 env:
@@ -47,6 +41,48 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Get Current Task Definition
+      id: get-task-def
+      run: |
+        aws ecs describe-task-definition \
+          --task-definition yourplace-snapshot \
+          --region ${{ env.AWS_REGION }} \
+          --query 'taskDefinition' \
+          > task-definition.json
+
+    - name: Update Task Definition with New Image and Env Vars
+      id: update-task-def
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+        BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
+        BASE_RPC_THROTTLE: ${{ vars.BASE_RPC_THROTTLE }}
+      run: |
+        # Get S3 bucket name from existing task definition
+        S3_BUCKET=$(jq -r '.containerDefinitions[0].environment[] | select(.name=="S3_BUCKET_NAME") | .value' task-definition.json)
+        S3_ENDPOINT=$(jq -r '.containerDefinitions[0].environment[] | select(.name=="S3_ENDPOINT") | .value' task-definition.json)
+
+        # Create new task definition with updated image and environment variables
+        jq --arg IMAGE "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+           --arg BASE_RPC_URL "$BASE_RPC_URL" \
+           --arg BASE_RPC_THROTTLE "$BASE_RPC_THROTTLE" \
+           --arg S3_BUCKET "$S3_BUCKET" \
+           --arg S3_ENDPOINT "$S3_ENDPOINT" \
+           '.containerDefinitions[0].image = $IMAGE |
+            .containerDefinitions[0].environment = [
+              {"name": "BASE_RPC_URL", "value": $BASE_RPC_URL},
+              {"name": "BASE_RPC_THROTTLE", "value": $BASE_RPC_THROTTLE},
+              {"name": "S3_BUCKET_NAME", "value": $S3_BUCKET},
+              {"name": "S3_ENDPOINT", "value": $S3_ENDPOINT}
+            ] |
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+           task-definition.json > new-task-definition.json
+
+        # Register new task definition
+        aws ecs register-task-definition \
+          --cli-input-json file://new-task-definition.json \
+          --region ${{ env.AWS_REGION }}
 
     - name: Update ECS Service
       run: |
