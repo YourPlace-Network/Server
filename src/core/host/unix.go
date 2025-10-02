@@ -96,3 +96,30 @@ func InstallAutorun() bool {
 func InstallHelper() bool {
 	return true // No helper needed on Linux
 }
+
+func HelperCall(action string) (string, error) {
+	return "", nil // No helper on Linux
+}
+
+func RunShellCommand(command string) string {
+	cmd := exec.Command("sh", "-c", command)
+	output, _ := cmd.CombinedOutput()
+	return string(output)
+}
+
+func RunShellCommandEnv(command string, env []string) string {
+	cmd := exec.Command("sh", "-c", command)
+	cmd.Env = env
+	output, _ := cmd.CombinedOutput()
+	return string(output)
+}
+
+func RunShellCommandNoWait(command string) {
+	exec.Command("sh", "-c", command).Start()
+}
+
+func RunShellCommandNoWaitEnv(command string, env []string) {
+	cmd := exec.Command("sh", "-c", command)
+	cmd.Env = env
+	cmd.Start()
+}
