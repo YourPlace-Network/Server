@@ -177,30 +177,15 @@ testing:
 	go run test.go
 
 # --- Snapshot Service Commands --- #
-snapshot_clean:
-ifeq ($(DETECTED_OS),Windows_NT)
-	-powershell -Command "Get-Process -Name 'YourPlaceSnapshot' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue | Out-Null"
-	-powershell -Command "if (Test-Path 'target') { Remove-Item -Recurse -Force 'target' | Out-Null }"
-	-powershell -Command "if (Test-Path 'src\core\host\bin\helper\win') { Remove-Item -Recurse -Force 'src\core\host\bin\helper\win\*' | Out-Null }"
-	go clean
-else ifneq ($(filter $(DETECTED_OS),Darwin Linux),)
-	-pkill -f YourPlaceSnapshot 2>/dev/null || true
-	rm -rf target 2>/dev/null || true
-	rm -rf src/core/host/bin/helper/osx/* 2>/dev/null || true
-	go clean
-endif
+snapshot_docker_build:
+	docker build --progress=plain --no-cache -f snapshot/Dockerfile -t yourplace-snapshot .
+#	docker run --rm yourplace-snapshot
 
 snapshot_build:
-ifeq ($(DETECTED_OS),Windows_NT)
-	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
-	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win\helper.version')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force; '1.0.0' | Out-File -FilePath 'src\core\host\bin\helper\win\helper.version' -NoNewline }"
-	go build -ldflags "-s -w" -o target\YourPlaceSnapshot.exe snapshot\snapshot.go
-else ifneq ($(filter $(DETECTED_OS),Darwin Linux),)
 	mkdir -p target/
 	mkdir -p src/core/host/bin/helper/osx/
 	@if [ ! -f src/core/host/bin/helper/osx/helper.version ]; then echo "1.0.0" > src/core/host/bin/helper/osx/helper.version; fi
 	go build -ldflags "-s -w" -o target/YourPlaceSnapshot snapshot/snapshot.go
-endif
 
 snapshot_run:
 ifeq ($(DETECTED_OS),Windows_NT)
