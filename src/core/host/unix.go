@@ -19,6 +19,7 @@ var yourplaceLogrotate []byte
 const (
 	PathSeparator     = string('/')
 	PathListSeparator = string(':')
+	BinaryExtension   = ""
 )
 
 func GetFreeDiskSpace(driveLetter string) uint64 {
@@ -65,13 +66,33 @@ func GetKeyboardLayout() string {
 
 func IsDockerSocketExist() bool {
 	dockerSocketPath := "/var/run/docker.sock"
-	if _, err := os.Stat(dockerSocketPath); os.IsNotExist(err) {
+	if _, err := _os.Stat(dockerSocketPath); _os.IsNotExist(err) {
 		return false
 	}
-	conn, err := net.Dial("unix", dockerSocketPath)
-	if err != nil {
-		return false
-	}
-	defer conn.Close()
 	return true
+}
+
+// Stub functions for Linux (not needed for snapshot service)
+func KillProcess(processName string) bool {
+	return false
+}
+
+func ReleaseMutex() {
+	// No-op on Linux
+}
+
+func InstallFFMPEG() bool {
+	return true // Assume installed via package manager
+}
+
+func InstallIPFS() bool {
+	return true // Assume installed via package manager
+}
+
+func InstallAutorun() bool {
+	return true // Handled by systemd
+}
+
+func InstallHelper() bool {
+	return true // No helper needed on Linux
 }
