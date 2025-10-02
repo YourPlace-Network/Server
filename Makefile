@@ -183,9 +183,7 @@ snapshot_docker_build:
 
 snapshot_build:
 	mkdir -p target/
-	mkdir -p src/core/host/bin/helper/osx/
-	@if [ ! -f src/core/host/bin/helper/osx/helper.version ]; then echo "1.0.0" > src/core/host/bin/helper/osx/helper.version; fi
-	go build -ldflags "-s -w" -o target/YourPlaceSnapshot snapshot/snapshot.go
+	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o target/YourPlaceSnapshot snapshot/snapshot.go
 
 snapshot_run:
 ifeq ($(DETECTED_OS),Windows_NT)
