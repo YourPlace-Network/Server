@@ -26,7 +26,6 @@ npm_update:
 	npm install -g npm-check-updates
 	ncu -u
 	npm install
-
 go_update:
 	go get -u ./...
 
@@ -52,10 +51,8 @@ else ifeq ($(DETECTED_OS),Darwin)
 	rm -rf src/core/host/bin/helper/osx/* 2>/dev/null || true
 	go clean
 endif
-
 install:
 	$(NPM) install
-
 test:
 	$(which golangci-lint) run --enable-all
 	go test
@@ -87,7 +84,6 @@ else ifeq ($(DETECTED_OS),Darwin)
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh
 endif
-
 dbg_build: clean
 ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
@@ -113,7 +109,6 @@ else ifeq ($(DETECTED_OS),Darwin)
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh dev
 endif
-
 helper_build:
 ifeq ($(DETECTED_OS),Windows_NT)
 	$(PS) -Command "if (!(Test-Path '$(HELPER)')) { New-Item -ItemType File -Path '$(HELPER)' -Force | Out-Null }"
@@ -137,7 +132,6 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	./target/YourPlace-$(VERSION)
 endif
-
 dbg_run:
 ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe -d -du
@@ -146,7 +140,6 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	SUDO_ASKPASS=resources/osx/askpass.sh sudo -A installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
 endif
-
 dbg_gateway_run:
 ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe -d -du -g
@@ -155,7 +148,6 @@ else ifeq ($(DETECTED_OS),Darwin)
     @VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
     SUDO_ASKPASS=resources/osx/askpass.sh sudo -A installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
 endif
-
 dbg_noindexer_run:
 ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe -d -du -di
@@ -164,7 +156,6 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	SUDO_ASKPASS=resources/osx/askpass.sh installer -pkg "target/YourPlace-$$VERSION.pkg" -target /
 endif
-
 dbg_noinstall_run:
 ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe -d -du
@@ -172,41 +163,21 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	./target/YourPlace -d -du
 endif
-
 testing:
 	go run test.go
 
 # --- Snapshot Service Commands --- #
 snapshot_docker_build:
 	docker build --progress=plain --no-cache -f snapshot/Dockerfile -t yourplace-snapshot .
-#	docker run --rm yourplace-snapshot
-
 snapshot_build:
 	mkdir -p target/
 	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o target/YourPlaceSnapshot snapshot/snapshot.go
-
 snapshot_run:
-ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlaceSnapshot.exe
-else ifneq ($(filter $(DETECTED_OS),Darwin Linux),)
 	./target/YourPlaceSnapshot
-endif
-
 snapshot_dbg_build:
-ifeq ($(DETECTED_OS),Windows_NT)
-	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
-	powershell -Command "if (-not (Test-Path 'src\core\host\bin\helper\win\helper.version')) { New-Item -ItemType Directory -Path 'src\core\host\bin\helper\win' -Force; '1.0.0' | Out-File -FilePath 'src\core\host\bin\helper\win\helper.version' -NoNewline }"
-	go build -o target\YourPlaceSnapshot.exe snapshot\snapshot.go
-else ifneq ($(filter $(DETECTED_OS),Darwin Linux),)
 	mkdir -p target/
 	mkdir -p src/core/host/bin/helper/osx/
 	@if [ ! -f src/core/host/bin/helper/osx/helper.version ]; then echo "1.0.0" > src/core/host/bin/helper/osx/helper.version; fi
 	go build -o target/YourPlaceSnapshot snapshot/snapshot.go
-endif
-
 snapshot_dbg_run:
-ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlaceSnapshot.exe -d
-else ifneq ($(filter $(DETECTED_OS),Darwin Linux),)
 	./target/YourPlaceSnapshot -d
-endif
