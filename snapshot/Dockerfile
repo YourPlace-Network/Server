@@ -14,7 +14,9 @@ WORKDIR /build
 
 COPY . .
 
-RUN make snapshot-build
+RUN mkdir -p src/core/host/bin/helper/osx/ && \
+    echo "1.0.0" > src/core/host/bin/helper/osx/helper.version && \
+    make snapshot_build
 
 FROM ubuntu:24.04
 
