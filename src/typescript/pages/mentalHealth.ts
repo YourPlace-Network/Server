@@ -940,7 +940,12 @@ const tips = [
     "Don't treat cartoon characters like real people, and real people like cartoon characters",
     "You can't negotiate with people who think it's good when you get killed and bad when they get killed",
     "It's amazing how many paper tigers fall apart when you just say \"no, we are not doing that.\" Fear is contagious, but so is courage",
-    
+    "Men: dating the hot/crazy woman just is not worth it. It's amazing for about a year, then you wake up one morning an realize that you no longer have a soul",
+    "Women: dating the charming/narcissist guy is just not worth it. It's intoxicating for about a year, then you wake up one morning an realize you've lost yourself completely",
+    "It is extremely irresponsible for a therapist to give relationship advice without having met the other partner and considered their point of view. Find a new therapist",
+    "If your therapist doesn't push back on your bad behavior, then you don't have a therapist. You have a malicious cheerleader",
+    "If you bring up a valid point with someone, then they always bring up something sad, realize that is a manipulation tactic to shut down the conversation and make you look bad for seemingly being against \"sad thing.\" They use that strategy to avoid any sort of criticism or accountability",
+
 ];
 
 (function initialize() {
