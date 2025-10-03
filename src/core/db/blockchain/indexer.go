@@ -43,6 +43,8 @@ var (
 	globalRequestTracker      *RequestTracker // Global request tracker to monitor request rates across all workers
 	rateLimiterMutex          sync.Mutex      // Serializes rate limiter token acquisition across workers
 	activeRequestsCount       int64           // Atomic counter for currently active RPC requests across all workers
+	progressLogMutex          sync.Mutex      // Prevents duplicate progress logs from multiple workers
+	lastProgressBlock         int64           // Last block number we logged progress for
 	totalRequestsCount        int64           // Atomic counter for total RPC requests processed across all workers
 )
 
@@ -220,6 +222,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 	// Reset atomic counters for new indexing session
 	atomic.StoreInt64(&activeRequestsCount, 0)
 	atomic.StoreInt64(&totalRequestsCount, 0)
+	atomic.StoreInt64(&lastProgressBlock, 0)
 
 	go startThrottleController(uuid, baseThrottle, rateLimiter, database) // Start the throttle controller in a separate goroutine
 
@@ -435,6 +438,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	// Reset atomic counters for new indexing session
 	atomic.StoreInt64(&activeRequestsCount, 0)
 	atomic.StoreInt64(&totalRequestsCount, 0)
+	atomic.StoreInt64(&lastProgressBlock, 0)
 
 	go startThrottleController(uuid, baseThrottle, rateLimiter, database) // Start the throttle controller in a separate goroutine
 
@@ -1145,11 +1149,17 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 			}
 			// Mark this block as processed in the sequential tracker
 			sequentialTracker.MarkBlockProcessed(currentBlockNumber, direction)
-			// Send status updates
+			// Send status updates (deduplicated to prevent log spam from multiple workers)
 			nextExpected := sequentialTracker.GetNextExpectedBlock()
 			mod := nextExpected % reportInterval
 			if mod == 0 {
-				indexerPrintProgress(targetEarliestBlock, targetLatestBlock, big.NewInt(nextExpected), big.NewInt(int64(_batchSize)), direction, requestTracker)
+				progressLogMutex.Lock()
+				// Double-check to prevent duplicate logs if multiple workers reached this simultaneously
+				if atomic.LoadInt64(&lastProgressBlock) != nextExpected {
+					atomic.StoreInt64(&lastProgressBlock, nextExpected)
+					indexerPrintProgress(targetEarliestBlock, targetLatestBlock, big.NewInt(nextExpected), big.NewInt(int64(_batchSize)), direction, requestTracker)
+				}
+				progressLogMutex.Unlock()
 			}
 		}
 		// Re-queue failed blocks individually with backoff if any failed
