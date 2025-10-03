@@ -40,6 +40,16 @@ func (db *SQLite) Init(path string) {
 	database.SetConnMaxLifetime(15 * time.Minute)
 	database.SetConnMaxIdleTime(3 * time.Minute)
 	db.database = database
+	// Enable WAL mode for better concurrency
+	_, err = database.Exec("PRAGMA journal_mode=WAL")
+	if err != nil {
+		core.LogError("Could not enable WAL mode: " + err.Error())
+	}
+	// Set busy timeout to 10 seconds
+	_, err = database.Exec("PRAGMA busy_timeout=10000")
+	if err != nil {
+		core.LogError("Could not set busy timeout: " + err.Error())
+	}
 	// Create Tables
 	err = db.createTables(startupCtx)
 	if err != nil {
@@ -833,10 +843,22 @@ func (db *SQLite) SettingsGetValue(key string) string {
 }
 func (db *SQLite) SettingsUpdateValue(key string, value string) {
 	query := "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value"
-	_, err := db.runParamSQLUpdate(query, key, value)
-	if err != nil {
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		_, err := db.runParamSQLUpdate(query, key, value)
+		if err == nil {
+			return
+		}
+		if strings.Contains(err.Error(), "database is locked") || strings.Contains(err.Error(), "SQLITE_BUSY") {
+			backoff := time.Duration(100*(1<<uint(i))) * time.Millisecond
+			core.LogWarn("Settings update locked, retrying after " + backoff.String() + "...")
+			time.Sleep(backoff)
+			continue
+		}
 		core.LogError("Settings update failed: " + err.Error())
+		return
 	}
+	core.LogError("Settings update failed after " + fmt.Sprint(maxRetries) + " retries")
 }
 func (db *SQLite) SettingsDeleteValue(key string) error {
 	_, err := db.runParamSQLUpdate("DELETE FROM settings WHERE key = ?", key)
