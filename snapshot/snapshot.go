@@ -7,6 +7,12 @@ import (
 	"YourPlace/src/core/host"
 	"context"
 	"flag"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strconv"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -14,11 +20,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	_cron "github.com/robfig/cron/v3"
-	"os"
-	"path/filepath"
-	"regexp"
-	"slices"
-	"strconv"
 )
 
 var (
@@ -31,7 +32,8 @@ func main() {
 	flag.Parse()
 	debug = *debugPtr
 	host.CreateFolder(dataDir)
-	core.LogInit("yourplacesnapshot")
+	core.LogInit("YourPlaceSnapshot")
+	core.LogInfo("YourPlace Snapshot Service")
 	if debug || host.DoesExist(host.GetDataDir()+"debug") {
 		debug = true
 		core.LogInfo("Running in debug mode")
@@ -51,7 +53,8 @@ func main() {
 	// Base URL and throttle must be set as environment variables BASE_RPC_URL and BASE_RPC_THROTTLE
 	baseURL := host.GetEnvVar("BASE_RPC_URL")
 	if baseURL == "" {
-		core.LogWarn("BASE_RPC_URL environment variable not set. Defaulting to public RPC node (slow)")
+		core.LogWarn("BASE_RPC_URL environment variable not set")
+		os.Exit(1)
 	}
 	baseThrottle := host.GetEnvVar("BASE_RPC_THROTTLE")
 	if baseThrottle == "" {
