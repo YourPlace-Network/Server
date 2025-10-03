@@ -86,9 +86,17 @@ jobs:
 
     - name: Update ECS Service
       run: |
+        # Get the latest task definition revision that was just registered
+        LATEST_TASK_DEF=$(aws ecs describe-task-definition \
+          --task-definition yourplace-snapshot \
+          --region ${{ env.AWS_REGION }} \
+          --query 'taskDefinition.taskDefinitionArn' \
+          --output text)
+
         aws ecs update-service \
           --cluster ${{ env.ECS_CLUSTER }} \
           --service ${{ env.ECS_SERVICE }} \
+          --task-definition $LATEST_TASK_DEF \
           --force-new-deployment \
           --region ${{ env.AWS_REGION }}
 
