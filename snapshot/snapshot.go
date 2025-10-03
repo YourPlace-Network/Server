@@ -71,15 +71,10 @@ func main() {
 	c := _cron.New(_cron.WithSeconds())
 	blockchain.IndexerRestartJobs(database, "base")
 	c.AddFunc("@every 2m", func() {
-		// Only log and run if indexer is not already running
-		blockchain.IndexerMutex.Lock()
-		if blockchain.IsIndexing {
-			blockchain.IndexerMutex.Unlock()
-			return // Silently skip if already running
+		// Only log if indexer actually starts (returns true)
+		if blockchain.IndexerFetchData(database, _blockchain, "base") {
+			core.LogDebug("Starting Base indexer run")
 		}
-		blockchain.IndexerMutex.Unlock()
-		core.LogDebug("Starting Base indexer run")
-		blockchain.IndexerFetchData(database, _blockchain, "base")
 		runtime.GC() // Force GC after indexer run to free memory
 	})
 	c.AddFunc("@every 60m", func() {
