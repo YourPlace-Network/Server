@@ -148,12 +148,12 @@ func (rt *RequestTracker) cleanupOldRequests(cutoff time.Time) {
 }
 
 // --- Indexer Main Method --- //
-func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) {
+func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) bool {
 	_Blockchain = blockchain
 	_Database = database
 	databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock := indexerPreflight(chainName)
 	if uuid == "" || databaseStatus == "" {
-		return // bail out if the preflight bails out
+		return false // bail out if the preflight bails out (indexer already running or other issue)
 	}
 	_ = databaseHeadBlock
 	switch databaseStatus { // Post fill job dispatch, based on last job status
@@ -176,6 +176,7 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 		core.LogDebug("Last job completed successfully. Getting new blocks")
 		IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock, database)
 	}
+	return true
 }
 
 // --- Base Indexer Functions --- //
