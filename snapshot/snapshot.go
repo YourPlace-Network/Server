@@ -127,7 +127,7 @@ func handleS3Upload(snapshotDir string) {
 			core.LogError("Error opening snapshot file: " + err.Error())
 			return
 		}
-		core.LogDebug("Uploading snapshot file: " + file)
+		core.LogInfo("Uploading snapshot file: " + file)
 		_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
 			Bucket: aws.String(bucketName),
 			Key:    aws.String(filepath.Base(file)),
@@ -200,7 +200,7 @@ func handleS3Upload(snapshotDir string) {
 			if err != nil {
 				core.LogError("Error deleting old snapshot files: " + err.Error())
 			} else {
-				core.LogDebug("Deleted " + strconv.Itoa(len(objectsToDelete)) + " old snapshot files")
+				core.LogInfo("Deleted " + strconv.Itoa(len(objectsToDelete)) + " old snapshot files")
 			}
 		}
 	}
