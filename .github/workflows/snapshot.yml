@@ -63,13 +63,15 @@ jobs:
         S3_BUCKET=$(jq -r '.containerDefinitions[0].environment[] | select(.name=="S3_BUCKET_NAME") | .value' task-definition.json)
         S3_ENDPOINT=$(jq -r '.containerDefinitions[0].environment[] | select(.name=="S3_ENDPOINT") | .value' task-definition.json)
 
-        # Create new task definition with updated image and environment variables
+        # Create new task definition with updated image, memory, and environment variables
         jq --arg IMAGE "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
            --arg BASE_RPC_URL "$BASE_RPC_URL" \
            --arg BASE_RPC_THROTTLE "$BASE_RPC_THROTTLE" \
            --arg S3_BUCKET "$S3_BUCKET" \
            --arg S3_ENDPOINT "$S3_ENDPOINT" \
            '.containerDefinitions[0].image = $IMAGE |
+            .containerDefinitions[0].memory = 3584 |
+            .memory = "4096" |
             .containerDefinitions[0].environment = [
               {"name": "BASE_RPC_URL", "value": $BASE_RPC_URL},
               {"name": "BASE_RPC_THROTTLE", "value": $BASE_RPC_THROTTLE},

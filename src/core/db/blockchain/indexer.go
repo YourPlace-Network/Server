@@ -223,25 +223,6 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 
 	go startThrottleController(uuid, baseThrottle, rateLimiter, database) // Start the throttle controller in a separate goroutine
 
-	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
-		if breakPoint(uuid) {
-			return
-		}
-		batchEndBlock := new(big.Int).Add(batchStartBlock, batchSize)
-		if batchEndBlock.Cmp(targetLatestBlock) == 1 { // Stop at the latest block allowed
-			batchEndBlock = targetLatestBlock
-		}
-		if batchStartBlock.Cmp(batchEndBlock) >= 0 { // Break if the start block is ahead of or equal to the end block
-			break
-		}
-		// Batch up blocks into one RPC call
-		var batchBlockNumbers []big.Int
-		for j := new(big.Int).Set(batchStartBlock); j.Cmp(batchEndBlock) == -1; j = new(big.Int).Add(j, big.NewInt(1)) {
-			batchBlockNumbers = append(batchBlockNumbers, *j)
-		}
-		batchJobQueue.Enqueue(batchBlockNumbers)
-		batchStartBlock = new(big.Int).Add(batchStartBlock, batchSize) // Move to the next batch
-	}
 	// Start worker threads to process the batch jobs
 	var wg sync.WaitGroup
 	for i := 0; i < workerCount; i++ {
@@ -259,6 +240,28 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 			}
 		}(i)
 	}
+	// Producer goroutine: Feed batches to queue without loading everything into memory
+	go func() {
+		for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
+			if breakPoint(uuid) {
+				return
+			}
+			batchEndBlock := new(big.Int).Add(batchStartBlock, batchSize)
+			if batchEndBlock.Cmp(targetLatestBlock) == 1 { // Stop at the latest block allowed
+				batchEndBlock = targetLatestBlock
+			}
+			if batchStartBlock.Cmp(batchEndBlock) >= 0 { // Break if the start block is ahead of or equal to the end block
+				break
+			}
+			// Batch up blocks into one RPC call
+			var batchBlockNumbers []big.Int
+			for j := new(big.Int).Set(batchStartBlock); j.Cmp(batchEndBlock) == -1; j = new(big.Int).Add(j, big.NewInt(1)) {
+				batchBlockNumbers = append(batchBlockNumbers, *j)
+			}
+			batchJobQueue.Enqueue(batchBlockNumbers)
+			batchStartBlock = new(big.Int).Add(batchStartBlock, batchSize) // Move to the next batch
+		}
+	}()
 	// Wait for completion or error
 	done := make(chan struct{})
 	go func() {
@@ -335,25 +338,6 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	// Start the throttle controller in a separate goroutine
 	go startThrottleController(uuid, baseThrottle, rateLimiter, database)
 
-	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
-		if breakPoint(uuid) {
-			return
-		}
-		batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
-		if batchEndBlock.Cmp(targetEarliestBlockBigInt) == -1 { // stop at the earliest block allowed
-			batchEndBlock = targetEarliestBlockBigInt
-		}
-		if batchStartBlock.Cmp(batchEndBlock) <= 0 { // break if the start block is behind the end block
-			break
-		}
-		// Batch up blocks
-		var batchBlockNumbers []big.Int
-		for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
-			batchBlockNumbers = append(batchBlockNumbers, *j)
-		}
-		batchJobQueue.Enqueue(batchBlockNumbers)                       // Add the batch of blocks to the queue
-		batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize) // Move to the next batch
-	}
 	// Start worker threads to process the batch jobs
 	var wg sync.WaitGroup
 	for i := 0; i < workerCount; i++ {
@@ -371,6 +355,28 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 			}
 		}(i)
 	}
+	// Producer goroutine: Feed batches to queue without loading everything into memory
+	go func() {
+		for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
+			if breakPoint(uuid) {
+				return
+			}
+			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
+			if batchEndBlock.Cmp(targetEarliestBlockBigInt) == -1 { // stop at the earliest block allowed
+				batchEndBlock = targetEarliestBlockBigInt
+			}
+			if batchStartBlock.Cmp(batchEndBlock) <= 0 { // break if the start block is behind the end block
+				break
+			}
+			// Batch up blocks
+			var batchBlockNumbers []big.Int
+			for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
+				batchBlockNumbers = append(batchBlockNumbers, *j)
+			}
+			batchJobQueue.Enqueue(batchBlockNumbers)                       // Add the batch of blocks to the queue
+			batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize) // Move to the next batch
+		}
+	}()
 	// Wait for completion or error
 	done := make(chan struct{})
 	go func() {
@@ -432,25 +438,6 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 
 	go startThrottleController(uuid, baseThrottle, rateLimiter, database) // Start the throttle controller in a separate goroutine
 
-	for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
-		if breakPoint(uuid) {
-			return
-		}
-		batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
-		if batchEndBlock.Cmp(&targetEarliestBlockBigInt) == -1 { // stop at the earliest block allowed
-			batchEndBlock = &targetEarliestBlockBigInt
-		}
-		if batchStartBlock.Cmp(batchEndBlock) < 0 { // break if the start block is behind the end block
-			break
-		}
-		// Batch up blocks into one RPC call
-		var batchBlockNumbers []big.Int
-		for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
-			batchBlockNumbers = append(batchBlockNumbers, *j)
-		}
-		batchJobQueue.Enqueue(batchBlockNumbers)
-		batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize) // Move to the next batch
-	}
 	// Start worker threads to process the batch jobs
 	var wg sync.WaitGroup
 	for i := 0; i < workerCount; i++ {
@@ -468,6 +455,28 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 			}
 		}(i)
 	}
+	// Producer goroutine: Feed batches to queue without loading everything into memory
+	go func() {
+		for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
+			if breakPoint(uuid) {
+				return
+			}
+			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
+			if batchEndBlock.Cmp(&targetEarliestBlockBigInt) == -1 { // stop at the earliest block allowed
+				batchEndBlock = &targetEarliestBlockBigInt
+			}
+			if batchStartBlock.Cmp(batchEndBlock) < 0 { // break if the start block is behind the end block
+				break
+			}
+			// Batch up blocks into one RPC call
+			var batchBlockNumbers []big.Int
+			for j := batchStartBlock; j.Cmp(batchEndBlock) == 1; j = new(big.Int).Sub(j, big.NewInt(1)) {
+				batchBlockNumbers = append(batchBlockNumbers, *j)
+			}
+			batchJobQueue.Enqueue(batchBlockNumbers)
+			batchStartBlock = new(big.Int).Sub(batchStartBlock, batchSize) // Move to the next batch
+		}
+	}()
 	// Wait for completion or error
 	done := make(chan struct{})
 	go func() {

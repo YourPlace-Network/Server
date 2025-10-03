@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"runtime/debug"
 	"slices"
 	"strconv"
 
@@ -23,24 +25,26 @@ import (
 )
 
 var (
-	debug   = false // set via 'd' command line flag or debug file in data directory
-	dataDir = filepath.Join(host.GetHomeDir(), "YourPlaceSnapshot")
+	debugMode = false // set via 'd' command line flag or debug file in data directory
+	dataDir   = filepath.Join(host.GetHomeDir(), "YourPlaceSnapshot")
 )
 
 func main() {
 	debugPtr := flag.Bool("d", false, "Enable Debug mode, default: false")
 	flag.Parse()
-	debug = *debugPtr
+	debugMode = *debugPtr
 	host.CreateFolder(dataDir)
 	core.LogInit("YourPlaceSnapshot")
 	core.LogInfo("YourPlace Snapshot Service")
-	if debug || host.DoesExist(host.GetDataDir()+"debug") {
-		debug = true
+	if debugMode || host.DoesExist(host.GetDataDir()+"debug") {
+		debugMode = true
 		core.LogInfo("Running in debug mode")
 		host.SetEnvVar("YourPlaceSnapshotDebug", "true")
 	} else {
 		host.DeleteEnvVar("YourPlaceSnapshotDebug")
 	}
+	debug.SetGCPercent(50)               // Run GC when heap grows by 50% (default is 100%)
+	runtime.GOMAXPROCS(runtime.NumCPU()) // Set max goroutines to prevent runaway memory usage
 	database := new(db.Database)
 	dbPath := filepath.Join(dataDir, "yourplacesnapshot.sqlite.db")
 	database.Init(dbPath, "sqlite")
@@ -69,9 +73,11 @@ func main() {
 	c.AddFunc("@every 2m", func() {
 		core.LogDebug("Starting Base indexer run")
 		blockchain.IndexerFetchData(database, _blockchain, "base")
+		runtime.GC() // Force GC after indexer run to free memory
 	})
 	c.AddFunc("@every 60m", func() {
 		core.LogDebug("Exporting snapshots")
+		runtime.GC() // Free memory before snapshot export
 		host.DeleteAll(snapshotDir)
 		host.CreateFolder(snapshotDir)
 		err := database.ExportSnapshots(snapshotDir)
@@ -80,6 +86,7 @@ func main() {
 			return
 		}
 		handleS3Upload(snapshotDir)
+		runtime.GC() // Free memory after snapshot export
 	})
 	c.Start()
 	<-make(chan struct{})
