@@ -165,7 +165,7 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 		if databaseTailBlock == 0 { // If a full fill job started, but failed before the tail block was written, start all over
 			IndexerRestartJobs(_Database, chainName)
 			IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock, database)
-			return
+			return true
 		}
 		if databaseTailBlock > chainEarliestBlock.Uint64() { // if a backfill job failed, restart it
 			IndexerBaseBackFill(blockchain.Base, uuid, chainLatestBlock, database)
