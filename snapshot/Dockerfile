@@ -28,4 +28,4 @@ COPY --from=builder /build/target/YourPlaceSnapshot .
 
 VOLUME ["/root/YourPlaceSnapshot"]
 
-CMD ["./YourPlaceSnapshot"]
+CMD ["./YourPlaceSnapshot", "-d"]
