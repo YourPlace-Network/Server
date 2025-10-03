@@ -51,15 +51,15 @@ func main() {
 	}
 	database.SetDefaults()
 	// Base URL and throttle must be set as environment variables BASE_RPC_URL and BASE_RPC_THROTTLE
+	requiredVar := []string{"BASE_RPC_URL", "S3_ENDPOINT", "S3_BUCKET_NAME", "BASE_RPC_THROTTLE"}
+	for _, v := range requiredVar {
+		if host.GetEnvVar(v) == "" {
+			core.LogError(v + " environment variable not set")
+			os.Exit(1)
+		}
+	}
 	baseURL := host.GetEnvVar("BASE_RPC_URL")
-	if baseURL == "" {
-		core.LogWarn("BASE_RPC_URL environment variable not set")
-		os.Exit(1)
-	}
 	baseThrottle := host.GetEnvVar("BASE_RPC_THROTTLE")
-	if baseThrottle == "" {
-		core.LogWarn("BASE_RPC_THROTTLE environment variable not set. Defaulting to 5 (slow)")
-	}
 	database.SettingsUpdateValue("baseURL", baseURL)
 	database.SettingsUpdateValue("baseThrottle", baseThrottle)
 	_blockchain := new(blockchain.Blockchain)
@@ -125,8 +125,9 @@ func handleS3Upload(snapshotDir string) {
 		snapshotFile, err := os.Open(file)
 		if err != nil {
 			core.LogError("Error opening snapshot file: " + err.Error())
-			return
+			continue
 		}
+		defer snapshotFile.Close()
 		core.LogInfo("Uploading snapshot file: " + file)
 		_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
 			Bucket: aws.String(bucketName),
@@ -136,7 +137,6 @@ func handleS3Upload(snapshotDir string) {
 		if err != nil {
 			core.LogError("Error uploading snapshot file: " + err.Error())
 		}
-		snapshotFile.Close()
 	}
 	var fileNames []string
 	params := &s3.ListObjectsV2Input{
@@ -159,6 +159,9 @@ func handleS3Upload(snapshotDir string) {
 	for _, fileName := range fileNames {
 		re := regexp.MustCompile(`yourplace(\d+)-`)
 		matches := re.FindStringSubmatch(fileName)
+		if len(matches) < 2 {
+			continue
+		}
 		timestamp, err := strconv.ParseInt(matches[1], 10, 64)
 		if err != nil {
 			core.LogError("Error parsing timestamp: " + err.Error())
@@ -181,6 +184,9 @@ func handleS3Upload(snapshotDir string) {
 		for _, fileName := range fileNames {
 			re := regexp.MustCompile(`yourplace(\d+)-`)
 			matches := re.FindStringSubmatch(fileName)
+			if len(matches) < 2 {
+				continue
+			}
 			if len(matches) > 1 {
 				timestamp, err := strconv.ParseInt(matches[1], 10, 64)
 				if err == nil && timestamp == oldest {

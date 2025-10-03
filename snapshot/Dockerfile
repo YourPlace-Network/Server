@@ -26,11 +26,6 @@ WORKDIR /app
 
 COPY --from=builder /build/target/YourPlaceSnapshot .
 
-ENV BASE_RPC_URL="" \
-    BASE_RPC_THROTTLE="5" \
-    S3_ENDPOINT="" \
-    S3_BUCKET_NAME=""
-
 VOLUME ["/root/YourPlaceSnapshot"]
 
 CMD ["./YourPlaceSnapshot"]
