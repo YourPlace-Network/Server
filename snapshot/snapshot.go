@@ -71,12 +71,25 @@ func main() {
 	c := _cron.New(_cron.WithSeconds())
 	blockchain.IndexerRestartJobs(database, "base")
 	c.AddFunc("@every 2m", func() {
+		// Only log and run if indexer is not already running
+		blockchain.IndexerMutex.Lock()
+		if blockchain.IsIndexing {
+			blockchain.IndexerMutex.Unlock()
+			return // Silently skip if already running
+		}
+		blockchain.IndexerMutex.Unlock()
 		core.LogDebug("Starting Base indexer run")
 		blockchain.IndexerFetchData(database, _blockchain, "base")
 		runtime.GC() // Force GC after indexer run to free memory
 	})
 	c.AddFunc("@every 60m", func() {
-		core.LogDebug("Exporting snapshots")
+		// Only export snapshots if indexer is at 99% or higher
+		progress := getIndexerProgress(database, _blockchain, "base")
+		if progress < 99.0 {
+			core.LogInfo("Skipping snapshot export - indexer progress is " + strconv.FormatFloat(progress, 'f', 2, 64) + "% (needs 99%+)")
+			return
+		}
+		core.LogDebug("Exporting snapshots (indexer at " + strconv.FormatFloat(progress, 'f', 2, 64) + "%)")
 		runtime.GC() // Free memory before snapshot export
 		host.DeleteAll(snapshotDir)
 		host.CreateFolder(snapshotDir)
@@ -90,6 +103,33 @@ func main() {
 	})
 	c.Start()
 	<-make(chan struct{})
+}
+func getIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain, blockchainName string) float64 {
+	uuid := database.IndexerGetJobUUID(blockchainName)
+	if uuid == "" {
+		return 0.0
+	}
+	headBlock := database.IndexerGetHeadBlock(uuid)
+	tailBlock := database.IndexerGetTailBlock(uuid)
+	if headBlock == 0 || tailBlock == 0 {
+		return 0.0
+	}
+	// Get the earliest block from blockchain configuration
+	targetEarliestBlock := _blockchain.GetEarliestBlock(blockchainName)
+	if targetEarliestBlock == nil {
+		return 0.0
+	}
+	// Calculate progress: how much of the range from tail to head has been indexed
+	totalRange := float64(headBlock - targetEarliestBlock.Uint64())
+	if totalRange <= 0 {
+		return 100.0
+	}
+	indexedRange := float64(headBlock - tailBlock)
+	progress := (indexedRange / totalRange) * 100.0
+	if progress > 100.0 {
+		progress = 100.0
+	}
+	return progress
 }
 func handleS3Upload(snapshotDir string) {
 	snapshotFiles, err := filepath.Glob(filepath.Join(snapshotDir, "yourplace*.db.snapshot"))
