@@ -50,6 +50,10 @@ else ifeq ($(DETECTED_OS),Darwin)
 	rm -rf target 2>/dev/null || true
 	rm -rf src/core/host/bin/helper/osx/* 2>/dev/null || true
 	go clean
+else
+	-pkill -f YourPlace 2>/dev/null || true
+	rm -rf target 2>/dev/null || true
+	go clean
 endif
 install:
 	$(NPM) install
@@ -83,6 +87,11 @@ else ifeq ($(DETECTED_OS),Darwin)
 	chmod +x resources/osx/askpass.sh
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh
+else
+	mkdir -p target
+	$(NPX) webpack --config src/typescript/webpack.prod.js
+	@VERSION=$$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"') && \
+	go build -ldflags "-s -w" -o target/YourPlace-$$VERSION main.go
 endif
 dbg_build: clean
 ifeq ($(DETECTED_OS),Windows_NT)
