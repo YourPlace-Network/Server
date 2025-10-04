@@ -1,11 +1,16 @@
 name: Ubuntu
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
     - name: Checkout Code
@@ -28,7 +33,15 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
       with:
-        go-version: '1.25.0'
+        go-version: '1.25.1'
+
+    - name: Install AWS CLI
+      id: install-aws-cli
+      uses: unfor19/install-aws-cli@v1
+      with:
+        version: 2
+        verbose: false
+        arch: amd64
 
     - name: Install Make
       run: |
@@ -42,3 +55,18 @@ jobs:
     - name: Run Make Build
       run: |
         make clean build
+
+    - name: Configure AWS CLI for DigitalOcean Spaces
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.S3_UPLOAD_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.S3_UPLOAD_SECRET }}
+        aws configure set default.region us-east-1
+        aws configure set default.s3.endpoint_url https://nyc3.digitaloceanspaces.com
+        aws configure set default.s3.addressing_style path
+
+    - name: Upload to DigitalOcean
+      run: |
+        for file in target/YourPlace-*; do
+          aws s3 cp "$file" s3://yourplace-downloads/linux/ --acl public-read --endpoint-url https://nyc3.digitaloceanspaces.com
+        done
+        

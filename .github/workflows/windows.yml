@@ -26,7 +26,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
       with:
-        go-version: '1.25.0'
+        go-version: '1.25.1'
 
     - name: Choco Install
       uses: ConorMacBride/install-package@3e7ad059e07782ee54fa35f827df52aae0626f30 # v1.1.0
@@ -81,7 +81,3 @@ jobs:
           foreach ($file in $files) {
             aws s3 cp $file.FullName s3://yourplace-downloads/windows/ --acl=public-read --endpoint=https://nyc3.digitaloceanspaces.com
           }
-
-    - name: Cleanup
-      run: |
-        make clean
