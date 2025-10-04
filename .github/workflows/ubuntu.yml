@@ -21,7 +21,7 @@ jobs:
     - name: Extract Version From Go Code
       id: get_version
       run: |
-        VERSION=$(grep -oE 'version = "[^"]*' main.go | grep -oE '"[^"]*"' | tr -d '"')
+        VERSION=$(grep -oE 'version.*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"')
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "Version found: $VERSION"
     
