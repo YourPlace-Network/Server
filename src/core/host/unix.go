@@ -111,3 +111,14 @@ func RunShellCommandNoWaitEnv(command string, env []string) {
 	cmd.Env = env
 	cmd.Start()
 }
+func DoesProcExist(name string) bool {
+	cmd := exec.Command("pgrep", name)
+	err := cmd.Run()
+	return err == nil
+}
+func RunIPFS() bool {
+	// Assume IPFS is installed via package manager and available in PATH
+	cmd := exec.Command("ipfs", "daemon", "--migrate")
+	err := cmd.Start()
+	return err == nil
+}
