@@ -40,33 +40,6 @@ jobs:
     - name: Make Build
       run: make build
 
-    - name: Deploy to Windows RDP Host
-      run: |
-        $exe = Get-ChildItem target\YourPlace-*.exe | Select-Object -First 1
-        if (-not $exe) {
-          Write-Error "No binary found in target directory"
-          exit 1
-        }
-
-        # Create credentials for RDP host
-        $password = ConvertTo-SecureString ${{ secrets.RDP_PASSWORD }} -AsPlainText -Force
-        $credential = New-Object System.Management.Automation.PSCredential(${{ secrets.RDP_USERNAME }}, $password)
-
-        # Copy binary to remote host
-        $session = New-PSSession -ComputerName ${{ secrets.RDP_HOST }} -Credential $credential -UseSSL -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
-        Copy-Item -Path $exe.FullName -Destination "C:\YourPlace\YourPlace.exe" -ToSession $session -Force
-
-        # Execute binary on remote host
-        Invoke-Command -Session $session -ScriptBlock {
-          # Stop any existing process
-          Get-Process -Name "YourPlace" -ErrorAction SilentlyContinue | Stop-Process -Force
-
-          # Start the new binary
-          Start-Process -FilePath "C:\YourPlace\YourPlace.exe" -WorkingDirectory "C:\YourPlace"
-        }
-
-        Remove-PSSession -Session $session
-
     - name: Configure AWS CLI for DigitalOcean Spaces
       run: |
         aws configure set aws_access_key_id ${{ secrets.S3_UPLOAD_ID }}
