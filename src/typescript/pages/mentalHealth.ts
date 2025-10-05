@@ -947,6 +947,7 @@ const tips = [
     "If you bring up a valid point with someone, then they always bring up something sad, realize that is a manipulation tactic to shut down the conversation and make you look bad for seemingly being against \"sad thing.\" They use that strategy to avoid any sort of criticism or accountability",
     "Stop eating four hours before bed time, and no screens one hour before. You'll get better sleep and will have an easier time keeping extra weight off",
     "If you look at a screen for a living, invest in high quality blue light blocking glasses from a reputable optician",
+    "Laziness is cowardice",
 
 
 
