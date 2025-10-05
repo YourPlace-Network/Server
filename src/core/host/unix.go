@@ -241,7 +241,3 @@ func RemoveScheduledTask(serviceName string) {
 	RunShellCommand("sudo rm -f /etc/systemd/system/" + serviceName + ".service")
 	RunShellCommand("sudo systemctl daemon-reload")
 }
-func Shutdown(exitCode int) {
-	ReleaseMutex()
-	_os.Exit(exitCode)
-}
