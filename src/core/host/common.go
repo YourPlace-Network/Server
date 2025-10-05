@@ -9,7 +9,6 @@ import (
 	"compress/gzip"
 	"embed"
 	"errors"
-	"github.com/oschwald/geoip2-golang"
 	"io"
 	"io/fs"
 	"net"
@@ -20,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/oschwald/geoip2-golang"
 )
 
 //go:embed bin/GeoLite2-Country.mmdb
