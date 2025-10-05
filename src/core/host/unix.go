@@ -3,12 +3,14 @@
 package host
 
 import (
+	"YourPlace/src/core"
 	_ "embed"
 	"fmt"
 	"log"
 	_os "os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 //go:embed bin/unix/yourplace.service
@@ -50,7 +52,7 @@ func CreateAutoStart() {
 	RunShellCommand("systemctl enable yourplace.service")
 	RunShellCommand("systemctl start yourplace.service")
 }
-func CreateShortcut() {
+func CreateShortcut(port int) {
 
 }
 func ExecExtension() string {
@@ -121,4 +123,58 @@ func RunIPFS() bool {
 	cmd := exec.Command("ipfs", "daemon", "--migrate")
 	err := cmd.Start()
 	return err == nil
+}
+func isSecretToolAvailable() bool {
+	cmd := exec.Command("which", "secret-tool")
+	err := cmd.Run()
+	return err == nil
+}
+func AddSecret(name string, secret string) {
+	if !isSecretToolAvailable() {
+		core.LogWarn("secret-tool is not available on this system. Please install libsecret-tools package.")
+		return
+	}
+	cmd := exec.Command("secret-tool", "store", "--label="+name, "application", "YourPlace", "name", name)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		core.LogError("Failed to create stdin pipe for secret storage: " + err.Error())
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		core.LogError("Failed to start secret-tool for storage: " + err.Error())
+		return
+	}
+	if _, err := stdin.Write([]byte(secret)); err != nil {
+		core.LogError("Failed to write secret: " + err.Error())
+		return
+	}
+	stdin.Close()
+	if err := cmd.Wait(); err != nil {
+		core.LogError("Failed to store secret: " + name)
+		return
+	}
+}
+func GetSecret(name string) string {
+	if !isSecretToolAvailable() {
+		core.LogWarn("secret-tool is not available on this system. Please install libsecret-tools package.")
+		return ""
+	}
+	cmd := exec.Command("secret-tool", "lookup", "application", "YourPlace", "name", name)
+	output, err := cmd.Output()
+	if err != nil {
+		core.LogError("Failed to retrieve secret: " + name)
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+func DeleteSecret(name string) {
+	if !isSecretToolAvailable() {
+		core.LogWarn("secret-tool is not available on this system. Please install libsecret-tools package.")
+		return
+	}
+	cmd := exec.Command("secret-tool", "clear", "application", "YourPlace", "name", name)
+	if err := cmd.Run(); err != nil {
+		core.LogError("Failed to delete secret: " + name + " - " + err.Error())
+		return
+	}
 }
