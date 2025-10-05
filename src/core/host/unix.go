@@ -7,10 +7,14 @@ import (
 	_ "embed"
 	"fmt"
 	"log"
+	"net"
 	_os "os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 )
 
 //go:embed bin/unix/yourplace.service
@@ -18,6 +22,11 @@ var systemdUnit []byte
 
 //go:embed bin/unix/yourplace-logrotate
 var yourplaceLogrotate []byte
+
+var (
+	listener *net.UDPConn
+	mutex    sync.Mutex
+)
 
 const (
 	PathSeparator     = string('/')
@@ -43,7 +52,7 @@ func InstallRunBaseNode() bool {
 	return false
 }
 func OpenBrowser(url string) {
-	exec.Command("xdg-open", url).Start() // linux
+	exec.Command("xdg-open", url).Start()
 }
 func CreateAutoStart() {
 	WriteEmbeddedBinary(systemdUnit, "/etc/systemd/system/yourplace.service")
@@ -59,9 +68,6 @@ func ExecExtension() string {
 	return ""
 }
 func HardenApp() {
-	//RunShellCommand("sudo chown root:root " + GetSelfFullPath() + "/yourplace")
-	//RunShellCommand("sudo chmod 755 " + GetSelfFullPath() + "/yourplace")
-	//RunShellCommand("sudo setcap 'cap_net_bind_service=+ep' " + GetSelfFullPath() + "/yourplace")
 }
 func GetKeyboardLayout() string {
 	return "Unknown - Unix"
@@ -77,22 +83,27 @@ func KillProcess(processName string) bool {
 	return false
 }
 func ReleaseMutex() {
-	// No-op on Linux
+	mutex.Lock()
+	defer mutex.Unlock()
+	if listener != nil {
+		_ = listener.Close()
+		listener = nil
+	}
 }
 func InstallFFMPEG() bool {
-	return true // Assume installed via package manager
+	return true
 }
 func InstallIPFS() bool {
-	return true // Assume installed via package manager
+	return true
 }
 func InstallAutorun() bool {
-	return true // Handled by systemd
+	return true
 }
 func InstallHelper() bool {
-	return true // No helper needed on Linux
+	return true
 }
 func HelperCall(action string) (string, error) {
-	return "", nil // No helper on Linux
+	return "", nil
 }
 func RunShellCommand(command string) string {
 	cmd := exec.Command("sh", "-c", command)
@@ -119,7 +130,6 @@ func DoesProcExist(name string) bool {
 	return err == nil
 }
 func RunIPFS() bool {
-	// Assume IPFS is installed via package manager and available in PATH
 	cmd := exec.Command("ipfs", "daemon", "--migrate")
 	err := cmd.Start()
 	return err == nil
@@ -177,4 +187,61 @@ func DeleteSecret(name string) {
 		core.LogError("Failed to delete secret: " + name + " - " + err.Error())
 		return
 	}
+}
+func IsAdmin() bool {
+	return _os.Geteuid() == 0
+}
+func CreateMutex(name string) bool {
+	mutex.Lock()
+	defer mutex.Unlock()
+	if listener != nil {
+		return true
+	}
+	port := 54321
+	if name == "YourPlaceHelper" {
+		port = 54322
+	}
+	addr := &net.UDPAddr{
+		Port: port,
+		IP:   net.ParseIP("127.0.0.1"),
+	}
+	var err error
+	listener, err = net.ListenUDP("udp", addr)
+	if err != nil {
+		core.LogError("Could not create mutex: " + err.Error())
+		return false
+	}
+	c := make(chan _os.Signal, 1)
+	signal.Notify(c, _os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		Shutdown(0)
+	}()
+	return true
+}
+func IsOnBattery() bool {
+	cmd := exec.Command("upower", "-i", "/org/freedesktop/UPower/devices/battery_BAT0")
+	output, err := cmd.Output()
+	if err != nil {
+		if _, statErr := _os.Stat("/sys/class/power_supply/BAT0/status"); statErr == nil {
+			statusBytes, readErr := _os.ReadFile("/sys/class/power_supply/BAT0/status")
+			if readErr == nil {
+				status := strings.TrimSpace(string(statusBytes))
+				return status == "Discharging"
+			}
+		}
+		return false
+	}
+	outputStr := string(output)
+	return strings.Contains(outputStr, "state:") && strings.Contains(outputStr, "discharging")
+}
+func RemoveScheduledTask(serviceName string) {
+	RunShellCommand("sudo systemctl stop " + serviceName + ".service")
+	RunShellCommand("sudo systemctl disable " + serviceName + ".service")
+	RunShellCommand("sudo rm -f /etc/systemd/system/" + serviceName + ".service")
+	RunShellCommand("sudo systemctl daemon-reload")
+}
+func Shutdown(exitCode int) {
+	ReleaseMutex()
+	_os.Exit(exitCode)
 }
