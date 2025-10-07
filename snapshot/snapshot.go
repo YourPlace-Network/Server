@@ -88,12 +88,15 @@ func main() {
 		runtime.GC() // Free memory before snapshot export
 		host.DeleteAll(snapshotDir)
 		host.CreateFolder(snapshotDir)
-		err := database.ExportSnapshots(snapshotDir)
+		uuid := database.IndexerGetJobUUID("base")
+		headBlock := database.IndexerGetHeadBlock(uuid)
+		tailBlock := database.IndexerGetTailBlock(uuid)
+		err := database.ExportSnapshots(snapshotDir, headBlock, tailBlock)
 		if err != nil {
 			core.LogError("Error exporting snapshots:" + err.Error())
 			return
 		}
-		handleS3Upload(snapshotDir)
+		handleS3Upload(snapshotDir, headBlock, tailBlock)
 		runtime.GC() // Free memory after snapshot export
 	})
 	c.Start()
@@ -126,19 +129,25 @@ func getIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchai
 	}
 	return progress
 }
-func handleS3Upload(snapshotDir string) {
-	snapshotFiles, err := filepath.Glob(filepath.Join(snapshotDir, "yourplace*.db.snapshot"))
+func handleS3Upload(snapshotDir string, headBlock uint64, tailBlock uint64) {
+	snapshotFiles, err := filepath.Glob(filepath.Join(snapshotDir, "yourplace-snapshot-*.db.gz"))
 	if err != nil {
-		core.LogError("Error globbing snapshot files for S3 upload" + err.Error())
+		core.LogError("Error globbing snapshot files for S3 upload: " + err.Error())
+		return
+	}
+	if len(snapshotFiles) == 0 {
+		core.LogError("No snapshot files found to upload in " + snapshotDir)
 		return
 	}
 	s3Endpoint := os.Getenv("S3_ENDPOINT")
 	bucketName := os.Getenv("S3_BUCKET_NAME")
 	accessKey := os.Getenv("S3_ACCESS_KEY")
 	secretKey := os.Getenv("S3_SECRET_KEY")
+	core.LogInfo("S3 Upload Configuration - Endpoint: " + s3Endpoint + ", Bucket: " + bucketName + ", Using IAM: " + strconv.FormatBool(accessKey == ""))
 	var cfg aws.Config
 	if accessKey != "" && secretKey != "" {
 		// Use static credentials for DigitalOcean Spaces or custom S3
+		core.LogDebug("Using static credentials for S3")
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithCredentialsProvider(
 				credentials.NewStaticCredentialsProvider(
@@ -151,6 +160,7 @@ func handleS3Upload(snapshotDir string) {
 		)
 	} else {
 		// Use IAM role credentials for AWS (ECS task role)
+		core.LogDebug("Using IAM role credentials for S3")
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithRegion("us-east-1"),
 		)
@@ -163,32 +173,53 @@ func handleS3Upload(snapshotDir string) {
 		o.BaseEndpoint = aws.String(s3Endpoint)
 	})
 	uploader := manager.NewUploader(client)
+	uploadedCount := 0
+	failedCount := 0
 	for _, file := range snapshotFiles {
 		snapshotFile, err := os.Open(file)
 		if err != nil {
-			core.LogError("Error opening snapshot file: " + err.Error())
+			core.LogError("Error opening snapshot file '" + file + "': " + err.Error())
+			failedCount++
 			continue
 		}
-		defer snapshotFile.Close()
-		core.LogInfo("Uploading snapshot file: " + file)
-		_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
+		fileInfo, err := snapshotFile.Stat()
+		if err != nil {
+			core.LogError("Error getting file info for '" + file + "': " + err.Error())
+			snapshotFile.Close()
+			failedCount++
+			continue
+		}
+		core.LogInfo("Uploading snapshot file: " + filepath.Base(file) + " (size: " + strconv.FormatInt(fileInfo.Size(), 10) + " bytes)")
+		result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
 			Bucket: aws.String(bucketName),
 			Key:    aws.String(filepath.Base(file)),
 			Body:   snapshotFile,
 		})
+		snapshotFile.Close()
 		if err != nil {
-			core.LogError("Error uploading snapshot file: " + err.Error())
+			core.LogError("FAILED to upload snapshot file '" + filepath.Base(file) + "': " + err.Error())
+			failedCount++
+		} else {
+			core.LogInfo("Successfully uploaded snapshot to: " + result.Location)
+			uploadedCount++
 		}
 	}
+	core.LogInfo("S3 Upload Summary - Uploaded: " + strconv.Itoa(uploadedCount) + ", Failed: " + strconv.Itoa(failedCount) + ", Total: " + strconv.Itoa(len(snapshotFiles)))
+	if failedCount > 0 {
+		core.LogError("Some snapshots failed to upload - check logs above for details")
+		return
+	}
+	core.LogDebug("Listing S3 objects to clean up old snapshots")
 	var fileNames []string
 	params := &s3.ListObjectsV2Input{
-		Bucket: aws.String(os.Getenv("S3_BUCKET_NAME")),
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String("yourplace-snapshot-"),
 	}
 	paginator := s3.NewListObjectsV2Paginator(client, params)
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(context.TODO())
 		if err != nil {
-			core.LogError("Error listing S3 objects: " + err.Error())
+			core.LogError("Error listing S3 objects for cleanup: " + err.Error())
 			return
 		}
 		for _, obj := range output.Contents {
@@ -197,17 +228,19 @@ func handleS3Upload(snapshotDir string) {
 			}
 		}
 	}
+	core.LogDebug("Found " + strconv.Itoa(len(fileNames)) + " snapshot files in S3")
 	var timestamps []int64
+	re := regexp.MustCompile(`yourplace-snapshot-ts(\d+)-`)
 	for _, fileName := range fileNames {
-		re := regexp.MustCompile(`yourplace(\d+)-`)
 		matches := re.FindStringSubmatch(fileName)
 		if len(matches) < 2 {
+			core.LogDebug("Skipping file with unexpected format: " + fileName)
 			continue
 		}
 		timestamp, err := strconv.ParseInt(matches[1], 10, 64)
 		if err != nil {
-			core.LogError("Error parsing timestamp: " + err.Error())
-			return
+			core.LogError("Error parsing timestamp from '" + fileName + "': " + err.Error())
+			continue
 		}
 		found := false
 		for _, t := range timestamps {
@@ -220,26 +253,25 @@ func handleS3Upload(snapshotDir string) {
 			timestamps = append(timestamps, timestamp)
 		}
 	}
+	core.LogDebug("Found " + strconv.Itoa(len(timestamps)) + " unique snapshot timestamps")
 	if len(timestamps) >= 10 {
 		oldest := slices.Min(timestamps)
+		core.LogInfo("Cleaning up old snapshots - oldest timestamp: " + strconv.FormatInt(oldest, 10))
 		var objectsToDelete []types.ObjectIdentifier
 		for _, fileName := range fileNames {
-			re := regexp.MustCompile(`yourplace(\d+)-`)
 			matches := re.FindStringSubmatch(fileName)
-			if len(matches) < 2 {
-				continue
-			}
-			if len(matches) > 1 {
+			if len(matches) >= 2 {
 				timestamp, err := strconv.ParseInt(matches[1], 10, 64)
 				if err == nil && timestamp == oldest {
 					objectsToDelete = append(objectsToDelete, types.ObjectIdentifier{
 						Key: aws.String(fileName),
 					})
+					core.LogDebug("Marking for deletion: " + fileName)
 				}
 			}
 		}
 		if len(objectsToDelete) > 0 {
-			_, err := client.DeleteObjects(context.TODO(), &s3.DeleteObjectsInput{
+			deleteResult, err := client.DeleteObjects(context.TODO(), &s3.DeleteObjectsInput{
 				Bucket: aws.String(bucketName),
 				Delete: &types.Delete{
 					Objects: objectsToDelete,
@@ -248,8 +280,18 @@ func handleS3Upload(snapshotDir string) {
 			if err != nil {
 				core.LogError("Error deleting old snapshot files: " + err.Error())
 			} else {
-				core.LogInfo("Deleted " + strconv.Itoa(len(objectsToDelete)) + " old snapshot files")
+				deletedCount := len(deleteResult.Deleted)
+				errorCount := len(deleteResult.Errors)
+				core.LogInfo("Deleted " + strconv.Itoa(deletedCount) + " old snapshot files")
+				if errorCount > 0 {
+					core.LogError("Failed to delete " + strconv.Itoa(errorCount) + " files")
+					for _, delErr := range deleteResult.Errors {
+						core.LogError("Delete error for '" + *delErr.Key + "': " + *delErr.Message)
+					}
+				}
 			}
 		}
+	} else {
+		core.LogDebug("Not enough snapshot sets for cleanup (have " + strconv.Itoa(len(timestamps)) + ", need 10)")
 	}
 }

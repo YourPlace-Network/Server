@@ -1792,7 +1792,7 @@ func (db *SQLite) NotificationGetActive() []map[string]string {
 }
 
 // --- Snapshot Service Functions --- //
-func (db *SQLite) exportSnapshots(exportDir string) error { // Exports multiple compressed snapshot files for different post history lengths
+func (db *SQLite) exportSnapshots(exportDir string, headBlock uint64, tailBlock uint64) error { // Exports multiple compressed snapshot files for different post history lengths
 	if db.database == nil {
 		return core.LogErrorReturn("Database connection not initialized")
 	}
@@ -1805,10 +1805,10 @@ func (db *SQLite) exportSnapshots(exportDir string) error { // Exports multiple 
 			cutoffTimestamp = currentTime - uint64(ageDays*24*60*60)
 		}
 		if ageDays == 0 {
-			exportPath = filepath.Join(exportDir, "yourplacecomplete.db.snapshot")
+			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplace-snapshot-ts%d-head%d-tail%d-complete.db.gz", currentTime, headBlock, tailBlock))
 			core.LogDebug("Exporting SQLite Snapshot (all data) to: " + exportPath)
 		} else {
-			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplace%d-%d.db.snapshot", currentTime, cutoffTimestamp))
+			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplace-snapshot-ts%d-head%d-tail%d-%dd.db.gz", currentTime, headBlock, tailBlock, ageDays))
 			core.LogDebug(fmt.Sprintf("Exporting SQLite Snapshot (%d days) to: %s", ageDays, exportPath))
 		}
 		tables := []string{
@@ -1827,6 +1827,8 @@ func (db *SQLite) exportSnapshots(exportDir string) error { // Exports multiple 
 			"tables":     tables,
 			"age_days":   ageDays,
 			"age_cutoff": cutoffTimestamp,
+			"head_block": headBlock,
+			"tail_block": tailBlock,
 		}
 		exportFile, err := os.Create(exportPath)
 		if err != nil {

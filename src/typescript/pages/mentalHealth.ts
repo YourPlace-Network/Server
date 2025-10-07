@@ -948,7 +948,8 @@ const tips = [
     "Stop eating four hours before bed time, and no screens one hour before. You'll get better sleep and will have an easier time keeping extra weight off",
     "If you look at a screen for a living, invest in high quality blue light blocking glasses from a reputable optician",
     "Laziness is cowardice",
-
+    "Guys: Make her feel special, but make it look like an accident",
+    "Guys: Ask out every pretty girl you see in real life who doesn't have a ring on",
 
 
 ];
