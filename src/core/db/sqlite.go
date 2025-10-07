@@ -1513,6 +1513,10 @@ func (db *SQLite) IndexerUpdateTailBlock(uuid string, tailBlock uint64) {
 func (db *SQLite) IndexerUpdateJobSpeed(uuid string, speed uint64) {
 	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET rps = ? WHERE uuid = ?", speed, uuid)
 	if err != nil {
+		// Silently skip SQLITE_BUSY errors since RPS is non-critical and will be updated again soon
+		if strings.Contains(err.Error(), "SQLITE_BUSY") || strings.Contains(err.Error(), "database is locked") {
+			return
+		}
 		core.LogError("Could not update the indexer job speed in the database: " + err.Error())
 	}
 }

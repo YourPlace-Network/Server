@@ -696,9 +696,9 @@ func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *
 						dynamicThrottleMultiplier = minMultiplier
 					}
 				}
-				core.LogDebug("Throttle adjustment:\tactual=" + strconv.FormatFloat(actualRPS, 'f', 2, 64) +
-					"\ttarget=" + strconv.FormatFloat(targetRPS, 'f', 2, 64) +
-					"\tmultiplier=" + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+				//core.LogDebug("Throttle adjustment:\tactual=" + strconv.FormatFloat(actualRPS, 'f', 2, 64) +
+				//	"\ttarget=" + strconv.FormatFloat(targetRPS, 'f', 2, 64) +
+				//	"\tmultiplier=" + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 				throttleControlMutex.Unlock()
 				// Update the rate limiter with the new rate
 				newRate := calculateDynamicRate(targetThrottleValue, 1)
