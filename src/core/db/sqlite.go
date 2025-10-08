@@ -1800,15 +1800,18 @@ func (db *SQLite) exportSnapshots(exportDir string, headBlock uint64, tailBlock 
 	currentTime := core.GetTimestamp()
 	for _, ageDays := range ageThresholds {
 		var exportPath string
+		var metadataPath string
 		var cutoffTimestamp uint64
 		if ageDays > 0 {
 			cutoffTimestamp = currentTime - uint64(ageDays*24*60*60)
 		}
 		if ageDays == 0 {
-			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplace-snapshot-ts%d-head%d-tail%d-complete.db.gz", currentTime, headBlock, tailBlock))
+			exportPath = filepath.Join(exportDir, "yourplace-snapshot-complete.db.gz")
+			metadataPath = filepath.Join(exportDir, "yourplace-snapshot-complete.json")
 			core.LogDebug("Exporting SQLite Snapshot (all data) to: " + exportPath)
 		} else {
-			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplace-snapshot-ts%d-head%d-tail%d-%dd.db.gz", currentTime, headBlock, tailBlock, ageDays))
+			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplace-snapshot-%dd.db.gz", ageDays))
+			metadataPath = filepath.Join(exportDir, fmt.Sprintf("yourplace-snapshot-%dd.json", ageDays))
 			core.LogDebug(fmt.Sprintf("Exporting SQLite Snapshot (%d days) to: %s", ageDays, exportPath))
 		}
 		tables := []string{
@@ -1830,6 +1833,14 @@ func (db *SQLite) exportSnapshots(exportDir string, headBlock uint64, tailBlock 
 			"head_block": headBlock,
 			"tail_block": tailBlock,
 		}
+		metaJSON, err := json.MarshalIndent(metaData, "", "  ")
+		if err != nil {
+			return core.LogErrorReturn("Could not serialize metadata: " + err.Error())
+		}
+		err = os.WriteFile(metadataPath, metaJSON, 0644)
+		if err != nil {
+			return core.LogErrorReturn("Could not write metadata file: " + err.Error())
+		}
 		exportFile, err := os.Create(exportPath)
 		if err != nil {
 			return core.LogErrorReturn("Could not create export file: " + err.Error())
@@ -1840,12 +1851,6 @@ func (db *SQLite) exportSnapshots(exportDir string, headBlock uint64, tailBlock 
 			return core.LogErrorReturn("Could not create gzip writer: " + err.Error())
 		}
 		defer gzWriter.Close()
-		metaJSON, err := json.Marshal(metaData)
-		if err != nil {
-			return core.LogErrorReturn("Could not serialize metadata: " + err.Error())
-		}
-		binary.Write(gzWriter, binary.LittleEndian, uint32(len(metaJSON)))
-		_, err = gzWriter.Write(metaJSON)
 		for _, table := range tables {
 			core.LogDebug("Exporting table: " + table)
 			rows, err := db.runParamSQLSelect("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", table)
