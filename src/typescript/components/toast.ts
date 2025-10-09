@@ -58,7 +58,7 @@ export function ShowSavedToast() {
     const notification: Notification = {
         uid: `saved_${Date.now()}`,
         type: "manual",
-        message: "Setting Saved!",
+        message: "✅ Setting Saved",
         dismissable: false
     };
     ShowToastNotification(notification);

@@ -3,8 +3,9 @@ package routes
 import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/security"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func MentalHealthRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, gateway bool) {

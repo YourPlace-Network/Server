@@ -88,12 +88,12 @@ func main() {
 		uuid := database.IndexerGetJobUUID("base")
 		headBlock := database.IndexerGetHeadBlock(uuid)
 		tailBlock := database.IndexerGetTailBlock(uuid)
-		err := database.ExportSnapshots(snapshotDir, headBlock, tailBlock)
+		err := database.ExportSnapshots(snapshotDir, "base", headBlock, tailBlock)
 		if err != nil {
 			core.LogError("Error exporting snapshots:" + err.Error())
 			return
 		}
-		handleS3Upload(snapshotDir, headBlock, tailBlock)
+		handleS3Upload(snapshotDir, "base", headBlock, tailBlock)
 		runtime.GC() // Free memory after snapshot export
 	})
 	c.Start()
@@ -126,13 +126,13 @@ func getIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchai
 	}
 	return progress
 }
-func handleS3Upload(snapshotDir string, headBlock uint64, tailBlock uint64) {
-	snapshotFiles, err := filepath.Glob(filepath.Join(snapshotDir, "yourplace-snapshot-*.db.gz"))
+func handleS3Upload(snapshotDir string, blockchain string, headBlock uint64, tailBlock uint64) {
+	snapshotFiles, err := filepath.Glob(filepath.Join(snapshotDir, blockchain+"-snapshot-*.db.gz"))
 	if err != nil {
 		core.LogError("Error globbing snapshot files for S3 upload: " + err.Error())
 		return
 	}
-	metadataFiles, err := filepath.Glob(filepath.Join(snapshotDir, "yourplace-snapshot-*.json"))
+	metadataFiles, err := filepath.Glob(filepath.Join(snapshotDir, blockchain+"-snapshot-*.json"))
 	if err != nil {
 		core.LogError("Error globbing metadata files for S3 upload: " + err.Error())
 		return
