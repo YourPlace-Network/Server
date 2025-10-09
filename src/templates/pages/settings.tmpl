@@ -6,8 +6,8 @@
 {{template "toast" .}}
     <div class="container-fluid">
         <div class="row">
-            <div class="col-sm-2"></div>
-            <div class="col-sm-8 centerColumn">
+            <div class="col-1"></div>
+            <div class="col-10 centerColumn">
                 <h2 class="pageHeader">⚙️ Settings</h2>
                 <div class="accordion accordion-flush" id="settingsAccordion"> <!-- Settings Accordion -->
                     <!-- Content -->
@@ -161,7 +161,7 @@
                         <div id="collapseBlockchain" class="accordion-collapse collapse" aria-labelledby="headingBlockchain" data-bs-parent="#settingsAccordion">
                             <div class="accordion-body">
                                 <div class="row">
-                                    <div class="col-sm-8" id="blockchainGlobalSettingsDiv">
+                                    <div class="col-8" id="blockchainGlobalSettingsDiv">
                                         <div class="form-check form-switch" id="indexerRun">
                                             <input class="form-check-input" type="checkbox" role="switch" id="indexerRunCheckbox">
                                             <label class="form-check-label" for="indexerRunCheckbox">Run Indexer</label>
@@ -171,67 +171,14 @@
                                             <label class="form-check-label" for="indexerOnBatteryCheckbox">Run Indexer On Battery</label>
                                         </div>
                                     </div>
-                                    <div class="col-sm-5" id="indexerStatusDiv">
+                                    <div class="col-4" id="indexerStatusDiv">
                                         <span>Indexer Status: </span><span id="indexerStatusText">stopped</span>
                                     </div>
                                 </div>
 
-                                <!-- Algorand -->
-                                <!--<div class="row">
-                                    <div class="col-sm-12 centerColumn">
-                                        <div class="accordion accordion-flush" id="algorandAccordion">
-                                            <div class="accordion-item">
-                                                <h2 class="accordion-header" id="headingFour">
-                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour" disabled>
-                                                        <b>Algorand</b>
-                                                    </button>
-                                                </h2>
-                                                <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#algorandAccordion">
-                                                    <div class="accordion-body">
-                                                        <div class="form-check form-switch" id="algoFullNodeDiv">
-                                                            <input class="form-check-input" type="checkbox" role="switch" id="algoFullNodeCheckbox" disabled>
-                                                            <label class="form-check-label" for="algoFullNodeCheckbox">Run Full Node</label>
-                                                        </div>
-
-                                                        <div class="form-check form-switch" id="algoFullIndexerDiv">
-                                                            <input class="form-check-input" type="checkbox" role="switch" id="algoFullIndexerCheckbox" disabled>
-                                                            <label class="form-check-label" for="algoFullIndexerCheckbox">Run Full Indexer</label>
-                                                        </div>
-
-                                                        <label for="algodServer" class="form-label">Algod Server</label>
-                                                        <div class="input-group mb-3">
-                                                            <input type="text" class="form-control" id="algodServer">
-                                                        </div>
-
-                                                        <label for="algodToken" class="form-label">Algod Token</label>
-                                                        <div class="input-group mb-3">
-                                                            <input type="password" class="form-control" id="algodToken">
-                                                        </div>
-
-                                                        <label for="indexerServer" class="form-label">Algorand Indexer Server</label>
-                                                        <div class="input-group mb-3">
-                                                            <input type="text" class="form-control" id="indexerServer">
-                                                        </div>
-
-                                                        <label for="indexerToken" class="form-label">Algorand Indexer Token</label>
-                                                        <div class="input-group mb-3">
-                                                            <input type="password" class="form-control" id="indexerToken">
-                                                        </div>
-
-                                                        <div>
-                                                            <button class="btn btn-primary" id="defaultServicesBtn">Default</button>
-                                                            <button class="btn btn-primary" id="saveServicesBtn">Save</button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>-->
-
                                 <!-- Base -->
                                 <div class="row">
-                                    <div class="col-sm-12 centerColumn">
+                                    <div class="col-12 centerColumn">
                                         <div class="accordion accordion-flush" id="baseAccordion">
                                             <div class="accordion-item">
                                                 <h2 class="accordion-header" id="headingBase">
@@ -290,8 +237,16 @@
                                                             <div id="baseIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
                                                         </div>
 
-                                                        <div id="baseIndexerReset">
-                                                            <button class="btn btn-primary" id="baseIndexerResetBtn">Reset Indexer</button>
+                                                        <div id="baseIndexerBtns">
+                                                            <button class="btn btn-primary" id="baseIndexerResetBtn">Reset</button>
+                                                            <div class="dropdown">
+                                                                <button class="btn btn-secondary dropdown-toggle" type="button" id="baseIndexerCatchUpBtn" data-bs-toggle="dropdown" aria-expanded="false">Catch-Up</button>
+                                                                <ul class="dropdown-menu">
+                                                                    <li><a class="dropdown-item" id="baseCatchUpFullBtn">Full</a></li>
+                                                                    <li><hr class="dropdown-divider"></li>
+                                                                    <li><a class="dropdown-item" id="baseCatchUpHelpBtn">Help<i class="bi bi-question-circle" id="baseIndexerCatchUpHelpIcon"></i></a></li>
+                                                                </ul>
+                                                            </div>
                                                         </div>
 
                                                         <hr /><!-- ----------------------------------- -->
@@ -309,7 +264,7 @@
 
                                 <!-- Ethereum -->
                                 <div class="row">
-                                    <div class="col-sm-12 centerColumn">
+                                    <div class="col-12 centerColumn">
                                         <div class="accordion accordion-flush" id="ethAccordion">
                                             <div class="accordion-item">
                                                 <h2 class="accordion-header" id="headingEth">
@@ -387,7 +342,7 @@
 
                                 <!-- Algorand -->
                                 <div class="row">
-                                    <div class="col-sm-12 centerColumn">
+                                    <div class="col-12 centerColumn">
                                         <div class="accordion accordion-flush" id="algoAccordion">
                                             <div class="accordion-item">
                                                 <h2 class="accordion-header" id="headingAlgo">
@@ -449,7 +404,7 @@
 
                                 <!-- Solana -->
                                 <div class="row">
-                                    <div class="col-sm-12 centerColumn">
+                                    <div class="col-12 centerColumn">
                                         <div class="accordion accordion-flush" id="solanaAccordion">
                                             <div class="accordion-item">
                                                 <h2 class="accordion-header" id="headingSolana">
@@ -519,7 +474,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-2"></div>
+            <div class="col-1"></div>
         </div>
     </div>
     {{template "footer" .}}

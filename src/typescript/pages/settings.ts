@@ -32,6 +32,9 @@ import {Sleep} from "../util/time";
             baseThrottleNumber: document.getElementById("baseThrottleNumber")! as HTMLDivElement,
             baseURL: document.getElementById("baseURL")! as HTMLInputElement,
             baseIndexerResetBtn: document.getElementById("baseIndexerResetBtn")! as HTMLButtonElement,
+            baseIndexerCatchUpBtn: document.getElementById("baseIndexerCatchUpBtn")! as HTMLButtonElement,
+            baseCatchUpFullBtn: document.getElementById("baseCatchUpFullBtn")! as HTMLButtonElement,
+            baseCatchUpHelpBtn: document.getElementById("baseCatchUpHelpBtn")! as HTMLButtonElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
             databaseExportSnapshotBtn: document.getElementById("databaseExportSnapshotBtn")! as HTMLButtonElement,
             databaseImportSnapshotBtn: document.getElementById("databaseImportSnapshotBtn")! as HTMLButtonElement,
@@ -476,14 +479,30 @@ import {Sleep} from "../util/time";
             const confirmed = await ShowModalYesNoHTML("⚠️ Are you sure you want to reset the indexer? ⚠️<br><br>This will delete cached YourPlace data and re-index everything<br><br>It will take a long time and download a lot of data<br><br>Your personal data, posts, and profile <u>will not</u> be deleted");
             if (confirmed) {
                 let response = await HttpPostJson("/settings/base/indexerReset",
-                    {indexerReset: true},
-                    DOM.csrfToken.value);
+                    {indexerReset: true}, DOM.csrfToken.value);
                 if (response[0] === 200) {
                     LogInfo("Base Indexer Reset");
                     ShowSavedToast();
                 } else {
                     LogInfo("Base Indexer Reset Error");
                 }
+            }
+        }
+        async function setBaseIndexerCatchUp(variable: string) {
+            switch (variable) {
+                case "full":
+                    let response = await HttpPostJson("/settings/blockchain/indexerCatchUp",
+                        {indexerCatchUp: "full", blockchain: "base"}, DOM.csrfToken.value);
+                    if (response[0] === 200) {
+                        LogInfo("Base Indexer Full Catch-Up Started");
+                        ShowSavedToast();
+                    } else {
+                        ShowDialogModal(response[1].status);
+                    }
+                    break;
+                case "h":
+                    ShowDialogModalHTML("This Indexer Catch-Up feature will download a fully cached copy of YourPlace data that we've already downloaded from the blockchain. This prevents you from needing to traverse the whole chain, and allows Servers to quickly catch up to the latest data.<br><br>This will save you bandwidth and time, but can only be run once every 24 hours.<br><br>To stream YourPlace data in real-time, you will still need your own blockchain RPC server.");
+                    break;
             }
         }
         async function setSpiceometer() {
@@ -763,6 +782,8 @@ import {Sleep} from "../util/time";
         DOM.baseThrottle!.addEventListener("change", setBaseThrottle);
         DOM.baseSaveDataDirectoryBtn!.addEventListener("click", setBaseDataDirectory);
         DOM.baseIndexerResetBtn!.addEventListener("click", setBaseIndexerReset);
+        DOM.baseCatchUpFullBtn!.addEventListener("click", function() { setBaseIndexerCatchUp("full").then(); });
+        DOM.baseCatchUpHelpBtn!.addEventListener("click", function() { setBaseIndexerCatchUp("h").then(); });
         DOM.databaseExportSnapshotBtn!.addEventListener("click", setDatabaseExportSnapshot);
         DOM.databaseImportSnapshotBtn!.addEventListener("click", setDatabaseImportSnapshot);
         DOM.defaultBaseURLBtn!.addEventListener("click", setDefaultBaseURL);

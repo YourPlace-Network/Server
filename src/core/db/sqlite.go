@@ -1792,7 +1792,7 @@ func (db *SQLite) NotificationGetActive() []map[string]string {
 }
 
 // --- Snapshot Service Functions --- //
-func (db *SQLite) exportSnapshots(exportDir string, headBlock uint64, tailBlock uint64) error { // Exports multiple compressed snapshot files for different post history lengths
+func (db *SQLite) exportSnapshots(exportDir string, blockchain string, headBlock uint64, tailBlock uint64) error { // Exports multiple compressed snapshot files for different post history lengths
 	if db.database == nil {
 		return core.LogErrorReturn("Database connection not initialized")
 	}
@@ -1806,12 +1806,12 @@ func (db *SQLite) exportSnapshots(exportDir string, headBlock uint64, tailBlock 
 			cutoffTimestamp = currentTime - uint64(ageDays*24*60*60)
 		}
 		if ageDays == 0 {
-			exportPath = filepath.Join(exportDir, "yourplace-snapshot-complete.db.gz")
-			metadataPath = filepath.Join(exportDir, "yourplace-snapshot-complete.json")
+			exportPath = filepath.Join(exportDir, blockchain+"-snapshot-complete.db.gz")
+			metadataPath = filepath.Join(exportDir, blockchain+"-snapshot-complete.json")
 			core.LogDebug("Exporting SQLite Snapshot (all data) to: " + exportPath)
 		} else {
-			exportPath = filepath.Join(exportDir, fmt.Sprintf("yourplace-snapshot-%dd.db.gz", ageDays))
-			metadataPath = filepath.Join(exportDir, fmt.Sprintf("yourplace-snapshot-%dd.json", ageDays))
+			exportPath = filepath.Join(exportDir, fmt.Sprintf("%s-snapshot-%dd.db.gz", blockchain, ageDays))
+			metadataPath = filepath.Join(exportDir, fmt.Sprintf("%s-snapshot-%dd.json", blockchain, ageDays))
 			core.LogDebug(fmt.Sprintf("Exporting SQLite Snapshot (%d days) to: %s", ageDays, exportPath))
 		}
 		tables := []string{

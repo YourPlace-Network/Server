@@ -950,7 +950,9 @@ const tips = [
     "Laziness is cowardice",
     "Guys: Make her feel special, but make it look like an accident",
     "Guys: Ask out every pretty girl you see in real life who doesn't have a ring on",
-
+    "Watch out for people who get obsessed with semantics. This is often a red herring to distract from the real issue",
+    "Only a fool would seek the approval of someone who hates them and subverts their every move",
+    "A gentleman would never hit a lady. But he will defend himself if attacked by a woman who is not a lady",
 
 ];
 

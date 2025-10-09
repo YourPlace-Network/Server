@@ -527,10 +527,10 @@ func (db *Database) SnapshotSetDefaults() {
 		core.LogError("Failed to set defaults: " + err.Error())
 	}
 }
-func (db *Database) ExportSnapshots(exportPath string, headBlock uint64, tailBlock uint64) error {
+func (db *Database) ExportSnapshots(exportPath string, blockchain string, headBlock uint64, tailBlock uint64) error {
 	switch db.Engine {
 	case "sqlite":
-		return db.sqlite.exportSnapshots(exportPath, headBlock, tailBlock)
+		return db.sqlite.exportSnapshots(exportPath, blockchain, headBlock, tailBlock)
 	default:
 		return core.LogErrorReturn("Invalid DB engine selected")
 	}

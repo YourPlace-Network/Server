@@ -169,6 +169,14 @@ i.bi {
 #baseThrottleNumber {
   display: inline;
 }
+#baseIndexerCatchUpBtn {
+  position: absolute;
+  left: 5em;
+  top: -2.25em;
+}
+#baseIndexerCatchUpHelpIcon {
+  padding-left: 0.5em;
+}
 #baseFullNodeInputDiv, #baseUrlInputDiv {
   padding-bottom: 10px;
 }
