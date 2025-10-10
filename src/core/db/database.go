@@ -77,6 +77,14 @@ func (db *Database) ImportSnapshot(importPath string) error {
 		return core.LogErrorReturn("Invalid DB engine selected")
 	}
 }
+func (db *Database) ImportSnapshotNoMetadata(importPath string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.ImportSnapshotNoMetadata(importPath)
+	default:
+		return core.LogErrorReturn("Invalid DB engine selected")
+	}
+}
 
 // --- Metadata & Settings Functions --- //
 func (db *Database) MetaUpdateValue(key string, value string) {

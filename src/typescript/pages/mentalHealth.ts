@@ -953,6 +953,7 @@ const tips = [
     "Watch out for people who get obsessed with semantics. This is often a red herring to distract from the real issue",
     "Only a fool would seek the approval of someone who hates them and subverts their every move",
     "A gentleman would never hit a lady. But he will defend himself if attacked by a woman who is not a lady",
+    "Guys & Gals: Have a 2-strike rule when it comes to asking the other out. If you ask them out twice and don't ever get a solid answer, then move on fast because they're wasting your time and it won't get any better. Having that boundary also preserves your sense of self-worth. No exceptions",
 
 ];
 

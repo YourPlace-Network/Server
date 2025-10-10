@@ -501,6 +501,204 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 	core.LogInfo("SQLite Snapshot Exported Successfully To: " + exportPath)
 	return nil
 }
+func (db *SQLite) ImportSnapshotNoMetadata(importPath string) error {
+	if db.database == nil {
+		return core.LogErrorReturn("Database connection not initialized")
+	}
+	// Open the import file
+	importFile, err := os.Open(importPath)
+	if err != nil {
+		return core.LogErrorReturn("Could not open import file: " + err.Error())
+	}
+	defer importFile.Close()
+	// Create a gzip reader
+	gzReader, err := gzip.NewReader(importFile)
+	if err != nil {
+		return core.LogErrorReturn("Could not create gzip reader: " + err.Error())
+	}
+	defer gzReader.Close()
+	// Process tables without reading metadata header (new snapshot format)
+	// Continue reading tables until EOF
+	for {
+		// Read schema length
+		var schemaLength uint32
+		err = binary.Read(gzReader, binary.LittleEndian, &schemaLength)
+		if err != nil {
+			if err == io.EOF {
+				break // End of file, all tables processed successfully
+			}
+			return core.LogErrorReturn("Could not read schema length: " + err.Error())
+		}
+		// Read schema
+		schemaBytes := make([]byte, schemaLength)
+		_, err = io.ReadFull(gzReader, schemaBytes)
+		if err != nil {
+			return core.LogErrorReturn("Could not read schema: " + err.Error())
+		}
+		schema := string(schemaBytes)
+		// Extract table name from schema
+		tableName := extractTableName(schema)
+		if tableName == "" {
+			return core.LogErrorReturn("Could not extract table name from schema: " + schema)
+		}
+		core.LogDebug("Importing table: " + tableName)
+		// Ensure table exists
+		_, err = db.database.Exec(schema)
+		if err != nil {
+			core.LogDebug("Table already exists, continuing with import: " + tableName)
+		}
+		// Read column count
+		var columnCount uint32
+		err = binary.Read(gzReader, binary.LittleEndian, &columnCount)
+		if err != nil {
+			return core.LogErrorReturn("Could not read column count: " + err.Error())
+		}
+		// Read column names
+		columns := make([]string, columnCount)
+		for i := 0; i < int(columnCount); i++ {
+			var nameLength uint32
+			err = binary.Read(gzReader, binary.LittleEndian, &nameLength)
+			if err != nil {
+				return core.LogErrorReturn("Could not read column name length: " + err.Error())
+			}
+			nameBytes := make([]byte, nameLength)
+			_, err = io.ReadFull(gzReader, nameBytes)
+			if err != nil {
+				return core.LogErrorReturn("Could not read column name: " + err.Error())
+			}
+			columns[i] = string(nameBytes)
+		}
+		// Read row count
+		var rowCount uint32
+		err = binary.Read(gzReader, binary.LittleEndian, &rowCount)
+		if err != nil {
+			return core.LogErrorReturn("Could not read row count: " + err.Error())
+		}
+		// If no rows, continue to next table
+		if rowCount == 0 {
+			core.LogDebug("No rows to import for table: " + tableName)
+			continue
+		}
+		// Start transaction for this table
+		tx, err := db.database.Begin()
+		if err != nil {
+			return core.LogErrorReturn("Could not start transaction: " + err.Error())
+		}
+		// Prepare insert statement
+		placeholders := make([]string, len(columns))
+		for i := range columns {
+			placeholders[i] = "?"
+		}
+		var insertSQL string
+		noQuoteTableName := strings.Trim(tableName, `"`)
+		if noQuoteTableName == "indexer_jobs" {
+			insertSQL = fmt.Sprintf("INSERT OR REPLACE INTO %s (%s) VALUES (%s)", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
+		} else {
+			insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
+		}
+		statement, err := tx.Prepare(insertSQL)
+		if err != nil {
+			tx.Rollback()
+			return core.LogErrorReturn("Could not prepare insert statement: " + err.Error())
+		}
+		// Import each row
+		rowsProcessed := 0
+		for rowIdx := 0; rowIdx < int(rowCount); rowIdx++ {
+			// Read row length
+			var rowLength uint32
+			err = binary.Read(gzReader, binary.LittleEndian, &rowLength)
+			if err != nil {
+				statement.Close()
+				tx.Rollback()
+				return core.LogErrorReturn("Could not read row length: " + err.Error())
+			}
+			// Read row data
+			rowData := make([]byte, rowLength)
+			_, err = io.ReadFull(gzReader, rowData)
+			if err != nil {
+				statement.Close()
+				tx.Rollback()
+				return core.LogErrorReturn("Could not read row data: " + err.Error())
+			}
+			// Parse row data
+			rowReader := bytes.NewReader(rowData)
+			values := make([]interface{}, len(columns))
+			for i := range columns {
+				// Read type indicator
+				typeIndicator, err := rowReader.ReadByte()
+				if err != nil {
+					statement.Close()
+					tx.Rollback()
+					return core.LogErrorReturn("Could not read type indicator: " + err.Error())
+				}
+				// Parse based on type
+				switch typeIndicator {
+				case 0: // NULL
+					values[i] = nil
+				case 1: // int64
+					var value int64
+					binary.Read(rowReader, binary.LittleEndian, &value)
+					values[i] = value
+				case 2: // float64
+					var value float64
+					binary.Read(rowReader, binary.LittleEndian, &value)
+					values[i] = value
+				case 3: // []byte
+					var length uint32
+					binary.Read(rowReader, binary.LittleEndian, &length)
+					bytes := make([]byte, length)
+					_, err := io.ReadFull(rowReader, bytes)
+					if err != nil {
+						statement.Close()
+						tx.Rollback()
+						return core.LogErrorReturn("Could not read []byte value: " + err.Error())
+					}
+					values[i] = bytes
+				case 4: // string
+					var length uint32
+					binary.Read(rowReader, binary.LittleEndian, &length)
+					bytes := make([]byte, length)
+					_, err := io.ReadFull(rowReader, bytes)
+					if err != nil {
+						statement.Close()
+						tx.Rollback()
+						return core.LogErrorReturn("Could not read string value: " + err.Error())
+					}
+					values[i] = string(bytes)
+				case 5: // time.Time
+					var unixTime int64
+					binary.Read(rowReader, binary.LittleEndian, &unixTime)
+					values[i] = time.Unix(unixTime, 0)
+				default:
+					statement.Close()
+					tx.Rollback()
+					return core.LogErrorReturn("Unknown type indicator: " + string(typeIndicator))
+				}
+			}
+			// Execute insert
+			_, err = statement.Exec(values...)
+			if err != nil {
+				statement.Close()
+				tx.Rollback()
+				return core.LogErrorReturn("Could not execute insert: " + err.Error())
+			}
+			rowsProcessed++
+			// Log Progress
+			if rowsProcessed%10000 == 0 {
+				core.LogDebug(fmt.Sprintf("Imported %d/%d rows from table %s", rowsProcessed, rowCount, tableName))
+			}
+		}
+		// Commit transaction
+		statement.Close()
+		err = tx.Commit()
+		if err != nil {
+			return core.LogErrorReturn("Could not commit transaction: " + err.Error())
+		}
+		core.LogDebug(fmt.Sprintf("Imported %d rows from table %s", rowsProcessed, tableName))
+	}
+	core.LogInfo("SQLite Snapshot Imported Successfully From: " + importPath)
+	return nil
+}
 func (db *SQLite) ImportSnapshot(importPath string) error {
 	if db.database == nil {
 		return core.LogErrorReturn("Database connection not initialized")
