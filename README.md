@@ -1,8 +1,36 @@
-# YourPlace
-## Distributed Social Media
+<div align = center>
+
+<img src="https://raw.githubusercontent.com/YourPlace-Network/Server/refs/heads/main/src/www/image/yourplace-banner-title.svg" width="750" height="300" alt="banner">
+
+<br>
+
+[![Badge Workflow]][Workflow]
+[![Badge License]][License]
+![Badge Language]
+[![Badge Pull Requests]][Pull Requests]
+[![Badge Issues]][Issues]
+
+<br>
+
+YourPlace is a distributed social media platform that is designed to give complete sovereignty back to users. You own your content creation, publishing, consumption and follower relationships.
+
+<br>
+<br>
+
+---
+
+**[<kdb> <br> Home <br> </kbd>][Home]**
+**[<kdb> <br> Install <br> </kbd>][Install]**
+**[<kbd> <br> FAQ <br> </kbd>][FAQ]**
+
+---
+
+<br>
+
+</div>
+
 ### [➡️ DOWNLOAD NOW ⬅️](https://YourPlace.network/download)
 #### ⚠️ Code In Development - Expect Small Bugs ⚠️
-YourPlace is a distributed social media platform that is designed to give complete sovereignty back to users. You own your content creation, publishing, consumption and follower relationships.
 
 The core of YourPlace is a network of self-hosted servers called "places." You can keep your place on your laptop, a cloud server, a 3rd party service, or wherever you can run a PC.
 
@@ -66,3 +94,8 @@ You can manually uninstall YourPlace with dedicated uninstaller scripts that You
 `C:\ProgramData\YourPlace\uninstall.ps1` on Windows
 
 `/Library/Application Support/YourPlace/uninstall.sh` on OSX
+
+<!--------------{ Badges }--------------->
+[Home]: https://YourPlace.network
+[Install]: https://YourPlace.network/download
+[FAQ]: https://YourPlace.network/faq
