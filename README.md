@@ -5,6 +5,7 @@
 ![Windows Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/windows.yml?label=Windows%20Build)
 ![OSX Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/osx.yml?logo=Apple)
 ![Linux Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/ubuntu.yml?logo=Ubuntu)
+
 ![License](https://img.shields.io/badge/License-CC_BY--NC_4.0-orange)
 ![Language](https://img.shields.io/github/languages/top/YourPlace-Network/Server)
 ![Issues](https://img.shields.io/github/issues/YourPlace-Network/Server)
@@ -23,9 +24,9 @@ YourPlace is a distributed social media platform that is designed to give comple
 
 ---
 
-<br>
-
 #### ⚠️ Code In Development - Expect Small Bugs ⚠️
+
+<br>
 
 </div>
 
