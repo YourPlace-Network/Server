@@ -2,35 +2,41 @@
 
 <img src="https://raw.githubusercontent.com/YourPlace-Network/Server/refs/heads/main/src/www/image/yourplace-banner-title.svg" width="750" height="300" alt="banner">
 
-<br>
-
-[![Badge Workflow]][Workflow]
-[![Badge License]][License]
-![Badge Language]
-[![Badge Pull Requests]][Pull Requests]
-[![Badge Issues]][Issues]
+![Windows Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/windows.yml?label=Windows%20Build)
+![OSX Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/osx.yml?logo=Apple)
+![Linux Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/ubuntu.yml?logo=Ubuntu)
+![License](https://img.shields.io/badge/License-CC_BY--NC_4.0-orange)
+![Language](https://img.shields.io/github/languages/top/YourPlace-Network/Server)
+![Issues](https://img.shields.io/github/issues/YourPlace-Network/Server)
+![PRs](https://img.shields.io/github/issues-pr/YourPlace-Network/Server)
 
 <br>
 
 YourPlace is a distributed social media platform that is designed to give complete sovereignty back to users. You own your content creation, publishing, consumption and follower relationships.
 
-<br>
-<br>
+---
+
+[![Home Button]][Home]
+[![Install Button]][Install]
+[![Whitepaper Button]][Whitepaper]
+[![FAQ Button]][FAQ]
 
 ---
 
-**[<kdb> <br> Home <br> </kbd>][Home]**
-**[<kdb> <br> Install <br> </kbd>][Install]**
-**[<kbd> <br> FAQ <br> </kbd>][FAQ]**
-
----
-
 <br>
+
+#### ⚠️ Code In Development - Expect Small Bugs ⚠️
 
 </div>
 
-### [➡️ DOWNLOAD NOW ⬅️](https://YourPlace.network/download)
-#### ⚠️ Code In Development - Expect Small Bugs ⚠️
+[Home]: https://YourPlace.network
+[Install]: https://YourPlace.network/download
+[Whitepaper]: https://YourPlace.network/whitepaper
+[FAQ]: https://YourPlace.network/faq
+[Home Button]: https://img.shields.io/badge/Home-4A90E2?style=for-the-badge&logoColor=white
+[Install Button]: https://img.shields.io/badge/Install-5CB85C?style=for-the-badge&logoColor=white
+[Whitepaper Button]: https://img.shields.io/badge/Whitepaper-9B59B6?style=for-the-badge&logoColor=white
+[FAQ Button]: https://img.shields.io/badge/FAQ-F0AD4E?style=for-the-badge&logoColor=white
 
 The core of YourPlace is a network of self-hosted servers called "places." You can keep your place on your laptop, a cloud server, a 3rd party service, or wherever you can run a PC.
 
@@ -94,8 +100,3 @@ You can manually uninstall YourPlace with dedicated uninstaller scripts that You
 `C:\ProgramData\YourPlace\uninstall.ps1` on Windows
 
 `/Library/Application Support/YourPlace/uninstall.sh` on OSX
-
-<!--------------{ Badges }--------------->
-[Home]: https://YourPlace.network
-[Install]: https://YourPlace.network/download
-[FAQ]: https://YourPlace.network/faq
