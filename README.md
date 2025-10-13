@@ -2,7 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/YourPlace-Network/Server/refs/heads/main/src/www/image/yourplace-banner-title.svg" width="750" height="300" alt="banner">
 
-<br>
+<br><br>
 
 ![Windows Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/windows.yml?label=Windows%20Build)
 ![OSX Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/osx.yml?logo=Apple)
