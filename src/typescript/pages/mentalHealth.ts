@@ -954,6 +954,11 @@ const tips = [
     "Only a fool would seek the approval of someone who hates them and subverts their every move",
     "A gentleman would never hit a lady. But he will defend himself if attacked by a woman who is not a lady",
     "Guys & Gals: Have a 2-strike rule when it comes to asking the other out. If you ask them out twice and don't ever get a solid answer, then move on fast because they're wasting your time and it won't get any better. Having that boundary also preserves your sense of self-worth. No exceptions",
+    "Don't try to take people to the top with you, who don't even want to see you at the top",
+    "There is a huge difference between: 1) People who want you to apologize so a relationship can be restored. 2) People who demand an apology as a tactic of manipulation and humiliation. Never ever ever apologize to #2 because they don't care about your apology and all you've done is spill blood in the water. An apology to them is public submission to your enemy",
+    "Forcing other people to help is not charity",
+    "All men are addicted to something. Some smoke, some drink, some chase women and some just waste time. Real men are addicted to discipline. Discipline needs no motivation and moves itself. Discipline is the best addiction",
+
 
 ];
 
