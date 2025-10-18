@@ -76,8 +76,8 @@ jobs:
             \"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY\",
             \"# Pull latest image\",
             \"docker pull $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest\",
-            \"# Run new container with SSH key\",
-            \"docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -p 22:22 -e SSH_PUBLIC_KEY='$SSH_PUBLIC_KEY' -v /root/YourPlace:/root/YourPlace $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest\"
+            \"# Run new container\",
+            \"docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /root/YourPlace:/root/YourPlace $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest\"
           ]" \
           --region ${{ env.AWS_REGION }} \
           --query 'Command.CommandId' \
