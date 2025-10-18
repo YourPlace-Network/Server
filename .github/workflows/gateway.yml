@@ -1,4 +1,4 @@
-name: Gateway Service Deploy
+name: Gateway
 
 on:
   workflow_dispatch:
