@@ -1,7 +1,7 @@
 FROM ubuntu:24.04 AS builder
 
 RUN apt-get update && apt-get install -y \
-    wget ca-certificates make \
+    wget ca-certificates make gcc libpcap-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://go.dev/dl/go1.25.1.linux-amd64.tar.gz && \
