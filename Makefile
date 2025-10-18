@@ -172,6 +172,13 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	./target/YourPlace -d -du
 endif
+gateway_noinstall_run:
+ifeq ($(DETECTED_OS),Windows_NT)
+	target\\YourPlace-$(VERSION).exe -du -g
+else ifeq ($(DETECTED_OS),Darwin)
+	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
+	./target/YourPlace -du -g
+endif
 testing:
 	go run test.go
 
