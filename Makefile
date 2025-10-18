@@ -91,7 +91,7 @@ else
 	mkdir -p target
 	$(NPX) webpack --config src/typescript/webpack.prod.js
 	@VERSION=$$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"') && \
-	go build -ldflags "-s -w" -o target/YourPlace-$$VERSION main.go
+	CGO_ENABLED=0 go build -tags netgo -ldflags "-s -w" -o target/YourPlace-$$VERSION main.go
 endif
 dbg_build: clean
 ifeq ($(DETECTED_OS),Windows_NT)
