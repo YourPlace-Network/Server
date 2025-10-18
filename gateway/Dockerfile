@@ -1,28 +1,19 @@
-FROM ubuntu:24.04 AS builder
+FROM ubuntu:24.04 AS downloader
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y \
-    wget ca-certificates make gcc libpcap-dev curl git \
+    wget ca-certificates grep \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Go
-RUN wget https://go.dev/dl/go1.25.1.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.25.1.linux-amd64.tar.gz && \
-    rm go1.25.1.linux-amd64.tar.gz
-
-ENV PATH="/usr/local/go/bin:${PATH}"
-
-# Install Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-COPY . .
+# Copy only main.go to extract version
+COPY main.go .
 
-# Use Makefile targets
-RUN make install && make build
+# Extract version from main.go and download pre-built Linux binary from DigitalOcean Spaces
+RUN VERSION=$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"') && \
+    echo "Downloading YourPlace-${VERSION}" && \
+    wget https://yourplace-downloads.nyc3.digitaloceanspaces.com/linux/YourPlace-${VERSION} -O YourPlaceGateway && \
+    chmod +x YourPlaceGateway
 
 FROM ubuntu:24.04
 
@@ -50,7 +41,7 @@ RUN chmod +x /entrypoint.sh
 
 WORKDIR /app
 
-COPY --from=builder /build/target/YourPlaceGateway .
+COPY --from=downloader /build/YourPlaceGateway .
 
 VOLUME ["/root/YourPlace"]
 
