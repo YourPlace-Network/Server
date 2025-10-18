@@ -18,14 +18,24 @@ type ExceptionRule struct {
 
 func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clients to originate from 127.0.0.1 for certain API paths
 	// Paths to be included for localhost enforcement, your path must start with one of these prefixes
-	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test", "/service/ai"}
+	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test", "/service/ai", "/files", "/notification"}
 
 	return func(c *gin.Context) { // Check if this request matches an exception rule
 		validHosts := map[string]bool{
-			"localhost": true,
-			"127.0.0.1": true,
-			"::1":       true,
-			"[::1]":     true,
+			"localhost":              true,
+			"localhost6":             true,
+			"localhost.localdomain":  true,
+			"1.0.0.127.in-addr.arpa": true,
+			"127.0.0.1/8":            true,
+			"127.0.0.1":              true,
+			"127.0.0.0":              true,
+			"127.0.0.2":              true,
+			"127.255.255.255":        true,
+			"::1":                    true,
+			"::1/128":                true,
+			"0:0:0:0:0:0:0:1":        true,
+			"[::1]":                  true,
+			"1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa": true,
 		}
 		// Get actual IP
 		ip, _, err := net.SplitHostPort(c.Request.RemoteAddr)

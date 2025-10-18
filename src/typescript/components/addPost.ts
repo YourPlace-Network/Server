@@ -24,9 +24,29 @@ import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
             spiceometerText: document.getElementById("spiceometerText")! as HTMLDivElement,
             csrfToken: document.getElementById("csrfToken") as HTMLInputElement,
             attachmentDiv: document.getElementById("postAttachDiv")! as HTMLDivElement,
+            gatewayMode: document.getElementById("gatewayModeAddPost") as HTMLInputElement,
         }
+
+        function isLocalhost(): boolean {
+            const hostname = window.location.hostname;
+            return hostname === 'localhost' ||
+                   hostname === '127.0.0.1' ||
+                   hostname === '[::1]';
+        }
+
+        function disableUploadInGatewayMode() {
+            if (DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost()) {
+                DOM.uploadFileButton.disabled = true;
+                DOM.uploadFileButton.style.opacity = "0.5";
+                DOM.uploadFileButton.style.cursor = "not-allowed";
+                DOM.uploadFileButton.setAttribute("data-bs-original-title", "File uploads are disabled on this gateway.<br>Download your own server at <a href='https://yourplace.network/download' target='_blank' style='color: #fff; text-decoration: underline;'>yourplace.network/download</a> to enable file uploading");
+            }
+        }
+
         let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
+
+        disableUploadInGatewayMode();
         let postObj = {postText: "", fileHash: "", status: "", cid: "", extension: ""}
         let addPostModal = new window.bootstrap.Modal(DOM.addPostModal, {});
         let uploadedFiles: fileData[] = [];

@@ -60,6 +60,13 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             }
         }
 
+        function isLocalhost(): boolean {
+            const hostname = window.location.hostname;
+            return hostname === 'localhost' ||
+                   hostname === '127.0.0.1' ||
+                   hostname === '[::1]';
+        }
+
         DOM.menuLoginBtn.addEventListener("click", loginEvent);
         DOM.htmlMenu.addEventListener("click", (e) => {
             e.preventDefault();
@@ -71,7 +78,7 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             //e.preventDefault();
             //e.stopPropagation();
             console.log("focusin");
-            if (DOM.gatewayMode.value == "true") {
+            if (DOM.gatewayMode.value === "true" && !isLocalhost()) {
                 DOM.menuSettingsLink.style.display = "none";
             } else {
                 DOM.menuSettingsLink.style.display = "block";

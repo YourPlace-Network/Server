@@ -23,8 +23,9 @@
                                                 <input class="form-check-input" type="checkbox" role="switch" id="savedPostCheckbox" checked disabled>
                                                 <label class="form-check-label" for="savedPostCheckbox" id="savedPostCheckboxLabel">Save Post</label>
                                             </div></li>
-                                        <li><button type="button" class="btn btn-primary" id="btnUploadFile" data-bs-toggle="tooltip" title="Attach a file to the post">
+                                        <li><button type="button" class="btn btn-primary" id="btnUploadFile" data-bs-toggle="tooltip" data-bs-html="true" title="Attach a file to the post">
                                                 <i class="bi bi-upload" id="uploadFileBtnImg"></i> Upload File</button>
+                                            <input type="hidden" id="gatewayModeAddPost" value="{{ .gatewayMode }}">
                                             <input type="file" name="file" id="file" multiple hidden></li>
                                         <!--<li><a class="dropdown-item" href="#">Something else here</a></li>
                                         <li><hr class="dropdown-divider"></li>
