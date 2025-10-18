@@ -27,9 +27,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY --from=downloader /build/YourPlaceGateway .
+COPY gateway/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 VOLUME ["/root/YourPlace"]
 
 EXPOSE 443
 
-CMD ["/app/YourPlaceGateway", "-g", "-d", "-du"]
+ENTRYPOINT ["/app/entrypoint.sh"]
