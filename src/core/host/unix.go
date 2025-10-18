@@ -23,6 +23,9 @@ var systemdUnit []byte
 //go:embed bin/unix/yourplace-logrotate
 var yourplaceLogrotate []byte
 
+//go:embed bin/ipfs/linux/ipfs
+var ipfsBin []byte
+
 var (
 	listener *net.UDPConn
 	mutex    sync.Mutex
@@ -80,7 +83,8 @@ func IsDockerSocketExist() bool {
 	return true
 }
 func KillProcess(processName string) bool {
-	return false
+	RunShellCommand("pkill -9 " + processName)
+	return !DoesProcExist(processName)
 }
 func ReleaseMutex() {
 	mutex.Lock()
@@ -94,6 +98,18 @@ func InstallFFMPEG() bool {
 	return true
 }
 func InstallIPFS() bool {
+	KillProcess("YourPlaceIpfs")
+	if IsEmbeddedFileEqual(ipfsBin, GetInstallDir()+"YourPlaceIpfs") {
+		return true
+	}
+	ipfsRepo := GetDataDir() + ".ipfs"
+	ipfsPath := "IPFS_PATH=" + ipfsRepo
+	WriteEmbeddedBinary(ipfsBin, GetInstallDir()+"YourPlaceIpfs")
+	RunShellCommand("chmod 0755 " + GetInstallDir() + "YourPlaceIpfs")
+	// Only run init if config doesn't exist
+	if !DoesExist(ipfsRepo + PathSeparator + "config") {
+		RunShellCommandEnv(GetInstallDir()+"YourPlaceIpfs init", []string{ipfsPath})
+	}
 	return true
 }
 func InstallAutorun() bool {
@@ -130,9 +146,11 @@ func DoesProcExist(name string) bool {
 	return err == nil
 }
 func RunIPFS() bool {
-	cmd := exec.Command("ipfs", "daemon", "--migrate")
-	err := cmd.Start()
-	return err == nil
+	ipfsRepo := GetDataDir() + ".ipfs"
+	ipfsPath := "IPFS_PATH=" + ipfsRepo
+	DeleteIfExists(GetDataDir() + ".ipfs" + PathSeparator + "repo.lock")
+	go RunShellCommandNoWaitEnv(GetInstallDir()+"YourPlaceIpfs daemon --migrate", []string{ipfsPath})
+	return true
 }
 func isSecretToolAvailable() bool {
 	cmd := exec.Command("which", "secret-tool")
