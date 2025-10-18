@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates tzdata \
     libayatana-appindicator3-1 \
     libgtk-3-0 \
+    libpcap0.8 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
