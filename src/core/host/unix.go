@@ -98,18 +98,42 @@ func InstallFFMPEG() bool {
 	return true
 }
 func InstallIPFS() bool {
+	core.LogDebug("Installing IPFS binary")
 	KillProcess("YourPlaceIpfs")
+
+	// Check if embedded binary exists and has content
+	if len(ipfsBin) == 0 {
+		core.LogError("IPFS binary is not embedded in this build")
+		return false
+	}
+	core.LogDebug("IPFS embedded binary size: " + fmt.Sprintf("%d bytes", len(ipfsBin)))
+
 	if IsEmbeddedFileEqual(ipfsBin, GetInstallDir()+"YourPlaceIpfs") {
+		core.LogDebug("IPFS binary already installed and matches embedded version")
 		return true
 	}
+
 	ipfsRepo := GetDataDir() + ".ipfs"
 	ipfsPath := "IPFS_PATH=" + ipfsRepo
-	WriteEmbeddedBinary(ipfsBin, GetInstallDir()+"YourPlaceIpfs")
+
+	core.LogDebug("Writing IPFS binary to: " + GetInstallDir() + "YourPlaceIpfs")
+	if !WriteEmbeddedBinary(ipfsBin, GetInstallDir()+"YourPlaceIpfs") {
+		core.LogError("Failed to write IPFS binary")
+		return false
+	}
+
+	core.LogDebug("Setting IPFS binary permissions")
 	RunShellCommand("chmod 0755 " + GetInstallDir() + "YourPlaceIpfs")
+
 	// Only run init if config doesn't exist
 	if !DoesExist(ipfsRepo + PathSeparator + "config") {
-		RunShellCommandEnv(GetInstallDir()+"YourPlaceIpfs init", []string{ipfsPath})
+		core.LogDebug("Running IPFS init")
+		output := RunShellCommandEnv(GetInstallDir()+"YourPlaceIpfs init", []string{ipfsPath})
+		core.LogDebug("IPFS init output: " + output)
+	} else {
+		core.LogDebug("IPFS already initialized")
 	}
+
 	return true
 }
 func InstallAutorun() bool {
