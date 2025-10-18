@@ -230,7 +230,14 @@ func main() {
 	StartWebServer(database, _blockchain, ipfs, installed, logFile, mcp)
 
 	// --- Systray --- //
-	systray.Run(func() { SystrayOnReady(database) }, func() { host.Shutdown(0) })
+	if gateway {
+		// In gateway mode, run headless without systray
+		core.LogDebug("Running in gateway mode - systray disabled")
+		select {} // Block forever
+	} else {
+		// Desktop mode with systray
+		systray.Run(func() { SystrayOnReady(database) }, func() { host.Shutdown(0) })
+	}
 
 	host.Shutdown(0)
 }
