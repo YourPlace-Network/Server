@@ -1,21 +1,32 @@
 FROM ubuntu:24.04 AS builder
 
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
-    wget ca-certificates make gcc libpcap-dev \
+    wget ca-certificates make gcc libpcap-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Go
 RUN wget https://go.dev/dl/go1.25.1.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go1.25.1.linux-amd64.tar.gz && \
     rm go1.25.1.linux-amd64.tar.gz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /build
 
 COPY . .
 
-RUN mkdir -p target/ && \
-    GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o target/YourPlaceGateway main.go
+# Use Makefile targets
+RUN make install && \
+    npx webpack --config src/typescript/webpack.prod.js && \
+    VERSION=$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"') && \
+    go build -ldflags "-s -w" -o target/YourPlace-$VERSION main.go && \
+    cp target/YourPlace-$VERSION target/YourPlaceGateway
 
 FROM ubuntu:24.04
 
