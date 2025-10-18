@@ -1,48 +1,92 @@
-name: Gateway
+name: Gateway Service Deploy
 
 on:
   workflow_dispatch:
 
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: yourplace-gateway
+  INSTANCE_NAME: yourplace-gateway
+
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-    - name: Extract Version From Go Code
-      id: get_version
-      run: |
-        VERSION=$(grep -Po 'version = "\K[^"]*' main.go)
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "Version found: $VERSION"
-
-    - name: Setup Node.js
-      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
       with:
-        node-version: '20.x'
+        role-to-assume: arn:aws:iam::306570693158:role/gateway-github-actions
+        aws-region: ${{ env.AWS_REGION }}
 
-    - name: Setup Go
-      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
-      with:
-        go-version: '1.25.0'
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Install Make
+    - name: Build and Push Docker Image
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
       run: |
-        sudo apt-get update
-        sudo apt-get install -y make
+        docker build -f gateway/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-    - name: Install NPM Dependencies
+    - name: Get EC2 Instance ID
+      id: get-instance
       run: |
-        npm install package.json
+        INSTANCE_ID=$(aws ec2 describe-instances \
+          --filters "Name=tag:Name,Values=${{ env.INSTANCE_NAME }}" \
+                    "Name=instance-state-name,Values=running" \
+          --query 'Reservations[0].Instances[0].InstanceId' \
+          --region ${{ env.AWS_REGION }} \
+          --output text)
+        echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+        echo "Instance ID: $INSTANCE_ID"
 
-    - name: Run Make Build
+    - name: Deploy to EC2
+      env:
+        INSTANCE_ID: ${{ steps.get-instance.outputs.instance_id }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        make clean build
+        # Send deployment command via SSM
+        COMMAND_ID=$(aws ssm send-command \
+          --instance-ids $INSTANCE_ID \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=[
+            "# Stop and remove existing container",
+            "docker stop yourplace-gateway || true",
+            "docker rm yourplace-gateway || true",
+            "# Login to ECR",
+            "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY",
+            "# Pull latest image",
+            "docker pull $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest",
+            "# Run new container",
+            "docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -p 22:22 -v /root/YourPlace:/root/YourPlace $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest"
+          ]' \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Command.CommandId' \
+          --output text)
 
-    # SSH into server and drop binaries
+        echo "Command ID: $COMMAND_ID"
 
-    # SSH into server and drop certs
+        # Wait for command to complete
+        aws ssm wait command-executed \
+          --command-id $COMMAND_ID \
+          --instance-id $INSTANCE_ID \
+          --region ${{ env.AWS_REGION }}
 
-    # SSH into server and start service
+        # Get command output
+        aws ssm get-command-invocation \
+          --command-id $COMMAND_ID \
+          --instance-id $INSTANCE_ID \
+          --region ${{ env.AWS_REGION }}
