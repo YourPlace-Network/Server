@@ -22,11 +22,7 @@ WORKDIR /build
 COPY . .
 
 # Use Makefile targets
-RUN make install && \
-    npx webpack --config src/typescript/webpack.prod.js && \
-    VERSION=$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"') && \
-    go build -ldflags "-s -w" -o target/YourPlace-$VERSION main.go && \
-    cp target/YourPlace-$VERSION target/YourPlaceGateway
+RUN make install && make build
 
 FROM ubuntu:24.04
 
