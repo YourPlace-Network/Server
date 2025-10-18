@@ -63,22 +63,22 @@ jobs:
         COMMAND_ID=$(aws ssm send-command \
           --instance-ids $INSTANCE_ID \
           --document-name "AWS-RunShellScript" \
-          --parameters 'commands=[
-            "# Configure EC2 SSH key",
-            "mkdir -p /root/.ssh",
-            "echo \"'"$SSH_PUBLIC_KEY"'\" > /root/.ssh/authorized_keys",
-            "chmod 600 /root/.ssh/authorized_keys",
-            "chmod 700 /root/.ssh",
-            "# Stop and remove existing container",
-            "docker stop yourplace-gateway || true",
-            "docker rm yourplace-gateway || true",
-            "# Login to ECR",
-            "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY",
-            "# Pull latest image",
-            "docker pull $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest",
-            "# Run new container with SSH key",
-            "docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -p 22:22 -e SSH_PUBLIC_KEY=\"'"$SSH_PUBLIC_KEY"'\" -v /root/YourPlace:/root/YourPlace $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest"
-          ]' \
+          --parameters "commands=[
+            \"# Configure EC2 SSH key\",
+            \"mkdir -p /root/.ssh\",
+            \"echo '$SSH_PUBLIC_KEY' > /root/.ssh/authorized_keys\",
+            \"chmod 600 /root/.ssh/authorized_keys\",
+            \"chmod 700 /root/.ssh\",
+            \"# Stop and remove existing container\",
+            \"docker stop yourplace-gateway || true\",
+            \"docker rm yourplace-gateway || true\",
+            \"# Login to ECR\",
+            \"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY\",
+            \"# Pull latest image\",
+            \"docker pull $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest\",
+            \"# Run new container with SSH key\",
+            \"docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -p 22:22 -e SSH_PUBLIC_KEY='$SSH_PUBLIC_KEY' -v /root/YourPlace:/root/YourPlace $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest\"
+          ]" \
           --region ${{ env.AWS_REGION }} \
           --query 'Command.CommandId' \
           --output text)
