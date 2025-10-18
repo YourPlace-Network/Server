@@ -18,26 +18,8 @@ RUN VERSION=$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' 
 FROM ubuntu:24.04
 
 RUN apt-get update && apt-get install -y \
-    ca-certificates tzdata unattended-upgrades openssh-server supervisor \
+    ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/*
-
-# Configure SSH for root login with key authentication only
-RUN mkdir /var/run/sshd && \
-    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config && \
-    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
-    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
-    mkdir -p /root/.ssh && \
-    chmod 700 /root/.ssh && \
-    touch /root/.ssh/authorized_keys && \
-    chmod 600 /root/.ssh/authorized_keys
-
-# Configure supervisor to run both SSH and the gateway
-RUN mkdir -p /var/log/supervisor
-COPY gateway/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Create entrypoint script to setup SSH key from environment variable
-COPY gateway/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
 
 WORKDIR /app
 
@@ -45,7 +27,6 @@ COPY --from=downloader /build/YourPlaceGateway .
 
 VOLUME ["/root/YourPlace"]
 
-EXPOSE 22 443
+EXPOSE 443
 
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["/app/YourPlaceGateway", "-g", "-d", "-du"]
