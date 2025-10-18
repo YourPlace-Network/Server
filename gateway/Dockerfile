@@ -2,7 +2,7 @@ FROM ubuntu:24.04 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
-    wget ca-certificates make gcc libpcap-dev curl \
+    wget ca-certificates make gcc libpcap-dev curl git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Go
