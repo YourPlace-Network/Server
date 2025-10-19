@@ -58,7 +58,13 @@ jobs:
         INSTANCE_ID: ${{ steps.get-instance.outputs.instance_id }}
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         SSH_PUBLIC_KEY: ${{ secrets.GATEWAY_SSH_PUBLIC_KEY }}
+        CLOUDFLARE_CERT_PEM: ${{ secrets.CLOUDFLARE_CERT_PEM }}
+        CLOUDFLARE_CERT_KEY: ${{ secrets.CLOUDFLARE_CERT_KEY }}
       run: |
+        # Escape certificates for JSON
+        CERT_PEM_ESCAPED=$(echo "$CLOUDFLARE_CERT_PEM" | jq -Rs .)
+        CERT_KEY_ESCAPED=$(echo "$CLOUDFLARE_CERT_KEY" | jq -Rs .)
+
         # Send deployment command via SSM
         COMMAND_ID=$(aws ssm send-command \
           --instance-ids $INSTANCE_ID \
@@ -69,6 +75,12 @@ jobs:
             \"echo '$SSH_PUBLIC_KEY' > /root/.ssh/authorized_keys\",
             \"chmod 600 /root/.ssh/authorized_keys\",
             \"chmod 700 /root/.ssh\",
+            \"# Install TLS certificates\",
+            \"mkdir -p /opt/YourPlace\",
+            \"echo $CERT_PEM_ESCAPED > /opt/YourPlace/cert.pem\",
+            \"echo $CERT_KEY_ESCAPED > /opt/YourPlace/cert.key\",
+            \"chmod 644 /opt/YourPlace/cert.pem\",
+            \"chmod 600 /opt/YourPlace/cert.key\",
             \"# Stop and remove existing container\",
             \"docker stop yourplace-gateway || true\",
             \"docker rm yourplace-gateway || true\",
@@ -77,7 +89,7 @@ jobs:
             \"# Pull latest image\",
             \"docker pull $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest\",
             \"# Run new container\",
-            \"docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /root/YourPlace:/root/YourPlace $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest\"
+            \"docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /opt/YourPlace:/opt/YourPlace $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest\"
           ]" \
           --region ${{ env.AWS_REGION }} \
           --query 'Command.CommandId' \
