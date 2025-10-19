@@ -376,7 +376,14 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 		} else if host.DoesExist(certPath) {
 			// Only cert.pem exists - assume it contains both cert and key (e.g., Cloudflare origin certificate)
 			core.LogInfo("Loading TLS certificate from single cert.pem file (contains both cert and key)")
-			cert, err = tls.LoadX509KeyPair(certPath, certPath)
+			// Read the combined PEM file
+			pemData, readErr := os.ReadFile(certPath)
+			if readErr != nil {
+				err = readErr
+			} else {
+				// Use X509KeyPair to parse the combined PEM data
+				cert, err = tls.X509KeyPair(pemData, pemData)
+			}
 		} else {
 			core.LogWarn("Gateway mode TLS certificates not found - TLS server on port 443 disabled")
 			core.LogWarn("To enable TLS: place cert.pem (or cert.pem + cert.key) in " + host.GetDataDir())
