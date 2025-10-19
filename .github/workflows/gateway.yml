@@ -59,9 +59,11 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         SSH_PUBLIC_KEY: ${{ secrets.GATEWAY_SSH_PUBLIC_KEY }}
         CLOUDFLARE_CERT_PEM: ${{ secrets.CLOUDFLARE_CERT_PEM }}
+        CLOUDFLARE_CERT_KEY: ${{ secrets.CLOUDFLARE_CERT_KEY }}
       run: |
-        # Base64 encode certificate to avoid quote escaping issues
+        # Base64 encode certificate and key to avoid quote escaping issues
         CERT_PEM_BASE64=$(echo "$CLOUDFLARE_CERT_PEM" | base64 -w 0)
+        CERT_KEY_BASE64=$(echo "$CLOUDFLARE_CERT_KEY" | base64 -w 0)
 
         # Send deployment command via SSM
         COMMAND_ID=$(aws ssm send-command \
@@ -73,10 +75,12 @@ jobs:
             \"echo '$SSH_PUBLIC_KEY' > /root/.ssh/authorized_keys\",
             \"chmod 600 /root/.ssh/authorized_keys\",
             \"chmod 700 /root/.ssh\",
-            \"# Install TLS certificate (Cloudflare origin cert contains both cert and key)\",
+            \"# Install TLS certificate and key\",
             \"mkdir -p /opt/YourPlace\",
             \"echo '$CERT_PEM_BASE64' | base64 -d > /opt/YourPlace/cert.pem\",
-            \"chmod 600 /opt/YourPlace/cert.pem\",
+            \"echo '$CERT_KEY_BASE64' | base64 -d > /opt/YourPlace/cert.key\",
+            \"chmod 644 /opt/YourPlace/cert.pem\",
+            \"chmod 600 /opt/YourPlace/cert.key\",
             \"# Stop and remove existing container\",
             \"docker stop yourplace-gateway || true\",
             \"docker rm yourplace-gateway || true\",

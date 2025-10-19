@@ -365,55 +365,38 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	if gateway { // Gateway mode TLS server
 		certPath := host.GetDataDir() + "cert.pem"
 		keyPath := host.GetDataDir() + "cert.key"
-		var cert tls.Certificate
-		var err error
 
-		// Try loading certificate and key
 		if host.DoesExist(certPath) && host.DoesExist(keyPath) {
-			// Both files exist - use separate cert and key files
 			core.LogInfo("Loading TLS certificate from cert.pem and cert.key")
-			cert, err = tls.LoadX509KeyPair(certPath, keyPath)
-		} else if host.DoesExist(certPath) {
-			// Only cert.pem exists - assume it contains both cert and key (e.g., Cloudflare origin certificate)
-			core.LogInfo("Loading TLS certificate from single cert.pem file (contains both cert and key)")
-			// Read the combined PEM file
-			pemData, readErr := os.ReadFile(certPath)
-			if readErr != nil {
-				err = readErr
+			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+			if err != nil {
+				core.LogWarn("Could not load TLS certificate: " + err.Error())
 			} else {
-				// Use X509KeyPair to parse the combined PEM data
-				cert, err = tls.X509KeyPair(pemData, pemData)
+				core.LogInfo("Starting TLS server on port 443 for gateway mode")
+				tlsConfig := &tls.Config{
+					Certificates: []tls.Certificate{cert},
+					MinVersion:   tls.VersionTLS12,
+				}
+				tlsSrv := &http.Server{
+					Addr:              "0.0.0.0:443",
+					Handler:           router,
+					ReadTimeout:       30 * time.Second,
+					WriteTimeout:      60 * time.Second,
+					IdleTimeout:       120 * time.Second,
+					ReadHeaderTimeout: 20 * time.Second,
+					MaxHeaderBytes:    1 << 20, // 1 MB max header size
+					TLSConfig:         tlsConfig,
+				}
+				go func() {
+					err = tlsSrv.ListenAndServeTLS("", "")
+					if err != nil {
+						core.LogError("Could not start TLS server: " + err.Error())
+					}
+				}()
 			}
 		} else {
 			core.LogWarn("Gateway mode TLS certificates not found - TLS server on port 443 disabled")
-			core.LogWarn("To enable TLS: place cert.pem (or cert.pem + cert.key) in " + host.GetDataDir())
-		}
-
-		// If certificate loaded successfully, start TLS server
-		if err == nil && (host.DoesExist(certPath)) {
-			core.LogInfo("Starting TLS server on port 443 for gateway mode")
-			tlsConfig := &tls.Config{
-				Certificates: []tls.Certificate{cert},
-				MinVersion:   tls.VersionTLS12,
-			}
-			tlsSrv := &http.Server{
-				Addr:              "0.0.0.0:443",
-				Handler:           router,
-				ReadTimeout:       30 * time.Second,
-				WriteTimeout:      60 * time.Second,
-				IdleTimeout:       120 * time.Second,
-				ReadHeaderTimeout: 20 * time.Second,
-				MaxHeaderBytes:    1 << 20, // 1 MB max header size
-				TLSConfig:         tlsConfig,
-			}
-			go func() {
-				err = tlsSrv.ListenAndServeTLS("", "")
-				if err != nil {
-					core.LogError("Could not start TLS server: " + err.Error())
-				}
-			}()
-		} else if err != nil {
-			core.LogWarn("Could not load TLS certificate: " + err.Error())
+			core.LogWarn("To enable TLS: place cert.pem and cert.key in " + host.GetDataDir())
 		}
 	}
 
