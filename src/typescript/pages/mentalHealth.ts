@@ -963,7 +963,7 @@ const tips = [
     "Don't be naive - psychos rule the jungle and always have. Just look at our world leaders. It may not be fair, but power comes out of the barrel of a gun",
     "A lot of people are religious fanatics right up until they're about to die. Many zealots will negotiate when faced with annihilation",
     "Toddler logic presents two options with no gray area",
-    "Women: You need to accept the fact that men are often brash and outspoken and need to fight some kind of battle in order to feel fulfilled. It's wired into their DNA. If you try to put them in a kind of adult kindergarten, or shame them for being masculine, or take away their opportunities - then don't be surprised when *YOU* become the next battle they choose. And I promise you, the men will win. History says so",
+    "Women: You need to accept the fact that men are often brash and outspoken and need to fight some kind of battle in order to feel fulfilled. It's wired into their DNA. If you try to put them in a kind of adult kindergarten, or shame them for being masculine, or take away their opportunities - then don't be surprised when *YOU* become the next battle they choose. And history says they'll win",
     "Young People: Don't spend too much time with the olds. Their \"wisdom\" is usually overrated and outdated anyways",
 
 

@@ -72,7 +72,7 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlaceHelper.exe helper\helper_win.go
 	powershell -Command "Copy-Item -Path 'target\YourPlaceHelper.exe' -Destination 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
 	$(NPX) webpack --config "src\typescript\webpack.prod.js"
-	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlace.exe main.go
+	go build -ldflags "-H=windowsgui -s -w" -o target\YourPlace.exe .
 	resources\windows\upx.exe -f -o target\YourPlace-$(VERSION).exe target\YourPlace.exe
 else ifeq ($(DETECTED_OS),Darwin)
 	$(NPX) webpack --config src/typescript/webpack.prod.js
@@ -83,7 +83,7 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@echo $(VERSION) > src/core/host/bin/helper/osx/helper.version
 	go build -o target/YourPlaceHelper helper/helper_osx.go
 	cp -rf target/YourPlaceHelper src/core/host/bin/helper/osx/YourPlaceHelper
-	go build -o target/YourPlace main.go
+	go build -o target/YourPlace .
 	chmod +x resources/osx/askpass.sh
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh
@@ -91,8 +91,13 @@ else
 	mkdir -p target
 	$(NPX) webpack --config src/typescript/webpack.prod.js
 	@VERSION=$$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"') && \
-	CGO_ENABLED=1 go build -ldflags "-s -w" -o target/YourPlace-$$VERSION main.go
+	CGO_ENABLED=1 go build -ldflags "-s -w" -o target/YourPlace-$$VERSION .
 endif
+gateway_build: clean
+	mkdir -p target
+	$(NPX) webpack --config src/typescript/webpack.prod.js
+	@VERSION=$$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"') && \
+	CGO_ENABLED=0 go build -tags gateway -ldflags "-s -w" -o target/YourPlace-$$VERSION .
 dbg_build: clean
 ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -Command "if (-not (Test-Path 'target')) { New-Item -ItemType Directory -Path 'target' }"
@@ -103,7 +108,7 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	go build -ldflags "-s -w" -o target\YourPlaceHelper.exe helper\helper_win.go
 	powershell -Command "Copy-Item -Path 'target\YourPlaceHelper.exe' -Destination 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
 	$(NPX) webpack --config "src\typescript\webpack.prod.js"
-	go build -ldflags "-s -w" -o target\YourPlace-$(VERSION).exe main.go
+	go build -ldflags "-s -w" -o target\YourPlace-$(VERSION).exe .
 else ifeq ($(DETECTED_OS),Darwin)
 	$(NPX) webpack --config src/typescript/webpack.prod.js
 	mkdir -p src/core/host/bin/helper/osx/
@@ -113,7 +118,7 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@echo $(VERSION) > src/core/host/bin/helper/osx/helper.version
 	go build -o target/YourPlaceHelper helper/helper_osx.go
 	cp -rf target/YourPlaceHelper src/core/host/bin/helper/osx/YourPlaceHelper
-	go build -o target/YourPlace main.go
+	go build -o target/YourPlace .
 	chmod +x resources/osx/askpass.sh
 	chmod +x resources/osx/osx_packager.sh
 	./resources/osx/osx_packager.sh dev
@@ -172,6 +177,9 @@ else ifeq ($(DETECTED_OS),Darwin)
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
 	./target/YourPlace -d -du
 endif
+gateway_run:
+	@VERSION=$$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"') && \
+	./target/YourPlace-$$VERSION -g -d -du
 gateway_noinstall_run:
 ifeq ($(DETECTED_OS),Windows_NT)
 	target\\YourPlace-$(VERSION).exe -du -g

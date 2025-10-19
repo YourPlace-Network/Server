@@ -1,25 +1,68 @@
 # YourPlace Gateway
 
-## Running your own gateway
+## Build
 
-The YourPlace binary has a mode where it allows gateway functionality, in addition to being a YourPlace server.
-Command: ``YourPlace.exe -g`` When run in this mode, new gateway pages and functionality are exposed in the local web UI.
+### Desktop Binary (with UI)
+```bash
+make clean install build
+```
 
-### Pros
+### Gateway Binary (headless, no GTK)
+```bash
+make gateway_build
+```
 
-* Fully distributed, self-hosted access to browse YourPlace profiles and posts
-* Low-powered content searching: can run on a raspberryPi
+Gateway binary is:
+- Fully static (CGO disabled)
+- No desktop dependencies (systray, GTK)
+- Optimized for headless servers
 
-### Cons
+## Run Locally
 
-* Limited text search: Algorand indexers only support searching by prefix, which prevents hashtags and rich-text searching of posts and profiles
-* No content feeds: Recommended content feeds and block lists may not be available in a self-hosted gateway
+### Desktop Mode
+```bash
+./target/YourPlace-<version>
+```
 
-### Gateway Mode Changes
+### Gateway Mode
+```bash
+./target/YourPlace-<version> -g -d -du
+```
 
-* Sets `router.TrustedPlatform = gin.PlatformCloudflare` so that the router knows to trust Cloudflare's headers
-* * Assumes it'll be running locally or behind Cloudflare)
-* Enables TLS server on port *:443 which expects a Cloudflare origin key `<data_directory>\cert.key` and PEM certificate `<data_directory>\cert.pem`
-* Hides settings link in frontend menu
-* Sets environment variable `YourPlaceGateway=true`
-* Disable file, banner and avatar uploads (gateway.go middleware)
+Flags:
+- `-g` - Enable gateway mode
+- `-d` - Debug logging
+- `-du` - Disable UI (don't auto-open browser)
+- `-di` - Disable blockchain indexer
+
+## Gateway Features
+
+Gateway mode enables:
+- TLS server on port 443 (requires `cert.pem` and `cert.key` in data directory)
+- Cloudflare proxy header trust (`router.TrustedPlatform = gin.PlatformCloudflare`)
+- Headless operation (no systray)
+- Restricted endpoints (see middleware/gateway.go:10)
+
+Gateway mode disables:
+- File uploads (POST /files)
+- Settings changes (POST /settings)
+- Setup operations (GET/POST /setup)
+- Notifications (POST /notifications)
+- Desktop UI features
+
+## Docker Deployment
+
+See `gateway/README.md` for Docker and AWS deployment instructions.
+
+## Use Cases
+
+**Gateway Mode:**
+- Public YourPlace instance
+- Cloud deployment (AWS, DigitalOcean, etc.)
+- Reverse proxy behind Cloudflare
+- Headless servers (no display)
+
+**Desktop Mode:**
+- Local development
+- Personal YourPlace server
+- Desktop applications with system tray

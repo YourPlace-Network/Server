@@ -64,6 +64,9 @@ func GetInstallDir() string {
 	return path
 }
 func GetDataDir() string {
+	if GetEnvVar("YourPlaceGateway") == "true" {
+		return "/opt/YourPlace" + string(PathSeparator)
+	}
 	path := GetHomeDir() + string(PathSeparator) + "YourPlace" + string(PathSeparator)
 	return path
 }

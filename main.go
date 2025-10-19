@@ -28,7 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/getlantern/systray"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	_cron "github.com/robfig/cron/v3"
@@ -230,14 +229,7 @@ func main() {
 	StartWebServer(database, _blockchain, ipfs, installed, logFile, mcp)
 
 	// --- Systray --- //
-	if gateway {
-		// In gateway mode, run headless without systray
-		core.LogDebug("Running in gateway mode - systray disabled")
-		select {} // Block forever
-	} else {
-		// Desktop mode with systray
-		systray.Run(func() { SystrayOnReady(database) }, func() { host.Shutdown(0) })
-	}
+	runSystray(database)
 
 	host.Shutdown(0)
 }
@@ -377,30 +369,32 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 			core.LogInfo("Starting TLS server on port 443 for gateway mode")
 			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 			if err != nil {
-				core.LogError("Could not load TLS certificate: " + err.Error())
-			}
-			tlsConfig := &tls.Config{
-				Certificates: []tls.Certificate{cert},
-				MinVersion:   tls.VersionTLS12,
-			}
-			tlsSrv := &http.Server{
-				Addr:              "0.0.0.0:443",
-				Handler:           router,
-				ReadTimeout:       30 * time.Second,
-				WriteTimeout:      60 * time.Second,
-				IdleTimeout:       120 * time.Second,
-				ReadHeaderTimeout: 20 * time.Second,
-				MaxHeaderBytes:    1 << 20, // 1 MB max header size
-				TLSConfig:         tlsConfig,
-			}
-			go func() {
-				err = tlsSrv.ListenAndServeTLS("", "")
-				if err != nil {
-					core.LogError("Could not start TLS server: " + err.Error())
+				core.LogWarn("Could not load TLS certificate: " + err.Error())
+			} else {
+				tlsConfig := &tls.Config{
+					Certificates: []tls.Certificate{cert},
+					MinVersion:   tls.VersionTLS12,
 				}
-			}()
+				tlsSrv := &http.Server{
+					Addr:              "0.0.0.0:443",
+					Handler:           router,
+					ReadTimeout:       30 * time.Second,
+					WriteTimeout:      60 * time.Second,
+					IdleTimeout:       120 * time.Second,
+					ReadHeaderTimeout: 20 * time.Second,
+					MaxHeaderBytes:    1 << 20, // 1 MB max header size
+					TLSConfig:         tlsConfig,
+				}
+				go func() {
+					err = tlsSrv.ListenAndServeTLS("", "")
+					if err != nil {
+						core.LogError("Could not start TLS server: " + err.Error())
+					}
+				}()
+			}
 		} else {
-			core.LogError("Gateway mode enabled but cert.pem or cert.key not found in data directory")
+			core.LogWarn("Gateway mode TLS certificates not found - TLS server on port 443 disabled")
+			core.LogWarn("To enable TLS: place cert.pem and cert.key in " + host.GetDataDir())
 		}
 	}
 
@@ -483,30 +477,4 @@ func CustomGinRecovery() gin.HandlerFunc {
 		}()
 		c.Next()
 	}
-}
-
-// --- Systray Functions --- //
-func SystrayOnReady(database *db.Database) {
-	systray.SetTemplateIcon(favicon, favicon)
-	if runtime.GOOS == "windows" {
-		systray.SetIcon(favicon)
-		systray.SetTitle("YourPlace")
-	}
-	systray.SetTooltip("YourPlace Server")
-	mUI := systray.AddMenuItem("Open YourPlace", "Open YourPlace in your browser")
-	mUI.SetIcon(favicon)
-	mSettings := systray.AddMenuItem("Settings", "YourPlace Settings")
-	mQuit := systray.AddMenuItem("Quit", "Quit YourPlace Server")
-	go func() {
-		for {
-			select {
-			case <-mQuit.ClickedCh:
-				host.Shutdown(0)
-			case <-mUI.ClickedCh:
-				host.OpenBrowser(protocol + "://" + domain + ":" + strconv.Itoa(port))
-			case <-mSettings.ClickedCh:
-				host.OpenBrowser(protocol + "://" + domain + ":" + strconv.Itoa(port) + "/settings")
-			}
-		}
-	}()
 }
