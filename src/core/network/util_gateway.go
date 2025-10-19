@@ -1,4 +1,4 @@
-//go:build !gateway
+//go:build gateway
 
 package network
 
@@ -8,54 +8,11 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
-
-	"github.com/google/gopacket/pcap"
-	"github.com/jackpal/gateway"
 )
 
-/* ------------- Util ------------- */
+/* ------------- Util (Gateway Mode) ------------- */
 
-func getOutboundIP() net.IP {
-	conn, err := net.Dial("udp", "1.1.1.1:80")
-	if err != nil {
-		panic(err)
-	}
-	defer func(conn net.Conn) {
-		err = conn.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(conn)
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP
-}
-func getInterface() (device string, mac *net.HardwareAddr, gwip *net.IP, src *net.IP, err error) {
-	newGwip, err := gateway.DiscoverGateway()
-	if err != nil {
-		panic(err)
-	}
-	device, myIP := selectDevice()
-	newMac := getMAC(myIP)
-	return device, &newMac, &newGwip, &myIP, nil
-}
-func getMAC(ip net.IP) net.HardwareAddr {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		panic(err)
-	}
-	for _, interf := range interfaces {
-		if addrs, err := interf.Addrs(); err == nil {
-			for _, addr := range addrs {
-				if strings.Split(addr.String(), "/")[0] == ip.String() {
-					return interf.HardwareAddr
-				}
-			}
-		}
-	}
-	return net.HardwareAddr{0, 0, 0, 0, 0, 0}
-}
 func GetPublicIP() (net.IP, error) {
 	// http://ifconfig.me
 	// http://api.ipify.org
@@ -71,6 +28,7 @@ func GetPublicIP() (net.IP, error) {
 	}
 	return openDNSPublicIP, nil
 }
+
 func IsTCPPortOpen(host string, port int) bool {
 	const timeout = 10 * time.Second
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), timeout)
@@ -85,12 +43,14 @@ func IsTCPPortOpen(host string, port int) bool {
 	}(conn)
 	return true
 }
+
 func IsInternetConnected() bool {
 	open := IsTCPPortOpen("google.com", 443)
 	open2 := IsTCPPortOpen("cloudflare.com", 443)
 	open3 := IsTCPPortOpen("microsoft.com", 443)
 	return open || open2 || open3
 }
+
 func GetHTTPRoundTripTime(url string) time.Duration {
 	start := time.Now()
 	resp, err := http.Get(url)
@@ -102,6 +62,7 @@ func GetHTTPRoundTripTime(url string) time.Duration {
 	duration := time.Since(start)
 	return duration
 }
+
 func GetTCPRoundTripTime(host string, port int) time.Duration {
 	start := time.Now()
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), 60*time.Second)
@@ -117,25 +78,4 @@ func GetTCPRoundTripTime(host string, port int) time.Duration {
 	}(conn)
 	duration := time.Since(start)
 	return duration
-}
-func selectDevice() (_device string, ip net.IP) {
-	// https://gist.github.com/FlameInTheDark/b1957b95a89493ec6ce346bad156dc61#file-main-go
-	localIP := getOutboundIP()
-	devices, err := pcap.FindAllDevs()
-	if err != nil {
-		panic(err)
-	}
-	var name string
-	for _, device := range devices {
-		for _, address := range device.Addresses {
-			if localIP != nil {
-				if address.IP.String() == localIP.String() {
-					name = device.Name
-				}
-			} else if address.IP.String() != "127.0.0.1" && !strings.Contains(device.Description, "Loopback") {
-				name = device.Name
-			}
-		}
-	}
-	return name, localIP
 }
