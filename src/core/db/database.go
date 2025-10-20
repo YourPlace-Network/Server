@@ -61,6 +61,43 @@ func (db *Database) SetDefaults() {
 		core.LogError("Failed to set defaults: " + err.Error())
 	}
 }
+func (db *Database) SetGatewayDefaults(uploadDirectory string) {
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	metaDefaults := map[string]string{
+		"accountAddress": "0x0000000000000000000000000000000000000000",
+		"accountNetwork": "Base",
+		"installedDate":  timestamp,
+	}
+	settingsDefaults := map[string]string{
+		"uploadDirectory": uploadDirectory,
+	}
+	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
+		for key, defaultValue := range metaDefaults {
+			var value string
+			err := tx.QueryRow("SELECT value FROM meta WHERE key = ?", key).Scan(&value)
+			if err == sql.ErrNoRows || len(value) == 0 {
+				_, err = tx.Exec("INSERT INTO meta (key, value) VALUES (?, ?)", key, defaultValue)
+				if err != nil {
+					return core.LogErrorReturn(fmt.Sprintf("Failed to insert meta default %s: %w", key, err))
+				}
+			}
+		}
+		for key, defaultValue := range settingsDefaults {
+			var value string
+			err := tx.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
+			if err == sql.ErrNoRows || len(value) == 0 {
+				_, err = tx.Exec("INSERT INTO settings (key, value) VALUES (?, ?)", key, defaultValue)
+				if err != nil {
+					return core.LogErrorReturn(fmt.Sprintf("Failed to insert settings default %s: %w", key, err))
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		core.LogError("Failed to set gateway defaults: " + err.Error())
+	}
+}
 func (db *Database) ExportSnapshot(exportPath string) error {
 	switch db.Engine {
 	case "sqlite":
