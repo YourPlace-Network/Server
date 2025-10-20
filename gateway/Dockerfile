@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 AS downloader
+FROM public.ecr.aws/ubuntu/ubuntu:24.04 AS downloader
 
 RUN apt-get update && apt-get install -y \
     wget ca-certificates grep \
@@ -15,7 +15,7 @@ RUN VERSION=$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' 
     wget https://yourplace-downloads.nyc3.digitaloceanspaces.com/linux/YourPlace-${VERSION} -O YourPlaceGateway && \
     chmod +x YourPlaceGateway
 
-FROM ubuntu:24.04
+FROM public.ecr.aws/ubuntu/ubuntu:24.04
 
 RUN apt-get update && apt-get install -y \
     ca-certificates tzdata \
