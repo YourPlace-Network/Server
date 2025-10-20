@@ -152,6 +152,15 @@ func main() {
 	}
 	database.SetDefaults()                    // Sets default database entries if not existing
 	installed := routes.IsInstalled(database) // checking if the server is installed
+	if gateway && !installed {
+		core.LogInfo("Gateway mode detected - initializing with default values")
+		uploadDir := filepath.Join(host.GetDataDir(), "uploads")
+		if !host.DoesExist(uploadDir) {
+			host.CreateFolder(uploadDir)
+		}
+		database.SetGatewayDefaults(uploadDir)
+		installed = routes.IsInstalled(database) // Re-check installation status
+	}
 	if installed {
 		core.LogDebug("YourPlace is installed at " + host.GetInstallDir())
 		core.LogDebug("YourPlace stores your data at " + host.GetDataDir())
@@ -308,7 +317,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	router.Use(middleware.LoopbackRedirectMiddleware(port))
 	router.Use(middleware.CSRFMiddleware(middleware.CSRFConfig{CryptoSeed: cryptoSeed}))
 	router.Use(middleware.AuthMiddleware(cryptoSeed, database))
-	if !installed {
+	if !installed && !gateway {
 		router.Use(middleware.SetupMiddleware(installed))
 	}
 	router.Use(middleware.HotPatch())
