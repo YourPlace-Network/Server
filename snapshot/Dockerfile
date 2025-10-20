@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 AS builder
+FROM public.ecr.aws/ubuntu/ubuntu:24.04 AS builder
 
 RUN apt-get update && apt-get install -y \
     wget ca-certificates make \
@@ -16,7 +16,7 @@ COPY . .
 
 RUN make snapshot_build
 
-FROM ubuntu:24.04
+FROM public.ecr.aws/ubuntu/ubuntu:24.04
 
 RUN apt-get update && apt-get install -y \
     ca-certificates tzdata unattended-upgrades \
