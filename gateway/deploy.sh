@@ -3,9 +3,9 @@ set -e
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 
-if [ -z "$INSTANCE_ID" ] || [ -z "$ECR_REGISTRY" ] || [ -z "$SSH_PUBLIC_KEY" ] || [ -z "$CLOUDFLARE_CERT_PEM" ] || [ -z "$CLOUDFLARE_CERT_KEY" ]; then
+if [ -z "$INSTANCE_ID" ] || [ -z "$ECR_REGISTRY" ] || [ -z "$CLOUDFLARE_CERT_PEM" ] || [ -z "$CLOUDFLARE_CERT_KEY" ]; then
   echo "ERROR: Missing required environment variables"
-  echo "Required: INSTANCE_ID, ECR_REGISTRY, SSH_PUBLIC_KEY, CLOUDFLARE_CERT_PEM, CLOUDFLARE_CERT_KEY"
+  echo "Required: INSTANCE_ID, ECR_REGISTRY, CLOUDFLARE_CERT_PEM, CLOUDFLARE_CERT_KEY"
   exit 1
 fi
 
@@ -18,24 +18,19 @@ COMMAND_JSON=$(cat <<EOF
 {
   "commands": [
     "set -e",
-    "echo '=== Configuring SSH key ==='",
-    "mkdir -p /root/.ssh",
-    "echo '$SSH_PUBLIC_KEY' > /root/.ssh/authorized_keys",
-    "chmod 600 /root/.ssh/authorized_keys",
-    "chmod 700 /root/.ssh",
     "echo '=== Installing TLS certificates ==='",
     "mkdir -p /opt/YourPlace",
     "echo '$CERT_PEM_BASE64' | base64 -d > /opt/YourPlace/cert.pem",
     "echo '$CERT_KEY_BASE64' | base64 -d > /opt/YourPlace/cert.key",
     "chmod 644 /opt/YourPlace/cert.pem",
     "chmod 600 /opt/YourPlace/cert.key",
-    "echo '=== Stopping existing container ==='",
-    "docker stop yourplace-gateway 2>/dev/null || echo 'No existing container'",
-    "docker rm yourplace-gateway 2>/dev/null || echo 'No existing container'",
     "echo '=== Logging into ECR ==='",
     "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY",
     "echo '=== Pulling latest image ==='",
     "docker pull $ECR_REGISTRY/yourplace-gateway:latest",
+    "echo '=== Stopping existing container ==='",
+    "docker stop yourplace-gateway 2>/dev/null || echo 'No existing container'",
+    "docker rm yourplace-gateway 2>/dev/null || echo 'No existing container'",
     "echo '=== Starting new container ==='",
     "docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /opt/YourPlace:/opt/YourPlace $ECR_REGISTRY/yourplace-gateway:latest",
     "echo '=== Verifying container ==='",
