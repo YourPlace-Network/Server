@@ -57,7 +57,6 @@ jobs:
       env:
         INSTANCE_ID: ${{ steps.get-instance.outputs.instance_id }}
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        SSH_PUBLIC_KEY: ${{ secrets.GATEWAY_SSH_PUBLIC_KEY }}
         CLOUDFLARE_CERT_PEM: ${{ secrets.CLOUDFLARE_CERT_PEM }}
         CLOUDFLARE_CERT_KEY: ${{ secrets.CLOUDFLARE_CERT_KEY }}
       run: |
