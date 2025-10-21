@@ -65,7 +65,6 @@ Configure the following secrets in your GitHub repository:
 
 - `CLOUDFLARE_CERT_PEM` - Cloudflare origin certificate (full PEM content)
 - `CLOUDFLARE_CERT_KEY` - Cloudflare origin private key (full key content)
-- `GATEWAY_SSH_PUBLIC_KEY` - SSH public key for EC2 access
 
 #### TLS Certificates
 
@@ -96,9 +95,14 @@ The workflow:
 3. Deploys certificates to `/opt/YourPlace/` on EC2
 4. Pulls and runs latest container
 
-### SSH to EC2 Instance
+### Access EC2 Instance via SSM
 ```bash
 aws ssm start-session --target <instance-id> --region us-east-1
+```
+
+Get instance ID:
+```bash
+aws ec2 describe-instances --filters "Name=tag:Name,Values=yourplace-gateway" "Name=instance-state-name,Values=running" --region us-east-1 --query 'Reservations[0].Instances[0].InstanceId' --output text
 ```
 
 ### Check Container Status
