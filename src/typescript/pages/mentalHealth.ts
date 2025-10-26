@@ -965,6 +965,10 @@ const tips = [
     "Toddler logic presents two options with no gray area",
     "Women: You need to accept the fact that men are often brash and outspoken and need to fight some kind of battle in order to feel fulfilled. It's wired into their DNA. If you try to put them in a kind of adult kindergarten, or shame them for being masculine, or take away their opportunities - then don't be surprised when *YOU* become the next battle they choose. And history says they'll win",
     "Young People: Don't spend too much time with the olds. Their \"wisdom\" is usually overrated and outdated anyways",
+    "Do not move to a small town if you're single. Move to the nearest cool college town or regional city",
+    "Every time humans pursue ambitious projects like space exploration or nuclear energy, we end up with second-order and sometime unexpected benefits",
+    "Ladies: Don't get too comfortable getting in a mans face to try and intimidate him. Your privilege only extends so far, and men largely have a monopoly on violence. He might go to jail if he hits you, but you have a very high risk of being permanently disfigured or dead if that happens. Record and report from a distance so the good men can fight the bad ones. Because history says the bad ones will cave in your face and not think twice. And that can happen in a split second, even if you're in public and surrounded by friends",
+
 
 
 ];
