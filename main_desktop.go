@@ -26,7 +26,6 @@ func getIndexerMenuText(database *db.Database) string {
 	}
 	return "Indexer: Disabled"
 }
-
 func SystrayOnReady(database *db.Database) {
 	systray.SetTemplateIcon(favicon, favicon)
 	if runtime.GOOS == "windows" {
