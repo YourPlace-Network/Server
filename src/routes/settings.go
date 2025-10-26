@@ -418,11 +418,11 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 						snapshotMetadataFile := filepath.Join(snapshotDir, fmt.Sprintf("%s-snapshot-complete.json", payload.Blockchain))
 						if host.DoesExist(snapshotFile) {
 							core.LogDebug("Deleting existing snapshot file: " + snapshotFile)
-							host.Delete(snapshotFile)
+							host.DeleteIfExists(snapshotFile)
 						}
 						if host.DoesExist(snapshotMetadataFile) {
 							core.LogDebug("Deleting existing snapshot metadata file: " + snapshotMetadataFile)
-							host.Delete(snapshotMetadataFile)
+							host.DeleteIfExists(snapshotMetadataFile)
 						}
 						core.LogInfo("Downloading snapshot from: " + snapshotURL)
 						err = network.HttpGetFile(snapshotURL, snapshotFile)
