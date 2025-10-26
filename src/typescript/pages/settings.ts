@@ -87,10 +87,9 @@ import {Sleep} from "../util/time";
             InitTooltips();
             ExpandAccordionByHash();
 
-            /* Cron Jobs */
-            setInterval(getBaseIndexerProgress, 300000); // 5 minutes
-            setInterval(getIndexerStatus, 6000); // 6 seconds
-            setInterval(getIndexerRunning, 6000); // 6 seconds - keep checkbox in sync with systray
+            setInterval(getBaseIndexerProgress, 300000);
+            setInterval(getIndexerStatus, 6000);
+            setInterval(getIndexerRunning, 6000);
         }
 
         /* Getting Current Settings Values */

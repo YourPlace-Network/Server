@@ -18,14 +18,12 @@ func runSystray(database *db.Database) {
 }
 func getIndexerMenuText(database *db.Database) string {
 	indexerRunning := database.SettingsGetValue("indexerRunning")
-	// Treat empty string as false (disabled) for safety
 	if indexerRunning == "" || indexerRunning == "false" {
 		return "Indexer: Disabled"
 	}
 	if indexerRunning == "true" {
 		return "Indexer: Enabled"
 	}
-	// Fallback for unexpected values
 	return "Indexer: Disabled"
 }
 
