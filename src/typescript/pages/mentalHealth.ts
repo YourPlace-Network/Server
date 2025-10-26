@@ -977,7 +977,7 @@ const tips = [
     "When in high school, if you are able, take courses that you wouldn't regularly do. Wood shop, auto tech, welding, typing. These are things that you don't necessarily need to build a career in, but they're good to be familiar with as life goes on",
     "Men: When making love to a woman, go slower than you normally would. Like, really slow. Fast can be fun, but slow and gentle can build up something explosive for the both of you",
     "True free speech is allowing someone to peacefully wear a Nazi uniform and praise Hitler",
-
+    "A human surrendering their mental abilities to a machine / AI is embarrassing and they should be shamed for being so intellectually lazy. Make the machine do the tedious work for you, but still be able to think for yourself",
 
 
 ];
