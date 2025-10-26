@@ -36,14 +36,9 @@ import {Sleep} from "../util/time";
             baseCatchUpFullBtn: document.getElementById("baseCatchUpFullBtn")! as HTMLButtonElement,
             baseCatchUpHelpBtn: document.getElementById("baseCatchUpHelpBtn")! as HTMLButtonElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
-            databaseExportSnapshotBtn: document.getElementById("databaseExportSnapshotBtn")! as HTMLButtonElement,
-            databaseImportSnapshotBtn: document.getElementById("databaseImportSnapshotBtn")! as HTMLButtonElement,
-            databaseSnapshotDirectory: document.getElementById("databaseSnapshotDirectory")! as HTMLDivElement,
             defaultBaseURLBtn: document.getElementById("defaultBaseURLBtn")! as HTMLButtonElement,
             defaultUploadDirectoryBtn: document.getElementById("defaultUploadDirectoryBtn")! as HTMLButtonElement,
             helperVersionText: document.getElementById("helperVersionText")! as HTMLSpanElement,
-            indexerServer: document.getElementById("indexerServer")! as HTMLInputElement,
-            indexerToken: document.getElementById("indexerToken")! as HTMLInputElement,
             indexerOnBatteryCheckbox: document.getElementById("indexerOnBatteryCheckbox")! as HTMLInputElement,
             indexerRunCheckbox: document.getElementById("indexerRunCheckbox")! as HTMLInputElement,
             indexerStatusText: document.getElementById("indexerStatusText")! as HTMLSpanElement,
@@ -784,8 +779,6 @@ import {Sleep} from "../util/time";
         DOM.baseIndexerResetBtn!.addEventListener("click", setBaseIndexerReset);
         DOM.baseCatchUpFullBtn!.addEventListener("click", function() { setBaseIndexerCatchUp("full").then(); });
         DOM.baseCatchUpHelpBtn!.addEventListener("click", function() { setBaseIndexerCatchUp("h").then(); });
-        DOM.databaseExportSnapshotBtn!.addEventListener("click", setDatabaseExportSnapshot);
-        DOM.databaseImportSnapshotBtn!.addEventListener("click", setDatabaseImportSnapshot);
         DOM.defaultBaseURLBtn!.addEventListener("click", setDefaultBaseURL);
         DOM.defaultUploadDirectoryBtn!.addEventListener("click", setDefaultUploadDirectory);
         DOM.saveBaseURLBtn!.addEventListener("click", setBaseURL);
@@ -818,7 +811,6 @@ import {Sleep} from "../util/time";
         DOM.collapseContent.addEventListener("show.bs.collapse", function() {
             getUploadDirectory().then();
             getIpfsPinning().then();
-            getDatabaseSnapshotDirectory().then();
             getSpiceometer().then();
             getOllamaEnabled().then();
             getOllamaModelEnabled().then();
