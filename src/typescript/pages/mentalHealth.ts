@@ -974,6 +974,10 @@ const tips = [
     "Political revolutions are historically extremely bad for women and result in immeasurable harm to them. They are almost always massively victimized when such an upset happens. Women, for their own sake, should pretty much never advocate for revolution outside of *extreme* oppression",
     "Applying rules retroactively to people is generally a bad idea",
     "Women: The truth is, regular sex is necessary to maintaining a healthy relationship. Withholding it is your right, but it's also like withholding oil from your car because the engine is running a little rough. It's possible that it just needs more oil, or there is some other problem that need addressing",
+    "When in high school, if you are able, take courses that you wouldn't regularly do. Wood shop, auto tech, welding, typing. These are things that you don't necessarily need to build a career in, but they're good to be familiar with as life goes on",
+    "Men: When making love to a woman, go slower than you normally would. Like, really slow. Fast can be fun, but slow and gentle can build up something explosive for the both of you",
+    "True free speech is allowing someone to peacefully wear a Nazi uniform and praise Hitler",
+
 
 
 ];
