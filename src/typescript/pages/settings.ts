@@ -216,8 +216,12 @@ import {Sleep} from "../util/time";
             if (response[0] === 200) {
                 DOM.indexerRunCheckbox.checked = response[1].indexerRunning;
                 if (response[1].indexerRunning == true) {
-                    DOM.indexerStatusText.textContent = "Warming Up";
-                    DOM.indexerStatusText.style.color = "#D3D3D3";
+                    if (DOM.indexerStatusText.textContent !== "Warming Up") {
+                        DOM.indexerStatusText.textContent = "Warming Up";
+                    }
+                    if (DOM.indexerStatusText.style.color !== "#D3D3D3") {
+                        DOM.indexerStatusText.style.color = "#D3D3D3";
+                    }
                 }
             }
         }
@@ -225,21 +229,29 @@ import {Sleep} from "../util/time";
             let response = await HttpGetJson("/settings/indexer/status");
             if (response[0] === 200) {
                 let status = DOMPurify.sanitize(response[1].status);
+                let newText = "";
+                let newColor = "";
                 if (status == "running") {
-                    DOM.indexerStatusText.textContent = "Running"
-                    DOM.indexerStatusText.style.color = "green";
+                    newText = "Running";
+                    newColor = "green";
                 } else if (status == "complete") {
-                    DOM.indexerStatusText.textContent = "Complete"
-                    DOM.indexerStatusText.style.color = "green";
+                    newText = "Complete";
+                    newColor = "green";
                 } else if (status == "stopped") {
-                    DOM.indexerStatusText.textContent = "Stopped"
-                    DOM.indexerStatusText.style.color = "#D3D3D3";
+                    newText = "Stopped";
+                    newColor = "#D3D3D3";
                 } else if (status == "failed") {
-                    DOM.indexerStatusText.textContent = "Failed"
-                    DOM.indexerStatusText.style.color = "red";
+                    newText = "Failed";
+                    newColor = "red";
                 } else {
-                    DOM.indexerStatusText.textContent = status;
-                    DOM.indexerStatusText.style.color = "yellow";
+                    newText = status;
+                    newColor = "yellow";
+                }
+                if (DOM.indexerStatusText.textContent !== newText) {
+                    DOM.indexerStatusText.textContent = newText;
+                }
+                if (DOM.indexerStatusText.style.color !== newColor) {
+                    DOM.indexerStatusText.style.color = newColor;
                 }
             } else {
                 LogError("Indexer Status Error");
