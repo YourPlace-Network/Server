@@ -18,6 +18,9 @@ func runSystray(database *db.Database) {
 }
 func getIndexerMenuText(database *db.Database) string {
 	indexerRunning := database.SettingsGetValue("indexerRunning")
+	if indexerRunning == "" || indexerRunning == "false" {
+		return "Indexer: Disabled"
+	}
 	if indexerRunning == "true" {
 		return "Indexer: Enabled"
 	}

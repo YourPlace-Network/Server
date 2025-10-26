@@ -1211,7 +1211,6 @@ func IndexerStop() {
 	}
 }
 func ToggleIndexer(database *db.Database) {
-	// Toggle the indexer on and off with a single function call
 	indexerRunning := database.SettingsGetValue("indexerRunning")
 	if indexerRunning == "true" {
 		database.SettingsUpdateValue("indexerRunning", "false")
