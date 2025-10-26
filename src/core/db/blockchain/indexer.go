@@ -1213,10 +1213,12 @@ func IndexerStop() {
 func ToggleIndexer(database *db.Database) {
 	// Toggle the indexer on and off with a single function call
 	indexerRunning := database.SettingsGetValue("indexerRunning")
+	// If currently enabled (true), disable it
 	if indexerRunning == "true" {
 		database.SettingsUpdateValue("indexerRunning", "false")
 		IndexerStop()
 	} else {
+		// If currently disabled (false, empty, or any other value), enable it
 		database.SettingsUpdateValue("indexerRunning", "true")
 	}
 }
