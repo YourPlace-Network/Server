@@ -156,7 +156,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		isOnBattery := host.IsOnBattery()
 		indexerRunning := database.SettingsGetValue("indexerRunning")
 		if indexerRunning != "true" || (isOnBattery && !indexerOnBatteryBool) {
-			baseIndexerStatus = "Stopped"
+			baseIndexerStatus = "stopped"
 		}
 		c.SecureJSON(http.StatusOK, gin.H{
 			"status": baseIndexerStatus,
