@@ -967,9 +967,13 @@ const tips = [
     "Young People: Don't spend too much time with the olds. Their \"wisdom\" is usually overrated and outdated anyways",
     "Do not move to a small town if you're single. Move to the nearest cool college town or regional city",
     "Every time humans pursue ambitious projects like space exploration or nuclear energy, we end up with second-order and sometime unexpected benefits",
-    "Ladies: Don't get too comfortable getting in a mans face to try and intimidate him. Your privilege only extends so far, and men largely have a monopoly on violence. He might go to jail if he hits you, but you have a very high risk of being permanently disfigured or dead if that happens. Record and report from a distance so the good men can fight the bad ones. Because history says the bad ones will cave in your face and not think twice. And that can happen in a split second, even if you're in public and surrounded by friends",
+    "Women: Don't get too comfortable getting in a mans face to try and intimidate him. Your privilege only extends so far, and men largely have a monopoly on violence. He might go to jail if he hits you, but you have a very high risk of being permanently disfigured or dead if that happens. Record and report from a distance so the good men can fight the bad ones. Because history says the bad ones will cave in your face and not think twice. And that can happen in a split second, even if you're in public and surrounded by friends",
     "Most people don't really have principals, they just want power. But they'll have no problem using your own principals against you - don't let them",
     "If you're over 70 years old, you need to stop trying to change society and instead look for the younger person to pass your power to. It's a huge societal problem when the older generation won't step aside. And at some point, the young need to exert their own power and force them out",
+    "Hollywood actors are hugely overrated and you should completely ignore their politics",
+    "Political revolutions are historically extremely bad for women and result in immeasurable harm to them. They are almost always massively victimized when such an upset happens. Women, for their own sake, should pretty much never advocate for revolution outside of *extreme* oppression",
+    "Applying rules retroactively to people is generally a bad idea",
+
 
 ];
 
