@@ -8,6 +8,7 @@ import (
 	"YourPlace/src/core/host"
 	"runtime"
 	"strconv"
+	"time"
 
 	"github.com/getlantern/systray"
 )
@@ -35,7 +36,9 @@ func SystrayOnReady(database *db.Database) {
 	mSettings := systray.AddMenuItem("Settings", "YourPlace Settings")
 	mIndexer := systray.AddMenuItem(getIndexerMenuText(database), "Toggle blockchain indexer on/off")
 	mQuit := systray.AddMenuItem("Quit", "Quit YourPlace Server")
+	ticker := time.NewTicker(6 * time.Second)
 	go func() {
+		defer ticker.Stop()
 		for {
 			select {
 			case <-mQuit.ClickedCh:
@@ -46,6 +49,8 @@ func SystrayOnReady(database *db.Database) {
 				host.OpenBrowser(protocol + "://" + domain + ":" + strconv.Itoa(port) + "/settings")
 			case <-mIndexer.ClickedCh:
 				blockchain.ToggleIndexer(database)
+				mIndexer.SetTitle(getIndexerMenuText(database))
+			case <-ticker.C:
 				mIndexer.SetTitle(getIndexerMenuText(database))
 			}
 		}
