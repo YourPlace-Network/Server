@@ -980,7 +980,7 @@ const tips = [
     "A human surrendering their mental abilities to a machine / AI is embarrassing and they should be shamed for being so intellectually lazy. Make the machine do the tedious work for you, but still be able to think for yourself",
     "Listen to what people do, and not what they say",
     "The most guilty person is usually the one who is first to claim \"we all made mistakes.\" They're just trying to muddy the waters and deflect as much blame as possible",
-
+    "Don't fall for the doomer nonsense. That's for losers and normies scared of their own shadows. Walk around like God sent you and smile at everyone you see. Spread light and abundance. Build things and take chances",
 
 
 ];
