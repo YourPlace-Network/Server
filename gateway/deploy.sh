@@ -49,6 +49,13 @@ PARAMETERS=$(jq -n \
   --arg script "$SCRIPT" \
   '{commands: [$script]}')
 
+# Check parameter size (AWS SSM limit is 48KB for parameters)
+PARAM_SIZE=$(echo "$PARAMETERS" | wc -c)
+echo "Parameter size: $PARAM_SIZE bytes"
+if [ "$PARAM_SIZE" -gt 48000 ]; then
+  echo "WARNING: Parameters size ($PARAM_SIZE bytes) approaching SSM limit (48KB)"
+fi
+
 echo "Sending deployment command to instance $INSTANCE_ID..."
 COMMAND_ID=$(aws ssm send-command \
   --instance-ids "$INSTANCE_ID" \
@@ -78,14 +85,24 @@ RESULT=$(aws ssm get-command-invocation \
 STATUS=$(echo "$RESULT" | jq -r '.Status')
 echo "Status: $STATUS"
 
+STATUS_DETAILS=$(echo "$RESULT" | jq -r '.StatusDetails // "No details"')
+echo "Status Details: $STATUS_DETAILS"
+
 echo ""
 echo "=== Output ==="
-echo "$RESULT" | jq -r '.StandardOutputContent'
+OUTPUT=$(echo "$RESULT" | jq -r '.StandardOutputContent // "No output"')
+echo "$OUTPUT"
 
-if [ -n "$(echo "$RESULT" | jq -r '.StandardErrorContent')" ]; then
+echo ""
+echo "=== Errors ==="
+ERRORS=$(echo "$RESULT" | jq -r '.StandardErrorContent // "No errors"')
+echo "$ERRORS"
+
+# Show full result for debugging if failed with no output
+if [ "$STATUS" != "Success" ] && [ "$OUTPUT" = "No output" ]; then
   echo ""
-  echo "=== Errors ==="
-  echo "$RESULT" | jq -r '.StandardErrorContent'
+  echo "=== Full Result (Debug) ==="
+  echo "$RESULT" | jq '.'
 fi
 
 if [ "$STATUS" != "Success" ]; then
