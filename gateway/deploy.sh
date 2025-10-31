@@ -9,6 +9,33 @@ if [ -z "$INSTANCE_ID" ] || [ -z "$ECR_REGISTRY" ] || [ -z "$CLOUDFLARE_CERT_PEM
   exit 1
 fi
 
+echo "Checking SSM agent status..."
+SSM_STATUS=$(aws ssm describe-instance-information \
+  --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+  --region "$AWS_REGION" \
+  --output json 2>/dev/null || echo "{}")
+
+PING_STATUS=$(echo "$SSM_STATUS" | jq -r '.InstanceInformationList[0].PingStatus // "Unknown"')
+AGENT_VERSION=$(echo "$SSM_STATUS" | jq -r '.InstanceInformationList[0].AgentVersion // "Unknown"')
+
+echo "SSM Ping Status: $PING_STATUS"
+echo "SSM Agent Version: $AGENT_VERSION"
+
+if [ "$PING_STATUS" != "Online" ]; then
+  echo "ERROR: SSM agent is not online on instance $INSTANCE_ID"
+  echo "Please ensure:"
+  echo "  1. The EC2 instance has the SSM agent installed and running"
+  echo "  2. The instance has the AmazonSSMManagedInstanceCore IAM policy"
+  echo "  3. The instance has network connectivity to SSM endpoints"
+  echo ""
+  echo "Full SSM status:"
+  echo "$SSM_STATUS" | jq '.'
+  exit 1
+fi
+
+echo "SSM agent is online and ready"
+echo ""
+
 echo "Encoding certificates..."
 CERT_PEM_BASE64=$(echo "$CLOUDFLARE_CERT_PEM" | base64 -w 0 2>/dev/null || echo "$CLOUDFLARE_CERT_PEM" | base64)
 CERT_KEY_BASE64=$(echo "$CLOUDFLARE_CERT_KEY" | base64 -w 0 2>/dev/null || echo "$CLOUDFLARE_CERT_KEY" | base64)
