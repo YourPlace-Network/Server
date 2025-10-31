@@ -36,6 +36,23 @@ fi
 echo "SSM agent is online and ready"
 echo ""
 
+echo "Checking for pending SSM commands..."
+PENDING_COMMANDS=$(aws ssm list-commands \
+  --instance-id "$INSTANCE_ID" \
+  --filters "key=Status,value=Pending" "key=Status,value=InProgress" \
+  --region "$AWS_REGION" \
+  --output json 2>/dev/null || echo '{"Commands":[]}')
+
+PENDING_COUNT=$(echo "$PENDING_COMMANDS" | jq '.Commands | length')
+if [ "$PENDING_COUNT" -gt 0 ]; then
+  echo "WARNING: Found $PENDING_COUNT pending/in-progress command(s) on instance"
+  echo "$PENDING_COMMANDS" | jq -r '.Commands[] | "  - Command: \(.CommandId) Status: \(.Status) Requested: \(.RequestedDateTime)"'
+  echo ""
+else
+  echo "No pending commands found"
+  echo ""
+fi
+
 echo "Encoding certificates..."
 CERT_PEM_BASE64=$(echo "$CLOUDFLARE_CERT_PEM" | base64 -w 0 2>/dev/null || echo "$CLOUDFLARE_CERT_PEM" | base64)
 CERT_KEY_BASE64=$(echo "$CLOUDFLARE_CERT_KEY" | base64 -w 0 2>/dev/null || echo "$CLOUDFLARE_CERT_KEY" | base64)
@@ -94,12 +111,36 @@ COMMAND_ID=$(aws ssm send-command \
 
 echo "Command ID: $COMMAND_ID"
 
-echo "Waiting for deployment to complete..."
-aws ssm wait command-executed \
-  --command-id "$COMMAND_ID" \
-  --instance-id "$INSTANCE_ID" \
-  --region "$AWS_REGION" \
-  2>&1 || true
+echo "Waiting for deployment to complete (timeout: 10 minutes)..."
+# Wait for command to complete with longer timeout
+WAIT_COUNT=0
+MAX_WAIT=60  # 60 * 10 seconds = 10 minutes
+
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+  STATUS_CHECK=$(aws ssm get-command-invocation \
+    --command-id "$COMMAND_ID" \
+    --instance-id "$INSTANCE_ID" \
+    --region "$AWS_REGION" \
+    --output json 2>/dev/null || echo "{}")
+
+  CURRENT_STATUS=$(echo "$STATUS_CHECK" | jq -r '.Status // "Unknown"')
+
+  if [ "$CURRENT_STATUS" = "Success" ] || [ "$CURRENT_STATUS" = "Failed" ] || [ "$CURRENT_STATUS" = "Cancelled" ] || [ "$CURRENT_STATUS" = "TimedOut" ]; then
+    echo "Command completed with status: $CURRENT_STATUS"
+    break
+  fi
+
+  if [ $((WAIT_COUNT % 6)) -eq 0 ]; then
+    echo "Status: $CURRENT_STATUS (waited $((WAIT_COUNT * 10)) seconds)"
+  fi
+
+  sleep 10
+  WAIT_COUNT=$((WAIT_COUNT + 1))
+done
+
+if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+  echo "WARNING: Command did not complete within timeout"
+fi
 
 echo ""
 echo "=== Deployment Results ==="
