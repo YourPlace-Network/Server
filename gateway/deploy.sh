@@ -15,7 +15,7 @@ CERT_KEY_BASE64=$(echo "$CLOUDFLARE_CERT_KEY" | base64 -w 0 2>/dev/null || echo 
 
 echo "Building deployment command..."
 # Build commands as a single shell script for AWS SSM
-COMMANDS=$(cat <<'EOF'
+SCRIPT=$(cat <<'EOF'
 set -e
 echo '=== Installing TLS certificates ==='
 mkdir -p /opt/YourPlace
@@ -39,16 +39,21 @@ EOF
 )
 
 # Replace placeholders with actual values
-COMMANDS="${COMMANDS//CERT_PEM_BASE64_PLACEHOLDER/$CERT_PEM_BASE64}"
-COMMANDS="${COMMANDS//CERT_KEY_BASE64_PLACEHOLDER/$CERT_KEY_BASE64}"
-COMMANDS="${COMMANDS//AWS_REGION_PLACEHOLDER/$AWS_REGION}"
-COMMANDS="${COMMANDS//ECR_REGISTRY_PLACEHOLDER/$ECR_REGISTRY}"
+SCRIPT="${SCRIPT//CERT_PEM_BASE64_PLACEHOLDER/$CERT_PEM_BASE64}"
+SCRIPT="${SCRIPT//CERT_KEY_BASE64_PLACEHOLDER/$CERT_KEY_BASE64}"
+SCRIPT="${SCRIPT//AWS_REGION_PLACEHOLDER/$AWS_REGION}"
+SCRIPT="${SCRIPT//ECR_REGISTRY_PLACEHOLDER/$ECR_REGISTRY}"
+
+# Create proper JSON parameters structure
+PARAMETERS=$(jq -n \
+  --arg script "$SCRIPT" \
+  '{commands: [$script]}')
 
 echo "Sending deployment command to instance $INSTANCE_ID..."
 COMMAND_ID=$(aws ssm send-command \
   --instance-ids "$INSTANCE_ID" \
   --document-name "AWS-RunShellScript" \
-  --parameters commands="$COMMANDS" \
+  --parameters "$PARAMETERS" \
   --region "$AWS_REGION" \
   --output text \
   --query 'Command.CommandId')
