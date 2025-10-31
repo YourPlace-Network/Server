@@ -215,7 +215,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"meta":          "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
 		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
-		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT)",
+		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT, blockchain TEXT, PRIMARY KEY (fileUUID, txHash, blockchain))",
 		"indexer_jobs":  "CREATE TABLE IF NOT EXISTS indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
 		"auth_nonce":    "CREATE TABLE IF NOT EXISTS auth_nonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
 		"auth_expired":  "CREATE TABLE IF NOT EXISTS auth_expired (uuid TEXT PRIMARY KEY, status TEXT)",
@@ -1267,8 +1267,8 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 			core.LogDebug("Could not scan database rows for user posts: " + err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
-		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash)
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
+		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
 		if err != nil {
 			core.LogDebug("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
 		} else if rowsAttachments != nil {
@@ -1377,7 +1377,7 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 			core.LogError("Could not scan database rows: " + err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
 		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
 		if err != nil {
 			core.LogError("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
@@ -1793,8 +1793,8 @@ func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, t
 				continue
 			}
 		}
-		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash) VALUES (?, ?)"
-		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash)
+		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?) ON CONFLICT (fileUUID, txHash, blockchain) DO NOTHING"
+		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
 		if err != nil {
 			core.LogError("Could not link file to transaction: " + err.Error())
 		}
@@ -1919,8 +1919,8 @@ func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain st
 		}
 
 		// Get attachments for this post
-		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ?"
-		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash)
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
+		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
 		if err != nil {
 			core.LogDebug("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
 		} else if rowsAttachments != nil {

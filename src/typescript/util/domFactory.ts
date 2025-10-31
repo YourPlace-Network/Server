@@ -211,11 +211,27 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     }
     postDiv.appendChild(reactionDiv);
     // Embed Rich Media
+    // Extract attachment URLs for deduplication
+    const attachmentUrls = new Set<string>();
+    if ("attachments" in postData) {
+        for (const attachment of postData.attachments) {
+            let fileUrl = attachment[0];
+            if (fileUrl.startsWith("ipfs://")) {
+                fileUrl = CIDToSubdomainURL(fileUrl);
+            }
+            attachmentUrls.add(fileUrl);
+        }
+    }
     const urlRegex = /(https:\/\/[^\s]+)/g;
     let postText = postData.payload;
     const urls = postData.payload.match(urlRegex);
     if (urls) {
         for (const url of urls) {
+            // Skip if this URL is already in attachments
+            if (attachmentUrls.has(url)) {
+                postText = postText.replace(url, "").trim();
+                continue;
+            }
             const imageEmbed = createImageEmbed(url);
             if (imageEmbed) {
                 embedDiv.appendChild(imageEmbed);
