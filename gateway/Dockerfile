@@ -1,3 +1,5 @@
+# IMPORTANT: Always use AWS ECR Public images to avoid DockerHub rate limits
+# AWS ECR Public Gallery: https://gallery.ecr.aws/
 FROM public.ecr.aws/ubuntu/ubuntu:24.04 AS downloader
 
 RUN apt-get update && apt-get install -y \
