@@ -55,11 +55,6 @@ func (db *SQLite) Init(path string) {
 	if err != nil {
 		core.LogError("Could not create tables: " + err.Error())
 	}
-	// Run migrations
-	err = db.migrateFileTransactionHashTable(startupCtx)
-	if err != nil {
-		core.LogError("Could not migrate file_txn_hash table: " + err.Error())
-	}
 }
 
 // --- SQL --- //
@@ -239,69 +234,6 @@ func (db *SQLite) createTables(ctx context.Context) error {
 			return core.LogErrorReturn("Table creation failed: " + err.Error())
 		}
 	}
-	return nil
-}
-func (db *SQLite) migrateFileTransactionHashTable(ctx context.Context) error {
-	// Check if file_txn_hash table has blockchain column
-	rows, err := db.database.QueryContext(ctx, "PRAGMA table_info(file_txn_hash)")
-	if err != nil {
-		return core.LogErrorReturn("Could not get table info for file_txn_hash: " + err.Error())
-	}
-	defer rows.Close()
-	hasBlockchainColumn := false
-	for rows.Next() {
-		var cid int
-		var name, dataType string
-		var notNull, pk int
-		var dfltValue sql.NullString
-		err = rows.Scan(&cid, &name, &dataType, &notNull, &dfltValue, &pk)
-		if err != nil {
-			return core.LogErrorReturn("Could not scan table info: " + err.Error())
-		}
-		if name == "blockchain" {
-			hasBlockchainColumn = true
-			break
-		}
-	}
-	if hasBlockchainColumn {
-		core.LogDebug("file_txn_hash table already has blockchain column, skipping migration")
-		return nil
-	}
-	core.LogWarn("Migrating file_txn_hash table to include blockchain column")
-	// Create new table with correct schema
-	createNewTable := `CREATE TABLE IF NOT EXISTS file_txn_hash_new (
-		fileUUID TEXT,
-		txHash TEXT,
-		blockchain TEXT,
-		PRIMARY KEY (fileUUID, txHash, blockchain)
-	)`
-	err = db.execWithRetry(ctx, createNewTable, 3)
-	if err != nil {
-		return core.LogErrorReturn("Could not create new file_txn_hash table: " + err.Error())
-	}
-	// Migrate data by joining with onchain_post to get blockchain
-	migrateData := `INSERT INTO file_txn_hash_new (fileUUID, txHash, blockchain)
-		SELECT DISTINCT fth.fileUUID, fth.txHash, op.blockchain
-		FROM file_txn_hash fth
-		INNER JOIN onchain_post op ON fth.txHash = op.txHash
-		ON CONFLICT (fileUUID, txHash, blockchain) DO NOTHING`
-	_, err = db.database.ExecContext(ctx, migrateData)
-	if err != nil {
-		return core.LogErrorReturn("Could not migrate file_txn_hash data: " + err.Error())
-	}
-	// Drop old table
-	dropOldTable := "DROP TABLE IF EXISTS file_txn_hash"
-	err = db.execWithRetry(ctx, dropOldTable, 3)
-	if err != nil {
-		return core.LogErrorReturn("Could not drop old file_txn_hash table: " + err.Error())
-	}
-	// Rename new table
-	renameTable := "ALTER TABLE file_txn_hash_new RENAME TO file_txn_hash"
-	err = db.execWithRetry(ctx, renameTable, 3)
-	if err != nil {
-		return core.LogErrorReturn("Could not rename new file_txn_hash table: " + err.Error())
-	}
-	core.LogWarn("Successfully migrated file_txn_hash table")
 	return nil
 }
 func (db *SQLite) runExternalSQLFile(path string) {
