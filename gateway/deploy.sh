@@ -14,38 +14,41 @@ CERT_PEM_BASE64=$(echo "$CLOUDFLARE_CERT_PEM" | base64 -w 0 2>/dev/null || echo 
 CERT_KEY_BASE64=$(echo "$CLOUDFLARE_CERT_KEY" | base64 -w 0 2>/dev/null || echo "$CLOUDFLARE_CERT_KEY" | base64)
 
 echo "Building deployment command..."
-COMMAND_JSON=$(cat <<EOF
-{
-  "commands": [
-    "set -e",
-    "echo '=== Installing TLS certificates ==='",
-    "mkdir -p /opt/YourPlace",
-    "echo '$CERT_PEM_BASE64' | base64 -d > /opt/YourPlace/cert.pem",
-    "echo '$CERT_KEY_BASE64' | base64 -d > /opt/YourPlace/cert.key",
-    "chmod 644 /opt/YourPlace/cert.pem",
-    "chmod 600 /opt/YourPlace/cert.key",
-    "echo '=== Logging into ECR ==='",
-    "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY",
-    "echo '=== Pulling latest image ==='",
-    "docker pull $ECR_REGISTRY/yourplace-gateway:latest",
-    "echo '=== Stopping existing container ==='",
-    "docker stop yourplace-gateway 2>/dev/null || echo 'No existing container'",
-    "docker rm yourplace-gateway 2>/dev/null || echo 'No existing container'",
-    "echo '=== Starting new container ==='",
-    "docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /opt/YourPlace:/opt/YourPlace $ECR_REGISTRY/yourplace-gateway:latest",
-    "echo '=== Verifying container ==='",
-    "docker ps | grep yourplace-gateway",
-    "echo '=== Deployment complete ==='"
-  ]
-}
+# Build commands as a single shell script for AWS SSM
+COMMANDS=$(cat <<'EOF'
+set -e
+echo '=== Installing TLS certificates ==='
+mkdir -p /opt/YourPlace
+echo 'CERT_PEM_BASE64_PLACEHOLDER' | base64 -d > /opt/YourPlace/cert.pem
+echo 'CERT_KEY_BASE64_PLACEHOLDER' | base64 -d > /opt/YourPlace/cert.key
+chmod 644 /opt/YourPlace/cert.pem
+chmod 600 /opt/YourPlace/cert.key
+echo '=== Logging into ECR ==='
+aws ecr get-login-password --region AWS_REGION_PLACEHOLDER | docker login --username AWS --password-stdin ECR_REGISTRY_PLACEHOLDER
+echo '=== Pulling latest image ==='
+docker pull ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
+echo '=== Stopping existing container ==='
+docker stop yourplace-gateway 2>/dev/null || echo 'No existing container'
+docker rm yourplace-gateway 2>/dev/null || echo 'No existing container'
+echo '=== Starting new container ==='
+docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /opt/YourPlace:/opt/YourPlace ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
+echo '=== Verifying container ==='
+docker ps | grep yourplace-gateway
+echo '=== Deployment complete ==='
 EOF
 )
+
+# Replace placeholders with actual values
+COMMANDS="${COMMANDS//CERT_PEM_BASE64_PLACEHOLDER/$CERT_PEM_BASE64}"
+COMMANDS="${COMMANDS//CERT_KEY_BASE64_PLACEHOLDER/$CERT_KEY_BASE64}"
+COMMANDS="${COMMANDS//AWS_REGION_PLACEHOLDER/$AWS_REGION}"
+COMMANDS="${COMMANDS//ECR_REGISTRY_PLACEHOLDER/$ECR_REGISTRY}"
 
 echo "Sending deployment command to instance $INSTANCE_ID..."
 COMMAND_ID=$(aws ssm send-command \
   --instance-ids "$INSTANCE_ID" \
   --document-name "AWS-RunShellScript" \
-  --parameters "$COMMAND_JSON" \
+  --parameters commands="$COMMANDS" \
   --region "$AWS_REGION" \
   --output text \
   --query 'Command.CommandId')
