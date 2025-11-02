@@ -34,4 +34,7 @@ VOLUME ["/opt/YourPlace"]
 
 EXPOSE 443
 
+HEALTHCHECK --interval=10s --timeout=5s --start-period=300s --retries=3 \
+  CMD timeout 3 bash -c 'cat < /dev/null > /dev/tcp/localhost/443' || exit 1
+
 ENTRYPOINT ["/app/entrypoint.sh"]
