@@ -76,8 +76,25 @@ docker stop yourplace-gateway 2>/dev/null || echo 'No existing container'
 docker rm yourplace-gateway 2>/dev/null || echo 'No existing container'
 echo '=== Starting new container ==='
 docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /opt/YourPlace:/opt/YourPlace ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
-echo '=== Verifying container ==='
+echo '=== Verifying container started ==='
 docker ps | grep yourplace-gateway
+echo '=== Waiting for server to be ready (max 5 minutes) ==='
+READY=0
+for i in {1..60}; do
+  if timeout 5 bash -c 'cat < /dev/null > /dev/tcp/localhost/443' 2>/dev/null; then
+    echo "Server is ready on port 443 after $((i * 5)) seconds"
+    READY=1
+    break
+  fi
+  echo "Waiting for port 443... ($i/60)"
+  sleep 5
+done
+if [ $READY -eq 0 ]; then
+  echo "ERROR: Server did not become ready on port 443 within 300 seconds"
+  echo "Container logs:"
+  docker logs --tail 50 yourplace-gateway
+  exit 1
+fi
 echo '=== Deployment complete ==='
 EOF
 )
