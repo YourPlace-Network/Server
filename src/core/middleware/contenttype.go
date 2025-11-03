@@ -13,6 +13,10 @@ func ContentTypeMiddleware() gin.HandlerFunc {
 		path := c.Request.RequestURI
 		if strings.HasPrefix(path, "/static/js/") && strings.HasSuffix(path, ".js") { // Ensure js content type for static JS assets
 			c.Header("Content-Type", "application/javascript; charset=utf-8")
+		} else if strings.HasSuffix(path, ".woff") { // Ensure font content type for WOFF font files
+			c.Header("Content-Type", "font/woff")
+		} else if strings.HasSuffix(path, ".woff2") { // Ensure font content type for WOFF2 font files
+			c.Header("Content-Type", "font/woff2")
 		}
 		// Create a response writer that captures the response
 		writer := &responseWriter{body: bytes.NewBuffer(nil), ResponseWriter: c.Writer}
