@@ -25,11 +25,12 @@ import (
 // Job States - Running, Complete, Failed, Pending
 
 const (
-	reportInterval = 5000 // print progress every # of blocks
-	saveInterval   = 100  // save progress every # of blocks
-	throttleOffset = 4    // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
-	batchSizeLimit = 25   // The maximum number of blocks to fetch in a single batch RPC call
-	workerCount    = 10   // Number of worker threads to use for processing batches
+	burnAddress    = "0x0000000000000000000000000000000000000000" // Burn address for YourPlace protocol transactions
+	reportInterval = 5000                                         // print progress every # of blocks
+	saveInterval   = 100                                          // save progress every # of blocks
+	throttleOffset = 4                                            // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
+	batchSizeLimit = 25                                           // The maximum number of blocks to fetch in a single batch RPC call
+	workerCount    = 10                                           // Number of worker threads to use for processing batches
 )
 
 var (
@@ -740,6 +741,11 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 	txHash := strings.ToLower(transaction["hash"].(string))
 	fromAddress := strings.ToLower(transaction["from"].(string))
 	toAddress := strings.ToLower(transaction["to"].(string))
+	// Verify transaction is sent to burn address (0x0) as per YourPlace protocol
+	if toAddress != burnAddress {
+		core.LogDebug("Skipping YourPlace transaction not sent to burn address: " + txHash)
+		return
+	}
 	parentTxHash := ""
 	amountHexStr := transaction["value"].(string)[2:]
 	amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)

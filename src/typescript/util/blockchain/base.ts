@@ -27,6 +27,7 @@ import {Web3} from "web3";
 import PersistentCache from "../cache";
 
 // ---------- Global Variables ---------- //
+const burnAddress = "0x0000000000000000000000000000000000000000"; // Burn address for YourPlace protocol transactions
 export const mainnetBase = {
     ethChainID: 8453,
     name: "Base",
@@ -242,60 +243,49 @@ export async function baseTxn(dest: string, payload: string) {
 // ---------- Set Functions ---------- //
 export async function baseSetAvatar(avatarAddress: string) {
     let jsonData = YP.metadataAvatar(avatarAddress);
-    let address = GetAddress()!;
-    baseTxn(address, jsonData).then();
+    baseTxn(burnAddress, jsonData).then();
 }
 export async function baseSetBanner(bannerAddress: string) {
     let jsonData = YP.metadataBanner(bannerAddress);
-    let address = GetAddress()!;
-    baseTxn(address, jsonData).then();
+    baseTxn(burnAddress, jsonData).then();
 }
 export async function baseSetDescription(description: string) {
     let jsonData = YP.metadataDescription(description);
-    let address = GetAddress()!;
-    baseTxn(address, jsonData).then();
+    baseTxn(burnAddress, jsonData).then();
 }
 export async function baseSetLocation(location: string) {
     let jsonData = YP.metadataLocation(location);
-    let address = GetAddress()!;
-    baseTxn(address, jsonData).then();
+    baseTxn(burnAddress, jsonData).then();
 }
 export async function baseSetWebsite(website: string) {
     let jsonData = YP.metadataWebsite(website);
-    let address = GetAddress()!;
-    baseTxn(address, jsonData).then();
+    baseTxn(burnAddress, jsonData).then();
 }
 export async function baseSetBirthday(birthday: string) {
     let jsonData = YP.metadataBirthday(birthday);
-    let address = GetAddress()!;
-    baseTxn(address, jsonData).then();
+    baseTxn(burnAddress, jsonData).then();
 }
 export async function baseSetName(name: string) {
     let jsonData = YP.metadataName(name);
-    let address = GetAddress()!;
-    baseTxn(address, jsonData).then();
+    baseTxn(burnAddress, jsonData).then();
 }
 export async function baseSubmitPost(payload: string) {
-    let address = GetAddress()!;
     let jsonData = YP.post(payload);
-    const txnID = await baseTxn(address, jsonData);
+    const txnID = await baseTxn(burnAddress, jsonData);
     return txnID;
 }
 export async function baseSubmitPostAttach(payload: string, attach: string[][]) {
-    let address = GetAddress()!;
     let jsonData = YP.postAttach(payload, attach);
-    return await baseTxn(address, jsonData);
+    return await baseTxn(burnAddress, jsonData);
 }
 export async function baseFollowUser(toAddress: string, toBlockchain: string) {
-    let address = GetAddress()!;
     let jsonData = YP.follow(toAddress, toBlockchain);
-    const txnID = await baseTxn(address, jsonData);
+    const txnID = await baseTxn(burnAddress, jsonData);
     return txnID;
 }
 export async function baseUnfollowUser(toAddress: string, toBlockchain: string) {
-    let address = GetAddress()!;
     let jsonData = YP.unfollow(toAddress, toBlockchain);
-    const txnID = await baseTxn(address, jsonData);
+    const txnID = await baseTxn(burnAddress, jsonData);
     return txnID;
 }
 
