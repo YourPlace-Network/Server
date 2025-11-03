@@ -18,6 +18,7 @@ func CORSMiddleware() gin.HandlerFunc {
 			}
 			c.Header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
 			c.Header("Cross-Origin-Resource-Policy", "cross-origin")
+			c.Header("X-Debug-CORS", "static-asset-path")
 		} else {
 			// Only allow localhost origins for API/page requests
 			allowedOrigins := []string{
