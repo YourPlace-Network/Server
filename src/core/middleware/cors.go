@@ -3,6 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strings"
 )
 
 func CORSMiddleware() gin.HandlerFunc {
@@ -15,6 +16,8 @@ func CORSMiddleware() gin.HandlerFunc {
 			if origin != "" {
 				c.Header("Access-Control-Allow-Origin", origin)
 			}
+			c.Header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
+			c.Header("Cross-Origin-Resource-Policy", "cross-origin")
 		} else {
 			// Only allow localhost origins for API/page requests
 			allowedOrigins := []string{
@@ -35,10 +38,9 @@ func CORSMiddleware() gin.HandlerFunc {
 				c.AbortWithStatus(http.StatusForbidden)
 				return
 			}
+			c.Header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
+			c.Header("Cross-Origin-Resource-Policy", "same-origin")
 		}
-
-		c.Header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
-		c.Header("Cross-Origin-Resource-Policy", "same-origin")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS, PUT, DELETE")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-CSRF-Token, X-Requested-With, Cache-Control, Content-Length")
 		c.Header("Access-Control-Allow-Credentials", "true")
