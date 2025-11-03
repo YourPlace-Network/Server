@@ -8,10 +8,16 @@ import (
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		// Only allow localhost origins for local development
+		scheme := "http"
+		if c.Request.TLS != nil {
+			scheme = "https"
+		}
+		currentOrigin := scheme + "://" + c.Request.Host
+		// Only allow localhost origins for local development and same-origin requests
 		allowedOrigins := []string{
 			"http://localhost:42424",
 			"https://localhost:42424",
+			currentOrigin,
 		}
 
 		originAllowed := false
