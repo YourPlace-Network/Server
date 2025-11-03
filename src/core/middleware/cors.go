@@ -7,31 +7,34 @@ import (
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		path := c.Request.URL.Path
 		origin := c.Request.Header.Get("Origin")
-		scheme := "http"
-		if c.Request.TLS != nil {
-			scheme = "https"
-		}
-		currentOrigin := scheme + "://" + c.Request.Host
-		// Only allow localhost origins for local development and same-origin requests
-		allowedOrigins := []string{
-			"http://localhost:42424",
-			"https://localhost:42424",
-			currentOrigin,
-		}
 
-		originAllowed := false
-		for _, allowed := range allowedOrigins {
-			if origin == allowed {
+		// Skip CORS checks for static assets (fonts, images, CSS, JS)
+		if strings.HasPrefix(path, "/static/") {
+			if origin != "" {
 				c.Header("Access-Control-Allow-Origin", origin)
-				originAllowed = true
-				break
 			}
-		}
+		} else {
+			// Only allow localhost origins for API/page requests
+			allowedOrigins := []string{
+				"http://localhost:42424",
+				"https://localhost:42424",
+			}
 
-		if !originAllowed && origin != "" {
-			c.AbortWithStatus(http.StatusForbidden)
-			return
+			originAllowed := false
+			for _, allowed := range allowedOrigins {
+				if origin == allowed {
+					c.Header("Access-Control-Allow-Origin", origin)
+					originAllowed = true
+					break
+				}
+			}
+
+			if !originAllowed && origin != "" {
+				c.AbortWithStatus(http.StatusForbidden)
+				return
+			}
 		}
 
 		c.Header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
