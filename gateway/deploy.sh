@@ -80,7 +80,7 @@ echo '=== Verifying container started ==='
 docker ps | grep yourplace-gateway
 echo '=== Waiting for server to be ready (max 5 minutes) ==='
 READY=0
-for i in {1..60}; do
+for i in $(seq 1 60); do
   if timeout 5 bash -c 'cat < /dev/null > /dev/tcp/localhost/443' 2>/dev/null; then
     echo "Server is ready on port 443 after $((i * 5)) seconds"
     READY=1
