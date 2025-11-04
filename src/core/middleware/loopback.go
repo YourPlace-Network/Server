@@ -37,16 +37,16 @@ func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clie
 			"[::1]":                  true,
 			"1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa": true,
 		}
-		// Get actual IP
-		ip, _, err := net.SplitHostPort(c.Request.RemoteAddr)
-		if err != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
-			return
-		}
 		// Get the request path
 		requestPath := c.Request.RequestURI
 		for _, path := range includedPaths {
 			if strings.HasPrefix(requestPath, path) {
+				// Get actual IP
+				ip, _, err := net.SplitHostPort(c.Request.RemoteAddr)
+				if err != nil {
+					c.AbortWithStatus(http.StatusBadRequest)
+					return
+				}
 				// IP address checks
 				if ip != "127.0.0.1" && ip != "::1" {
 					core.LogDebug("Client connecting from non-loopback address " + ip)
