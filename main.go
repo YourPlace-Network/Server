@@ -320,8 +320,8 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	if !installed && !gateway {
 		router.Use(middleware.SetupMiddleware(installed))
 	}
-	router.Use(middleware.HotPatch())
-	router.Use(middleware.IdsMiddleware())
+	//router.Use(middleware.HotPatch())
+	//router.Use(middleware.IdsMiddleware())
 	router.Use(middleware.RateLimitMiddleware())
 	router.Use(middleware.ContentTypeMiddleware())
 	router.Use(middleware.CacheControlMiddleware())
