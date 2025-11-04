@@ -1,6 +1,10 @@
 name: Gateway
 
 on:
+  workflow_run:
+    workflows: ["Ubuntu"]
+    types:
+      - completed
   workflow_dispatch:
 
 env:
