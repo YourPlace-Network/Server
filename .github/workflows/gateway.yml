@@ -1,10 +1,6 @@
 name: Gateway
 
 on:
-  workflow_run:
-    workflows: ["Ubuntu"]
-    types:
-      - completed
   workflow_dispatch:
 
 env:
@@ -18,10 +14,32 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      actions: write
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+    - name: Trigger Ubuntu Workflow
+      id: trigger-ubuntu
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        echo "Triggering Ubuntu workflow..."
+        gh workflow run ubuntu.yml --ref ${{ github.ref }}
+        sleep 5
+        RUN_ID=$(gh run list --workflow=ubuntu.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+        echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+        echo "Ubuntu workflow run ID: $RUN_ID"
+
+    - name: Wait for Ubuntu Workflow to Complete
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RUN_ID: ${{ steps.trigger-ubuntu.outputs.run_id }}
+      run: |
+        echo "Waiting for Ubuntu workflow (Run ID: $RUN_ID) to complete..."
+        gh run watch $RUN_ID --exit-status
+        echo "Ubuntu workflow completed successfully!"
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -63,6 +81,7 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         CLOUDFLARE_CERT_PEM: ${{ secrets.CLOUDFLARE_CERT_PEM }}
         CLOUDFLARE_CERT_KEY: ${{ secrets.CLOUDFLARE_CERT_KEY }}
+        BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
       run: |
         chmod +x gateway/deploy.sh
         ./gateway/deploy.sh

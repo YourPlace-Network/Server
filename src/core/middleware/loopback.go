@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"YourPlace/src/core"
 	"net"
 	"net/http"
 	"net/url"
@@ -19,11 +18,8 @@ type ExceptionRule struct {
 func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clients to originate from 127.0.0.1 for certain API paths
 	// Paths to be included for localhost enforcement, your path must start with one of these prefixes
 	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test", "/service/ai", "/files", "/notification"}
-
 	return func(c *gin.Context) {
 		requestPath := c.Request.RequestURI
-		core.LogDebug("Loopback: Checking path " + requestPath)
-
 		// Check if this request matches an exception rule
 		validHosts := map[string]bool{
 			"localhost":              true,
@@ -53,13 +49,11 @@ func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clie
 				}
 				// IP address checks
 				if ip != "127.0.0.1" && ip != "::1" {
-					core.LogDebug("Client connecting from non-loopback address " + ip)
 					c.AbortWithStatus(http.StatusBadRequest)
 					return
 				}
 				clientIP := c.ClientIP()
 				if !validHosts[clientIP] {
-					core.LogDebug("Client connecting from non-loopback address " + c.ClientIP())
 					c.AbortWithStatus(http.StatusBadRequest)
 					return
 				}

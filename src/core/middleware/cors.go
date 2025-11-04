@@ -2,16 +2,16 @@ package middleware
 
 import (
 	"YourPlace/src/core"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 		origin := c.Request.Header.Get("Origin")
-
 		// Skip CORS checks for static assets (fonts, images, CSS, JS)
 		if strings.HasPrefix(path, "/static/") {
 			core.LogDebug("CORS: Static path " + path + " with origin: " + origin)
@@ -28,7 +28,6 @@ func CORSMiddleware() gin.HandlerFunc {
 				"http://localhost:42424",
 				"https://localhost:42424",
 			}
-
 			originAllowed := false
 			for _, allowed := range allowedOrigins {
 				if origin == allowed {
@@ -37,7 +36,6 @@ func CORSMiddleware() gin.HandlerFunc {
 					break
 				}
 			}
-
 			if !originAllowed && origin != "" {
 				core.LogDebug("CORS: Blocking non-static path " + path + " with disallowed origin: " + origin)
 				c.AbortWithStatus(http.StatusForbidden)
