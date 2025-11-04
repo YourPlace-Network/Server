@@ -31,7 +31,11 @@
         </div>
     </div>
     <button class="btn grow" id="htmlMenu" data-bs-toggle="offcanvas" data-bs-target="#htmlMenuOffcanvas" aria-controls="offcanvasWithBothOptions">
-        <i class="bi bi-list"></i>
+        <span class="hamburger-icon">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </span>
     </button>
     <input type="hidden" id="gatewayMode" value="{{ .gatewayMode }}">
 {{template "modalLogin" .}}{{end}}

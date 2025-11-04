@@ -42,7 +42,7 @@ func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clie
 			"1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa": true,
 		}
 		// Get the request path
-		requestPath := c.Request.RequestURI
+		requestPath = c.Request.RequestURI
 		for _, path := range includedPaths {
 			if strings.HasPrefix(requestPath, path) {
 				// Get actual IP
