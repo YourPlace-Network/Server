@@ -20,7 +20,11 @@ func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clie
 	// Paths to be included for localhost enforcement, your path must start with one of these prefixes
 	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test", "/service/ai", "/files", "/notification"}
 
-	return func(c *gin.Context) { // Check if this request matches an exception rule
+	return func(c *gin.Context) {
+		requestPath := c.Request.RequestURI
+		core.LogDebug("Loopback: Checking path " + requestPath)
+
+		// Check if this request matches an exception rule
 		validHosts := map[string]bool{
 			"localhost":              true,
 			"localhost6":             true,
