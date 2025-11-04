@@ -21,6 +21,7 @@ FROM public.ecr.aws/ubuntu/ubuntu:24.04
 
 RUN apt-get update && apt-get install -y \
     ca-certificates tzdata \
+    curl \
     libpcap0.8 \
     && rm -rf /var/lib/apt/lists/*
 
