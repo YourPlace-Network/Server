@@ -39,7 +39,6 @@ func isValidYourPlacePayload(payload string) (bool, int, string, map[string]inte
 func isValidBurnAddress(blockchain string, toAddress string) bool {
 	if blockchain == "base" || blockchain == "eth" {
 		if toAddress != burnAddressETH {
-			core.LogDebug("Metadata action not sent to burn address")
 			return false
 		}
 		return true
@@ -74,17 +73,17 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 	if versionNumber == 1 {
 		switch actionPrefix {
 		case 'p': // Post Actions
-			if toAddress != burnAddressETH {
+			if !isValidBurnAddress(blockchain, toAddress) {
 				core.LogDebug("Post action not sent to burn address")
 				return
 			}
 			switch actionPostfix {
 			case "":
-				if !handlePostTransaction(payloadObject, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
+				if !handlePostTransaction(payloadObject, txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, blockNumber) {
 					break
 				}
 			case "a":
-				if !handlePostTransactionAttachment(payloadObject, txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, blockNumber) {
+				if !handlePostTransactionAttachment(payloadObject, txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, blockNumber) {
 					break
 				}
 			}
@@ -291,7 +290,7 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 }
 
 // --- Transaction Parsing Functions --- //
-func handlePostTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+func handlePostTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	postText, ok := payloadObject["p"]
 	if !ok {
 		core.LogDebug("Post Action: no p in payload")
@@ -302,14 +301,11 @@ func handlePostTransaction(payloadObject map[string]interface{}, txHash, blockch
 		core.LogDebug("Failed to convert post text to string")
 		return false
 	}
-	if toAddress != "0x0" {
-
-	}
 	postTextStr = security.SanitizeNonPrintable(postTextStr)
-	_Database.OnchainP(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr)
+	_Database.OnchainP(txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, postTextStr)
 	return true
 }
-func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHash, blockchain, fromAddress, toAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHash, blockchain, fromAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	postText, ok1 := payloadObject["p"]
 	attachmentsRaw, ok2 := payloadObject["a"]
 	if !ok1 || !ok2 {
@@ -363,6 +359,6 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 		parsedAttachments = append(parsedAttachments, parsedAttachment)
 	}
 	postTextStr = security.SanitizeNonPrintable(postTextStr)
-	_Database.OnchainPA(txHash, blockchain, fromAddress, toAddress, parentTxHash, amountInt, timestamp, postTextStr, parsedAttachments)
+	_Database.OnchainPA(txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, postTextStr, parsedAttachments)
 	return true
 }
