@@ -27,7 +27,6 @@ import {Web3} from "web3";
 import PersistentCache from "../cache";
 
 // ---------- Global Variables ---------- //
-const burnAddress = "0x0000000000000000000000000000000000000000"; // Burn address for YourPlace protocol transactions
 export const mainnetBase = {
     ethChainID: 8453,
     name: "Base",
@@ -38,6 +37,7 @@ export const mainnetBase = {
     ensUniversalResolverAddress: "0xce01f8eee7E479C928F8919abD53E553a36CeF67",
     ensBasenameResolverAddress: "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD",
     ensBaseResolverAddress: "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD",
+    burnAddress: "0x0000000000000000000000000000000000000000",
 }
 const metadataYourPlace = {
     name: "YourPlace",
@@ -243,49 +243,49 @@ export async function baseTxn(dest: string, payload: string) {
 // ---------- Set Functions ---------- //
 export async function baseSetAvatar(avatarAddress: string) {
     let jsonData = YP.metadataAvatar(avatarAddress);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetBanner(bannerAddress: string) {
     let jsonData = YP.metadataBanner(bannerAddress);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetDescription(description: string) {
     let jsonData = YP.metadataDescription(description);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetLocation(location: string) {
     let jsonData = YP.metadataLocation(location);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetWebsite(website: string) {
     let jsonData = YP.metadataWebsite(website);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetBirthday(birthday: string) {
     let jsonData = YP.metadataBirthday(birthday);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetName(name: string) {
     let jsonData = YP.metadataName(name);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSubmitPost(payload: string) {
     let jsonData = YP.post(payload);
-    const txnID = await baseTxn(burnAddress, jsonData);
+    const txnID = await baseTxn(mainnetBase.burnAddress, jsonData);
     return txnID;
 }
 export async function baseSubmitPostAttach(payload: string, attach: string[][]) {
     let jsonData = YP.postAttach(payload, attach);
-    return await baseTxn(burnAddress, jsonData);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseFollowUser(toAddress: string, toBlockchain: string) {
     let jsonData = YP.follow(toAddress, toBlockchain);
-    const txnID = await baseTxn(burnAddress, jsonData);
+    const txnID = await baseTxn(toAddress, jsonData);
     return txnID;
 }
 export async function baseUnfollowUser(toAddress: string, toBlockchain: string) {
     let jsonData = YP.unfollow(toAddress, toBlockchain);
-    const txnID = await baseTxn(burnAddress, jsonData);
+    const txnID = await baseTxn(toAddress, jsonData);
     return txnID;
 }
 
@@ -294,8 +294,9 @@ async function baseGetURL(): Promise<string|null> {
     let response = await HttpGetJson("/settings/base/url");
     if (response[0] === 200) {
         return response[1].baseURL;
+    } else {
+        return "https://mainnet.base.org";
     }
-    return null;
 }
 export async function baseGetAvatar(address: string): Promise<string> {
     if (!baseInit) await initBaseWallet();

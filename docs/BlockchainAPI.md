@@ -3,7 +3,7 @@ Communicating with YourPlace on the blockchain requires a unified API.
 JSON was chosen to provide a succinct, human-readable mechanism to send
 messages via blockchain. These messages will be what is stored on the
 blockchain and consumed by the world. Both YourPlace indexers and servers
-will need to understand this layout to be able to the network.
+will need to understand this layout to be able to interact with the network.
 
 ### Structure
 `yp/1/p:{"p":"payload"}` = YourPlace/Version/Action:{JSON}
