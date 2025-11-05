@@ -622,14 +622,6 @@ func (db *SQLite) ImportSnapshotNoMetadata(importPath string) error {
 			tx.Rollback()
 			return core.LogErrorReturn("Could not prepare insert statement: " + err.Error())
 		}
-		// Find toAddress column index for burn address truncation
-		toAddressIndex := -1
-		for i, col := range columns {
-			if col == "toAddress" {
-				toAddressIndex = i
-				break
-			}
-		}
 		// Import each row
 		rowsProcessed := 0
 		for rowIdx := 0; rowIdx < int(rowCount); rowIdx++ {
@@ -702,12 +694,6 @@ func (db *SQLite) ImportSnapshotNoMetadata(importPath string) error {
 					statement.Close()
 					tx.Rollback()
 					return core.LogErrorReturn("Unknown type indicator: " + string(typeIndicator))
-				}
-			}
-			// Truncate burn address if present in toAddress column before insert
-			if toAddressIndex >= 0 && values[toAddressIndex] != nil {
-				if addrStr, ok := values[toAddressIndex].(string); ok {
-					values[toAddressIndex] = truncateBurnAddress(addrStr)
 				}
 			}
 			// Execute insert
@@ -859,14 +845,6 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 			tx.Rollback()
 			return core.LogErrorReturn("Could not prepare insert statement: " + err.Error())
 		}
-		// Find toAddress column index for burn address truncation
-		toAddressIndex := -1
-		for i, col := range columns {
-			if col == "toAddress" {
-				toAddressIndex = i
-				break
-			}
-		}
 		// Import each row
 		rowsProcessed := 0
 		for rowIdx := 0; rowIdx < int(rowCount); rowIdx++ {
@@ -939,12 +917,6 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 					statement.Close()
 					tx.Rollback()
 					return core.LogErrorReturn("Unknown type indicator: " + string(typeIndicator))
-				}
-			}
-			// Truncate burn address if present in toAddress column before insert
-			if toAddressIndex >= 0 && values[toAddressIndex] != nil {
-				if addrStr, ok := values[toAddressIndex].(string); ok {
-					values[toAddressIndex] = truncateBurnAddress(addrStr)
 				}
 			}
 			// Execute insert
@@ -2206,25 +2178,11 @@ func (db *SQLite) exportSnapshots(exportDir string, blockchain string, headBlock
 			for i := range values {
 				valuePointers[i] = &values[i]
 			}
-			// Find toAddress column index for burn address expansion
-			toAddressIndex := -1
-			for i, col := range columns {
-				if col == "toAddress" {
-					toAddressIndex = i
-					break
-				}
-			}
 			for dataRows.Next() {
 				err = dataRows.Scan(valuePointers...)
 				if err != nil {
 					dataRows.Close()
 					return core.LogErrorReturn("Could not scan row: " + err.Error())
-				}
-				// Expand burn address if present in toAddress column
-				if toAddressIndex >= 0 && values[toAddressIndex] != nil {
-					if addrStr, ok := values[toAddressIndex].(string); ok {
-						values[toAddressIndex] = expandBurnAddress(addrStr)
-					}
 				}
 				rowBuffer.Reset()
 				for _, value := range values {

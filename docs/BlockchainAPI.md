@@ -8,12 +8,17 @@ will need to understand this layout to be able to interact with the network.
 ### Structure
 `yp/1/p:{"p":"payload"}` = YourPlace/Version/Action:{JSON}
 
-### Burn Address Protocol
-All YourPlace transactions that broadcast user data (posts, metadata, settings, etc.)
-are sent to the **burn address**: `0x0000000000000000000000000000000000000000` (0x0).
-This signals to the world that the transaction contains protocol data meant for public
-consumption, not a transfer between accounts. The indexer identifies YourPlace
-transactions by checking if the recipient is the burn address.
+### Transaction Directionality
+YourPlace uses transaction recipients to signal intent:
+
+**Broadcast Transactions (to burn address 0x0)**
+Transactions that announce information to the world are sent to the burn address
+`0x0000000000000000000000000000000000000000` (0x0). These include posts, metadata
+updates, settings, reactions, blocks, and enrollment.
+
+**Directed Transactions (to recipient address)**
+Transactions directed at specific users are sent to their wallet address. These include
+follow/unfollow actions, which are sent directly to the user being followed/unfollowed.
 
 ### Implementation Status
 🚢 = Currently implemented and shipped in indexer and client
@@ -53,11 +58,11 @@ Payload tags are special tags that the user can type themselves that exist in th
 - `yp/1/rl:{"txh":"txnHash"}` - Like a post
 - `yp/1/rdl:{"txh":"txnHash"}` - Dislike a post
 
-### Following (to burn address 0x0)
-- `yp/1/f:{"a":"address", "b":"blockchain"}` - Follow an address at a blockchain 🚢
-- `yp/1/fu:{"a":"address", "b":"blockchain"}` - Unfollow an address at a blockchain 🚢
-- `yp/1/fh:{"h#":"#hashtag"}` - Follow a hashtag on all blockchains
-- `yp/1/fuh:{"h#":"#hashtag"}` - Unfollow a hashtag on all blockchains
+### Following (to recipient address)
+- `yp/1/f:{"a":"address", "b":"blockchain"}` - Follow an address at a blockchain (sent to that address) 🚢
+- `yp/1/fu:{"a":"address", "b":"blockchain"}` - Unfollow an address at a blockchain (sent to that address) 🚢
+- `yp/1/fh:{"h#":"#hashtag"}` - Follow a hashtag on all blockchains (to burn address)
+- `yp/1/fuh:{"h#":"#hashtag"}` - Unfollow a hashtag on all blockchains (to burn address)
 
 ### Metadata (to burn address 0x0)
 - `yp/1/mn:{"n":"name"}` - Update name 🚢
