@@ -92,7 +92,7 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 		case 'r': // Reply Actions
 		case 'f': // Follow Actions
 			switch actionPostfix {
-			case "":
+			case "": // Follow user (directed to recipient)
 				blockchainPayload, ok1 := payloadObject["b"]
 				addressPayload, ok2 := payloadObject["a"]
 				if !ok1 || !ok2 {
@@ -118,7 +118,7 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 				}
 				_Database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
 				break
-			case "u":
+			case "u": // Unfollow user (directed to recipient)
 				blockchainPayload, ok1 := payloadObject["b"]
 				addressPayload, ok2 := payloadObject["a"]
 				if !ok1 || !ok2 {
@@ -143,6 +143,18 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 					break
 				}
 				_Database.OnchainFU(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
+				break
+			case "h": // Follow hashtag (to burn address)
+				if !isValidBurnAddress(blockchain, toAddress) {
+					return
+				}
+				// TODO: Implement hashtag follow storage
+				break
+			case "uh": // Unfollow hashtag (to burn address)
+				if !isValidBurnAddress(blockchain, toAddress) {
+					return
+				}
+				// TODO: Implement hashtag unfollow storage
 				break
 			}
 			break
@@ -266,7 +278,12 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 			}
 			break
 		case 'b': // Blocking Actions
-		case 's': // Settings Actions
+		case 's': // Settings Actions (to burn address)
+			if !isValidBurnAddress(blockchain, toAddress) {
+				return
+			}
+			// TODO: Implement settings storage
+			break
 		default:
 			core.LogDebug("Unknown YourPlace transaction action: " + txHash)
 		}

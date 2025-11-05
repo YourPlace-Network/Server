@@ -9,16 +9,14 @@ will need to understand this layout to be able to interact with the network.
 `yp/1/p:{"p":"payload"}` = YourPlace/Version/Action:{JSON}
 
 ### Transaction Directionality
-YourPlace uses transaction recipients to signal intent:
+**Burn Address Protocol:**
+Certain transactions are sent to the burn address `0x0000000000000000000000000000000000000000` (0x0):
+- Posts (p, pa, pr, pry, prp, pe, par)
+- Metadata (mn, ma, mb, mbd, ml, mw, md, mao, mbot)
+- Settings (sa, sd, ss, sap)
+- Follow/unfollow hashtags (fh, fuh)
 
-**Broadcast Transactions (to burn address 0x0)**
-Transactions that announce information to the world are sent to the burn address
-`0x0000000000000000000000000000000000000000` (0x0). These include posts, metadata
-updates, settings, reactions, blocks, and enrollment.
-
-**Directed Transactions (to recipient address)**
-Transactions directed at specific users are sent to their wallet address. These include
-follow/unfollow actions, which are sent directly to the user being followed/unfollowed.
+All other transactions are directed to specific recipient addresses as determined by the transaction type.
 
 ### Implementation Status
 🚢 = Currently implemented and shipped in indexer and client
@@ -54,15 +52,15 @@ Payload tags are special tags that the user can type themselves that exist in th
 - `yp/1/pe:{"txh":"txnHash","p":"payload"}` - Edit a post
 - `yp/1/par:{"txh":"txnHash"}` - Archive a post
 
-### Reaction (to burn address 0x0)
+### Reaction
 - `yp/1/rl:{"txh":"txnHash"}` - Like a post
 - `yp/1/rdl:{"txh":"txnHash"}` - Dislike a post
 
-### Following (to recipient address)
-- `yp/1/f:{"a":"address", "b":"blockchain"}` - Follow an address at a blockchain (sent to that address) 🚢
-- `yp/1/fu:{"a":"address", "b":"blockchain"}` - Unfollow an address at a blockchain (sent to that address) 🚢
-- `yp/1/fh:{"h#":"#hashtag"}` - Follow a hashtag on all blockchains (to burn address)
-- `yp/1/fuh:{"h#":"#hashtag"}` - Unfollow a hashtag on all blockchains (to burn address)
+### Following
+- `yp/1/f:{"a":"address", "b":"blockchain"}` - Follow an address at a blockchain 🚢
+- `yp/1/fu:{"a":"address", "b":"blockchain"}` - Unfollow an address at a blockchain 🚢
+- `yp/1/fh:{"h#":"#hashtag"}` - Follow a hashtag on all blockchains
+- `yp/1/fuh:{"h#":"#hashtag"}` - Unfollow a hashtag on all blockchains
 
 ### Metadata (to burn address 0x0)
 - `yp/1/mn:{"n":"name"}` - Update name 🚢
@@ -75,7 +73,7 @@ Payload tags are special tags that the user can type themselves that exist in th
 - `yp/1/md:{"d":"description"}` - Update profile description 🚢
 - `yp/1/mao:{"ao":"true"}` = Set profile to adults only
 - `yp/1/mbot:{"bot":"true"}` = Set profile to bot
-### Block (to burn address 0x0)
+### Block
 - `yp/1/bl:{"l":"https://block.list.com/list.json"}` - Subscribe to block list (HTTPS/IPFS)
 - `yp/1/ba:{"a":"address"}` - Block an address
 - `yp/1/bh:{"h#":"#hashtag"}` - Block a hashtag
