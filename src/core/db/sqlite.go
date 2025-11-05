@@ -26,6 +26,27 @@ type SQLite struct {
 	path     string
 }
 
+const (
+	burnAddress      = "0x0000000000000000000000000000000000000000"
+	burnAddressShort = "0x0"
+)
+
+// truncateBurnAddress converts the full burn address to its short form for storage efficiency
+func truncateBurnAddress(address string) string {
+	if strings.ToLower(address) == burnAddress {
+		return burnAddressShort
+	}
+	return address
+}
+
+// expandBurnAddress converts the short burn address back to its full form
+func expandBurnAddress(address string) string {
+	if strings.ToLower(address) == burnAddressShort {
+		return burnAddress
+	}
+	return address
+}
+
 func (db *SQLite) Init(path string) {
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -601,6 +622,14 @@ func (db *SQLite) ImportSnapshotNoMetadata(importPath string) error {
 			tx.Rollback()
 			return core.LogErrorReturn("Could not prepare insert statement: " + err.Error())
 		}
+		// Find toAddress column index for burn address truncation
+		toAddressIndex := -1
+		for i, col := range columns {
+			if col == "toAddress" {
+				toAddressIndex = i
+				break
+			}
+		}
 		// Import each row
 		rowsProcessed := 0
 		for rowIdx := 0; rowIdx < int(rowCount); rowIdx++ {
@@ -673,6 +702,12 @@ func (db *SQLite) ImportSnapshotNoMetadata(importPath string) error {
 					statement.Close()
 					tx.Rollback()
 					return core.LogErrorReturn("Unknown type indicator: " + string(typeIndicator))
+				}
+			}
+			// Truncate burn address if present in toAddress column before insert
+			if toAddressIndex >= 0 && values[toAddressIndex] != nil {
+				if addrStr, ok := values[toAddressIndex].(string); ok {
+					values[toAddressIndex] = truncateBurnAddress(addrStr)
 				}
 			}
 			// Execute insert
@@ -824,6 +859,14 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 			tx.Rollback()
 			return core.LogErrorReturn("Could not prepare insert statement: " + err.Error())
 		}
+		// Find toAddress column index for burn address truncation
+		toAddressIndex := -1
+		for i, col := range columns {
+			if col == "toAddress" {
+				toAddressIndex = i
+				break
+			}
+		}
 		// Import each row
 		rowsProcessed := 0
 		for rowIdx := 0; rowIdx < int(rowCount); rowIdx++ {
@@ -896,6 +939,12 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 					statement.Close()
 					tx.Rollback()
 					return core.LogErrorReturn("Unknown type indicator: " + string(typeIndicator))
+				}
+			}
+			// Truncate burn address if present in toAddress column before insert
+			if toAddressIndex >= 0 && values[toAddressIndex] != nil {
+				if addrStr, ok := values[toAddressIndex].(string); ok {
+					values[toAddressIndex] = truncateBurnAddress(addrStr)
 				}
 			}
 			// Execute insert
@@ -1734,6 +1783,7 @@ func (db *SQLite) IndexerResetJobs(blockchain string) {
 
 // --- Onchain Tokenized --- //
 func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
+	toAddr = truncateBurnAddress(toAddr) // Truncate burn address for storage efficiency
 	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
@@ -1741,6 +1791,7 @@ func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, to
 	}
 }
 func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	toAddr = truncateBurnAddress(toAddr) // Truncate burn address for storage efficiency
 	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
@@ -2155,11 +2206,25 @@ func (db *SQLite) exportSnapshots(exportDir string, blockchain string, headBlock
 			for i := range values {
 				valuePointers[i] = &values[i]
 			}
+			// Find toAddress column index for burn address expansion
+			toAddressIndex := -1
+			for i, col := range columns {
+				if col == "toAddress" {
+					toAddressIndex = i
+					break
+				}
+			}
 			for dataRows.Next() {
 				err = dataRows.Scan(valuePointers...)
 				if err != nil {
 					dataRows.Close()
 					return core.LogErrorReturn("Could not scan row: " + err.Error())
+				}
+				// Expand burn address if present in toAddress column
+				if toAddressIndex >= 0 && values[toAddressIndex] != nil {
+					if addrStr, ok := values[toAddressIndex].(string); ok {
+						values[toAddressIndex] = expandBurnAddress(addrStr)
+					}
 				}
 				rowBuffer.Reset()
 				for _, value := range values {
