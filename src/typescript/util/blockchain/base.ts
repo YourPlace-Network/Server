@@ -4,7 +4,6 @@ import {HttpGetJson, HttpPostJson} from "../network";
 import {ethers} from "ethers";
 import {YP} from "../../services/yourplace";
 import {createPublicClient, defineChain, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
-import {normalize as viemNormalize} from "viem/ens";
 import {base as viemBase} from "viem/chains";
 import {
     connect as wagmiConnect,
@@ -12,7 +11,6 @@ import {
     createStorage,
     disconnect,
     getConnections,
-    type GetEnsAvatarReturnType,
     http as wagmiHttp,
     readContract,
     sendTransaction,
@@ -20,7 +18,7 @@ import {
 } from "@wagmi/core";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
-import {getName as cbGetName, getAvatar as cbGetAvatar} from "@coinbase/onchainkit/identity";
+import {getAvatar as cbGetAvatar, getName as cbGetName} from "@coinbase/onchainkit/identity";
 import {IsValidBaseAddress} from "../security";
 import {Sleep} from "../time";
 import {Web3} from "web3";
@@ -226,7 +224,7 @@ export async function baseTxn(dest: string, payload: string) {
                 return;
             }
         }
-        const txHash = await sendTransaction(wagmiConfig, {
+        return await sendTransaction(wagmiConfig, {
             account: address as `0x${string}`,
             to: dest as `0x${string}`,
             value: parseEther("0"),
@@ -234,7 +232,6 @@ export async function baseTxn(dest: string, payload: string) {
             connector: connections[0]?.connector,
             chainId: wagmiBase.id,
         });
-        return txHash;
     } catch (error) {
         LogError("Failed to send Base transaction: " + error);
     }
@@ -243,50 +240,47 @@ export async function baseTxn(dest: string, payload: string) {
 // ---------- Set Functions ---------- //
 export async function baseSetAvatar(avatarAddress: string) {
     let jsonData = YP.metadataAvatar(avatarAddress);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetBanner(bannerAddress: string) {
     let jsonData = YP.metadataBanner(bannerAddress);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetDescription(description: string) {
     let jsonData = YP.metadataDescription(description);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetLocation(location: string) {
     let jsonData = YP.metadataLocation(location);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetWebsite(website: string) {
     let jsonData = YP.metadataWebsite(website);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetBirthday(birthday: string) {
     let jsonData = YP.metadataBirthday(birthday);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSetName(name: string) {
     let jsonData = YP.metadataName(name);
-    baseTxn(burnAddress, jsonData).then();
+    baseTxn(mainnetBase.burnAddress, jsonData).then();
 }
 export async function baseSubmitPost(payload: string) {
     let jsonData = YP.post(payload);
-    const txnID = await baseTxn(burnAddress, jsonData);
-    return txnID;
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseSubmitPostAttach(payload: string, attach: string[][]) {
     let jsonData = YP.postAttach(payload, attach);
-    return await baseTxn(burnAddress, jsonData);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseFollowUser(toAddress: string, toBlockchain: string) {
     let jsonData = YP.follow(toAddress, toBlockchain);
-    const txnID = await baseTxn(toAddress, jsonData);
-    return txnID;
+    return await baseTxn(toAddress, jsonData);
 }
 export async function baseUnfollowUser(toAddress: string, toBlockchain: string) {
     let jsonData = YP.unfollow(toAddress, toBlockchain);
-    const txnID = await baseTxn(toAddress, jsonData);
-    return txnID;
+    return await baseTxn(toAddress, jsonData);
 }
 
 // ---------- Get Functions ---------- //
@@ -295,7 +289,7 @@ async function baseGetURL(): Promise<string|null> {
     if (response[0] === 200) {
         return response[1].baseURL;
     } else {
-        return "https://mainnet.base.org";
+        return "https://mainnet.base.org/";
     }
 }
 export async function baseGetAvatar(address: string): Promise<string> {
