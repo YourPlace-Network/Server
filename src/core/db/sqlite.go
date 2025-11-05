@@ -2178,25 +2178,11 @@ func (db *SQLite) exportSnapshots(exportDir string, blockchain string, headBlock
 			for i := range values {
 				valuePointers[i] = &values[i]
 			}
-			// Find toAddress column index for burn address expansion
-			toAddressIndex := -1
-			for i, col := range columns {
-				if col == "toAddress" {
-					toAddressIndex = i
-					break
-				}
-			}
 			for dataRows.Next() {
 				err = dataRows.Scan(valuePointers...)
 				if err != nil {
 					dataRows.Close()
 					return core.LogErrorReturn("Could not scan row: " + err.Error())
-				}
-				// Expand burn address if present in toAddress column for export
-				if toAddressIndex >= 0 && values[toAddressIndex] != nil {
-					if addrStr, ok := values[toAddressIndex].(string); ok {
-						values[toAddressIndex] = expandBurnAddress(addrStr)
-					}
 				}
 				rowBuffer.Reset()
 				for _, value := range values {
