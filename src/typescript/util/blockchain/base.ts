@@ -280,12 +280,12 @@ export async function baseSubmitPostAttach(payload: string, attach: string[][]) 
 }
 export async function baseFollowUser(toAddress: string, toBlockchain: string) {
     let jsonData = YP.follow(toAddress, toBlockchain);
-    const txnID = await baseTxn(toAddress, jsonData);
+    const txnID = await baseTxn(mainnetBase.burnAddress, jsonData);
     return txnID;
 }
 export async function baseUnfollowUser(toAddress: string, toBlockchain: string) {
     let jsonData = YP.unfollow(toAddress, toBlockchain);
-    const txnID = await baseTxn(toAddress, jsonData);
+    const txnID = await baseTxn(mainnetBase.burnAddress, jsonData);
     return txnID;
 }
 
