@@ -29,6 +29,7 @@ type SQLite struct {
 const (
 	burnAddressETH      = "0x0000000000000000000000000000000000000000"
 	burnAddressShortETH = "0x0"
+	schemaVersion       = 1
 )
 
 func (db *SQLite) Init(path string) {
@@ -60,6 +61,8 @@ func (db *SQLite) Init(path string) {
 	if err != nil {
 		core.LogDebug("Could not create tables: " + err.Error())
 	}
+	// Check and run migrations
+	db.checkAndRunMigrations()
 }
 
 // --- SQL --- //
@@ -232,6 +235,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"csrf_tokens":    "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
 		"notifications":  "CREATE TABLE IF NOT EXISTS notifications (uid TEXT PRIMARY KEY, message TEXT, timestamp INTEGER DEFAULT 0)",
+		"wallets":        "CREATE TABLE IF NOT EXISTS wallets (publicKey TEXT, blockchain TEXT, address TEXT, encryptedPrivateKey TEXT, isDefault INTEGER DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
 	}
 	for _, createStatement := range tables {
 		err := db.execWithRetry(ctx, createStatement, 3)
@@ -240,6 +244,53 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+func (db *SQLite) getSchemaVersion() int {
+	rows, err := db.runParamSQLSelect("SELECT value FROM meta WHERE key = ?", "schema_version")
+	if err != nil {
+		return 0
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var versionStr string
+		err = rows.Scan(&versionStr)
+		if err != nil {
+			return 0
+		}
+		var version int
+		_, err = fmt.Sscanf(versionStr, "%d", &version)
+		if err != nil {
+			return 0
+		}
+		return version
+	}
+	return 0
+}
+func (db *SQLite) setSchemaVersion(version int) {
+	query := "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)"
+	_, err := db.runParamSQLUpdate(query, "schema_version", fmt.Sprintf("%d", version))
+	if err != nil {
+		core.LogDebug("Could not set schema version: " + err.Error())
+	}
+}
+func (db *SQLite) checkAndRunMigrations() {
+	dbVersion := db.getSchemaVersion()
+	if dbVersion > schemaVersion {
+		core.LogFatal(fmt.Sprintf("Database schema version (%d) is ahead of binary schema version (%d). Please upgrade the binary.", dbVersion, schemaVersion))
+		return
+	}
+	if dbVersion < schemaVersion {
+		core.LogDebug(fmt.Sprintf("Running database migrations from version %d to %d", dbVersion, schemaVersion))
+		for version := dbVersion + 1; version <= schemaVersion; version++ {
+			core.LogDebug(fmt.Sprintf("Running migration to version %d", version))
+			switch version {
+			case 1:
+				// Migration 1: Add blockchain column to file_txn_hash if missing
+			}
+			db.setSchemaVersion(version)
+		}
+		core.LogDebug("Database migrations completed successfully")
+	}
 }
 func (db *SQLite) runExternalSQLFile(path string) {
 	core.LogWarn("Running external SQL file: " + path)
@@ -1874,14 +1925,14 @@ func (db *SQLite) IndexerResetJobs(blockchain string) {
 
 // --- Onchain Tokenized --- //
 func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
-	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the post in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
-	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the post in the database: " + err.Error())
@@ -2386,4 +2437,129 @@ func (db *SQLite) exportSnapshots(exportDir string, blockchain string, headBlock
 		}
 	}
 	return nil
+}
+
+// --- Wallet Functions --- //
+func (db *SQLite) WalletStore(publicKey string, blockchain string, address string, encryptedPrivateKey string, isDefault bool) error {
+	isDefaultInt := 0
+	if isDefault {
+		isDefaultInt = 1
+		// If this is being set as default, unset any existing default for this blockchain
+		_, err := db.runParamSQLUpdate("UPDATE wallets SET isDefault = 0 WHERE blockchain = ?", blockchain)
+		if err != nil {
+			return core.LogDebugReturn("Could not unset existing default wallet: " + err.Error())
+		}
+	}
+	query := "INSERT INTO wallets (publicKey, blockchain, address, encryptedPrivateKey, isDefault) VALUES (?, ?, ?, ?, ?) ON CONFLICT (publicKey, blockchain) DO UPDATE SET address = excluded.address, encryptedPrivateKey = excluded.encryptedPrivateKey, isDefault = excluded.isDefault"
+	_, err := db.runParamSQLUpdate(query, publicKey, blockchain, address, encryptedPrivateKey, isDefaultInt)
+	if err != nil {
+		return core.LogDebugReturn("Could not store wallet: " + err.Error())
+	}
+	return nil
+}
+func (db *SQLite) WalletGet(publicKey string, blockchain string) (map[string]interface{}, error) {
+	rows, err := db.runParamSQLSelect("SELECT publicKey, blockchain, address, isDefault FROM wallets WHERE publicKey = ? AND blockchain = ?", publicKey, blockchain)
+	if err != nil {
+		return nil, core.LogDebugReturn("Could not get wallet: " + err.Error())
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pubKey, bc, addr string
+		var isDefaultInt int
+		err = rows.Scan(&pubKey, &bc, &addr, &isDefaultInt)
+		if err != nil {
+			return nil, core.LogDebugReturn("Could not scan wallet row: " + err.Error())
+		}
+		wallet := map[string]interface{}{
+			"publicKey":  pubKey,
+			"blockchain": bc,
+			"address":    addr,
+			"isDefault":  isDefaultInt == 1,
+		}
+		return wallet, nil
+	}
+	return nil, core.LogDebugReturn("Wallet not found")
+}
+func (db *SQLite) WalletGetDefault(blockchain string) (map[string]interface{}, error) {
+	rows, err := db.runParamSQLSelect("SELECT publicKey, blockchain, address, isDefault FROM wallets WHERE blockchain = ? AND isDefault = 1", blockchain)
+	if err != nil {
+		return nil, core.LogDebugReturn("Could not get default wallet: " + err.Error())
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pubKey, bc, addr string
+		var isDefaultInt int
+		err = rows.Scan(&pubKey, &bc, &addr, &isDefaultInt)
+		if err != nil {
+			return nil, core.LogDebugReturn("Could not scan default wallet row: " + err.Error())
+		}
+		wallet := map[string]interface{}{
+			"publicKey":  pubKey,
+			"blockchain": bc,
+			"address":    addr,
+			"isDefault":  true,
+		}
+		return wallet, nil
+	}
+	return nil, core.LogDebugReturn("No default wallet found for blockchain: " + blockchain)
+}
+func (db *SQLite) WalletGetPrivateKey(publicKey string, blockchain string) (string, error) {
+	rows, err := db.runParamSQLSelect("SELECT encryptedPrivateKey FROM wallets WHERE publicKey = ? AND blockchain = ?", publicKey, blockchain)
+	if err != nil {
+		return "", core.LogDebugReturn("Could not get wallet private key: " + err.Error())
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var encPrivKey string
+		err = rows.Scan(&encPrivKey)
+		if err != nil {
+			return "", core.LogDebugReturn("Could not scan private key row: " + err.Error())
+		}
+		return encPrivKey, nil
+	}
+	return "", core.LogDebugReturn("Wallet not found")
+}
+func (db *SQLite) WalletSetDefault(publicKey string, blockchain string) error {
+	// First unset any existing default for this blockchain
+	_, err := db.runParamSQLUpdate("UPDATE wallets SET isDefault = 0 WHERE blockchain = ?", blockchain)
+	if err != nil {
+		return core.LogDebugReturn("Could not unset existing default wallet: " + err.Error())
+	}
+	// Then set the new default
+	result, err := db.runParamSQLUpdate("UPDATE wallets SET isDefault = 1 WHERE publicKey = ? AND blockchain = ?", publicKey, blockchain)
+	if err != nil {
+		return core.LogDebugReturn("Could not set default wallet: " + err.Error())
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return core.LogDebugReturn("Could not get rows affected: " + err.Error())
+	}
+	if rowsAffected == 0 {
+		return core.LogDebugReturn("Wallet not found")
+	}
+	return nil
+}
+func (db *SQLite) WalletGetAll() ([]map[string]interface{}, error) {
+	var wallets []map[string]interface{}
+	rows, err := db.runParamSQLSelect("SELECT publicKey, blockchain, address, isDefault FROM wallets ORDER BY blockchain, isDefault DESC")
+	if err != nil {
+		return nil, core.LogDebugReturn("Could not get all wallets: " + err.Error())
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pubKey, bc, addr string
+		var isDefaultInt int
+		err = rows.Scan(&pubKey, &bc, &addr, &isDefaultInt)
+		if err != nil {
+			return nil, core.LogDebugReturn("Could not scan wallet row: " + err.Error())
+		}
+		wallet := map[string]interface{}{
+			"publicKey":  pubKey,
+			"blockchain": bc,
+			"address":    addr,
+			"isDefault":  isDefaultInt == 1,
+		}
+		wallets = append(wallets, wallet)
+	}
+	return wallets, nil
 }

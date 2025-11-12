@@ -584,3 +584,47 @@ func (db *Database) ExportSnapshots(exportPath string, blockchain string, headBl
 		return core.LogErrorReturn("Invalid DB engine selected")
 	}
 }
+
+// --- Wallet Functions --- //
+func (db *Database) WalletStore(publicKey string, blockchain string, address string, encryptedPrivateKey string, isDefault bool) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.WalletStore(publicKey, blockchain, address, encryptedPrivateKey, isDefault)
+	}
+	return core.LogErrorReturn("Invalid DB engine selected")
+}
+func (db *Database) WalletGet(publicKey string, blockchain string) (map[string]interface{}, error) {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.WalletGet(publicKey, blockchain)
+	}
+	return nil, core.LogErrorReturn("Invalid DB engine selected")
+}
+func (db *Database) WalletGetDefault(blockchain string) (map[string]interface{}, error) {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.WalletGetDefault(blockchain)
+	}
+	return nil, core.LogErrorReturn("Invalid DB engine selected")
+}
+func (db *Database) WalletGetPrivateKey(publicKey string, blockchain string) (string, error) {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.WalletGetPrivateKey(publicKey, blockchain)
+	}
+	return "", core.LogErrorReturn("Invalid DB engine selected")
+}
+func (db *Database) WalletSetDefault(publicKey string, blockchain string) error {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.WalletSetDefault(publicKey, blockchain)
+	}
+	return core.LogErrorReturn("Invalid DB engine selected")
+}
+func (db *Database) WalletGetAll() ([]map[string]interface{}, error) {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.WalletGetAll()
+	}
+	return nil, core.LogErrorReturn("Invalid DB engine selected")
+}

@@ -982,6 +982,8 @@ const tips = [
     "The most guilty person is usually the one who is first to claim \"we all made mistakes.\" They're just trying to muddy the waters and deflect as much blame as possible",
     "Don't fall for the doomer nonsense. That's for losers and normies scared of their own shadows. Walk around like God sent you and smile at everyone you see. Spread light and abundance. Build things and take chances",
     "The truth is, remote work only works for a small set of people. Most people will be lazy by default when unsupervised and will just do the bare minimum",
+    "Things that are \"free\" are pretty much always extremely expensive in ways that don't involve money",
+
 
 ];
 

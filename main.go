@@ -346,6 +346,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 		routes.SearchRoutes(router, database, _blockchain)
 		routes.ServicesRoutes(router, database)
 		routes.NotificationRoutes(router, database)
+		routes.WalletRoutes(router, title, database, cryptoSeed, gateway)
 		if debug {
 			routes.TestRoutes(router, title, gateway)
 		}

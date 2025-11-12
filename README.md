@@ -58,7 +58,7 @@ Desktop shortcuts will be created after install, or you can visit the [main loca
 
 ## Building
 
-YourPlace server builds on Windows x64, OSX Apple Silicon, and coming soon: Linux x64
+YourPlace Server builds on Windows x64, OSX Apple Silicon, and Linux x64 - We meet the users where they are
 
 Install [Make](https://www.gnu.org/software/make/), [Go](https://go.dev) and [Node.js](https://nodejs.org) on your system. Then run the command
 

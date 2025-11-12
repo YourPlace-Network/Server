@@ -5,7 +5,7 @@ import "../../scss/components/modalLogin.scss";
 import {
     DisableDialogModalExit,
     DisableDialogModalOkBtn,
-    ShowDialogModal,
+    ShowDialogModal, ShowDialogModalHTML,
     ShowDialogModalHTMLUnsafe
 } from "./modalDialog";
 import {
@@ -15,6 +15,7 @@ import {
     WalletIsConnected,
     WalletLogin
 } from "../util/blockchain/wallet";
+import {IsGatewayMode} from "../util/miscellaneous";
 
 let modal: bootstrap.Modal;
 
@@ -36,6 +37,7 @@ export function HideModalLogin() {
         ReconnectWallet().then();
         modal = new window.bootstrap.Modal("#loginModal", {});
         let DOM = {
+            noWalletBtn: document.getElementById("noWalletBtn")! as HTMLButtonElement,
             coinbaseWalletBtn: document.getElementById("coinbaseWalletBtn")! as HTMLButtonElement,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
             metaMaskWalletBtn: document.getElementById("metaMaskWalletBtn")! as HTMLButtonElement,
@@ -46,6 +48,15 @@ export function HideModalLogin() {
         }
 
         function connectWalletDispatcher(wallet: string) {
+            if (wallet === "none") {
+                if (IsGatewayMode()) {
+                    ShowDialogModalHTML("If you do not have a wallet and can't download any of the supported ones, then you'll need to run your own <a href=\"https://yourplace.network/download\" target=\"_blank\">YourPlace Server</a>, which will allow you to create a wallet.");
+                    return () => {};
+                } else {
+
+                }
+            }
+
             return async function(e: Event) {
                 e.stopImmediatePropagation();
                 e.preventDefault();
@@ -64,5 +75,6 @@ export function HideModalLogin() {
 
         DOM.coinbaseWalletBtn.addEventListener("click", connectWalletDispatcher("cbwalletbase"));
         DOM.peraWalletBtn.addEventListener("click", connectWalletDispatcher("pera"));
+        DOM.noWalletBtn.addEventListener("click", connectWalletDispatcher("none"));
     }
 })();

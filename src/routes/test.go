@@ -2,8 +2,9 @@ package routes
 
 import (
 	"YourPlace/src/core/middleware"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestRoutes(router *gin.Engine, title string, gateway bool) {

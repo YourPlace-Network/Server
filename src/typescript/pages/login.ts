@@ -1,3 +1,5 @@
+import {InitTooltips} from "../util/bootstrap";
+
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import {DisableDialogModalExit, DisableDialogModalOkBtn, HideDialogModal, ShowDialogModal} from "../components/modalDialog";
 import "../../scss/pages/login.scss";
@@ -83,6 +85,7 @@ declare global { // Extend the window interface with public callback objects
         });
 
         // --------- Running Functions --------- //
+        InitTooltips();
         ShowModalLogin();
     }
 })();
