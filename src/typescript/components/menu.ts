@@ -14,6 +14,7 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             menuLoginBtn: document.getElementById("menuLoginBtn")! as HTMLButtonElement,
             menuAvatar: document.getElementById("menuAvatar")! as HTMLImageElement,
             menuSettingsLink: document.getElementById("menuSettingsLink")! as HTMLAnchorElement,
+            menuPlacesLink: document.getElementById("menuPlacesLink")! as HTMLAnchorElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
             gatewayMode: document.getElementById("gatewayMode")! as HTMLInputElement,
         }
@@ -80,8 +81,10 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             console.log("focusin");
             if (DOM.gatewayMode.value === "true" && !isLocalhost()) {
                 DOM.menuSettingsLink.style.display = "none";
+                DOM.menuPlacesLink.href = `${window.location.protocol}//${window.location.host}/`;
             } else {
                 DOM.menuSettingsLink.style.display = "block";
+                DOM.menuPlacesLink.href = "/";
             }
         });
 
