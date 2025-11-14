@@ -22,6 +22,7 @@ declare global { // Extend the window interface with public callback objects
         let DOM = {
             loginModal: document.getElementById("loginModal")! as HTMLDivElement,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
+            refreshBtn: document.getElementById("refreshBtn")! as HTMLButtonElement,
         }
 
         // --------- Callback Functions --------- //
@@ -82,6 +83,9 @@ declare global { // Extend the window interface with public callback objects
         DOM.loginModal.addEventListener("hide.bs.modal", e => { // Prevent the modal from being hidden
             e.stopPropagation();
             e.preventDefault();
+        });
+        DOM.refreshBtn.addEventListener("click", () => {
+            window.location.reload();
         });
 
         // --------- Running Functions --------- //
