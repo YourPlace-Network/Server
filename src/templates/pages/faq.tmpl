@@ -5,7 +5,7 @@
         <div class="row" id="row1">
             <div class="col-sm-1"></div>
             <div class="col-sm-10">
-                <h2 class="pageHeader">❔ FAQ</h2>
+                <h2 class="pageHeader">🙋 FAQ</h2>
                 <div class="accordion" id="accordionFAQ">
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingUncensorable">
@@ -34,6 +34,19 @@
                     </div>
 
                     <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingWallet">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWallet" aria-expanded="false" aria-controls="collapseWallet">
+                                🔑 What Is A Wallet?
+                            </button>
+                        </h2>
+                        <div id="collapseWallet" class="accordion-collapse collapse" aria-labelledby="headingWallet" data-bs-parent="#accordionFAQ">
+                            <div class="accordion-body">
+                                <strong>A wallet stores your ID for YourPlace.</strong> Think of it like a digital key that proves who you are. You can download a wallet app on your phone, or download the <a href="https://yourplace.network/download#noWallet" target="_blank" rel="noopener noreferrer"><u>YourPlace Server</u></a> to create a wallet on your PC.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
                         <h2 class="accordion-header" id="headingUploads">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUploads" aria-expanded="false" aria-controls="collapseUploads">
                                 📁 How Do You Enable File Uploads?
@@ -54,8 +67,7 @@
                         </h2>
                         <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionFAQ">
                             <div class="accordion-body">
-                                <strong>YourPlace Inc. is technically unable to censor content network-wide, but gateways may curate content they link to.</strong> By storing user content on the blockchain and IPFS, nobody can take that content down and gives YourPlace its censorship-resistance nature. However, YourPlace gateways act as the on-ramp to the network and may choose to display posts / accounts as their own content policy dictates. YourPlace Inc. runs the default <a href="https://yourplace.network" target="_blank" rel="noopener noreferrer"><u>yourplace.network</u></a> gateway and will comply with US laws regarding illegal content. We partner with Cloudflare Inc. to implement the IWF Hash List to combat abuse imagery on the official gateway.
-                                YourPlace Inc. implements our own content moderation policies on our gateway to curate a healthy community. All of this is analogous to how the email protocol operates today.
+                                <strong>YourPlace Inc. is technically unable to censor content network-wide, but gateways may curate content they link to.</strong> By storing user content on the blockchain and IPFS, nobody can take that content down and gives YourPlace its censorship-resistance nature. However, YourPlace gateways act as the on-ramp to the network and may choose to display posts / accounts as their own content policy dictates. YourPlace Inc. runs the default <a href="https://yourplace.network" target="_blank" rel="noopener noreferrer"><u>yourplace.network</u></a> gateway and will comply with US laws regarding illegal content. We partner with Cloudflare Inc. to implement the IWF Hash List to combat abuse imagery on the official gateway. The YourPlace Server software enables the <a href="https://badbits.dwebops.pub/" target="_blank" rel="noopener noreferrer"><u>IPFS Bad Bits filter</u></a> by default to help protect users from known harmful content. YourPlace Inc. implements our own content moderation policies on our gateway to curate a healthy community. All of this is analogous to how the email protocol operates today.
                             </div>
                         </div>
                     </div>
@@ -107,7 +119,7 @@
                         </h2>
                         <div id="collapseAnonymous" class="accordion-collapse collapse" aria-labelledby="headingAnonymous" data-bs-parent="#accordionFAQ">
                             <div class="accordion-body">
-                                <strong>YourPlace is considered pseudo-anonymous, but does not hide network traffic by default.</strong> The YourPlace Server uses TCP/IP and HTTP to communicate with third party services over the regular internet. This means that, much like BitTorrent clients, ISPs and Law Enforcement can discover servers by the connections it makes. It is possible to run a YourPlace server behind a hidden service or VPN with some work, but such a configuration would not be supported and key functionality may not work.
+                                <strong>YourPlace is considered pseudo-anonymous, but does not hide network traffic by default.</strong> The YourPlace Server uses TCP/IP and HTTP to communicate with third party services over the regular internet. This means that, much like BitTorrent clients, ISPs and Law Enforcement can discover servers by the connections it makes. It is possible to run a YourPlace server behind a hidden service or VPN with some work, but such a configuration would not be enabled by default and key functionality may not work. Complete anonymity cannot be guaranteed by this Application.
                             </div>
                         </div>
                     </div>
@@ -189,12 +201,12 @@
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingBlockchainRPC">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBlockchainRPC" aria-controls="collapseBlockchainRPC">
-                                🔗 What Is A Blockchain RPC server?
+                                🔗 What Is A RPC Server?
                             </button>
                         </h2>
                         <div id="collapseBlockchainRPC" class="accordion-collapse collapse" aria-labelledby="headingBlockchainRPC" data-bs-parent="#accordionFAQ">
                             <div class="accordion-body">
-                                <strong>YourPlace uses blockchain technology to store your data on distributed networks. Access to those networks is via a Remote Procedure Call server.</strong> We use these blockchains to store your content, perform authentication, and send money to other users. Each blockchain network has its own RPC server software that you can connect to, which allows access to that network. You can use a public RPC server, but we strongly recommend running your own for privacy, reliability and speed. See the <a href="/settings#collapseBlockchain"><u>Blockchain Settings page</u></a> for more information on configuring your RPC server.
+                                <strong>A RPC server is another piece of software that grants you entry into distributed networks.</strong> You can build one yourself, or use one hosted by a third party. We recommend visiting <a href="https://chainstack.io/" target="_blank" rel="noopener noreferrer"><u>Chainstack</u></a> to buy RPC servers.
                             </div>
                         </div>
                     </div>

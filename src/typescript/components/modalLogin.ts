@@ -50,7 +50,12 @@ export function HideModalLogin() {
         function connectWalletDispatcher(wallet: string) {
             if (wallet === "none") {
                 if (IsGatewayMode()) {
-                    ShowDialogModalHTML("If you do not have a wallet and can't download any of the supported ones, then you'll need to run your own <a href=\"https://yourplace.network/download\" target=\"_blank\">YourPlace Server</a>, which will allow you to create a wallet.");
+                    ShowDialogModalHTML("A wallet holds your ID on YourPlace. If you don't have one, download the <a href=\"https://yourplace.network/downloaod#noWallet\" target=\"_blank\">YourPlace Server</a> and try again to create a wallet.");
+                    let modalElement = document.getElementById("modalDialog")!;
+                    let handleDialogClose = function() {
+                        window.location.href = "/download#noWallet";
+                    };
+                    modalElement.addEventListener("hidden.bs.modal", handleDialogClose, {once: true});
                     return () => {};
                 } else {
 

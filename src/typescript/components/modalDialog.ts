@@ -9,7 +9,7 @@ import "../../scss/components/modalDialog.scss"
 export function ShowDialogModal(message: string) {
     document.getElementById("modalDialogContent")!.textContent = message;
     let element = document.getElementById("modalDialog")!;
-    let modal = new window.bootstrap.Modal(element, {});
+    let modal = window.bootstrap.Modal.getOrCreateInstance(element);
     modal.show();
 }
 export function ShowDialogModalHTML(message: string) {
@@ -20,19 +20,19 @@ export function ShowDialogModalHTML(message: string) {
         }
     );
     let element = document.getElementById("modalDialog")!;
-    let modal = new window.bootstrap.Modal(element, {});
+    let modal = window.bootstrap.Modal.getOrCreateInstance(element);
     modal.show();
 }
 export function ShowDialogModalHTMLUnsafe(message: string) {
     LogInfo("Potentially Dangerous ShowDialogModalHTMLUnsafe() Used. Ensure that no user-controlled data can reach this function. Usage on this page: " + window.location.toString());
     document.getElementById("modalDialogContent")!.innerHTML = message;
     let element = document.getElementById("modalDialog")!;
-    let modal = new window.bootstrap.Modal(element, {});
+    let modal = window.bootstrap.Modal.getOrCreateInstance(element);
     modal.show();
 }
 export function HideDialogModal() {
     let element = document.getElementById("modalDialog")!;
-    let modal = new window.bootstrap.Modal(element, {});
+    let modal = window.bootstrap.Modal.getOrCreateInstance(element);
     modal.hide();
     document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
     document.body.classList.remove("modal-open");
