@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CORSMiddleware() gin.HandlerFunc {
+func CORSMiddleware(gateway bool, gatewayOrigin string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 		origin := c.Request.Header.Get("Origin")
@@ -20,10 +20,15 @@ func CORSMiddleware() gin.HandlerFunc {
 			c.Header("Cross-Origin-Resource-Policy", "cross-origin")
 			c.Header("X-Debug-CORS", "static-asset-path")
 		} else {
-			// Only allow localhost origins for API/page requests
+			// Build allowed origins list
 			allowedOrigins := []string{
 				"http://localhost:42424",
 				"https://localhost:42424",
+			}
+			// Add gateway origin if in gateway mode
+			if gateway && gatewayOrigin != "" {
+				allowedOrigins = append(allowedOrigins, "https://"+gatewayOrigin)
+				allowedOrigins = append(allowedOrigins, "http://"+gatewayOrigin)
 			}
 			originAllowed := false
 			for _, allowed := range allowedOrigins {

@@ -3,9 +3,9 @@ set -e
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 
-if [ -z "$INSTANCE_ID" ] || [ -z "$ECR_REGISTRY" ] || [ -z "$CLOUDFLARE_CERT_PEM" ] || [ -z "$CLOUDFLARE_CERT_KEY" ]; then
+if [ -z "$INSTANCE_ID" ] || [ -z "$ECR_REGISTRY" ] || [ -z "$CLOUDFLARE_CERT_PEM" ] || [ -z "$CLOUDFLARE_CERT_KEY" ] || [ -z "$YOURPLACE_ORIGIN" ]; then
   echo "ERROR: Missing required environment variables"
-  echo "Required: INSTANCE_ID, ECR_REGISTRY, CLOUDFLARE_CERT_PEM, CLOUDFLARE_CERT_KEY"
+  echo "Required: INSTANCE_ID, ECR_REGISTRY, CLOUDFLARE_CERT_PEM, CLOUDFLARE_CERT_KEY, YOURPLACE_ORIGIN"
   exit 1
 fi
 
@@ -75,7 +75,7 @@ echo '=== Stopping existing container ==='
 docker stop yourplace-gateway 2>/dev/null || echo 'No existing container'
 docker rm yourplace-gateway 2>/dev/null || echo 'No existing container'
 echo '=== Starting new container ==='
-docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /opt/YourPlace:/opt/YourPlace ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
+docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /opt/YourPlace:/opt/YourPlace -e YOURPLACE_ORIGIN='YOURPLACE_ORIGIN_PLACEHOLDER' ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
 echo '=== Verifying container started ==='
 docker ps | grep yourplace-gateway
 echo '=== Waiting for server to be ready (max 5 minutes) ==='
@@ -104,6 +104,7 @@ SCRIPT="${SCRIPT//CERT_PEM_BASE64_PLACEHOLDER/$CERT_PEM_BASE64}"
 SCRIPT="${SCRIPT//CERT_KEY_BASE64_PLACEHOLDER/$CERT_KEY_BASE64}"
 SCRIPT="${SCRIPT//AWS_REGION_PLACEHOLDER/$AWS_REGION}"
 SCRIPT="${SCRIPT//ECR_REGISTRY_PLACEHOLDER/$ECR_REGISTRY}"
+SCRIPT="${SCRIPT//YOURPLACE_ORIGIN_PLACEHOLDER/$YOURPLACE_ORIGIN}"
 
 # Create proper JSON parameters structure
 PARAMETERS=$(jq -n \

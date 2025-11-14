@@ -60,12 +60,11 @@ var (
 	ui         = true  // set in 'du' command line flag
 	indexer    = true  // set in 'i' command line flag
 	shortcut   = false // set in 's' command line flag
-	mcp        = false // set in 'mcp' command line flag
 )
 
 func main() {
-	time.Sleep(3 * time.Second)          // Sleep to allow the previous instance to close
-	logFile := core.LogInit("yourplace") // Initialize the logger
+	time.Sleep(3 * time.Second)   // Sleep to allow the previous instance to close
+	_ = core.LogInit("yourplace") // Initialize the logger
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
 	core.LogDebug("Runtime User: " + host.GetUsername())
 	core.LogDebug("Install Directory: " + host.GetInstallDir())
@@ -79,7 +78,6 @@ func main() {
 	disableIndexerPtr := flag.Bool("di", false, "Disable automatic blockchain indexing, default: false (indexer enabled)")
 	patchPtr := flag.Bool("p", false, "Start patching of YourPlace, default: false")
 	shortcutPtr := flag.Bool("s", false, "Started server via shortcut, default: false")
-	mcpPtr := flag.Bool("mcp", false, "Enable MCP server for LLM integration, default: false")
 	flag.StringVar(&hexString, "c", "", "A 32-byte array represented as a 64-character hexadecimal string used to synchronize the cryptographic state in a distributed deployment, default: random 32-byte value") // go run main.go -c=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 	flag.Parse()
 	// Assign parsed flag values to variables
@@ -89,12 +87,18 @@ func main() {
 	indexer = !*disableIndexerPtr // Indexer enabled by default, disabled if -di flag is present
 	patch = *patchPtr
 	shortcut = *shortcutPtr
-	mcp = *mcpPtr
 
 	// --- Environment Variables --- //
 	host.SetEnvVar("YourPlaceProtocol", protocol)
-	host.SetEnvVar("YourPlaceDomain", domain)
 	host.SetEnvVar("YourPlacePort", strconv.Itoa(port))
+	domainTemp := os.Getenv("YOURPLACE_ORIGIN") // Get origin domain from environment variable (example: app.yourplace.network)
+	if domainTemp == "" || domainTemp == "localhost" {
+		domain = "localhost"
+		host.SetEnvVar("YourPlaceDomain", "localhost")
+	} else {
+		domain = domainTemp
+		host.SetEnvVar("YourPlaceDomain", domainTemp)
+	}
 	if host.DoesExist(host.GetDataDir() + "noindexer") { // disable indexer via file flag
 		indexer = false
 	}
@@ -235,7 +239,7 @@ func main() {
 
 	// --- Start Web Server --- //
 	core.LogDebug("Starting web server")
-	StartWebServer(database, _blockchain, ipfs, installed, logFile, mcp)
+	StartWebServer(database, _blockchain, ipfs, installed, domain)
 
 	// --- Systray --- //
 	runSystray(database)
@@ -296,7 +300,7 @@ func PostServerRun(database *db.Database) {
 		database.MetaUpdateValue("ypPortOpen", "true")
 	}
 }
-func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, logFile *os.File, mcp bool) {
+func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, domain string) {
 	if debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -311,7 +315,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	}
 	//router.Use(gin.Logger()) // Attach default logger which prints to stdout
 	router.Use(CustomGinRecovery())
-	router.Use(middleware.CORSMiddleware())
+	router.Use(middleware.CORSMiddleware(gateway, domain))
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.Use(middleware.LoopbackMiddleware(port))
 	router.Use(middleware.LoopbackRedirectMiddleware(port))
@@ -349,9 +353,6 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 		routes.WalletRoutes(router, title, database, cryptoSeed, gateway)
 		if debug {
 			routes.TestRoutes(router, title, gateway)
-		}
-		if mcp {
-			routes.MCPRoutes(router, database)
 		}
 	}
 	// --- Start Web Server Loop --- //
@@ -449,7 +450,6 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 			indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
 			isOnBattery := host.IsOnBattery()
 			if isOnBattery && !indexerOnBatteryBool { // Don't run the indexer if the computer is on battery
-				core.LogDebug("Host is on battery - skipping indexer run")
 				blockchain.IndexerStop()
 				return
 			}

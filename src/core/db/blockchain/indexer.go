@@ -524,7 +524,6 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 	}()
 	indexerRunning := _Database.SettingsGetValue("indexerRunning") // Check if the indexer is globally enabled
 	if indexerRunning != "true" {
-		core.LogDebug("Indexer is disabled in settings")
 		return "", "", nil, 0, 0, nil // bail out
 	}
 	uuid := _Database.IndexerGetJobUUID(chainName) // Lookup the UUID of the blockchain job
@@ -961,7 +960,6 @@ func IndexerRestartJobs(__database *db.Database, blockchain string) {
 func IndexerStop() {
 	IndexerMutex.Lock()
 	defer IndexerMutex.Unlock()
-	core.LogDebug("Received Indexer Stop Request")
 	if IsIndexing && indexerCancel != nil {
 		select {
 		case indexerCancel <- true:
