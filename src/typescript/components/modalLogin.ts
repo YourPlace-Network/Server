@@ -80,6 +80,6 @@ export function HideModalLogin() {
 
         DOM.coinbaseWalletBtn.addEventListener("click", connectWalletDispatcher("cbwalletbase"));
         DOM.peraWalletBtn.addEventListener("click", connectWalletDispatcher("pera"));
-        DOM.noWalletBtn.addEventListener("click", connectWalletDispatcher("none"));
+        // DOM.noWalletBtn.addEventListener("click", connectWalletDispatcher("none")); // Disabled
     }
 })();
