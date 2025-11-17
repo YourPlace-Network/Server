@@ -75,7 +75,7 @@ echo '=== Stopping existing container ==='
 docker stop yourplace-gateway 2>/dev/null || echo 'No existing container'
 docker rm yourplace-gateway 2>/dev/null || echo 'No existing container'
 echo '=== Starting new container ==='
-docker run -d --name yourplace-gateway --restart unless-stopped -p 443:443 -v /opt/YourPlace:/opt/YourPlace -e YOURPLACE_ORIGIN='YOURPLACE_ORIGIN_PLACEHOLDER' ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
+docker run -d --name yourplace-gateway --restart unless-stopped --log-driver awslogs --log-opt awslogs-region=AWS_REGION_PLACEHOLDER --log-opt awslogs-group=/ec2/yourplace-gateway -p 443:443 -v /opt/YourPlace:/opt/YourPlace -e YOURPLACE_ORIGIN='YOURPLACE_ORIGIN_PLACEHOLDER' ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
 echo '=== Verifying container started ==='
 docker ps | grep yourplace-gateway
 echo '=== Waiting for server to be ready (max 5 minutes) ==='
