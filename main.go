@@ -299,6 +299,19 @@ func PostServerRun(database *db.Database) {
 	} else {
 		database.MetaUpdateValue("ypPortOpen", "true")
 	}
+	// Gateway mode: trigger snapshot catch-up on first run
+	if gateway {
+		lastCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun")
+		if lastCatchUpStr == "" {
+			core.LogInfo("Gateway first run detected - triggering snapshot catch-up")
+			success, message := blockchain.IndexerCatchUpAll(database, "base")
+			if success {
+				core.LogInfo("Gateway snapshot catch-up: " + message)
+			} else {
+				core.LogWarn("Gateway snapshot catch-up failed: " + message)
+			}
+		}
+	}
 }
 func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, domain string) {
 	if debug {

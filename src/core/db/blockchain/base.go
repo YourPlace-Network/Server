@@ -135,7 +135,7 @@ func (base *Base) GetENSAddresses(name string) ([]string, error) {
 }
 
 func BaseGetEarliestBlock() big.Int {
-	return *big.NewInt(int64(23000000)) // YourPlace did not exist on-chain before this block
+	return *big.NewInt(int64(38300000)) // YourPlace did not exist on-chain before this block
 }
 func BaseGetBytecode(database *db.Database, address string) ([]byte, error) {
 	base := new(Base)

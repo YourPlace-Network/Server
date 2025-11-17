@@ -9,8 +9,6 @@ import (
 	"YourPlace/src/core/network"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
-	"encoding/json"
-	"fmt"
 	"math/big"
 	"net/http"
 	"os"
@@ -386,127 +384,14 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		var payload Payload
 		err := c.BindJSON(&payload)
 		if err != nil || !security.IsValidBlockchain(payload.Blockchain) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid indexer catch up blockchain value"})
+			return
+		}
+		if payload.IndexerCatchUp != "full" {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid indexer catch up value"})
 			return
 		}
-		lastCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun")
-		if lastCatchUpStr != "" {
-			lastCatchUp, err := strconv.ParseUint(lastCatchUpStr, 10, 64)
-			if err == nil {
-				currentTime := core.GetTimestamp()
-				timeSinceLastRun := currentTime - lastCatchUp
-				if timeSinceLastRun < 86400 {
-					hoursRemaining := (86400 - timeSinceLastRun) / 3600
-					minutesRemaining := ((86400 - timeSinceLastRun) % 3600) / 60
-					var message string
-					if hoursRemaining > 0 {
-						message = fmt.Sprintf("Rate limit: Catch-up can only run once every 24 hours. Please try again in %d hours and %d minutes.", hoursRemaining, minutesRemaining)
-					} else {
-						message = fmt.Sprintf("Rate limit: Catch-up can only run once every 24 hours. Please try again in %d minutes.", minutesRemaining)
-					}
-					c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"status": message})
-					return
-				}
-			}
-		}
-		snapshotURL := fmt.Sprintf("https://yourplace-snapshots.s3.us-east-1.amazonaws.com/%s-snapshot-complete.db.gz", payload.Blockchain)
-		snapshotJsonURL := fmt.Sprintf("https://yourplace-snapshots.s3.us-east-1.amazonaws.com/%s-snapshot-complete.json", payload.Blockchain)
-		switch payload.IndexerCatchUp {
-		case "full":
-			database.MetaUpdateValue("indexerCatchUpLastRun", strconv.FormatUint(core.GetTimestamp(), 10))
-			go func() {
-				blockchain.IndexerStop()
-				for i := 0; i < 120; i++ {
-					if !blockchain.IsIndexing {
-						snapshotDir := filepath.Join(host.GetDataDir(), "snapshots")
-						host.CreateFolder(snapshotDir)
-						snapshotFile := filepath.Join(snapshotDir, fmt.Sprintf("%s-snapshot-complete.db.gz", payload.Blockchain))
-						snapshotMetadataFile := filepath.Join(snapshotDir, fmt.Sprintf("%s-snapshot-complete.json", payload.Blockchain))
-						if host.DoesExist(snapshotFile) {
-							core.LogDebug("Deleting existing snapshot file: " + snapshotFile)
-							host.DeleteIfExists(snapshotFile)
-						}
-						if host.DoesExist(snapshotMetadataFile) {
-							core.LogDebug("Deleting existing snapshot metadata file: " + snapshotMetadataFile)
-							host.DeleteIfExists(snapshotMetadataFile)
-						}
-						core.LogInfo("Downloading snapshot from: " + snapshotURL)
-						err = network.HttpGetFile(snapshotURL, snapshotFile)
-						if err != nil {
-							core.LogError("Could not download snapshot: " + err.Error())
-							database.MetaUpdateValue("indexerCatchUpLastRun", "")
-							return
-						}
-						core.LogInfo("Downloading snapshot metadata from: " + snapshotJsonURL)
-						err = network.HttpGetFile(snapshotJsonURL, snapshotMetadataFile)
-						if err != nil {
-							core.LogError("Could not download snapshot metadata: " + err.Error())
-							database.MetaUpdateValue("indexerCatchUpLastRun", "")
-							return
-						}
-						if !host.DoesExist(snapshotFile) {
-							core.LogError("Snapshot file not found: " + snapshotFile)
-							database.MetaUpdateValue("indexerCatchUpLastRun", "")
-							return
-						}
-						if !host.DoesExist(snapshotMetadataFile) {
-							core.LogError("Snapshot metadata file not found: " + snapshotMetadataFile)
-							database.MetaUpdateValue("indexerCatchUpLastRun", "")
-							return
-						}
-						core.LogInfo("Importing snapshot from: " + snapshotFile)
-						err = database.ImportSnapshotNoMetadata(snapshotFile)
-						if err != nil {
-							core.LogError("Could not import snapshot: " + err.Error())
-							database.MetaUpdateValue("indexerCatchUpLastRun", "")
-							return
-						}
-						core.LogInfo("Reading snapshot metadata from: " + snapshotMetadataFile)
-						metadataBytes, err := os.ReadFile(snapshotMetadataFile)
-						if err != nil {
-							core.LogError("Could not read snapshot metadata: " + err.Error())
-							database.MetaUpdateValue("indexerCatchUpLastRun", "")
-							return
-						}
-						var metadata map[string]interface{}
-						err = json.Unmarshal(metadataBytes, &metadata)
-						if err != nil {
-							core.LogError("Could not parse snapshot metadata: " + err.Error())
-							database.MetaUpdateValue("indexerCatchUpLastRun", "")
-							return
-						}
-						headBlock, headOk := metadata["head_block"].(float64)
-						tailBlock, tailOk := metadata["tail_block"].(float64)
-						if !headOk || !tailOk {
-							core.LogError("Snapshot metadata missing head_block or tail_block")
-							database.MetaUpdateValue("indexerCatchUpLastRun", "")
-							return
-						}
-						core.LogInfo(fmt.Sprintf("Updating indexer job with head_block: %d, tail_block: %d", uint64(headBlock), uint64(tailBlock)))
-						jobUUID := database.IndexerGetJobUUID(payload.Blockchain)
-						if jobUUID == "" {
-							core.LogError("Could not find indexer job UUID for blockchain: " + payload.Blockchain)
-							database.MetaUpdateValue("indexerCatchUpLastRun", "")
-							return
-						}
-						database.IndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
-						database.IndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
-						host.DeleteAll(snapshotDir)
-						core.LogInfo("Snapshot import complete")
-						return
-					}
-					time.Sleep(5 * time.Second)
-				}
-				core.LogError("Indexer did not stop in time during snapshot import")
-				database.MetaUpdateValue("indexerCatchUpLastRun", "")
-				return
-			}()
-			break
-		default:
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid indexer catch up option"})
-			database.MetaUpdateValue("indexerCatchUpLastRun", "")
-			return
-		}
+		blockchain.IndexerCatchUpAll(database, payload.Blockchain)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/post/history", func(c *gin.Context) {
