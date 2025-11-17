@@ -4,9 +4,9 @@ RUN apt-get update && apt-get install -y \
     wget ca-certificates make \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget https://go.dev/dl/go1.25.1.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.25.1.linux-amd64.tar.gz && \
-    rm go1.25.1.linux-amd64.tar.gz
+RUN wget https://go.dev/dl/go1.25.4.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.25.4.linux-amd64.tar.gz && \
+    rm go1.25.4.linux-amd64.tar.gz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 
