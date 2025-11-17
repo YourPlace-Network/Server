@@ -195,7 +195,7 @@ snapshot_docker_build:
 	docker build --progress=plain --no-cache -f snapshot/Dockerfile -t yourplace-snapshot .
 snapshot_build:
 	mkdir -p target/
-	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o target/YourPlaceSnapshot snapshot/snapshot.go
+	GOOS=linux GOARCH=amd64 go build -tags gateway -ldflags "-s -w" -o target/YourPlaceSnapshot snapshot/snapshot.go
 snapshot_run:
 	./target/YourPlaceSnapshot
 snapshot_dbg_build:

@@ -1,7 +1,7 @@
 FROM public.ecr.aws/ubuntu/ubuntu:24.04 AS builder
 
 RUN apt-get update && apt-get install -y \
-    wget ca-certificates make libpcap-dev \
+    wget ca-certificates make \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://go.dev/dl/go1.25.4.linux-amd64.tar.gz && \
