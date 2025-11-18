@@ -60,12 +60,12 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.SecureJSON(http.StatusOK, gin.H{
 				"baseURL": blockchain.DefaultBlockchainNodes["base"][0],
 			})
-			return
+		} else {
+			baseURL := database.SettingsGetValue("baseURL")
+			c.SecureJSON(http.StatusOK, gin.H{
+				"baseURL": baseURL,
+			})
 		}
-		baseURL := database.SettingsGetValue("baseURL")
-		c.SecureJSON(http.StatusOK, gin.H{
-			"baseURL": baseURL,
-		})
 	})
 	router.GET("/settings/base/dataDirectory", func(c *gin.Context) {
 		dataDirectory := host.GetDataDir()

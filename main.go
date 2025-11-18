@@ -330,7 +330,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	router.Use(CustomGinRecovery())
 	router.Use(middleware.CORSMiddleware(gateway, domain))
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
-	router.Use(middleware.LoopbackMiddleware(port))
+	router.Use(middleware.LoopbackMiddleware(port, gateway))
 	router.Use(middleware.LoopbackRedirectMiddleware(port))
 	router.Use(middleware.CSRFMiddleware(middleware.CSRFConfig{CryptoSeed: cryptoSeed}))
 	router.Use(middleware.AuthMiddleware(cryptoSeed, database))

@@ -15,12 +15,16 @@ type ExceptionRule struct {
 	Path   string // Exact path to match
 }
 
-func LoopbackMiddleware(port int) gin.HandlerFunc { // This filter enforces clients to originate from 127.0.0.1 for certain API paths
-	// Paths to be included for localhost enforcement, your path must start with one of these prefixes
-	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test", "/service/ai", "/files", "/notification",
-		"/wallet"}
+func LoopbackMiddleware(port int, gateway bool) gin.HandlerFunc {
+	// This filter enforces clients to originate from 127.0.0.1 for certain API paths to be included for localhost enforcement. Your path must start with one of these prefixes
+	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test", "/service/ai", "/files", "/notification", "/wallet"}
 	return func(c *gin.Context) {
 		requestPath := c.Request.RequestURI
+		// In gateway mode, allow specific settings endpoints
+		if gateway && c.Request.Method == "GET" && strings.HasPrefix(requestPath, "/settings/base/url") {
+			c.Next()
+			return
+		}
 		// Check if this request matches an exception rule
 		validHosts := map[string]bool{
 			"localhost":              true,
