@@ -1,10 +1,9 @@
-{{define "htmlMenu"}}<div class="offcanvas offcanvas-end" tabindex="-1" id="htmlMenuOffcanvas" data-bs-scroll="false"
-                          aria-labelledby="htmlMenuOffcanvas" data-bs-backdrop="true" data-bs-keyboard="true">
+{{define "htmlMenu"}}<div class="offcanvas offcanvas-end" tabindex="-1" id="htmlMenuOffcanvas" data-bs-scroll="false" aria-labelledby="htmlMenuOffcanvas" data-bs-backdrop="true" data-bs-keyboard="true">
         <div class="offcanvas-header d-flex align-items-center" id="menuOffcanvasHeader">
-            <a href="/p/" class="grow cursorPointer">
+            <a href="/p/" class="grow cursorPointer" id="menuAvatarLink">
                 <img src="/static/image/avatar.png" id="menuAvatar" alt="avatar" crossorigin="anonymous" referrerpolicy="no-referrer">
             </a>
-            <button class="btn btn-primary" id="menuLoginBtn">Login</button>
+            <button class="btn btn-primary grow cursorPointer" id="menuLoginBtn">Login</button>
         </div>
         <div class="offcanvas-body flex" id="menuBody">
             <a href="/" class="menuItemA" id="menuPlacesLink">
