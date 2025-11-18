@@ -28,8 +28,8 @@
 }
 #htmlMenuOffcanvas {
   max-width: 80%;
-  min-width: 20%;
-  width: 14em;
+  min-width: 15em;
+  width: 15em;
   min-height: 100em;
   height: 100vh;
   overflow-y: hidden;
@@ -49,6 +49,9 @@
   flex-direction: column;
   flex-wrap: wrap;
 }
+#menuBody {
+  padding-left: 0.8em;
+}
 .menuItemDiv {
   display: block;
   width: 100%;
@@ -67,4 +70,6 @@
 #menuLoginBtn {
   position: relative;
   margin-left: auto;
+  height: 2.5em;
+  width: 6em;
 }
