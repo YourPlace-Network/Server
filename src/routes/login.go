@@ -96,7 +96,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			}
 		}
 
-		if installed { // only do this check if the server is installed. Otherwise, the server owner address isn't set yet
+		if installed && !gateway { // only do this check if the server is installed and not in gateway mode
 			serverOwnerAddress := database.AuthGetServerOwnerAddress()
 			if serverOwnerAddress == "" {
 				core.LogError("Base wallet login - failed to get server owner address from database")
@@ -108,8 +108,6 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": "Invalid login address"})
 				return
 			}
-		} else {
-			//core.LogDebug("Base wallet login AuthZ bypassed - server not yet installed")
 		}
 		authCookie := security.CreateAuthCookie(payload.Address, "base", cryptoSeed, database)
 		if authCookie == nil {
