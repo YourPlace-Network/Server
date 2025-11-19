@@ -15,6 +15,7 @@ import (
 	"crypto/tls"
 	"embed"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
@@ -44,6 +45,8 @@ var favicon []byte
 
 //go:embed resources/windows/app.manifest
 var manifest []byte // embed Windows manifest
+
+var assetManifest map[string]string // webpack asset manifest
 
 var (
 	title      = "YourPlace"
@@ -256,9 +259,32 @@ func staticFS() http.FileSystem {
 	}
 	return http.FS(sub)
 }
+func LoadAssetManifest() {
+	manifestData, err := wwwFS.ReadFile("src/www/manifest.json")
+	if err != nil {
+		core.LogWarn("Could not load asset manifest: " + err.Error())
+		assetManifest = make(map[string]string)
+		return
+	}
+	if err := json.Unmarshal(manifestData, &assetManifest); err != nil {
+		core.LogWarn("Could not parse asset manifest: " + err.Error())
+		assetManifest = make(map[string]string)
+	}
+}
 func LoadTemplates(engine *gin.Engine, embedFS embed.FS, pattern string) {
 	// https://github.com/gin-gonic/gin/issues/2795
 	root := template.New("")
+	engine.SetFuncMap(template.FuncMap{
+		"asset": func(name string) string {
+			if assetManifest == nil {
+				return "/static/js/" + name
+			}
+			if hashed, ok := assetManifest[name]; ok {
+				return hashed
+			}
+			return "/static/js/" + name
+		},
+	})
 	loadFunc := func(funcMap template.FuncMap, rootTemplate *template.Template, embedFS embed.FS, pattern string) error {
 		pattern = strings.ReplaceAll(pattern, ".", "\\.")
 		pattern = strings.ReplaceAll(pattern, "*", ".*")
@@ -344,6 +370,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	router.Use(middleware.CacheControlMiddleware())
 	router.Use(middleware.BlockedContent(database))
 	router.Use(security.Headers(port))
+	LoadAssetManifest()
 	LoadTemplates(router, templateFS, "src/templates/*tmpl")
 	router.StaticFS("/static", staticFS())
 	router.MaxMultipartMemory = 8 << 20

@@ -88,12 +88,14 @@
     "semver": "^7.7.2",
     "socket.io-parser": "^3.3.4",
     "terser": "^5.40.0",
+    "terser-webpack-plugin": "^5.3.14",
     "trim-newlines": "^5.0.0",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
     "undici": "^7.10.0",
     "url-parse": "^1.5.10",
     "webpack-cli": "^6.0.1",
+    "webpack-manifest-plugin": "^6.0.1",
     "webpack-merge": "^6.0.1"
   },
   "type": "module"

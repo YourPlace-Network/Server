@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/gin-gonic/gin"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -41,7 +42,14 @@ func CacheControlMiddleware() gin.HandlerFunc {
 		case ".jpg", ".jpeg", ".png", ".gif", ".ico", ".svg", ".svg+xml", ".webp", ".woff", ".woff2":
 			c.Header("Cache-Control", "public, max-age=604800") // Static assets with a longer cache time of 7 days
 		case ".css", ".js":
-			c.Header("Cache-Control", "public, max-age=86400") // CSS and JS files with a cache time of 24 hours
+			// Check if file has content hash (8 hex chars before extension)
+			// Pattern: filename.a1b2c3d4.js or filename.a1b2c3d4.chunk.js
+			hasContentHash := regexp.MustCompile(`\.[0-9a-f]{8}(\.(chunk|js|css))?$`).MatchString(path)
+			if hasContentHash {
+				c.Header("Cache-Control", "public, max-age=604800, immutable") // 7 days for hashed files
+			} else {
+				c.Header("Cache-Control", "public, max-age=86400") // 24 hours for non-hashed files
+			}
 		case ".json":
 			c.Header("Cache-Control", "private, max-age=60") // JSON/API responses with 1-minute cache
 		default:

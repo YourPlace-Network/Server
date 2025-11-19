@@ -2,6 +2,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import webpack from "webpack";
 import CopyPlugin from "copy-webpack-plugin";
+import { WebpackManifestPlugin } from "webpack-manifest-plugin";
 
 // Get __dirname equivalent in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -85,6 +86,7 @@ export default {
     },
     output: {
         filename: "[name].js",
+        chunkFilename: "[name].chunk.js",
         path: path.resolve(__dirname, "../www/js/"),
         clean: true,
     },
@@ -115,6 +117,10 @@ export default {
                 from: path.resolve(__dirname, "../../node_modules/tinymce"),
                 to: path.resolve(__dirname, "../www/tinymce"),
             }],
+        }),
+        new WebpackManifestPlugin({
+            fileName: "../manifest.json",
+            publicPath: "/static/js/",
         })
     ],
     experiments: {

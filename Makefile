@@ -107,10 +107,10 @@ ifeq ($(DETECTED_OS),Windows_NT)
 	powershell -ExecutionPolicy Bypass -File resources\windows\helper_build_setup.ps1
 	go build -ldflags "-s -w" -o target\YourPlaceHelper.exe helper\helper_win.go
 	powershell -Command "Copy-Item -Path 'target\YourPlaceHelper.exe' -Destination 'src\core\host\bin\helper\win\YourPlaceHelper.exe' -Force"
-	$(NPX) webpack --config "src\typescript\webpack.prod.js"
+	$(NPX) webpack --config "src\typescript\webpack.dev.js"
 	go build -ldflags "-s -w" -o target\YourPlace-$(VERSION).exe .
 else ifeq ($(DETECTED_OS),Darwin)
-	$(NPX) webpack --config src/typescript/webpack.prod.js
+	$(NPX) webpack --config src/typescript/webpack.dev.js
 	mkdir -p src/core/host/bin/helper/osx/
 	go generate
 	touch src/core/host/bin/helper/osx/YourPlaceHelper

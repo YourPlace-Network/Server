@@ -30,7 +30,6 @@ __pycache__/
 /.DS_Store/
 *.DS_Store
 */.DS_Store
-/target/
 main.exe
 yarn.lock
 yarn-error.log
@@ -53,3 +52,4 @@ identifier.sqlite
 /github_secrets/
 test_build
 /.claude/settings.local.json
+/src/www/manifest.json
