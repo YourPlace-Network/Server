@@ -24,7 +24,7 @@ jobs:
         VERSION=$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"')
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "Version found: $VERSION"
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
@@ -69,4 +69,3 @@ jobs:
         for file in target/YourPlace-*; do
           aws s3 cp "$file" s3://yourplace-downloads/linux/ --acl public-read --endpoint-url https://nyc3.digitaloceanspaces.com
         done
-        
