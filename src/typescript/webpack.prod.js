@@ -34,25 +34,16 @@ export default merge(commonConfig, {
         ],
         splitChunks: {
             chunks: 'all',
-            maxInitialRequests: 25,
-            minSize: 20000,
             cacheGroups: {
-                tinymce: {
-                    test: /[\\/]node_modules[\\/]tinymce[\\/]/,
-                    name: 'tinymce',
-                    priority: 30,
-                    reuseExistingChunk: true,
-                },
                 vendor: {
                     test: /[\\/]node_modules[\\/]/,
-                    name(module) {
-                        const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
-                        return `vendor.${packageName.replace('@', '')}`;
-                    },
+                    name: 'vendors',
                     priority: 20,
+                    reuseExistingChunk: true,
                 },
                 common: {
                     minChunks: 2,
+                    name: 'common',
                     priority: 10,
                     reuseExistingChunk: true,
                     enforce: true,

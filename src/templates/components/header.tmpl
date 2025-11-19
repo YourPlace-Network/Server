@@ -9,5 +9,7 @@
     <title>{{.title}}</title>
     <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
     <script src="{{asset "runtime.js"}}" type="application/javascript"></script>
+    <script src="{{asset "vendors.js"}}" type="application/javascript"></script>
+    <script src="{{asset "common.js"}}" type="application/javascript"></script>
     <script src="{{asset (printf "%s.js" .pageName)}}" type="application/javascript"></script>
 </head>{{end}}
