@@ -37,12 +37,10 @@ import {CIDToSubdomainURL} from "../util/ipfs";
                 DOM.menuLoginBtn.innerText = "Logout";
                 DOM.menuLoginBtn.removeEventListener("click", loginEvent);
                 DOM.menuLoginBtn.addEventListener("click", logoutEvent);
-                DOM.menuLoginBtn.style.marginLeft = "3.3em";
             } else {
                 DOM.menuLoginBtn.innerText = "Login";
                 DOM.menuLoginBtn.removeEventListener("click", logoutEvent);
                 DOM.menuLoginBtn.addEventListener("click", loginEvent);
-                DOM.menuLoginBtn.style.marginLeft = "4em";
             }
         }
         async function toggleAvatarBtn() {
