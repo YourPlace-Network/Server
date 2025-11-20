@@ -57,6 +57,11 @@ declare global {
             }
         }
         async function toggleAvatarBtn() {
+            let isAuthenticated = DOM.isCookieAuthenticated && DOM.isCookieAuthenticated.value === "true";
+            if (!isAuthenticated) {
+                DOM.menuAvatar.src = "/static/image/avatar.png";
+                return;
+            }
             let blockchain = GetChain();
             let address = GetAddress();
             if (blockchain && address) {
@@ -69,6 +74,8 @@ declare global {
                         DOM.menuAvatar.src = XSSSanitizeUrl(avatar.toString());
                     }
                 }
+            } else {
+                DOM.menuAvatar.src = "/static/image/avatar.png";
             }
         }
 
