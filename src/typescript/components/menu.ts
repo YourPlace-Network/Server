@@ -35,28 +35,25 @@ declare global {
             }
         }
 
-        function loginEvent(e: Event) {
+        function handleLoginLogoutClick(e: Event) {
             e.preventDefault();
             e.stopPropagation();
-            window.location.replace("/login");
-        }
-        function logoutEvent(e: Event) {
-            e.preventDefault();
-            e.stopPropagation();
-            window.location.replace("/logout");
+            let isAuthenticated = DOM.isCookieAuthenticated && DOM.isCookieAuthenticated.value === "true";
+            if (isAuthenticated) {
+                window.location.replace("/logout");
+            } else {
+                window.location.replace("/login");
+            }
         }
         async function toggleLoginBtn() {
             if (!DOM.isCookieAuthenticated) {
+                DOM.menuLoginBtn.innerText = "Login";
                 return;
             }
             if (DOM.isCookieAuthenticated.value === "true") {
                 DOM.menuLoginBtn.innerText = "Logout";
-                DOM.menuLoginBtn.removeEventListener("click", loginEvent);
-                DOM.menuLoginBtn.addEventListener("click", logoutEvent);
             } else {
                 DOM.menuLoginBtn.innerText = "Login";
-                DOM.menuLoginBtn.removeEventListener("click", logoutEvent);
-                DOM.menuLoginBtn.addEventListener("click", loginEvent);
             }
         }
         async function toggleAvatarBtn() {
@@ -82,7 +79,7 @@ declare global {
                    hostname === '[::1]';
         }
 
-        DOM.menuLoginBtn.addEventListener("click", loginEvent);
+        DOM.menuLoginBtn.addEventListener("click", handleLoginLogoutClick);
         DOM.htmlMenu.addEventListener("click", async (e) => {
             e.preventDefault();
             e.stopPropagation();

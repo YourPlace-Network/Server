@@ -983,8 +983,9 @@ const tips = [
     "Don't fall for the doomer nonsense. That's for losers and normies scared of their own shadows. Walk around like God sent you and smile at everyone you see. Spread light and abundance. Build things and take chances",
     "The truth is, remote work only works for a small set of people. Most people will be lazy by default when unsupervised and will just do the bare minimum",
     "Things that are \"free\" are pretty much always extremely expensive in ways that don't involve money",
-
-
+    "Men: You need to contend with the inescapable fact that you are worth nothing except for what you can accomplish, conquer, steal or cobble together for yourself. Your value is in your actions and results - and nothing else",
+    "It is infinitely better to be a good father, husband, wife or mother than it is to be a good employee",
+    "Women: The truth is, deep down, most men don't care about your career and just want a good wife and mother. And that path is a noble calling that deserves everyone's respect and carries civilization forward",
 ];
 
 (function initialize() {
