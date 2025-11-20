@@ -1,13 +1,19 @@
 import "bootstrap/dist/js/bootstrap.bundle";
 import "../../scss/components/menu.scss";
-import {GetAddress, GetChain, WalletGetAvatar} from "../util/blockchain/wallet";
+import {DisconnectWallet, GetAddress, GetChain, WalletGetAvatar, WalletIsConnected} from "../util/blockchain/wallet";
 import {XSSSanitizeUrl} from "../util/security";
 import {CIDToSubdomainURL} from "../util/ipfs";
+
+declare global {
+    interface Window {
+        DisconnectWalletCallback: () => void;
+    }
+}
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
 
-    function main() {
+    async function main() {
         let DOM = {
             htmlMenu: document.getElementById("htmlMenu")! as HTMLButtonElement,
             offcanvas: document.querySelectorAll('.offcanvas')! as NodeListOf<Element>,
@@ -17,6 +23,16 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             menuPlacesLink: document.getElementById("menuPlacesLink")! as HTMLAnchorElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
             gatewayMode: document.getElementById("gatewayMode")! as HTMLInputElement,
+        }
+
+        window.DisconnectWalletCallback = function() {}
+
+        async function syncAuthState() {
+            let isAuthenticated = DOM.isCookieAuthenticated && DOM.isCookieAuthenticated.value === "true";
+            let walletConnected = await WalletIsConnected();
+            if (!isAuthenticated && walletConnected) {
+                await DisconnectWallet();
+            }
         }
 
         function loginEvent(e: Event) {
@@ -67,9 +83,10 @@ import {CIDToSubdomainURL} from "../util/ipfs";
         }
 
         DOM.menuLoginBtn.addEventListener("click", loginEvent);
-        DOM.htmlMenu.addEventListener("click", (e) => {
+        DOM.htmlMenu.addEventListener("click", async (e) => {
             e.preventDefault();
             e.stopPropagation();
+            await syncAuthState();
             toggleAvatarBtn().then();
             toggleLoginBtn().then();
         });
@@ -86,6 +103,7 @@ import {CIDToSubdomainURL} from "../util/ipfs";
             }
         });
 
+        await syncAuthState();
         toggleAvatarBtn().then();
         toggleLoginBtn().then();
     }
