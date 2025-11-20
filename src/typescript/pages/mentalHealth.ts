@@ -985,7 +985,7 @@ const tips = [
     "Things that are \"free\" are pretty much always extremely expensive in ways that don't involve money",
     "Men: You need to contend with the inescapable fact that you are worth nothing except for what you can accomplish, conquer, steal or cobble together for yourself. Your value is in your actions and results - and nothing else",
     "It is infinitely better to be a good father, husband, wife or mother than it is to be a good employee",
-    "Women: The truth is, deep down, most men don't care about your career and just want a good wife and mother. And that path is a noble calling that deserves everyone's respect and carries civilization forward",
+    "Parents: Protect your children from anyone who would bring toxicity into your life. Even if it's grandma. Your relationship with your wife and child is more important than any other",
 ];
 
 (function initialize() {
