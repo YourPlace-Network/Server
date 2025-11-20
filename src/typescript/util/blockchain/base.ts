@@ -25,6 +25,11 @@ import {Web3} from "web3";
 import PersistentCache from "../cache";
 
 // ---------- Global Variables ---------- //
+const baseURLCache = new PersistentCache({
+    defaultTtl: 604800000, // 7 days
+    keyPrefix: "baseURL_"
+});
+
 export const mainnetBase = {
     ethChainID: 8453,
     name: "Base",
@@ -285,11 +290,17 @@ export async function baseUnfollowUser(toAddress: string, toBlockchain: string) 
 
 // ---------- Get Functions ---------- //
 async function baseGetURL(): Promise<string|null> {
+    const cached = baseURLCache.get("rpcUrl");
+    if (cached !== null) return cached as string;
     let response = await HttpGetJson("/settings/base/url");
     if (response[0] === 200) {
-        return response[1].baseURL;
+        const url = response[1].baseURL || "https://mainnet.base.org/";
+        baseURLCache.set("rpcUrl", url);
+        return url;
     } else {
-        return "https://mainnet.base.org/";
+        const defaultUrl = "https://mainnet.base.org/";
+        baseURLCache.set("rpcUrl", defaultUrl);
+        return defaultUrl;
     }
 }
 export async function baseGetAvatar(address: string): Promise<string> {

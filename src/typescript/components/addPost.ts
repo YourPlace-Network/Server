@@ -251,7 +251,6 @@ import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
         function clickFileInput() {
             DOM.fileInput.click();
         }
-        initTinyMCE().then(); // Pre-load TinyMCE on page load
 
         DOM.addPostButton.addEventListener("click", showModal);
         DOM.submitPostButton.addEventListener("click", submitPost);

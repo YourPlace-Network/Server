@@ -28,7 +28,7 @@ func NotificationRoutes(router *gin.Engine, database *db.Database) {
 	router.GET("/notification/:uid", func(c *gin.Context) {
 		uid := c.Param("uid")
 		if uid == "" {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "Missing notification UID"})
+			c.SecureJSON(http.StatusOK, gin.H{"error": "Missing notification UID"})
 			return
 		}
 		notifications := GetAllNotifications(database)

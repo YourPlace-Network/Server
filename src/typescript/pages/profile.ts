@@ -259,11 +259,18 @@ declare global { // Extend the window interface with public objects
                             b.textContent = name;
                         }
                     });
-                } else if (avatarAuthors.length === 0) {
-                    setTimeout(updatePostAuthors, 100);
                 }
             };
-            updatePostAuthors();
+            const waitForPostAuthors = (attempts = 0, maxAttempts = 50) => {
+                if (attempts >= maxAttempts) return;
+                const avatarAuthors = document.querySelectorAll("b.postCardAuthor");
+                if (avatarAuthors.length > 0) {
+                    updatePostAuthors();
+                } else {
+                    setTimeout(() => waitForPostAuthors(attempts + 1, maxAttempts), 100);
+                }
+            };
+            waitForPostAuthors();
         }
         async function renderProfileAvatarFromData(avatarAddress: string, blockchain: string, address: string) {
             let avatarURL = avatarAddress;
