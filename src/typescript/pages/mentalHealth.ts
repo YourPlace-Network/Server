@@ -987,6 +987,8 @@ const tips = [
     "It is infinitely better to be a good father, husband, wife or mother than it is to be a good employee",
     "Parents: Protect your children from anyone who would bring toxicity into your life. Even if it's grandma. Your relationship with your wife and child is more important than any other",
     "Sometimes to build your own family, you need to break off pieces of your old one",
+    "The forest was shrinking but the trees kept voting for the axe, for the axe was clever and convinced the trees that because his handle was made of wood, he was one of them",
+    "Young people: Don't get a dog. Dogs might be fun and cute, but they're extremely limiting to your job and housing and most people can't afford that limit when building their career",
 ];
 
 (function initialize() {
