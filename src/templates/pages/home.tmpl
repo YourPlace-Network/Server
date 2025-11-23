@@ -13,7 +13,12 @@
                     <p id="subtitleText">Distributed Social Media</p>
                 </div>
                 <div id="searchDiv">
-                    <input type="text" id="searchInput" placeholder="Search Places">
+                    <div id="searchInputWrapper">
+                        <input type="text" id="searchInput" placeholder="Search Places">
+                        <button id="searchClearBtn" class="searchClearBtn" style="display: none;">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </button>
+                    </div>
                 </div>
                 {{template "ads" .}}
                 <div id="trendingTopicsDiv"></div>

@@ -344,6 +344,14 @@ export async function baseGetName(_address: string): Promise<string> {
         pendingOnchainkitRequests.delete(_address);
     }
 }
+export function baseSetCachedName(_address: string, basename: string): void {
+    if (!IsValidBaseAddress(_address)) {
+        LogError("Invalid Base address provided to baseSetCachedName: " + _address);
+        return;
+    }
+    LogInfo("Manually caching basename for address: " + _address + " -> " + basename);
+    baseEnsCache.set(_address, basename);
+}
 export async function baseGetAddressFromENS(ensName: string): Promise<string | null> {
     if (!baseInit) await initBaseWallet();
     if (!ensName || ensName.trim() === "") {

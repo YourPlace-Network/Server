@@ -23,6 +23,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
+  border: 2px solid transparent;
+  border-radius: 0.5em;
+  transition: border-color 0.2s ease;
+}
+.postCard:hover {
+  border-color: map.get(global.$colors, "quaternary");
 }
 .postCardAvatar {
   position: relative;

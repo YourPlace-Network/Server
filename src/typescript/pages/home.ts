@@ -16,6 +16,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
     function main() {
         let DOM = {
             searchInput: document.getElementById("searchInput")! as HTMLInputElement,
+            searchClearBtn: document.getElementById("searchClearBtn")! as HTMLButtonElement,
             resultsDiv: document.getElementById("resultsDiv")! as HTMLDivElement,
             followersFeedDiv: document.getElementById("followersFeedDiv")! as HTMLDivElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
@@ -157,20 +158,45 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             spinnerDiv.appendChild(visibleText);
             DOM.resultsDiv.appendChild(spinnerDiv);
             const ensSuffixes = [".base.eth"];
-            const ensPromises = ensSuffixes.map(async suffix => {
-                if (!query.includes(".")) {
-                    const ensName = query + suffix;
-                    const address = await WalletGetAddressFromName("base", ensName);
+            const ensPromises: Promise<any>[] = [];
+            if (query.endsWith(".base.eth")) {
+                console.log("[DEBUG] Attempting direct ENS resolution for:", query);
+                ensPromises.push((async () => {
+                    const address = await WalletGetAddressFromName("base", query);
                     if (address) {
+                        console.log("[DEBUG] Direct ENS resolution SUCCESS:", query, "->", address);
                         return {
                             resultType: "profile",
                             address: address,
-                            blockchain: "base"
+                            blockchain: "base",
+                            ensName: query
                         };
+                    } else {
+                        console.log("[DEBUG] Direct ENS resolution FAILED for:", query);
                     }
-                }
-                return null;
-            });
+                    return null;
+                })());
+            } else if (!query.includes(".")) {
+                ensSuffixes.forEach(suffix => {
+                    const ensName = query + suffix;
+                    console.log("[DEBUG] Attempting ENS resolution for:", ensName);
+                    ensPromises.push((async () => {
+                        const address = await WalletGetAddressFromName("base", ensName);
+                        if (address) {
+                            console.log("[DEBUG] ENS resolution SUCCESS:", ensName, "->", address);
+                            return {
+                                resultType: "profile",
+                                address: address,
+                                blockchain: "base",
+                                ensName: ensName
+                            };
+                        } else {
+                            console.log("[DEBUG] ENS resolution FAILED for:", ensName);
+                        }
+                        return null;
+                    })());
+                });
+            }
             const [backendResponse, ...ensResults] = await Promise.all([
                 HttpGetJson("/s/?q=" + query),
                 ...ensPromises
@@ -226,13 +252,21 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                 let blockchain = result.blockchain;
                 let address = result.address;
                 let key = blockchain + address;
+                console.log("[DEBUG] Processing result for key:", key, "resultType:", result.resultType, "ensName:", result.ensName);
                 const cached = globalProfileCache.get(key);
                 if (cached === null) {
                     let name: string | null = null;
-                    try {
-                        name = await WalletGetName(blockchain, address);
-                    } catch (e) {
-                        console.warn("Failed to get ENS name:", e);
+                    if (result.ensName) {
+                        console.log("[DEBUG] Using preserved ENS name from search:", result.ensName);
+                        name = result.ensName;
+                    } else {
+                        console.log("[DEBUG] No preserved ENS name, attempting reverse resolution for:", address);
+                        try {
+                            name = await WalletGetName(blockchain, address);
+                            console.log("[DEBUG] Reverse resolution result:", name);
+                        } catch (e) {
+                            console.warn("Failed to get ENS name:", e);
+                        }
                     }
                     if (name === null || name.length === 0) {
                         let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
@@ -245,8 +279,10 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                         }
                     }
                     let avatarStr: string | null = null;
+                    console.log("[DEBUG] Fetching avatar for:", address, "with name:", name);
                     try {
                         avatarStr = await WalletGetAvatar(blockchain, address);
+                        console.log("[DEBUG] Avatar fetch result:", avatarStr ? "found" : "empty");
                     } catch (e) {
                         console.warn("Failed to get ENS avatar:", e);
                     }
@@ -264,8 +300,10 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                     }
                     let description: string | null = null;
                     if (result.resultType == "profile") {
+                        console.log("[DEBUG] Fetching description for profile:", address, "with name:", name);
                         try {
                             description = await WalletGetDescription(result.blockchain, result.address);
+                            console.log("[DEBUG] Description fetch result:", description ? description.substring(0, 50) + "..." : "empty");
                         } catch (e) {
                             console.warn("Failed to get ENS description:", e);
                         }
@@ -353,10 +391,23 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             };
         }
         const handleInput = (event: Event) => {
+            const hasValue = DOM.searchInput.value.length > 0;
+            DOM.searchClearBtn.style.display = hasValue ? "flex" : "none";
             handleSearch().then();
         };
         const debounceHandler = debounce(handleInput, 2000);
         ["keyup", "cut", "paste"].forEach(event => DOM.searchInput.addEventListener(event, debounceHandler, false));
+        DOM.searchInput.addEventListener("input", () => {
+            const hasValue = DOM.searchInput.value.length > 0;
+            DOM.searchClearBtn.style.display = hasValue ? "flex" : "none";
+        });
+        DOM.searchClearBtn.addEventListener("click", () => {
+            DOM.searchInput.value = "";
+            DOM.searchClearBtn.style.display = "none";
+            DOM.resultsDiv.replaceChildren();
+            DOM.resultsDiv.style.display = "none";
+            DOM.followersFeedDiv.style.display = "block";
+        });
 
         /* --- Initialize page variables and start loading --- */
         DOM.searchInput.value = "";

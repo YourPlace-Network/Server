@@ -6,7 +6,7 @@ for the application. This code is stateful using localstorage to keep a few valu
 */
 import {Transaction} from "algosdk";
 import {algoConnectSession, algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
-import {baseAuthLogin, baseConnectWallet, baseDisconnectWallet, baseFollowUser, baseUnfollowUser, baseGetAddressFromENS, baseGetAvatar, baseGetENSText, baseGetName, baseGetNFTs, baseIsWalletConnected, baseSetAvatar, baseSetBanner, baseSetBirthday, baseSetDescription, baseSetLocation, baseSetName, baseSetWebsite, baseSubmitPost, baseSubmitPostAttach, baseTxn, mainnetBase} from "./base";
+import {baseAuthLogin, baseConnectWallet, baseDisconnectWallet, baseFollowUser, baseUnfollowUser, baseGetAddressFromENS, baseGetAvatar, baseGetENSText, baseGetName, baseGetNFTs, baseIsWalletConnected, baseSetAvatar, baseSetBanner, baseSetBirthday, baseSetCachedName, baseSetDescription, baseSetLocation, baseSetName, baseSetWebsite, baseSubmitPost, baseSubmitPostAttach, baseTxn, mainnetBase} from "./base";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
@@ -182,7 +182,11 @@ export async function WalletGetAddressFromName(chain: string, ensName: string): 
         case "algorand":
             return null;
         case "base":
-            return await baseGetAddressFromENS(ensName);
+            const address = await baseGetAddressFromENS(ensName);
+            if (address) {
+                baseSetCachedName(address, ensName);
+            }
+            return address;
         case "solana":
             return null;
     }
