@@ -5,14 +5,11 @@
     color: map.get(global.$colors, "text");
 }
 .postCardAuthor {
-  float: left;
+  margin-right: 0.5em;
 }
 .postCardDate {
-  position: relative;
-  float: left;
-  top: .5em;
   font-size: .65em;
-  padding-left: 1em;
+  opacity: 0.8;
 }
 .postCardText {
   text-align: justify;
@@ -22,7 +19,10 @@
 .postCard {
   width: 100%;
   min-height: 100px;
-  padding: .3em 0 .3em .5em;
+  padding: 0.5em 0.5em 0.5em 0.5em;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
 }
 .postCardAvatar {
   position: relative;
@@ -30,12 +30,16 @@
   margin: .2em 1em .5em .1em;
   width: 4em;
   height: 4em;
-  float: left;
   object-fit: cover;
   border-radius: 0.6em;
+  flex-shrink: 0;
 }
 .postCardHeaderDiv {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
 }
 .postCardHeader {
   position: relative;
@@ -54,13 +58,13 @@
   color: map-get(global.$colors, "text");
 }
 .postCardTextDiv {
-  padding-top: 1.5em;
+  width: 100%;
   padding-right: 1em;
-  padding-left: 4.6em;
+  padding-left: 5em;
+  top: -2.3em;
 }
 .postCardEllipsesDiv {
-  float: right;
-  top: -.3em;
+  margin-left: auto;
 }
 .postCardEllipsesLink {
     color: map.get(global.$colors, "text");
@@ -84,7 +88,8 @@ ul.ellipsesMenu {
   text-align: center;
 }
 .postCardAttachmentDiv {
-  padding: 1em 5em 1em 4.7em;
+  width: 100%;
+  padding: 1em 5em 1em 5.5em;
 }
 .postCardAttachmentImage {
   object-fit: cover;

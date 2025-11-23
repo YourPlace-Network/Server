@@ -8,6 +8,7 @@ import {IsValidURL, XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName, WalletGetAddressFromName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {CIDToSubdomainURL} from "../util/ipfs";
 import {ShowNotifications} from "../util/notifications";
+import {globalProfileCache, type ProfileData} from "../util/cache";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -31,10 +32,6 @@ import {ShowNotifications} from "../util/notifications";
             }
             
             try {
-                interface Profile {
-                    name: string | null;
-                    avatar: URL | null;
-                }
                 // Get current user's address and blockchain from wallet functions
                 const userAddress = GetAddress();
                 const userBlockchain = GetChain();
@@ -47,7 +44,6 @@ import {ShowNotifications} from "../util/notifications";
                     return;
                 }
                 let posts: any[] = resp[1].posts;
-                const ProfileCache: Record<string, Profile> = {};
                 const pendingCards: HTMLDivElement[] = [];
                 // Create all cards with placeholder data first
                 for (let i = 0; i < posts.length; i++) {
@@ -65,8 +61,14 @@ import {ShowNotifications} from "../util/notifications";
                     let blockchain = post.blockchain;
                     let address = post.address;
                     let key = blockchain + address;
-                    if (!(key in ProfileCache)) {
-                        let name = await WalletGetName(blockchain, address);
+                    const cached = globalProfileCache.get(key);
+                    if (cached === null) {
+                        let name: string | null = null;
+                        try {
+                            name = await WalletGetName(blockchain, address);
+                        } catch (e) {
+                            console.warn("Failed to get ENS name:", e);
+                        }
                         if (name === null || name.length === 0) {
                             let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
                             if (response[0] === 200) {
@@ -75,44 +77,53 @@ import {ShowNotifications} from "../util/notifications";
                                 }
                             }
                         }
-                        let avatar: URL | null = new URL(await WalletGetAvatar(blockchain, address));
-                        if (avatar === null) {
+                        let avatarStr: string | null = null;
+                        try {
+                            avatarStr = await WalletGetAvatar(blockchain, address);
+                        } catch (e) {
+                            console.warn("Failed to get ENS avatar:", e);
+                        }
+                        if (!avatarStr || avatarStr === "") {
                             let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
                             if (response[0] === 200 && response[1] && response[1].avatarAddress) {
                                 const avatarAddress = response[1].avatarAddress.trim();
                                 if (avatarAddress.length > 0) {
                                     const avatarURL = CIDToSubdomainURL(avatarAddress);
                                     if (IsValidURL(avatarURL)) {
-                                        avatar = new URL(avatarURL);
-                                    } else {
-                                        avatar = null;
+                                        avatarStr = avatarURL;
                                     }
-                                } else {
-                                    avatar = null;
                                 }
-                            } else {
-                                avatar = null;
                             }
                         }
-                        ProfileCache[key] = {name, avatar};
-                        // Update all posts for this profile
-                        pendingCards.forEach(postDiv => {
-                            const postAddress = postDiv.querySelector('.postCardAddress') as HTMLInputElement;
-                            const postBlockchain = postDiv.querySelector('.postCardBlockchain') as HTMLInputElement;
-                            if (postAddress && postBlockchain) {
-                                const postKey = postBlockchain.value + postAddress.value;
-                                if (postKey === key) {
-                                    const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
-                                    const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
-                                    if (authorElement) authorElement.textContent = name || "Unknown";
-                                    if (avatarElement) {
-                                        const defaultPath = "/static/image/avatar.png";
-                                        avatarElement.src = avatar ? XSSSanitizeUrl(avatar.toString()) : defaultPath;
+                        globalProfileCache.set(key, {name, avatar: avatarStr || null, description: null, address, blockchain});
+                    }
+                    const profileData = globalProfileCache.get(key) as ProfileData;
+                    // Update all posts for this profile
+                    pendingCards.forEach(postDiv => {
+                        const postAddress = postDiv.querySelector('.postCardAddress') as HTMLInputElement;
+                        const postBlockchain = postDiv.querySelector('.postCardBlockchain') as HTMLInputElement;
+                        if (postAddress && postBlockchain) {
+                            const postKey = postBlockchain.value + postAddress.value;
+                            if (postKey === key) {
+                                const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
+                                const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
+                                if (authorElement) authorElement.textContent = profileData.name || "Unknown";
+                                if (avatarElement) {
+                                    const defaultPath = "/static/image/avatar.png";
+                                    if (profileData.avatar) {
+                                        const avatarUrl = XSSSanitizeUrl(profileData.avatar);
+                                        avatarElement.onerror = () => {
+                                            avatarElement.src = defaultPath;
+                                            avatarElement.onerror = null;
+                                        };
+                                        avatarElement.src = avatarUrl;
+                                    } else {
+                                        avatarElement.src = defaultPath;
                                     }
                                 }
                             }
-                        });
-                    }
+                        }
+                    });
                 });
                 await Promise.all(profilePromises);
             } catch (error) {
@@ -169,10 +180,9 @@ import {ShowNotifications} from "../util/notifications";
                 results = resp[1].results;
             }
             const ensProfileResults = ensResults.filter(result => result !== null);
-            const ensAddresses = new Set(ensProfileResults.map(r => r!.address));
-            const backendAddresses = new Set(results.map(r => r.address));
+            const backendAddresses = new Set(results.map(r => r.address.toLowerCase()));
             for (const ensProfile of ensProfileResults) {
-                if (!backendAddresses.has(ensProfile!.address)) {
+                if (!backendAddresses.has(ensProfile!.address.toLowerCase())) {
                     results.push(ensProfile);
                 }
             }
@@ -183,11 +193,6 @@ import {ShowNotifications} from "../util/notifications";
                 DOM.resultsDiv.appendChild(noResultsDiv);
                 return;
             }
-            interface Profile {
-                name: string | null;
-                avatar: URL | null;
-            }
-            const ProfileCache: Record<string, Profile> = {};
             const pendingCards: HTMLDivElement[] = [];
 
             // Create all cards with placeholder data first
@@ -217,8 +222,14 @@ import {ShowNotifications} from "../util/notifications";
                 let blockchain = result.blockchain;
                 let address = result.address;
                 let key = blockchain + address;
-                if (!(key in ProfileCache)) {
-                    let name = await WalletGetName(blockchain, address);
+                const cached = globalProfileCache.get(key);
+                if (cached === null) {
+                    let name: string | null = null;
+                    try {
+                        name = await WalletGetName(blockchain, address);
+                    } catch (e) {
+                        console.warn("Failed to get ENS name:", e);
+                    }
                     if (name === null || name.length === 0) {
                         let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
                         if (response[0] === 200) {
@@ -227,76 +238,97 @@ import {ShowNotifications} from "../util/notifications";
                             }
                         }
                     }
-                    let avatar: URL | null = new URL(await WalletGetAvatar(blockchain, address));
-                    if (avatar === null) {
+                    let avatarStr: string | null = null;
+                    try {
+                        avatarStr = await WalletGetAvatar(blockchain, address);
+                    } catch (e) {
+                        console.warn("Failed to get ENS avatar:", e);
+                    }
+                    if (!avatarStr || avatarStr === "") {
                         let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
                         if (response[0] === 200 && response[1] && response[1].avatarAddress) {
                             const avatarAddress = response[1].avatarAddress.trim();
                             if (avatarAddress.length > 0) {
                                 const avatarURL = CIDToSubdomainURL(avatarAddress);
                                 if (IsValidURL(avatarURL)) {
-                                    avatar = new URL(avatarURL);
-                                } else {
-                                    avatar = null;
+                                    avatarStr = avatarURL;
                                 }
-                            } else {
-                                avatar = null;
                             }
-                        } else {
-                            avatar = null;
                         }
                     }
                     let description: string | null = null;
-                    if (result.type == "profile") {
-                        description = await WalletGetDescription(result.blockchain, result.address);
+                    if (result.resultType == "profile") {
+                        try {
+                            description = await WalletGetDescription(result.blockchain, result.address);
+                        } catch (e) {
+                            console.warn("Failed to get ENS description:", e);
+                        }
                         if (description === null || description.length === 0) {
                             let response = await HttpGetJson("/profile/description/" + blockchain + "/" + address);
                             if (response[0] === 200) {
                                 if (response[1] && response[1].description.length > 0) {
                                     description = response[1].description;
                                 }
-
                             }
                         }
                     }
-                    ProfileCache[key] = {name, avatar};
-
-                    pendingCards.forEach(profileDiv => {
-                        const profileAddress = profileDiv.querySelector('.profileCardAddressInput') as HTMLInputElement;
-                        const profileBlockchain = profileDiv.querySelector('.profileCardBlockchain') as HTMLInputElement;
-                        if (profileAddress && profileBlockchain) {
-                            const profileKey = profileBlockchain.value + profileAddress.value;
-                            if (profileKey === key) {
-                                const nameDiv = profileDiv.querySelector('.profileCardName') as HTMLDivElement;
-                                const avatarImg = profileDiv.querySelector('img.profileCardAvatar') as HTMLImageElement;
-                                const descriptionDiv = profileDiv.querySelector('.profileCardDescription') as HTMLDivElement;
-                                if (nameDiv) nameDiv.textContent = name || "Unknown";
-                                if (avatarImg) {
-                                    const defaultPath = "/static/image/avatar.png";
-                                    avatarImg.src = avatar ? XSSSanitizeUrl(avatar.toString()) : defaultPath;
-                                }
-                                if (descriptionDiv) descriptionDiv.textContent = description || "";
-                            }
-                        }
-                    });
-                    // Update all posts for this profile
-                    pendingCards.forEach(postDiv => {
-                        const postAddress = postDiv.querySelector('.postCardAddress') as HTMLInputElement;
-                        const postBlockchain = postDiv.querySelector('.postCardBlockchain') as HTMLInputElement;
-                        if (postAddress && postBlockchain) {
-                            const postKey = postBlockchain.value + postAddress.value;
-                            if (postKey === key) {
-                                const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
-                                const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
-                                if (authorElement) authorElement.textContent = name || "Unknown";
-                                if (avatarElement) {
-                                    const defaultPath = "/static/image/avatar.png";
-                                    avatarElement.src = avatar ? XSSSanitizeUrl(avatar.toString()) : defaultPath;
-                                }
-                            }
-                        }
-                    });
+                    globalProfileCache.set(key, {name, avatar: avatarStr || null, description, address, blockchain});
                 }
+                const profileData = globalProfileCache.get(key) as ProfileData;
+
+                pendingCards.forEach(profileDiv => {
+                    const profileAddress = profileDiv.querySelector('.profileCardAddressInput') as HTMLInputElement;
+                    const profileBlockchain = profileDiv.querySelector('.profileCardBlockchain') as HTMLInputElement;
+                    if (profileAddress && profileBlockchain) {
+                        const profileKey = profileBlockchain.value + profileAddress.value;
+                        if (profileKey === key) {
+                            const nameDiv = profileDiv.querySelector('.profileCardName') as HTMLDivElement;
+                            const avatarImg = profileDiv.querySelector('img.profileCardAvatar') as HTMLImageElement;
+                            const descriptionDiv = profileDiv.querySelector('.profileCardDescription') as HTMLDivElement;
+                            if (nameDiv) nameDiv.textContent = profileData.name || "Unknown";
+                            if (avatarImg) {
+                                const defaultPath = "/static/image/avatar.png";
+                                if (profileData.avatar) {
+                                    const avatarUrl = XSSSanitizeUrl(profileData.avatar);
+                                    avatarImg.onerror = () => {
+                                        avatarImg.src = defaultPath;
+                                        avatarImg.onerror = null;
+                                    };
+                                    avatarImg.src = avatarUrl;
+                                } else {
+                                    avatarImg.src = defaultPath;
+                                }
+                            }
+                            if (descriptionDiv) descriptionDiv.textContent = profileData.description || "";
+                        }
+                    }
+                });
+                // Update all posts for this profile
+                pendingCards.forEach(postDiv => {
+                    const postAddress = postDiv.querySelector('.postCardAddress') as HTMLInputElement;
+                    const postBlockchain = postDiv.querySelector('.postCardBlockchain') as HTMLInputElement;
+                    if (postAddress && postBlockchain) {
+                        const postKey = postBlockchain.value + postAddress.value;
+                        if (postKey === key) {
+                            const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
+                            const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
+                            if (authorElement) authorElement.textContent = profileData.name || "Unknown";
+                            if (avatarElement) {
+                                const defaultPath = "/static/image/avatar.png";
+                                if (profileData.avatar) {
+                                    const avatarUrl = XSSSanitizeUrl(profileData.avatar);
+                                    avatarElement.onerror = () => {
+                                        avatarElement.src = defaultPath;
+                                        avatarElement.onerror = null;
+                                    };
+                                    avatarElement.src = avatarUrl;
+                                } else {
+                                    avatarElement.src = defaultPath;
+                                }
+                            }
+                        }
+                    }
+                });
             });
 
             await Promise.all(profilePromises);

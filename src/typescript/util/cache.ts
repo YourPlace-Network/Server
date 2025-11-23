@@ -85,4 +85,18 @@ class PersistentCache {
         });
     }
 }
+
+export interface ProfileData {
+    name: string | null;
+    avatar: string | null;
+    description: string | null;
+    address: string;
+    blockchain: string;
+}
+
+export const globalProfileCache = new PersistentCache({
+    defaultTtl: 259200000,
+    keyPrefix: "profile_"
+});
+
 export default PersistentCache;

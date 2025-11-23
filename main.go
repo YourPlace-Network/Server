@@ -282,6 +282,10 @@ func LoadTemplates(engine *gin.Engine, embedFS embed.FS, pattern string) {
 			if hashed, ok := assetManifest[name]; ok {
 				return hashed
 			}
+			// Return empty string for split chunks that don't exist in dev builds
+			if name == "common.js" || name == "vendors.js" || name == "runtime.js" {
+				return ""
+			}
 			return "/static/js/" + name
 		},
 	})

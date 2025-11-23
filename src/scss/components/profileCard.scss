@@ -4,7 +4,7 @@
 .profileCard {
   width: 100%;
   min-height: 100px;
-  padding: .3em 0 .3em .5em;
+  padding: 0.5em 0.5em 0.5em 0.5em;
 }
 
 .profileCard:hover {
@@ -14,7 +14,7 @@
 .profileCardAvatar {
   position: relative;
   padding: 0;
-  margin: 0 .5em 0 .1em;
+  margin: 0 0.5em 0 0.1em;
   width: 4em;
   height: 4em;
   float: left;
@@ -34,7 +34,7 @@
 }
 
 .profileCardAddress {
-  font-size: .7em;
+  font-size: 0.7em;
   color: map.get(global.$colors, "text");
   opacity: 0.8;
 }

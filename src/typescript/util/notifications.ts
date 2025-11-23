@@ -20,7 +20,7 @@ export async function ShowNotifications() { // Main notification dispatcher
         LogError("Could not fetch notifications");
         return;
     }
-    const notifications: Notification[] = notificationsResponse[1].notifications;
+    const notifications: Notification[] = notificationsResponse[1].notifications || [];
     switch (GetPageRoute()) {
         case "": // home page
             for (const notification of notifications) {

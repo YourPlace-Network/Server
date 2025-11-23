@@ -14,9 +14,9 @@
         </div>
     </div>
 
-    <script src="{{asset "runtime.js"}}" type="application/javascript"></script>
-    <script src="{{asset "vendors.js"}}" type="application/javascript"></script>
-    <script src="{{asset "common.js"}}" type="application/javascript"></script>
+    {{with asset "runtime.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
+    {{with asset "vendors.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
+    {{with asset "common.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
     <script src="{{asset "post.js"}}" type="application/javascript"></script>
 </body>
 </html>
