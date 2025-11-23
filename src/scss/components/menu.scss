@@ -76,3 +76,8 @@
   height: 2.5em;
   width: 5em;
 }
+@media (max-width: 576px) {
+  .menuItemDiv {
+    font-size: 1.3em;
+  }
+}
