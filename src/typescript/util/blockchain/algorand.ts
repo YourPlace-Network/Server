@@ -1,6 +1,5 @@
 import {PeraWalletConnect} from "@perawallet/connect";
 import algosdk, {Algodv2, type CustomTokenHeader, Indexer} from "algosdk";
-//import {WalletManager, WalletId, NetworkId} from "@txnlab/use-wallet-js";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {DisconnectWallet, GetAddress, GetWallet, ReconnectWallet} from "./wallet";
 import {YP} from "../../services/yourplace";
