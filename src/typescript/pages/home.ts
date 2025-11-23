@@ -156,7 +156,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             visibleText.textContent = "Searching...";
             spinnerDiv.appendChild(visibleText);
             DOM.resultsDiv.appendChild(spinnerDiv);
-            const ensSuffixes = [".eth", ".base.eth"];
+            const ensSuffixes = [".base.eth"];
             const ensPromises = ensSuffixes.map(async suffix => {
                 if (!query.includes(".")) {
                     const ensName = query + suffix;

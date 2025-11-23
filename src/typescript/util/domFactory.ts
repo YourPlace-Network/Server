@@ -69,7 +69,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     if (postData.resultType != "profile post" && IsValidBlockchain(postData.blockchain) && IsValidAddress(postData.address, postData.blockchain)) { // makes a post card avatar a clickable link to its authors profile
         avatarDiv.classList.add("clickable");
         avatarDiv.addEventListener("click", () => {
-            window.location.replace("/p/" + postData.blockchain + "/" + postData.address);
+            window.location.href = "/p/" + postData.blockchain + "/" + postData.address;
         });
     }
     avatarImg.classList.add("postCardAvatar");
@@ -265,7 +265,7 @@ export async function CreateProfileCard (profileData: any): Promise<HTMLDivEleme
     profileDiv.classList.add("clickable");
     profileDiv.classList.add("profileCard");
     profileDiv.addEventListener("click", () => {
-        window.location.replace("/p/" + profileData.blockchain + "/" + profileData.address);
+        window.location.href = "/p/" + profileData.blockchain + "/" + profileData.address;
     });
     avatarDiv.classList.add("profileCardAvatar");
     avatarImg.classList.add("profileCardAvatar");
