@@ -211,6 +211,13 @@ func (db *Database) AuthUpdateLoginNonce(nonce string, domain string, expiration
 		db.sqlite.AuthUpdateLoginNonce(nonce, domain, expiration, nonceHash)
 	}
 }
+func (db *Database) AuthGetLoginNonceByHash(nonceHash string) string {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.AuthGetLoginNonceByHash(nonceHash)
+	}
+	return ""
+}
 func (db *Database) AuthDeleteLoginNonce(nonce string) {
 	switch db.Engine {
 	case "sqlite":

@@ -1694,6 +1694,25 @@ func (db *SQLite) AuthUpdateLoginNonce(nonce string, domain string, expiration u
 		core.LogDebug("Could not update login_nonce: " + err.Error())
 	}
 }
+func (db *SQLite) AuthGetLoginNonceByHash(nonceHash string) string {
+	currentTime := core.GetTimestamp()
+	rows, err := db.runParamSQLSelect("SELECT nonce FROM login_nonce WHERE nonceHash = ? AND expiration > ?", nonceHash, currentTime)
+	if err != nil {
+		core.LogDebug("Could not get login nonce by hash: " + err.Error())
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var nonce string
+		err = rows.Scan(&nonce)
+		if err != nil {
+			core.LogDebug("Could not scan login nonce: " + err.Error())
+			return ""
+		}
+		return nonce
+	}
+	return ""
+}
 func (db *SQLite) AuthDeleteLoginNonce(nonce string) {
 	_, err := db.runParamSQLUpdate("DELETE FROM login_nonce WHERE nonce = ?", nonce)
 	if err != nil {

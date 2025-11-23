@@ -26,8 +26,42 @@ export function IsValidIpfsCid(cid: string): boolean {
         return false;
     }
 }
+export function IsValidDataImageUrl(url: string): boolean {
+    const lowerUrl = url.toLowerCase();
+    if (!lowerUrl.startsWith("data:image/")) {
+        return false;
+    }
+    const MAX_DATA_URL_LENGTH = 14_000_000;
+    if (url.length > MAX_DATA_URL_LENGTH) {
+        return false;
+    }
+    const validImageTypes = [
+        "data:image/png",
+        "data:image/jpeg",
+        "data:image/jpg",
+        "data:image/gif",
+        "data:image/webp",
+        "data:image/svg+xml",
+    ];
+    if (!validImageTypes.some(type => lowerUrl.startsWith(type))) {
+        return false;
+    }
+    if (!url.includes(',')) {
+        return false;
+    }
+    const commaIndex = url.indexOf(',');
+    const metadata = url.substring(0, commaIndex).toLowerCase();
+    const validMetadataPattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml)(;charset=[a-z0-9-]+)?(;base64)?$/;
+    if (!validMetadataPattern.test(metadata)) {
+        return false;
+    }
+    return true;
+}
 export function IsValidURL(url: string): boolean {
     try {
+        if (url.startsWith("data:")) {
+            return IsValidDataImageUrl(url);
+        }
         if (url.startsWith("/")) { // allow relative URLs that start with "/" for local navigation
             if (url.toLowerCase().includes("javascript:") || url.toLowerCase().includes("data:")) {
                 return false;

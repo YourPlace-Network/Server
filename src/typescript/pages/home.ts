@@ -254,46 +254,57 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                 let key = blockchain + address;
                 console.log("[DEBUG] Processing result for key:", key, "resultType:", result.resultType, "ensName:", result.ensName);
                 const cached = globalProfileCache.get(key);
-                if (cached === null) {
+                const needsDescriptionFetch = cached && result.resultType === "profile" && !cached.description;
+                if (cached === null || needsDescriptionFetch) {
                     let name: string | null = null;
-                    if (result.ensName) {
-                        console.log("[DEBUG] Using preserved ENS name from search:", result.ensName);
-                        name = result.ensName;
-                    } else {
-                        console.log("[DEBUG] No preserved ENS name, attempting reverse resolution for:", address);
-                        try {
-                            name = await WalletGetName(blockchain, address);
-                            console.log("[DEBUG] Reverse resolution result:", name);
-                        } catch (e) {
-                            console.warn("Failed to get ENS name:", e);
-                        }
-                    }
-                    if (name === null || name.length === 0) {
-                        let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
-                        if (response[0] === 200) {
-                            if (response[1] && response[1].name && response[1].name.length > 0) {
-                                name = response[1].name;
-                            }
-                        } else if (response[0] !== 200) {
-                            console.warn("Failed to fetch profile name:", response[0], blockchain, address, response[1]);
-                        }
-                    }
                     let avatarStr: string | null = null;
-                    console.log("[DEBUG] Fetching avatar for:", address, "with name:", name);
-                    try {
-                        avatarStr = await WalletGetAvatar(blockchain, address);
-                        console.log("[DEBUG] Avatar fetch result:", avatarStr ? "found" : "empty");
-                    } catch (e) {
-                        console.warn("Failed to get ENS avatar:", e);
-                    }
-                    if (!avatarStr || avatarStr === "") {
-                        let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
-                        if (response[0] === 200 && response[1] && response[1].avatarAddress) {
-                            const avatarAddress = response[1].avatarAddress.trim();
-                            if (avatarAddress.length > 0) {
-                                const avatarURL = CIDToSubdomainURL(avatarAddress);
-                                if (IsValidURL(avatarURL)) {
-                                    avatarStr = avatarURL;
+
+                    if (needsDescriptionFetch) {
+                        console.log("[DEBUG] Cached profile missing description, re-fetching for:", cached.address);
+                        // Reuse cached name and avatar
+                        name = cached.name;
+                        avatarStr = cached.avatar;
+                    } else {
+                        // Fetch name
+                        if (result.ensName) {
+                            console.log("[DEBUG] Using preserved ENS name from search:", result.ensName);
+                            name = result.ensName;
+                        } else {
+                            console.log("[DEBUG] No preserved ENS name, attempting reverse resolution for:", address);
+                            try {
+                                name = await WalletGetName(blockchain, address);
+                                console.log("[DEBUG] Reverse resolution result:", name);
+                            } catch (e) {
+                                console.warn("Failed to get ENS name:", e);
+                            }
+                        }
+                        if (name === null || name.length === 0) {
+                            let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
+                            if (response[0] === 200) {
+                                if (response[1] && response[1].name && response[1].name.length > 0) {
+                                    name = response[1].name;
+                                }
+                            } else if (response[0] !== 200) {
+                                console.warn("Failed to fetch profile name:", response[0], blockchain, address, response[1]);
+                            }
+                        }
+                        // Fetch avatar
+                        console.log("[DEBUG] Fetching avatar for:", address, "with name:", name);
+                        try {
+                            avatarStr = await WalletGetAvatar(blockchain, address);
+                            console.log("[DEBUG] Avatar fetch result:", avatarStr ? "found" : "empty");
+                        } catch (e) {
+                            console.warn("Failed to get ENS avatar:", e);
+                        }
+                        if (!avatarStr || avatarStr === "") {
+                            let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
+                            if (response[0] === 200 && response[1] && response[1].avatarAddress) {
+                                const avatarAddress = response[1].avatarAddress.trim();
+                                if (avatarAddress.length > 0) {
+                                    const avatarURL = CIDToSubdomainURL(avatarAddress);
+                                    if (IsValidURL(avatarURL)) {
+                                        avatarStr = avatarURL;
+                                    }
                                 }
                             }
                         }
@@ -301,20 +312,21 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                     let description: string | null = null;
                     if (result.resultType == "profile") {
                         console.log("[DEBUG] Fetching description for profile:", address, "with name:", name);
-                        try {
-                            description = await WalletGetDescription(result.blockchain, result.address);
-                            console.log("[DEBUG] Description fetch result:", description ? description.substring(0, 50) + "..." : "empty");
-                        } catch (e) {
-                            console.warn("Failed to get ENS description:", e);
+                        let response = await HttpGetJson("/profile/description/" + blockchain + "/" + address);
+                        if (response[0] === 200) {
+                            if (response[1] && response[1].description && response[1].description.length > 0) {
+                                description = response[1].description;
+                                console.log("[DEBUG] Database description found:", description ? description.substring(0, 50) + "..." : "empty");
+                            }
+                        } else if (response[0] !== 200) {
+                            console.warn("Failed to fetch profile description:", response[0], blockchain, address, response[1]);
                         }
-                        if (description === null || description.length === 0) {
-                            let response = await HttpGetJson("/profile/description/" + blockchain + "/" + address);
-                            if (response[0] === 200) {
-                                if (response[1] && response[1].description && response[1].description.length > 0) {
-                                    description = response[1].description;
-                                }
-                            } else if (response[0] !== 200) {
-                                console.warn("Failed to fetch profile description:", response[0], blockchain, address, response[1]);
+                        if (!description || description.length === 0) {
+                            try {
+                                description = await WalletGetDescription(result.blockchain, result.address);
+                                console.log("[DEBUG] ENS description fetch result:", description ? description.substring(0, 50) + "..." : "empty");
+                            } catch (e) {
+                                console.warn("Failed to get ENS description:", e);
                             }
                         }
                     }

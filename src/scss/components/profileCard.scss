@@ -42,3 +42,7 @@
   margin-top: 1.7em;
   clear: both;
 }
+.profileCardDescription:empty {
+  padding: 0;
+  margin-top: 0;
+}

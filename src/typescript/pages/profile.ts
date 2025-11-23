@@ -10,7 +10,7 @@ import {HttpGetJson} from "../util/network";
 import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
-import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetName, WalletSendPostNudge, WalletFollowUser, WalletUnfollowUser, GetChain} from "../util/blockchain/wallet";
+import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetDescription, WalletGetName, WalletSendPostNudge, WalletFollowUser, WalletUnfollowUser, GetChain} from "../util/blockchain/wallet";
 import {CreatePostCard} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {CIDToSubdomainURL, loadImageWithTimeout} from "../util/ipfs";
@@ -169,7 +169,7 @@ declare global { // Extend the window interface with public objects
             await renderProfileAddress(address);
             await renderProfileNameFromData(profileData.name, blockchain, address);
             await renderProfileAvatarFromData(profileData.avatarAddress, blockchain, address);
-            await renderProfileDescriptionFromData(profileData.description);
+            await renderProfileDescriptionFromData(profileData.description, blockchain, address);
             await renderProfileLocationFromData(profileData.location);
             await renderProfileWebsiteFromData(profileData.website);
             await renderProfileBirthdateFromData(profileData.birthdate);
@@ -297,9 +297,24 @@ declare global { // Extend the window interface with public objects
                 }
             }
         }
-        async function renderProfileDescriptionFromData(description: string) {
+        async function renderProfileDescriptionFromData(description: string, blockchain: string, address: string) {
             if (description && description.length > 0) {
                 DOM.profileDescription.textContent = description;
+                return;
+            }
+            try {
+                const ensDescription = await WalletGetDescription(blockchain, address);
+                if (ensDescription && ensDescription.length > 0) {
+                    DOM.profileDescription.textContent = ensDescription;
+                    const profileKey = `${blockchain}_${address}`;
+                    const cached = profileCache.get(profileKey);
+                    if (cached && cached.profileData) {
+                        cached.profileData.description = ensDescription;
+                        profileCache.set(profileKey, cached);
+                    }
+                }
+            } catch (e) {
+                console.warn("Failed to get ENS description for profile:", e);
             }
         }
         async function renderProfileLocationFromData(location: string) {

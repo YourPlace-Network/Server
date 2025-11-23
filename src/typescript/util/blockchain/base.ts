@@ -3,8 +3,10 @@ import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {ethers} from "ethers";
 import {YP} from "../../services/yourplace";
-import {createPublicClient, defineChain, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
+import {createPublicClient, defineChain, getAddress, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
+import {normalize} from "viem/ens";
 import {base as viemBase} from "viem/chains";
+import {SiweMessage} from "siwe";
 import {
     connect as wagmiConnect,
     createConfig,
@@ -17,7 +19,7 @@ import {
     signMessage,
 } from "@wagmi/core";
 import {base as wagmiBase} from "@wagmi/core/chains";
-import {coinbaseWallet} from "@wagmi/connectors";
+import {baseAccount, coinbaseWallet} from "@wagmi/connectors";
 import {getAvatar as cbGetAvatar, getName as cbGetName, getAddress as cbGetAddress} from "@coinbase/onchainkit/identity";
 import {IsValidBaseAddress} from "../security";
 import {Sleep} from "../time";
@@ -77,13 +79,12 @@ async function initBaseWallet() {
         });
         wagmiConfig = createConfig({
             chains: [wagmiBase],
-            connectors: [coinbaseWallet({
-                appName: metadataYourPlace.name,
-                appLogoUrl: metadataYourPlace.icons[1],
-                preference: {
-                    options: "eoaOnly"
-                },
-            })],
+            multiInjectedProviderDiscovery: false,
+            connectors: [
+                baseAccount({
+                    appName: metadataYourPlace.name,
+                    appLogoUrl: metadataYourPlace.icons[1],
+                })],
             transports: {
                 [wagmiBase.id]: wagmiHttp(mainnetBase.rpcUrl!, {retryCount: 10, retryDelay: 1000}),
             },
@@ -126,28 +127,43 @@ export async function baseAuthLogin(): Promise<string> {
         return "nonce failed";
     }
     let nonce = response[1].nonce;
-    let payload = `0x${Buffer.from(nonce, "utf8").toString("hex")}`;
+    let issuedAt = response[1].issuedAt;
+    const checksumAddress = getAddress(address);
+    LogInfo(`Creating SIWE with: domain=${window.location.host}, address=${checksumAddress}, uri=${window.location.origin}, chainId=${mainnetBase.ethChainID}, nonce=${nonce}, issuedAt=${issuedAt}`);
+    const siweMsg = new SiweMessage({
+        domain: window.location.host,
+        address: checksumAddress,
+        statement: "Sign in to YourPlace",
+        uri: window.location.origin,
+        version: "1",
+        chainId: mainnetBase.ethChainID,
+        nonce: nonce,
+        issuedAt: issuedAt,
+    });
+    const siweMessage = siweMsg.prepareMessage();
+    LogInfo("SIWE message: " + siweMessage);
     let signature: any;
     try {
         signature = await signMessage(wagmiConfig, {
             account: address as `0x${string}`,
-            message: nonce,
+            message: siweMessage,
         });
     } catch(error) {
-        LogError("Failed to sign Base login message");
+        LogError("Failed to sign SIWE message");
         return "sign failed";
     }
     let loginPayload = {
-        payload: payload,
+        message: siweMessage,
         address: address,
         signature: signature,
     };
     const response2 = await HttpPostJson("/login/wallet/base", loginPayload, csrfToken);
+    LogInfo(`Login response: status=${response2[0]}, body=${JSON.stringify(response2[1])}`);
     if (response2[0] != 200) {
-        LogError("Failed to login with Base");
+        LogError("Failed to login with Base: " + JSON.stringify(response2[1]));
         await Sleep(3000);
         await DisconnectWallet();
-        return response2[1] ? response[1].status : "Unknown error during Base login";
+        return response2[1] ? response2[1].status : "Unknown error during Base login";
     }
     try {
         let status = response2[1].status as string;
@@ -376,14 +392,26 @@ export async function baseGetENSText(_address: string, key: string): Promise<str
     if (viemClient === null || !viemClient || !baseInit) {
         await initBaseWallet();
     }
-    let baseName = await baseGetName(_address);
-    let textRecord = await viemClient!.getEnsText({
-        name: baseName,
-        key: key,
-        universalResolverAddress: mainnetBase.ensBaseResolverAddress,
-    });
-    if (textRecord) {
-        return textRecord;
+    let baseName = "";
+    try {
+        baseName = await baseGetName(_address);
+        LogInfo("baseGetENSText: Got basename '" + baseName + "' for address " + _address + ", fetching key '" + key + "'");
+        if (!baseName || baseName === "") {
+            LogInfo("baseGetENSText: No basename found, returning empty");
+            return "";
+        }
+        let textRecord = await viemClient!.getEnsText({
+            name: normalize(baseName),
+            key: key,
+            universalResolverAddress: mainnetBase.ensBaseResolverAddress,
+        });
+        if (textRecord) {
+            LogInfo("baseGetENSText: Found text record '" + key + "' = '" + textRecord.substring(0, 100) + "'");
+            return textRecord;
+        }
+        LogInfo("baseGetENSText: Text record '" + key + "' returned null/empty for " + baseName);
+    } catch (error) {
+        LogError("baseGetENSText: Error fetching '" + key + "' for " + (baseName || _address) + ": " + error);
     }
     return "";
 }

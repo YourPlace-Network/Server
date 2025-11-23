@@ -43,6 +43,7 @@
     "react": "^19.2.0",
     "sass": "^1.89.0",
     "sass-loader": "^16.0.5",
+    "siwe": "^3.0.0",
     "stream-browserify": "^3.0.0",
     "style-loader": "^4.0.0",
     "tinymce": "^7.9.1",

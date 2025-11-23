@@ -3,6 +3,7 @@ package security
 import (
 	"YourPlace/src/core"
 	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -17,7 +18,11 @@ import (
 	"unicode"
 
 	_algotypes "github.com/algorand/go-algorand-sdk/v2/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 )
@@ -373,6 +378,53 @@ func IsValidEthSignature(payload string, signature string, address string) bool 
 	}
 	core.LogWarn("Signature is invalid")
 	return false
+}
+func ValidateERC1271Signature(message string, signature string, address string) bool {
+	const BASE_RPC_URL = "https://mainnet.base.org"
+	const ERC1271_MAGIC_VALUE = "1626ba7e"
+	client, err := ethclient.Dial(BASE_RPC_URL)
+	if err != nil {
+		core.LogDebug("Failed to connect to Base RPC: " + err.Error())
+		return false
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	contractAddress := common.HexToAddress(address)
+	hash := crypto.Keccak256([]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(message), message)))
+	sigBytes, err := hex.DecodeString(signature[2:])
+	if err != nil {
+		core.LogDebug("Failed to decode signature: " + err.Error())
+		return false
+	}
+	bytes32Type, _ := abi.NewType("bytes32", "", nil)
+	bytesType, _ := abi.NewType("bytes", "", nil)
+	arguments := abi.Arguments{
+		{Type: bytes32Type},
+		{Type: bytesType},
+	}
+	callData, err := arguments.Pack(common.BytesToHash(hash), sigBytes)
+	if err != nil {
+		core.LogDebug("Failed to pack isValidSignature call: " + err.Error())
+		return false
+	}
+	methodID := crypto.Keccak256([]byte("isValidSignature(bytes32,bytes)"))[:4]
+	fullCallData := append(methodID, callData...)
+	msg := map[string]interface{}{
+		"to":   contractAddress.Hex(),
+		"data": hexutil.Encode(fullCallData),
+	}
+	var result hexutil.Bytes
+	err = client.Client().CallContext(ctx, &result, "eth_call", msg, "latest")
+	if err != nil {
+		core.LogDebug("Failed to call isValidSignature: " + err.Error())
+		return false
+	}
+	if len(result) < 4 {
+		return false
+	}
+	returnValue := hex.EncodeToString(result[:4])
+	return strings.EqualFold(returnValue, ERC1271_MAGIC_VALUE)
 }
 func IsValidHex(payload string) bool {
 	_, err := hex.DecodeString(payload)

@@ -1044,26 +1044,37 @@ const tips = [
         }
         function pause() {
             LogInfo("Pause");
-            clearInterval(intervalId);
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
             paused = true;
             DOM.pause.classList.add("pressed");
             DOM.play.classList.remove("pressed");
         }
         function play() {
             LogInfo("Play");
-            intervalId = setInterval(reload, intervalTimeout);
-            paused = false;
-            DOM.play.classList.add("pressed");
-            DOM.pause.classList.remove("pressed");
+            if (paused) {
+                if (intervalId) {
+                    clearInterval(intervalId);
+                }
+                intervalId = setInterval(reload, intervalTimeout);
+                paused = false;
+                DOM.play.classList.add("pressed");
+                DOM.pause.classList.remove("pressed");
+            }
         }
 
         intervalId = setInterval(reload, intervalTimeout);
         DOM.play.classList.add("pressed");
 
         DOM.refreshBtn.addEventListener("click", () => {
-            clearInterval(intervalId);
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
             reload();
-            intervalId = setInterval(reload, intervalTimeout);
+            if (!paused) {
+                intervalId = setInterval(reload, intervalTimeout);
+            }
         });
         DOM.tipDiv.innerHTML = tips.at(randomInt(tips.length))!;
         DOM.emergencyBtn.addEventListener("click", emergency);
