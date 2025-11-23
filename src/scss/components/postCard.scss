@@ -58,6 +58,7 @@
   color: map-get(global.$colors, "text");
 }
 .postCardTextDiv {
+  position: relative;
   width: 100%;
   padding-right: 1em;
   padding-left: 5em;
