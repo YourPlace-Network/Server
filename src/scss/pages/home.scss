@@ -39,3 +39,31 @@
   font-weight: bold;
   color: map.get(global.$colors, "quaternary");
 }
+.no-results-dropdown {
+  width: 100%;
+  padding: 20px;
+  margin-top: 10px;
+  background-color: map.get(global.$colors, "secondary");
+  border: 1px solid map.get(global.$colors, "border");
+  border-radius: 8px;
+  text-align: center;
+  color: map.get(global.$colors, "text");
+  font-size: 1.1em;
+}
+.search-spinner-container {
+  width: 100%;
+  padding: 40px;
+  margin-top: 10px;
+  background-color: map.get(global.$colors, "secondary");
+  border: 1px solid map.get(global.$colors, "border");
+  border-radius: 8px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+}
+.search-spinner-text {
+  color: map.get(global.$colors, "text");
+  font-size: 1.1em;
+}

@@ -18,7 +18,7 @@ import {
 } from "@wagmi/core";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {coinbaseWallet} from "@wagmi/connectors";
-import {getAvatar as cbGetAvatar, getName as cbGetName} from "@coinbase/onchainkit/identity";
+import {getAvatar as cbGetAvatar, getName as cbGetName, getAddress as cbGetAddress} from "@coinbase/onchainkit/identity";
 import {IsValidBaseAddress} from "../security";
 import {Sleep} from "../time";
 import {Web3} from "web3";
@@ -342,6 +342,26 @@ export async function baseGetName(_address: string): Promise<string> {
         return await requestPromise;
     } finally {
         pendingOnchainkitRequests.delete(_address);
+    }
+}
+export async function baseGetAddressFromENS(ensName: string): Promise<string | null> {
+    if (!baseInit) await initBaseWallet();
+    if (!ensName || ensName.trim() === "") {
+        LogError("Empty ENS name provided to baseGetAddressFromENS");
+        return null;
+    }
+    const cacheKey = "addr_" + ensName;
+    const cached = baseEnsCache.get(cacheKey);
+    if (cached !== null) return cached as string;
+    try {
+        const address = await cbGetAddress({name: ensName});
+        if (address) {
+            baseEnsCache.set(cacheKey, address);
+            return address.toLowerCase();
+        }
+        return null;
+    } catch (error) {
+        return null;
     }
 }
 export async function baseGetENSText(_address: string, key: string): Promise<string> {

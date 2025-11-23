@@ -60,6 +60,20 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 			}
 			posts := database.SearchGetPosts(printableQuery)
 			profiles := database.SearchGetProfiles(profileQuery)
+			ensSuffixes := []string{".eth", ".base.eth"}
+			if !strings.Contains(printableQuery, ".") {
+				for _, suffix := range ensSuffixes {
+					ensName := printableQuery + suffix
+					valid, chain := security.IsValidENSName(ensName)
+					if valid {
+						ensAddress, err := blockchain.WalletGetAddress(chain, ensName, _blockchain)
+						if err == nil && ensAddress != "" {
+							ensProfiles := database.SearchGetProfiles(ensAddress)
+							profiles = append(profiles, ensProfiles...)
+						}
+					}
+				}
+			}
 			results := append(posts, profiles...)
 			c.SecureJSON(http.StatusOK, gin.H{"results": results})
 		}

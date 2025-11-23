@@ -5,7 +5,7 @@ import "../components/menu";
 import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
 import {HttpGetJson} from "../util/network";
 import {IsValidURL, XSSSanitizeUrl} from "../util/security";
-import {WalletGetAvatar, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
+import {WalletGetAvatar, WalletGetDescription, WalletGetName, WalletGetAddressFromName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {CIDToSubdomainURL} from "../util/ipfs";
 import {ShowNotifications} from "../util/notifications";
 
@@ -128,12 +128,61 @@ import {ShowNotifications} from "../util/notifications";
                 return;
             }
             DOM.resultsDiv.style.display = "block";
-            let resp = await HttpGetJson("/s/?q=" + query);
-            if (resp[0] !== 200 || resp[1].results === null) {
+            let spinnerDiv = document.createElement("div");
+            spinnerDiv.className = "search-spinner-container";
+            let spinner = document.createElement("div");
+            spinner.classList.add("spinner-border", "text-primary");
+            spinner.setAttribute("role", "status");
+            let hiddenText = document.createElement("span");
+            hiddenText.className = "visually-hidden";
+            hiddenText.textContent = "Searching...";
+            spinner.appendChild(hiddenText);
+            spinnerDiv.appendChild(spinner);
+            let visibleText = document.createElement("span");
+            visibleText.className = "search-spinner-text";
+            visibleText.textContent = "Searching...";
+            spinnerDiv.appendChild(visibleText);
+            DOM.resultsDiv.appendChild(spinnerDiv);
+            const ensSuffixes = [".eth", ".base.eth"];
+            const ensPromises = ensSuffixes.map(async suffix => {
+                if (!query.includes(".")) {
+                    const ensName = query + suffix;
+                    const address = await WalletGetAddressFromName("base", ensName);
+                    if (address) {
+                        return {
+                            resultType: "profile",
+                            address: address,
+                            blockchain: "base"
+                        };
+                    }
+                }
+                return null;
+            });
+            const [backendResponse, ...ensResults] = await Promise.all([
+                HttpGetJson("/s/?q=" + query),
+                ...ensPromises
+            ]);
+            DOM.resultsDiv.replaceChildren();
+            let resp = backendResponse;
+            let results: any[] = [];
+            if (resp[0] === 200 && resp[1].results !== null) {
+                results = resp[1].results;
+            }
+            const ensProfileResults = ensResults.filter(result => result !== null);
+            const ensAddresses = new Set(ensProfileResults.map(r => r!.address));
+            const backendAddresses = new Set(results.map(r => r.address));
+            for (const ensProfile of ensProfileResults) {
+                if (!backendAddresses.has(ensProfile!.address)) {
+                    results.push(ensProfile);
+                }
+            }
+            if (results.length === 0) {
+                let noResultsDiv = document.createElement("div");
+                noResultsDiv.className = "no-results-dropdown";
+                noResultsDiv.textContent = "No results found";
+                DOM.resultsDiv.appendChild(noResultsDiv);
                 return;
             }
-
-            let results: any[] = resp[1].results;
             interface Profile {
                 name: string | null;
                 avatar: URL | null;

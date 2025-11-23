@@ -1606,7 +1606,10 @@ func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 func (db *SQLite) SearchGetProfiles(query string) []map[string]interface{} {
 	var profiles []map[string]interface{}
 	search := "%" + query + "%"
-	rows, err := db.runParamSQLSelect("SELECT address, blockchain FROM onchain_meta WHERE address LIKE ? OR name LIKE ?", search, search)
+	searchPrefix := query + "%"
+	sqlQuery := `SELECT address, blockchain FROM onchain_meta
+		WHERE address LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ?`
+	rows, err := db.runParamSQLSelect(sqlQuery, search, search, searchPrefix, searchPrefix+".eth", searchPrefix+".base.eth")
 	if err != nil {
 		core.LogDebug("Could not get searched profiles from database: " + err.Error())
 		return nil
