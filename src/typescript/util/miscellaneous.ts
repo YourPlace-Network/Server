@@ -10,3 +10,8 @@ export function IsGatewayMode(): boolean {
     }
     return gatewayMode.value === "false";
 }
+export function IsMobileDevice(): boolean {
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+    const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i;
+    return mobileRegex.test(userAgent.toLowerCase());
+}
