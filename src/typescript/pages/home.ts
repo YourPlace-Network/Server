@@ -72,9 +72,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                         if (name === null || name.length === 0) {
                             let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
                             if (response[0] === 200) {
-                                if (response[1] && response[1].name.length > 0) {
+                                if (response[1] && response[1].name && response[1].name.length > 0) {
                                     name = response[1].name;
                                 }
+                            } else if (response[0] !== 200) {
+                                console.warn("Failed to fetch profile name:", response[0], blockchain, address, response[1]);
                             }
                         }
                         let avatarStr: string | null = null;
@@ -176,8 +178,10 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             DOM.resultsDiv.replaceChildren();
             let resp = backendResponse;
             let results: any[] = [];
-            if (resp[0] === 200 && resp[1].results !== null) {
+            if (resp[0] === 200 && resp[1] && resp[1].results !== null) {
                 results = resp[1].results;
+            } else if (resp[0] !== 200) {
+                console.error("Search failed with status:", resp[0], "Response:", resp[1]);
             }
             const ensProfileResults = ensResults.filter(result => result !== null);
             const backendAddresses = new Set(results.map(r => r.address.toLowerCase()));
@@ -233,9 +237,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                     if (name === null || name.length === 0) {
                         let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
                         if (response[0] === 200) {
-                            if (response[1] && response[1].name.length > 0) {
+                            if (response[1] && response[1].name && response[1].name.length > 0) {
                                 name = response[1].name;
                             }
+                        } else if (response[0] !== 200) {
+                            console.warn("Failed to fetch profile name:", response[0], blockchain, address, response[1]);
                         }
                     }
                     let avatarStr: string | null = null;
@@ -266,9 +272,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                         if (description === null || description.length === 0) {
                             let response = await HttpGetJson("/profile/description/" + blockchain + "/" + address);
                             if (response[0] === 200) {
-                                if (response[1] && response[1].description.length > 0) {
+                                if (response[1] && response[1].description && response[1].description.length > 0) {
                                     description = response[1].description;
                                 }
+                            } else if (response[0] !== 200) {
+                                console.warn("Failed to fetch profile description:", response[0], blockchain, address, response[1]);
                             }
                         }
                     }
