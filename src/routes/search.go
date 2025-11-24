@@ -63,7 +63,7 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 			ensSuffixes := []string{".base.eth"}
 			if !strings.Contains(printableQuery, ".") {
 				for _, suffix := range ensSuffixes {
-					ensName := printableQuery + suffix
+					ensName := strings.ToLower(printableQuery) + suffix
 					valid, chain := security.IsValidENSName(ensName)
 					if valid {
 						ensAddress, err := blockchain.WalletGetAddress(chain, ensName, _blockchain)

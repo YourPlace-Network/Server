@@ -160,25 +160,26 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             const ensSuffixes = [".base.eth"];
             const ensPromises: Promise<any>[] = [];
             if (query.endsWith(".base.eth")) {
-                console.log("[DEBUG] Attempting direct ENS resolution for:", query);
+                const normalizedQuery = query.toLowerCase();
+                console.log("[DEBUG] Attempting direct ENS resolution for:", normalizedQuery);
                 ensPromises.push((async () => {
-                    const address = await WalletGetAddressFromName("base", query);
+                    const address = await WalletGetAddressFromName("base", normalizedQuery);
                     if (address) {
-                        console.log("[DEBUG] Direct ENS resolution SUCCESS:", query, "->", address);
+                        console.log("[DEBUG] Direct ENS resolution SUCCESS:", normalizedQuery, "->", address);
                         return {
                             resultType: "profile",
                             address: address,
                             blockchain: "base",
-                            ensName: query
+                            ensName: normalizedQuery
                         };
                     } else {
-                        console.log("[DEBUG] Direct ENS resolution FAILED for:", query);
+                        console.log("[DEBUG] Direct ENS resolution FAILED for:", normalizedQuery);
                     }
                     return null;
                 })());
             } else if (!query.includes(".")) {
                 ensSuffixes.forEach(suffix => {
-                    const ensName = query + suffix;
+                    const ensName = query.toLowerCase() + suffix;
                     console.log("[DEBUG] Attempting ENS resolution for:", ensName);
                     ensPromises.push((async () => {
                         const address = await WalletGetAddressFromName("base", ensName);
