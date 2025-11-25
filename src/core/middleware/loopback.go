@@ -17,7 +17,7 @@ type ExceptionRule struct {
 
 func LoopbackMiddleware(port int, gateway bool) gin.HandlerFunc {
 	// This filter enforces clients to originate from 127.0.0.1 for certain API paths to be included for localhost enforcement. Your path must start with one of these prefixes
-	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test", "/service/ai", "/files", "/notification", "/wallet"}
+	includedPaths := []string{"/settings", "/setup", "/debug", "/ipfs", "/health", "/test", "/service/ai", "/files", "/wallet"}
 	return func(c *gin.Context) {
 		requestPath := c.Request.RequestURI
 		// In gateway mode, allow specific settings endpoints
