@@ -18,18 +18,21 @@ var DefaultBlockchainNodes = map[string][]string{
 }
 
 func (blockchain *Blockchain) Init(database *db.Database) {
-	// --- Algorand --- //
-	algo := new(Algorand) // Create Algod & Indexer instance
+	blockchain.init(database, false)
+}
+func (blockchain *Blockchain) InitGateway(database *db.Database) {
+	blockchain.init(database, true)
+}
+func (blockchain *Blockchain) init(database *db.Database, gateway bool) {
+	algo := new(Algorand)
 	algoURL := database.SettingsGetValue("algodURL")
 	algoToken := database.SettingsGetValue("algodToken")
 	algoIndexerURL := database.SettingsGetValue("algoIndexerURL")
 	algoIndexerToken := database.SettingsGetValue("algoIndexerToken")
 	algo.Init(algoURL, algoToken, 443, "mainnet", algoIndexerURL, algoIndexerToken, 443)
 	blockchain.Algorand = algo
-
-	// --- Base --- //
 	base := new(Base)
-	base.Init(database)
+	base.init(database, gateway)
 	blockchain.Base = base
 	//blockchain.StartupIndexerCleanup(database)                      // Reset any indexer backfill jobs that were left hanging on startup
 	if database.SettingsGetValue("baseFullNode") == "true" { // Install Geth + Base if configured to

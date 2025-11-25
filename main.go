@@ -215,7 +215,11 @@ func main() {
 	// --- Blockchain --- //
 	core.LogDebug("Initializing blockchain")
 	_blockchain := new(blockchain.Blockchain)
-	_blockchain.Init(database)
+	if gateway {
+		_blockchain.InitGateway(database)
+	} else {
+		_blockchain.Init(database)
+	}
 
 	// --- IPFS --- //
 	core.LogDebug("Initializing IPFS")

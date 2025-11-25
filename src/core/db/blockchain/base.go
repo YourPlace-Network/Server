@@ -51,7 +51,10 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func (base *Base) Init(database *db.Database) {
-	if base.RpcClient != nil { // close the previous connection if it exists
+	base.init(database, false)
+}
+func (base *Base) init(database *db.Database, gateway bool) {
+	if base.RpcClient != nil {
 		base.RpcClient.Close()
 	}
 	base.MainnetChainId = 8453
@@ -59,16 +62,21 @@ func (base *Base) Init(database *db.Database) {
 	base.Currency = "ETH"
 	base.ExplorerUrl = "https://etherscan.io"
 	base.EnsResolverAddress = "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD"
-	base.RpcUrl = database.SettingsGetValue("baseURL")
-	if base.RpcUrl == "" {
-		baseURL := os.Getenv("BASE_RPC_URL")
-		if baseURL != "" {
-			base.RpcUrl = baseURL
-		} else {
-			base.RpcUrl = DefaultBlockchainNodes["base"][0] // fallback to Coinbase public nodes
-		}
+	baseURL := os.Getenv("BASE_RPC_URL")
+	if gateway && baseURL != "" {
+		base.RpcUrl = baseURL
 		database.SettingsUpdateValue("baseURL", base.RpcUrl)
-		database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1])
+	} else {
+		base.RpcUrl = database.SettingsGetValue("baseURL")
+		if base.RpcUrl == "" {
+			if baseURL != "" {
+				base.RpcUrl = baseURL
+			} else {
+				base.RpcUrl = DefaultBlockchainNodes["base"][0]
+			}
+			database.SettingsUpdateValue("baseURL", base.RpcUrl)
+			database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1])
+		}
 	}
 	core.LogDebug("Base RPC URL: " + base.RpcUrl)
 	httpClient := &http.Client{
