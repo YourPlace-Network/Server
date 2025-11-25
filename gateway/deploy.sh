@@ -3,9 +3,9 @@ set -e
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 
-if [ -z "$INSTANCE_ID" ] || [ -z "$ECR_REGISTRY" ] || [ -z "$CLOUDFLARE_CERT_PEM" ] || [ -z "$CLOUDFLARE_CERT_KEY" ] || [ -z "$YOURPLACE_ORIGIN" ]; then
+if [ -z "$INSTANCE_ID" ] || [ -z "$ECR_REGISTRY" ] || [ -z "$CLOUDFLARE_CERT_PEM" ] || [ -z "$CLOUDFLARE_CERT_KEY" ] || [ -z "$YOURPLACE_ORIGIN" ] || [ -z "$BASE_RPC_URL" ]; then
   echo "ERROR: Missing required environment variables"
-  echo "Required: INSTANCE_ID, ECR_REGISTRY, CLOUDFLARE_CERT_PEM, CLOUDFLARE_CERT_KEY, YOURPLACE_ORIGIN"
+  echo "Required: INSTANCE_ID, ECR_REGISTRY, CLOUDFLARE_CERT_PEM, CLOUDFLARE_CERT_KEY, YOURPLACE_ORIGIN, BASE_RPC_URL"
   exit 1
 fi
 
@@ -100,12 +100,14 @@ EOF
 )
 
 # Replace placeholders with actual values
+# Note: BASE_RPC_URL uses sed with | delimiter because URLs contain / characters
+# that break bash's ${//} substitution syntax
 SCRIPT="${SCRIPT//CERT_PEM_BASE64_PLACEHOLDER/$CERT_PEM_BASE64}"
 SCRIPT="${SCRIPT//CERT_KEY_BASE64_PLACEHOLDER/$CERT_KEY_BASE64}"
 SCRIPT="${SCRIPT//AWS_REGION_PLACEHOLDER/$AWS_REGION}"
 SCRIPT="${SCRIPT//ECR_REGISTRY_PLACEHOLDER/$ECR_REGISTRY}"
 SCRIPT="${SCRIPT//YOURPLACE_ORIGIN_PLACEHOLDER/$YOURPLACE_ORIGIN}"
-SCRIPT="${SCRIPT//BASE_RPC_URL_PLACEHOLDER/$BASE_RPC_URL}"
+SCRIPT=$(echo "$SCRIPT" | sed "s|BASE_RPC_URL_PLACEHOLDER|${BASE_RPC_URL}|g")
 
 # Create proper JSON parameters structure
 PARAMETERS=$(jq -n \
