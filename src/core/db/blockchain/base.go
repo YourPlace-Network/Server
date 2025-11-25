@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -60,10 +61,16 @@ func (base *Base) Init(database *db.Database) {
 	base.EnsResolverAddress = "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD"
 	base.RpcUrl = database.SettingsGetValue("baseURL")
 	if base.RpcUrl == "" {
-		base.RpcUrl = DefaultBlockchainNodes["base"][0] // fallback to Coinbase public nodes
+		baseURL := os.Getenv("BASE_RPC_URL")
+		if baseURL != "" {
+			base.RpcUrl = baseURL
+		} else {
+			base.RpcUrl = DefaultBlockchainNodes["base"][0] // fallback to Coinbase public nodes
+		}
 		database.SettingsUpdateValue("baseURL", base.RpcUrl)
 		database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1])
 	}
+	core.LogDebug("Base RPC URL: " + base.RpcUrl)
 	httpClient := &http.Client{
 		Transport: &loggingTransport{http.DefaultTransport},
 	}

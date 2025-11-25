@@ -4,7 +4,6 @@ import (
 	"YourPlace/src/core"
 	"database/sql"
 	"fmt"
-	"os"
 	"slices"
 	"time"
 )
@@ -71,9 +70,6 @@ func (db *Database) SetGatewayDefaults(uploadDirectory string) {
 	}
 	settingsDefaults := map[string]string{
 		"uploadDirectory": uploadDirectory,
-	}
-	if baseURL := os.Getenv("BASE_RPC_URL"); baseURL != "" {
-		settingsDefaults["baseURL"] = baseURL
 	}
 	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
 		for key, defaultValue := range metaDefaults {
