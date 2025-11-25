@@ -380,9 +380,12 @@ func IsValidEthSignature(payload string, signature string, address string) bool 
 	return false
 }
 func ValidateERC1271Signature(message string, signature string, address string) bool {
-	const BASE_RPC_URL = "https://mainnet.base.org"
+	baseRPC := os.Getenv("BASE_RPC_URL")
+	if baseRPC == "" {
+		baseRPC = "https://mainnet.base.org"
+	}
 	const ERC1271_MAGIC_VALUE = "1626ba7e"
-	client, err := ethclient.Dial(BASE_RPC_URL)
+	client, err := ethclient.Dial(baseRPC)
 	if err != nil {
 		core.LogDebug("Failed to connect to Base RPC: " + err.Error())
 		return false
