@@ -19,7 +19,7 @@ async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLEl
         if (blockchain && address && IsValidAddress(address, blockchain)) {
             try {
                 const avatarUrl = await WalletGetAvatar(blockchain, address);
-                if (avatarUrl && avatarUrl !== "") {
+                if (avatarUrl && avatarUrl !== "" && avatarImg.src !== XSSSanitizeUrl(avatarUrl)) {
                     avatarImg.src = XSSSanitizeUrl(avatarUrl);
                 }
             } catch (error) {

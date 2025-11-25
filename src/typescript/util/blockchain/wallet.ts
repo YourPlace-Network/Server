@@ -154,7 +154,6 @@ export async function WalletGetAvatar(chain?: string, address?: string): Promise
             return "";
         case "base":
             let avatarURL = await baseGetAvatar(address);
-            console.log(avatarURL);
             if (avatarURL) return avatarURL;
             return "";
         case "solana":

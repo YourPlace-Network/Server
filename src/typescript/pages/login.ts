@@ -41,8 +41,8 @@ declare global { // Extend the window interface with public callback objects
                 let redirect = queryParams.get("redirect");
 
                 if (!redirect) {
-                    LogInfo("No redirect");
-                    window.location.replace("/");
+                    LogInfo("No redirect, defaulting to /p/");
+                    window.location.href = "/p/";
                     return;
                 }
 
