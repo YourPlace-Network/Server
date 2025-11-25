@@ -304,8 +304,7 @@ func UnzipFile(path string, destination string) error {
 		}
 		defer rc.Close()
 		destination = security.SanitizePathTraversal(destination)
-		fileName := security.SanitizePathTraversal(file.Name)
-		path := filepath.Join(destination, fileName)
+		path := filepath.Join(destination, file.Name)
 		if file.FileInfo().IsDir() {
 			os.MkdirAll(path, file.Mode())
 		} else {
@@ -347,8 +346,7 @@ func UntarFile(path string, destination string) {
 			return
 		}
 		destination = security.SanitizePathTraversal(destination)
-		headerName := security.SanitizePathTraversal(header.Name)
-		filePath := filepath.Join(destination, headerName)
+		filePath := filepath.Join(destination, header.Name)
 		if header.FileInfo().IsDir() {
 			err := os.MkdirAll(filePath, os.FileMode(header.Mode))
 			if err != nil {
