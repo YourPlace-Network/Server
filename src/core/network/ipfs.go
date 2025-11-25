@@ -4,6 +4,7 @@ import (
 	_core "YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
+	"YourPlace/src/core/security"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -95,7 +96,7 @@ func (node *IPFS) IPFSAddFile(path string) (string, error) { // Adds & pins file
 		return "", _core.LogErrorReturn("Could not create serial file for IPFS upload: " + err.Error())
 	}
 	addOptions := []kcoreifaceoptions.UnixfsAddOption{
-		kcoreifaceoptions.Unixfs.Pin(true),
+		kcoreifaceoptions.Unixfs.Pin(true, security.Hash(path)),
 	}
 	ipfsPath, err := node.rpcNode.Unixfs().Add(ctx, _node, addOptions...)
 	if err != nil {
