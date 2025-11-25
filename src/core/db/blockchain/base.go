@@ -63,9 +63,13 @@ func (base *Base) init(database *db.Database, gateway bool) {
 	base.ExplorerUrl = "https://etherscan.io"
 	base.EnsResolverAddress = "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD"
 	baseURL := os.Getenv("BASE_RPC_URL")
+	baseThrottle := os.Getenv("BASE_RPC_THROTTLE")
 	if gateway && baseURL != "" {
 		base.RpcUrl = baseURL
 		database.SettingsUpdateValue("baseURL", base.RpcUrl)
+		if baseThrottle != "" {
+			database.SettingsUpdateValue("baseThrottle", baseThrottle)
+		}
 	} else {
 		base.RpcUrl = database.SettingsGetValue("baseURL")
 		if base.RpcUrl == "" {

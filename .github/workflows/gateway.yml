@@ -86,6 +86,7 @@ jobs:
         CLOUDFLARE_CERT_PEM: ${{ secrets.CLOUDFLARE_CERT_PEM }}
         CLOUDFLARE_CERT_KEY: ${{ secrets.CLOUDFLARE_CERT_KEY }}
         BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
+        BASE_RPC_THROTTLE: ${{ vars.BASE_RPC_THROTTLE }}
         YOURPLACE_ORIGIN: ${{ vars.YOURPLACE_ORIGIN }}
       run: |
         chmod +x gateway/deploy.sh

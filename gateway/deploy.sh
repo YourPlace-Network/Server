@@ -75,7 +75,7 @@ echo '=== Stopping existing container ==='
 docker stop yourplace-gateway 2>/dev/null || echo 'No existing container'
 docker rm yourplace-gateway 2>/dev/null || echo 'No existing container'
 echo '=== Starting new container ==='
-docker run -d --name yourplace-gateway --restart unless-stopped --log-driver awslogs --log-opt awslogs-region=AWS_REGION_PLACEHOLDER --log-opt awslogs-group=/ec2/yourplace-gateway -p 443:443 -v /opt/YourPlace:/opt/YourPlace -e YOURPLACE_ORIGIN='YOURPLACE_ORIGIN_PLACEHOLDER' -e BASE_RPC_URL='BASE_RPC_URL_PLACEHOLDER' ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
+docker run -d --name yourplace-gateway --restart unless-stopped --log-driver awslogs --log-opt awslogs-region=AWS_REGION_PLACEHOLDER --log-opt awslogs-group=/ec2/yourplace-gateway -p 443:443 -v /opt/YourPlace:/opt/YourPlace -e YOURPLACE_ORIGIN='YOURPLACE_ORIGIN_PLACEHOLDER' -e BASE_RPC_URL='BASE_RPC_URL_PLACEHOLDER' -e BASE_RPC_THROTTLE='BASE_RPC_THROTTLE_PLACEHOLDER' ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
 echo '=== Verifying container started ==='
 docker ps | grep yourplace-gateway
 echo '=== Waiting for server to be ready (max 5 minutes) ==='
@@ -107,6 +107,7 @@ SCRIPT="${SCRIPT//CERT_KEY_BASE64_PLACEHOLDER/$CERT_KEY_BASE64}"
 SCRIPT="${SCRIPT//AWS_REGION_PLACEHOLDER/$AWS_REGION}"
 SCRIPT="${SCRIPT//ECR_REGISTRY_PLACEHOLDER/$ECR_REGISTRY}"
 SCRIPT="${SCRIPT//YOURPLACE_ORIGIN_PLACEHOLDER/$YOURPLACE_ORIGIN}"
+SCRIPT="${SCRIPT//BASE_RPC_THROTTLE_PLACEHOLDER/$BASE_RPC_THROTTLE}"
 SCRIPT=$(echo "$SCRIPT" | sed "s|BASE_RPC_URL_PLACEHOLDER|${BASE_RPC_URL}|g")
 
 # Create proper JSON parameters structure
