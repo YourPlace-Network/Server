@@ -6,7 +6,6 @@ import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/services"
 	"net"
-	"net/http"
 	"strconv"
 	"time"
 )
@@ -28,7 +27,6 @@ func GetPublicIP() (net.IP, error) {
 	}
 	return openDNSPublicIP, nil
 }
-
 func IsTCPPortOpen(host string, port int) bool {
 	const timeout = 10 * time.Second
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), timeout)
@@ -43,39 +41,9 @@ func IsTCPPortOpen(host string, port int) bool {
 	}(conn)
 	return true
 }
-
 func IsInternetConnected() bool {
 	open := IsTCPPortOpen("google.com", 443)
 	open2 := IsTCPPortOpen("cloudflare.com", 443)
 	open3 := IsTCPPortOpen("microsoft.com", 443)
 	return open || open2 || open3
-}
-
-func GetHTTPRoundTripTime(url string) time.Duration {
-	start := time.Now()
-	resp, err := http.Get(url)
-	if err != nil {
-		core.LogWarn("Could not get HTTP round trip time: " + err.Error())
-		return time.Duration(0)
-	}
-	defer resp.Body.Close()
-	duration := time.Since(start)
-	return duration
-}
-
-func GetTCPRoundTripTime(host string, port int) time.Duration {
-	start := time.Now()
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), 60*time.Second)
-	if err != nil {
-		core.LogWarn("Could not get TCP round trip time: " + err.Error())
-		return time.Duration(0)
-	}
-	defer func(conn net.Conn) {
-		err = conn.Close()
-		if err != nil {
-			core.LogError("Could not close TCP connection")
-		}
-	}(conn)
-	duration := time.Since(start)
-	return duration
 }

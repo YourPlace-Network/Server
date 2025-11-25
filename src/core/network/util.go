@@ -6,7 +6,6 @@ import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/services"
 	"net"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -90,33 +89,6 @@ func IsInternetConnected() bool {
 	open2 := IsTCPPortOpen("cloudflare.com", 443)
 	open3 := IsTCPPortOpen("microsoft.com", 443)
 	return open || open2 || open3
-}
-func GetHTTPRoundTripTime(url string) time.Duration {
-	start := time.Now()
-	resp, err := http.Get(url)
-	if err != nil {
-		core.LogWarn("Could not get HTTP round trip time: " + err.Error())
-		return time.Duration(0)
-	}
-	defer resp.Body.Close()
-	duration := time.Since(start)
-	return duration
-}
-func GetTCPRoundTripTime(host string, port int) time.Duration {
-	start := time.Now()
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), 60*time.Second)
-	if err != nil {
-		core.LogWarn("Could not get TCP round trip time: " + err.Error())
-		return time.Duration(0)
-	}
-	defer func(conn net.Conn) {
-		err = conn.Close()
-		if err != nil {
-			core.LogError("Could not close TCP connection")
-		}
-	}(conn)
-	duration := time.Since(start)
-	return duration
 }
 func selectDevice() (_device string, ip net.IP) {
 	// https://gist.github.com/FlameInTheDark/b1957b95a89493ec6ce346bad156dc61#file-main-go

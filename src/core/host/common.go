@@ -303,7 +303,9 @@ func UnzipFile(path string, destination string) error {
 			return _core.LogErrorReturn("Could not open zip file: " + err.Error())
 		}
 		defer rc.Close()
-		path := filepath.Join(destination, file.Name)
+		destination = security.SanitizePathTraversal(destination)
+		fileName := security.SanitizePathTraversal(file.Name)
+		path := filepath.Join(destination, fileName)
 		if file.FileInfo().IsDir() {
 			os.MkdirAll(path, file.Mode())
 		} else {
@@ -344,7 +346,9 @@ func UntarFile(path string, destination string) {
 			_core.LogError("error untarring file: " + err.Error())
 			return
 		}
-		filePath := filepath.Join(destination, header.Name)
+		destination = security.SanitizePathTraversal(destination)
+		headerName := security.SanitizePathTraversal(header.Name)
+		filePath := filepath.Join(destination, headerName)
 		if header.FileInfo().IsDir() {
 			err := os.MkdirAll(filePath, os.FileMode(header.Mode))
 			if err != nil {

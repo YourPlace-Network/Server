@@ -226,7 +226,7 @@ export async function baseDisconnectWallet(): Promise<void> {
 }
 export async function baseIsWalletConnected(): Promise<boolean> {
     // todo: check if wallet is connected
-    LogInfo("finish implementing baseIsWalletConnected()");
+    // LogInfo("finish implementing baseIsWalletConnected()");
     return false
 }
 export async function baseTxn(dest: string, payload: string) {

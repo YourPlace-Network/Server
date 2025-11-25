@@ -11,11 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-ole/go-ole"
-	"github.com/go-ole/go-ole/oleutil"
-	"github.com/robfig/cron/v3"
-	"golang.org/x/sys/windows"
-	"golang.org/x/sys/windows/registry"
 	"log"
 	"net/http"
 	"os"
@@ -28,6 +23,12 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/go-ole/go-ole"
+	"github.com/go-ole/go-ole/oleutil"
+	"github.com/robfig/cron/v3"
+	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 //go:embed resources/helper.manifest

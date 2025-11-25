@@ -3,7 +3,6 @@ package network
 import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/security"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -82,24 +81,6 @@ func HttpGetJson(url string, item interface{}) error {
 		return err
 	}
 	return nil
-}
-func HttpPostJson(url string, buffer bytes.Buffer) (string, error) {
-	client := &http.Client{}
-	req, _ := http.NewRequest("POST", url, &buffer)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", core.LogErrorReturn("Could not send HTTP request trying to POST JSON")
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", core.LogErrorReturn("Got non-200 response trying to POST JSON")
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", core.LogErrorReturn("Could not read response body trying to POST JSON")
-	}
-	return string(body), nil
 }
 func HttpPost(url string) (string, error) {
 	if !security.IsValidURL(url) {

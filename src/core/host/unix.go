@@ -4,6 +4,7 @@ package host
 
 import (
 	"YourPlace/src/core"
+	"YourPlace/src/core/security"
 	_ "embed"
 	"fmt"
 	"log"
@@ -157,10 +158,10 @@ func RunShellCommandEnv(command string, env []string) string {
 	return string(output)
 }
 func RunShellCommandNoWait(command string) {
-	exec.Command("sh", "-c", command).Start()
+	exec.Command("sh", "-c", security.SanitizeCommandInjection(command)).Start()
 }
 func RunShellCommandNoWaitEnv(command string, env []string) {
-	cmd := exec.Command("sh", "-c", command)
+	cmd := exec.Command("sh", "-c", security.SanitizeCommandInjection(command))
 	cmd.Env = env
 	cmd.Start()
 }
