@@ -108,9 +108,8 @@ import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
         }
         async function showModal() {
             addPostModal.show();
-            if (tinymceLoaded) {
-                (window as any).tinymce.get("addPostText")?.focus();
-            }
+            await initTinyMCE();
+            (window as any).tinymce.get("addPostText")?.focus();
             enableSpiceometer().then();
         }
 
