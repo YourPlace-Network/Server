@@ -97,7 +97,6 @@ declare global {
         DOM.htmlMenu.addEventListener("focusin", (e) => {
             //e.preventDefault();
             //e.stopPropagation();
-            console.log("focusin");
             if (DOM.gatewayMode.value === "true" && !isLocalhost()) {
                 DOM.menuSettingsLink.style.display = "none";
                 DOM.menuPlacesLink.href = `${window.location.protocol}//${window.location.host}/`;
