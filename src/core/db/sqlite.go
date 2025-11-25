@@ -1943,6 +1943,24 @@ func (db *SQLite) IndexerResetJobs(blockchain string) {
 	if err != nil {
 		core.LogDebug("Could not reset the indexer in the database: " + err.Error())
 	}
+	// Wipe onchain data for this blockchain - indexer will refill it
+	_, err = db.runParamSQLUpdate("DELETE FROM onchain_post WHERE blockchain = ?", blockchain)
+	if err != nil {
+		core.LogDebug("Could not clear onchain_post for " + blockchain + ": " + err.Error())
+	}
+	_, err = db.runParamSQLUpdate("DELETE FROM onchain_meta WHERE blockchain = ?", blockchain)
+	if err != nil {
+		core.LogDebug("Could not clear onchain_meta for " + blockchain + ": " + err.Error())
+	}
+	_, err = db.runParamSQLUpdate("DELETE FROM onchain_follow WHERE followerBlockchain = ? OR followeeBlockchain = ?", blockchain, blockchain)
+	if err != nil {
+		core.LogDebug("Could not clear onchain_follow for " + blockchain + ": " + err.Error())
+	}
+	_, err = db.runParamSQLUpdate("DELETE FROM onchain_block WHERE blockerBlockchain = ? OR blockeeBlockchain = ?", blockchain, blockchain)
+	if err != nil {
+		core.LogDebug("Could not clear onchain_block for " + blockchain + ": " + err.Error())
+	}
+	core.LogDebug("Cleared all onchain data for " + blockchain)
 }
 
 // --- Onchain Tokenized --- //
@@ -2101,6 +2119,29 @@ func (db *SQLite) OnchainFU(txHash string, blockchain string, followerAddress st
 	_, err = db.runParamSQLUpdate(query, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
 	if err != nil {
 		core.LogDebug("Could not remove the follow relationship from the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64) {
+	query := "DELETE FROM onchain_post WHERE blockchain = ? AND timestamp < ?"
+	result, err := db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
+	if err != nil {
+		core.LogDebug("Could not delete expired posts: " + err.Error())
+	} else if rows, _ := result.RowsAffected(); rows > 0 {
+		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired posts from " + blockchain)
+	}
+	query = "DELETE FROM onchain_follow WHERE followerBlockchain = ? AND timestamp < ?"
+	result, err = db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
+	if err != nil {
+		core.LogDebug("Could not delete expired follows: " + err.Error())
+	} else if rows, _ := result.RowsAffected(); rows > 0 {
+		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired follows from " + blockchain)
+	}
+	query = "DELETE FROM onchain_meta WHERE blockchain = ? AND blockchainTimestamp < ? AND blockchainTimestamp > 0"
+	result, err = db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
+	if err != nil {
+		core.LogDebug("Could not delete expired metadata: " + err.Error())
+	} else if rows, _ := result.RowsAffected(); rows > 0 {
+		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired metadata entries from " + blockchain)
 	}
 }
 

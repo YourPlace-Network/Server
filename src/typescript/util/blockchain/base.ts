@@ -231,30 +231,53 @@ export async function baseIsWalletConnected(): Promise<boolean> {
 }
 export async function baseTxn(dest: string, payload: string) {
     let address = GetAddress();
-    if (!address) { return; }
+    if (!address) {
+        LogError("baseTxn: No address found");
+        return;
+    }
     if (!baseInit) {
         await initBaseWallet();
     }
     try {
-        const connections = getConnections(wagmiConfig);
+        let connections = getConnections(wagmiConfig);
+        LogInfo("baseTxn: Current connections: " + connections.length);
         if (!connections.length) {
             await baseConnectWallet();
-            const newConnections = getConnections(wagmiConfig);
-            if (!newConnections.length) {
-                LogError("Failed to connect to Base Wallet to perform a baseTxn");
+            connections = getConnections(wagmiConfig);
+            if (!connections.length) {
+                LogError("baseTxn: Failed to connect to Base Wallet");
                 return;
             }
         }
-        return await sendTransaction(wagmiConfig, {
-            account: address as `0x${string}`,
-            to: dest as `0x${string}`,
-            value: parseEther("0"),
-            data: ethers.hexlify(Buffer.from(payload, "utf8")) as `0x${string}`,
-            connector: connections[0]?.connector,
-            chainId: wagmiBase.id,
+        const connector = connections[0]?.connector;
+        LogInfo("baseTxn: Using connector: " + connector?.name + ", address: " + address + ", dest: " + dest);
+        // Get the provider from the connector and use eth_sendTransaction directly
+        const provider = await connector?.getProvider() as { request: (args: { method: string; params: unknown[] }) => Promise<string> } | undefined;
+        if (!provider) {
+            LogError("baseTxn: Failed to get provider from connector");
+            return;
+        }
+        LogInfo("baseTxn: Got provider, sending transaction via eth_sendTransaction");
+        const txHash = await provider.request({
+            method: "eth_sendTransaction",
+            params: [{
+                from: address as `0x${string}`,
+                to: dest as `0x${string}`,
+                value: "0x0",
+                data: ethers.hexlify(Buffer.from(payload, "utf8")) as `0x${string}`,
+            }],
         });
-    } catch (error) {
-        LogError("Failed to send Base transaction: " + error);
+        LogInfo("baseTxn: Transaction sent successfully, hash: " + txHash);
+        return txHash;
+    } catch (error: unknown) {
+        if (error instanceof Error) {
+            LogError("baseTxn failed: " + error.message);
+            if (error.stack) {
+                LogError("baseTxn stack: " + error.stack);
+            }
+        } else {
+            LogError("baseTxn failed with unknown error: " + String(error));
+        }
     }
 }
 

@@ -7,12 +7,13 @@ import (
 	"YourPlace/src/core/security"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/spruceid/siwe-go"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/spruceid/siwe-go"
 )
 
 type TxnLoginNonce struct {
@@ -121,7 +122,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 		_, err = message.Verify(payload.Signature, nil, nil, nil)
 		if err != nil {
 			core.LogDebug("EIP-191 verification failed, trying ERC-1271 for smart wallet: " + err.Error())
-			if !security.ValidateERC1271Signature(payload.Message, payload.Signature, payload.Address) {
+			if !security.ValidateERC1271Signature(payload.Message, payload.Signature, payload.Address, database) {
 				core.LogDebug("Both EIP-191 and ERC-1271 signature verification failed")
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid signature"})
 				return

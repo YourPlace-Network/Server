@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@base-org/account": "^2.5.0",
     "@coinbase/onchainkit": "^1.1.2",
     "@coinbase/wallet-sdk": "^4.3.7",
     "@floating-ui/dom": "^1.7.0",

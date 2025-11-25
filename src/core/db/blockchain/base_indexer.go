@@ -29,12 +29,15 @@ import (
 // Job States - Running, Complete, Failed, Pending
 
 const (
-	burnAddressETH = "0x0000000000000000000000000000000000000000" // Burn address for YourPlace protocol transactions
-	reportInterval = 5000                                         // print progress every # of blocks
-	saveInterval   = 100                                          // save progress every # of blocks
-	throttleOffset = 4                                            // How many blocks to subtract from the throttle limit to allow for the front-end to make RPC calls without getting rate-limited
-	batchSizeLimit = 25                                           // The maximum number of blocks to fetch in a single batch RPC call
-	workerCount    = 10                                           // Number of worker threads to use for processing batches
+	burnAddressETH       = "0x0000000000000000000000000000000000000000"
+	entryPointV06Address = "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789"
+	handleOpsSelector    = "1fad948c"
+	executeBatchSelector = "34fcd5be"
+	reportInterval       = 5000
+	saveInterval         = 100
+	throttleOffset       = 4
+	batchSizeLimit       = 25
+	workerCount          = 10
 )
 
 var (
@@ -507,11 +510,6 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	_Database.IndexerUpdateJobStatus(uuid, "complete")
 }
 
-// --- Algorand Indexer Functions --- //
-func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.Int) {}
-func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.Int)  {}
-func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.Int)  {}
-
 // --- Helper Functions --- //
 func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint64, *big.Int) {
 	// Handle indexer mutex and exit channel
@@ -559,6 +557,10 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 	databaseTailBlock := _Database.IndexerGetTailBlock(uuid)                       // Get the tail block from the database (earliest block processed)
 	if databaseTailBlock < chainEarliestBlock.Uint64() && databaseTailBlock != 0 { // Check that the tail block is ahead of the earliest block
 		core.LogDebug("Database tail block is too far back - resetting to EarliestBlock")
+		cutoffTimestamp := _Blockchain.Base.GetBlockTimestamp(chainEarliestBlock)
+		if cutoffTimestamp > 0 {
+			_Database.OnchainDeleteExpired(chainName, cutoffTimestamp)
+		}
 		_Database.IndexerUpdateTailBlock(uuid, chainEarliestBlock.Uint64()) // If not, reset the tail block to the earliest block
 		databaseTailBlock = chainEarliestBlock.Uint64()
 	}
@@ -578,13 +580,11 @@ func dispatchTransaction(block map[string]interface{}, transaction map[string]in
 	if transaction["to"] == nil { // Skip transactions with no recipient
 		return 1
 	}
-	//toAddr := strings.ToLower(transaction["to"].(string))
+	toAddr := strings.ToLower(transaction["to"].(string))
 	if transaction["input"] == nil { // Skip transactions with no data payload
 		return 1
 	}
-	data := transaction["input"].(string)[2:]
-	decodedDataBytes, _ := hex.DecodeString(data)
-	decodedDataStr := string(decodedDataBytes)
+	inputHex := transaction["input"].(string)
 	//amountHexStr := transaction["value"].(string)[2:]
 	//amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)
 	//parentTxHash := "" // todo - figure out comment logic hierarchy
@@ -593,6 +593,26 @@ func dispatchTransaction(block map[string]interface{}, transaction map[string]in
 	/*if isTimestampExpired(int64(*databaseHistoryDaysInt), int64(timestamp)) { // skip transactions older than the cached history limit
 		return 2
 	}*/
+	if toAddr == entryPointV06Address {
+		payloads := extractSmartWalletPayloads(inputHex)
+		if len(payloads) > 0 {
+			for _, p := range payloads {
+				core.LogDebug("Smart wallet YourPlace transaction found on " + blockchain + ": " + txHash + " from " + p.fromAddress + " to " + p.toAddress)
+				syntheticTxn := map[string]interface{}{
+					"hash":  transaction["hash"],
+					"from":  p.fromAddress,
+					"to":    p.toAddress,
+					"input": "0x" + hex.EncodeToString([]byte(p.payload)),
+					"value": "0x0",
+				}
+				tokenizeYourPlaceTransaction(blockchain, syntheticTxn, timestamp, blockIndex.Uint64())
+			}
+			return 0
+		}
+	}
+	data := inputHex[2:]
+	decodedDataBytes, _ := hex.DecodeString(data)
+	decodedDataStr := string(decodedDataBytes)
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
 		core.LogDebug("YourPlace transaction found on " + blockchain + ": " + txHash)
 		tokenizeYourPlaceTransaction(blockchain, transaction, timestamp, blockIndex.Uint64())
@@ -605,6 +625,228 @@ func isTimestampExpired(databaseHistoryDaysInt int64, timestamp int64) bool {
 	now := time.Now()
 	diff := now.Sub(time.Unix(timestamp, 0))
 	return diff > time.Duration(databaseHistoryDaysInt)*24*time.Hour
+}
+
+type smartWalletPayload struct {
+	fromAddress string
+	toAddress   string
+	payload     string
+}
+
+// userOperation represents an ERC-4337 UserOperation structure
+type userOperation struct {
+	sender               []byte
+	nonce                *big.Int
+	initCode             []byte
+	callData             []byte
+	callGasLimit         *big.Int
+	verificationGasLimit *big.Int
+	preVerificationGas   *big.Int
+	maxFeePerGas         *big.Int
+	maxPriorityFeePerGas *big.Int
+	paymasterAndData     []byte
+	signature            []byte
+}
+
+// parseUserOperationFromHandleOps parses the first UserOperation from handleOps calldata
+func parseUserOperationFromHandleOps(data []byte) (*userOperation, error) {
+	if len(data) < 4 {
+		return nil, fmt.Errorf("data too short")
+	}
+	data = data[4:] // Skip the 4-byte selector (handleOps)
+	if len(data) < 64 {
+		return nil, fmt.Errorf("data too short for handleOps params")
+	}
+	// First param is offset to UserOperation[] array
+	opsOffset := new(big.Int).SetBytes(data[0:32]).Uint64()
+	if opsOffset+32 > uint64(len(data)) {
+		return nil, fmt.Errorf("invalid ops offset")
+	}
+	// At the offset, we have the array length
+	arrayLen := new(big.Int).SetBytes(data[opsOffset : opsOffset+32]).Uint64()
+	if arrayLen == 0 {
+		return nil, fmt.Errorf("empty ops array")
+	}
+	// After length comes offsets to each UserOperation
+	firstOpOffsetPos := opsOffset + 32
+	if firstOpOffsetPos+32 > uint64(len(data)) {
+		return nil, fmt.Errorf("invalid first op offset position")
+	}
+	firstOpOffset := new(big.Int).SetBytes(data[firstOpOffsetPos : firstOpOffsetPos+32]).Uint64()
+	opStart := opsOffset + 32 + firstOpOffset // The actual UserOperation starts at opsOffset + 32 + firstOpOffset
+	if opStart+32*11 > uint64(len(data)) {    // Need at least 11 fields
+		return nil, fmt.Errorf("data too short for UserOperation")
+	}
+	op := &userOperation{}
+	op.sender = data[opStart+12 : opStart+32]                       // Field 0: sender (address, 20 bytes in last 20 bytes of 32)
+	op.nonce = new(big.Int).SetBytes(data[opStart+32 : opStart+64]) // Field 1: nonce (uint256)
+	initCodeOffset := new(big.Int).SetBytes(data[opStart+64 : opStart+96]).Uint64()
+	callDataOffset := new(big.Int).SetBytes(data[opStart+96 : opStart+128]).Uint64()
+	op.callGasLimit = new(big.Int).SetBytes(data[opStart+128 : opStart+160])
+	op.verificationGasLimit = new(big.Int).SetBytes(data[opStart+160 : opStart+192])
+	op.preVerificationGas = new(big.Int).SetBytes(data[opStart+192 : opStart+224])
+	op.maxFeePerGas = new(big.Int).SetBytes(data[opStart+224 : opStart+256])
+	op.maxPriorityFeePerGas = new(big.Int).SetBytes(data[opStart+256 : opStart+288])
+	paymasterAndDataOffset := new(big.Int).SetBytes(data[opStart+288 : opStart+320]).Uint64()
+	signatureOffset := new(big.Int).SetBytes(data[opStart+320 : opStart+352]).Uint64()
+	// Parse dynamic fields
+	op.initCode = parseDynamicBytes(data, opStart, initCodeOffset)
+	op.callData = parseDynamicBytes(data, opStart, callDataOffset)
+	op.paymasterAndData = parseDynamicBytes(data, opStart, paymasterAndDataOffset)
+	op.signature = parseDynamicBytes(data, opStart, signatureOffset)
+	return op, nil
+}
+
+// parseDynamicBytes extracts dynamic bytes from ABI-encoded data
+func parseDynamicBytes(data []byte, baseOffset uint64, relativeOffset uint64) []byte {
+	absOffset := baseOffset + relativeOffset
+	if absOffset+32 > uint64(len(data)) {
+		return nil
+	}
+	length := new(big.Int).SetBytes(data[absOffset : absOffset+32]).Uint64()
+	if absOffset+32+length > uint64(len(data)) {
+		return nil
+	}
+	return data[absOffset+32 : absOffset+32+length]
+}
+
+// getSenderFromUserOp returns the sender address from the UserOperation
+// The sender field in ERC-4337 UserOperation is the account that authorized the operation
+func getSenderFromUserOp(op *userOperation) string {
+	return "0x" + strings.ToLower(hex.EncodeToString(op.sender))
+}
+
+// extractTargetFromCallData extracts the target address from smart wallet callData
+// Supports: execute(address,uint256,bytes), executeBatch((address,uint256,bytes)[])
+func extractTargetFromCallData(callData []byte) string {
+	if len(callData) < 4 {
+		return ""
+	}
+	selector := hex.EncodeToString(callData[:4])
+	switch selector {
+	case "b61d27f6": // execute(address target, uint256 value, bytes data)
+		if len(callData) >= 36 {
+			return "0x" + strings.ToLower(hex.EncodeToString(callData[16:36]))
+		}
+	case executeBatchSelector: // executeBatch((address,uint256,bytes)[])
+		// For batch calls, extract the first target address
+		if len(callData) < 68 {
+			return ""
+		}
+		// Skip selector (4) + offset to array (32) = 36, then array length (32) = 68
+		// First element offset is at position 68
+		arrayOffset := new(big.Int).SetBytes(callData[4:36]).Uint64()
+		if arrayOffset+32 > uint64(len(callData)) {
+			return ""
+		}
+		arrayLen := new(big.Int).SetBytes(callData[4+arrayOffset : 4+arrayOffset+32]).Uint64()
+		if arrayLen == 0 {
+			return ""
+		}
+		// Get offset to first struct
+		firstStructOffsetPos := 4 + arrayOffset + 32
+		if firstStructOffsetPos+32 > uint64(len(callData)) {
+			return ""
+		}
+		firstStructOffset := new(big.Int).SetBytes(callData[firstStructOffsetPos : firstStructOffsetPos+32]).Uint64()
+		// First field of struct is the target address
+		targetPos := 4 + arrayOffset + 32 + firstStructOffset
+		if targetPos+32 > uint64(len(callData)) {
+			return ""
+		}
+		return "0x" + strings.ToLower(hex.EncodeToString(callData[targetPos+12:targetPos+32]))
+	case "51945447": // executeCalls((address,uint256,bytes)[]) - alternate batch selector
+		if len(callData) < 68 {
+			return ""
+		}
+		arrayOffset := new(big.Int).SetBytes(callData[4:36]).Uint64()
+		if arrayOffset+32 > uint64(len(callData)) {
+			return ""
+		}
+		arrayLen := new(big.Int).SetBytes(callData[4+arrayOffset : 4+arrayOffset+32]).Uint64()
+		if arrayLen == 0 {
+			return ""
+		}
+		firstStructOffsetPos := 4 + arrayOffset + 32
+		if firstStructOffsetPos+32 > uint64(len(callData)) {
+			return ""
+		}
+		firstStructOffset := new(big.Int).SetBytes(callData[firstStructOffsetPos : firstStructOffsetPos+32]).Uint64()
+		targetPos := 4 + arrayOffset + 32 + firstStructOffset
+		if targetPos+32 > uint64(len(callData)) {
+			return ""
+		}
+		return "0x" + strings.ToLower(hex.EncodeToString(callData[targetPos+12:targetPos+32]))
+	}
+	return ""
+}
+
+func extractSmartWalletPayloads(inputHex string) []smartWalletPayload {
+	var results []smartWalletPayload
+	if len(inputHex) < 10 {
+		return results
+	}
+	selector := strings.ToLower(inputHex[2:10])
+	if selector != handleOpsSelector {
+		return results
+	}
+	dataBytes, err := hex.DecodeString(inputHex[2:])
+	if err != nil {
+		return results
+	}
+	// Parse the UserOperation to get the signature and recover the signer
+	op, err := parseUserOperationFromHandleOps(dataBytes)
+	if err != nil {
+		core.LogDebug("Failed to parse UserOperation: " + err.Error())
+		return results
+	}
+	// Get the sender address from the UserOperation
+	signerAddr := getSenderFromUserOp(op)
+	if !security.RegexMatch(`^0x[a-f0-9]{40}$`, signerAddr) || signerAddr == burnAddressETH {
+		return results
+	}
+	// Extract target address from the callData
+	targetAddr := extractTargetFromCallData(op.callData)
+	if targetAddr == "" {
+		targetAddr = burnAddressETH // Default to burn address if target extraction fails
+	}
+	// Search for YourPlace payloads in the callData
+	data := inputHex[2:]
+	ypPrefixHex := hex.EncodeToString([]byte(services.YpPrefix))
+	searchStart := 0
+	for {
+		idx := strings.Index(data[searchStart:], ypPrefixHex)
+		if idx == -1 {
+			break
+		}
+		payloadStartHex := searchStart + idx
+		payloadEndHex := payloadStartHex
+		for i := payloadStartHex; i < len(data)-1; i += 2 {
+			byteVal, err := strconv.ParseUint(data[i:i+2], 16, 8)
+			if err != nil {
+				break
+			}
+			if byteVal == 0 {
+				break
+			}
+			payloadEndHex = i + 2
+		}
+		if payloadEndHex > payloadStartHex {
+			payloadBytes, err := hex.DecodeString(data[payloadStartHex:payloadEndHex])
+			if err == nil && strings.HasPrefix(string(payloadBytes), services.YpPrefix) {
+				results = append(results, smartWalletPayload{
+					fromAddress: signerAddr,
+					toAddress:   targetAddr,
+					payload:     string(payloadBytes),
+				})
+			}
+		}
+		searchStart = payloadEndHex
+		if searchStart >= len(data) {
+			break
+		}
+	}
+	return results
 }
 func createIndexerJob(blockchain string) string {
 	uuid := security.UUID()
@@ -748,7 +990,7 @@ BATCHRPCCALL:
 	}
 	err := base.RpcClient.BatchCallContext(context.Background(), batch)
 	if err != nil {
-		core.LogDebug("Could not perform RPC call from rpcBatchGetBlockByNumber, backing off: " + err.Error())
+		core.LogDebug("Could not perform RPC call from rpcBatchGetBlockByNumber, backing off")
 		// Check if this is a rate-limiting error
 		if strings.Contains(strings.ToLower(err.Error()), "rps limit") || strings.Contains(strings.ToLower(err.Error()), "rate limit") {
 			rateLimitErrorCount++

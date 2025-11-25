@@ -2,6 +2,7 @@ package security
 
 import (
 	"YourPlace/src/core"
+	"YourPlace/src/core/db"
 	"bytes"
 	"context"
 	"encoding/hex"
@@ -379,11 +380,8 @@ func IsValidEthSignature(payload string, signature string, address string) bool 
 	core.LogWarn("Signature is invalid")
 	return false
 }
-func ValidateERC1271Signature(message string, signature string, address string) bool {
-	baseRPC := os.Getenv("BASE_RPC_URL")
-	if baseRPC == "" {
-		baseRPC = "https://mainnet.base.org"
-	}
+func ValidateERC1271Signature(message string, signature string, address string, database *db.Database) bool {
+	baseRPC := database.SettingsGetValue("baseURL")
 	const ERC1271_MAGIC_VALUE = "1626ba7e"
 	client, err := ethclient.Dial(baseRPC)
 	if err != nil {

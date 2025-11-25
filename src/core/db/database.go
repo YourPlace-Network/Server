@@ -408,6 +408,12 @@ func (db *Database) OnchainFU(txHash string, blockchain string, followerAddress 
 		db.sqlite.OnchainFU(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	}
 }
+func (db *Database) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainDeleteExpired(blockchain, cutoffTimestamp)
+	}
+}
 
 // --- Search Functions --- //
 func (db *Database) SearchGetPosts(query string) []map[string]interface{} {

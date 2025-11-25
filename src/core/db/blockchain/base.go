@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -152,7 +153,6 @@ func (base *Base) GetENSAddresses(name string) ([]string, error) {
 	}
 	return []string{address.Hex()}, nil
 }
-
 func BaseGetEarliestBlock() big.Int {
 	return *big.NewInt(int64(38300000)) // YourPlace did not exist on-chain before this block
 }
@@ -192,4 +192,18 @@ func WeiToEtherString(wei big.Int) string {
 	ethValue.Quo(ethValue, big.NewFloat(1e18))
 	ethString := fmt.Sprintf("%.18f", ethValue)
 	return ethString
+}
+func (base *Base) GetBlockTimestamp(blockNumber *big.Int) uint64 {
+	blockNumberHex := "0x" + blockNumber.Text(16)
+	var result map[string]interface{}
+	err := base.RpcClient.Call(&result, "eth_getBlockByNumber", blockNumberHex, false)
+	if err != nil || result == nil {
+		return 0
+	}
+	timestampHex, ok := result["timestamp"].(string)
+	if !ok || len(timestampHex) < 3 {
+		return 0
+	}
+	timestamp, _ := strconv.ParseUint(timestampHex[2:], 16, 64)
+	return timestamp
 }
