@@ -20,9 +20,9 @@ type Notification struct {
 	Dismissable bool   `json:"dismissable"`
 }
 
-func NotificationRoutes(router *gin.Engine, database *db.Database) {
+func NotificationRoutes(router *gin.Engine, database *db.Database, gateway bool) {
 	router.GET("/notification", func(c *gin.Context) {
-		notifications := GetAllNotifications(database)
+		notifications := GetAllNotifications(database, gateway)
 		c.SecureJSON(http.StatusOK, gin.H{"notifications": notifications})
 	})
 	router.GET("/notification/:uid", func(c *gin.Context) {
@@ -31,7 +31,7 @@ func NotificationRoutes(router *gin.Engine, database *db.Database) {
 			c.SecureJSON(http.StatusOK, gin.H{"error": "Missing notification UID"})
 			return
 		}
-		notifications := GetAllNotifications(database)
+		notifications := GetAllNotifications(database, gateway)
 		for _, notification := range notifications {
 			if notification.UID == uid {
 				c.SecureJSON(http.StatusOK, notification)
@@ -50,7 +50,7 @@ func NotificationRoutes(router *gin.Engine, database *db.Database) {
 		c.SecureJSON(http.StatusOK, gin.H{"status": "dismissed"})
 	})
 }
-func GetAllNotifications(database *db.Database) []Notification {
+func GetAllNotifications(database *db.Database, gateway bool) []Notification {
 	var notifications []Notification
 	dbNotifications := database.NotificationGetActive()
 	for _, dbNotif := range dbNotifications {
@@ -61,8 +61,10 @@ func GetAllNotifications(database *db.Database) []Notification {
 			Dismissable: dbNotif["dismissable"] == "1",
 		})
 	}
-	systemNotifications := getSystemNotifications(database)
-	notifications = append(notifications, systemNotifications...)
+	if !gateway {
+		systemNotifications := getSystemNotifications(database)
+		notifications = append(notifications, systemNotifications...)
+	}
 	return notifications
 }
 func getSystemNotifications(database *db.Database) []Notification {

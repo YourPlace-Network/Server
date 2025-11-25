@@ -3,4 +3,4 @@ set -e
 
 # Start the gateway service
 # The YourPlace binary will handle IPFS installation and initialization
-exec /app/YourPlaceGateway -g -du
+exec /app/YourPlaceGateway -g -d -du
