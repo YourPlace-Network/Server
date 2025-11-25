@@ -63,3 +63,16 @@ export function ShowSavedToast() {
     };
     ShowToastNotification(notification);
 }
+export function ShowToastWithDelay(message: string, delayMs: number) {
+    const notification: Notification = {
+        uid: `manual_${Date.now()}`,
+        type: "manual",
+        message: message,
+        dismissable: false
+    };
+    let toastDiv = CreateToast(notification);
+    toastDiv.setAttribute("data-bs-delay", delayMs.toString());
+    document.getElementById("toastContainer")!.appendChild(toastDiv);
+    let toast = new window.bootstrap.Toast(toastDiv, {});
+    toast.show();
+}

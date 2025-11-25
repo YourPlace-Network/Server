@@ -18,14 +18,16 @@
 }
 .postCard {
   width: 100%;
-  min-height: 100px;
-  padding: 0.5em 0.5em 0.5em 0.5em;
+  padding: 0.5em;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   border: 2px solid transparent;
   border-radius: 0.5em;
   transition: border-color 0.2s ease;
+}
+.postCard:not(.shaded) {
+  border: 2px solid map.get(global.$colors, "secondary");
 }
 .postCard:hover {
   border-color: map.get(global.$colors, "quaternary");
@@ -68,10 +70,13 @@
   width: 100%;
   padding-right: 1em;
   padding-left: 5em;
-  top: -2.3em;
+  transform: translateY(-2.2em);
+  margin-bottom: -2.2em;
 }
 .postCardEllipsesDiv {
   margin-left: auto;
+  margin-top: -0.5em;
+  margin-right: -0.5em;
 }
 .postCardEllipsesLink {
     color: map.get(global.$colors, "text");
@@ -81,7 +86,7 @@
 }
 button.ellipsesBtn {
   background-color: transparent;
-  border-top-left-radius: 0;
+  border-radius: 0.4em !important;
   i {
     opacity: 1;
   }

@@ -7,6 +7,7 @@ import {CreateAttachmentPreview} from "../util/domFactory";
 import {UploadFile} from "../util/files";
 import {AddFileToIPFS} from "../util/ipfs";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
+import {ShowToastWithDelay} from "./toast";
 // TinyMCE will be lazy loaded when needed
 
 (function initialize() {
@@ -115,7 +116,7 @@ import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 
         async function submitPost() {
             if (!tinymceLoaded) return;
-            
+
             let payload = (window as any).tinymce.get("addPostText")?.getContent();
             if (!payload || payload.trim() === "") {
                 hideModal();
@@ -130,6 +131,7 @@ import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
             }
             clearPostObj();
             hideModal();
+            ShowToastWithDelay("Your post should show up shortly. Please wait for it to spread through the network.", 10000);
             DOM.spiceometerText.innerText = "";
             (window as any).tinymce.get("addPostText")?.setContent("");
         }

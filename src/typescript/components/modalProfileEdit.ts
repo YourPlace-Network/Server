@@ -7,6 +7,7 @@ import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.min.css";
 import "flatpickr/dist/themes/material_blue.css";
 import DOMPurify from "dompurify";
+import {ShowToastWithDelay} from "./toast";
 
 export async function showProfileEditModal() {
     let DOM = {
@@ -78,6 +79,13 @@ export async function showProfileEditModal() {
             profileBirthday: document.getElementById("profileBirthday")! as HTMLDivElement,
             modalProfileEdit: document.getElementById("modalProfileEdit")! as HTMLDivElement,
         }
+        let modal = new window.bootstrap.Modal(DOM.modalProfileEdit, {});
+        function hideModalAndShowToast() {
+            modal.hide();
+            const modalBackdrops = document.querySelectorAll(".modal-backdrop");
+            modalBackdrops.forEach(backdrop => backdrop.remove());
+            ShowToastWithDelay("Your profile update should show up shortly. Please wait for it to spread through the network.", 10000);
+        }
 
         const minAge = new Date();
         minAge.setFullYear(minAge.getFullYear() - 13);
@@ -121,6 +129,7 @@ export async function showProfileEditModal() {
                 if (result[1].status == "success") {
                     try {
                         await WalletSetBanner("ipfs://" + result[1].cid);
+                        hideModalAndShowToast();
                     } catch (e) {
                         LogError("Failed to set banner" + e);
                     }
@@ -132,6 +141,7 @@ export async function showProfileEditModal() {
             let splitName = name.split(".")[0];
             try {
                 await WalletSetName(name);
+                hideModalAndShowToast();
             } catch (e) {
                 LogError("failed to set username: " + e)
             }
@@ -140,6 +150,7 @@ export async function showProfileEditModal() {
             let description = DOM.inputDescription.value;
             try {
                 await WalletSetDescription(description);
+                hideModalAndShowToast();
             } catch (e) {
                 LogError("Failed to set description" + e);
             }
@@ -148,6 +159,7 @@ export async function showProfileEditModal() {
             let location = DOM.inputLocation.value;
             try {
                 await WalletSetLocation(location);
+                hideModalAndShowToast();
             } catch (e) {
                 LogError("Failed to set location" + e);
             }
@@ -156,6 +168,7 @@ export async function showProfileEditModal() {
             let website = DOM.inputWebsite.value;
             try {
                 await WalletSetWebsite(website);
+                hideModalAndShowToast();
             } catch (e) {
                 LogError("Failed to set website" + e);
             }
@@ -164,6 +177,7 @@ export async function showProfileEditModal() {
             let birthday = DOM.birthDateEpoch.value;
             try {
                 await WalletSetBirthday(birthday);
+                hideModalAndShowToast();
             } catch (e) {
                 LogError("Failed to set birthday" + e);
             }
