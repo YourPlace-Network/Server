@@ -2,6 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss"
 import "../../scss/pages/profile.scss";
 import "../components/addPost";
+import {preloadTinyMCE} from "../components/addPost";
 import "../components/modalDialog";
 import "../components/scrollTop";
 import "../components/menu";
@@ -439,6 +440,8 @@ declare global { // Extend the window interface with public objects
             }
         });
 
-        init().then();
+        init().then(() => {
+            preloadTinyMCE(); // Preload TinyMCE in background after page loads
+        });
     }
 })();

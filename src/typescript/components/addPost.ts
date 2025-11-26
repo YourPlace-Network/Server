@@ -9,6 +9,13 @@ import {AddFileToIPFS} from "../util/ipfs";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 import {ShowToastWithDelay} from "./toast";
 // TinyMCE will be lazy loaded when needed
+let tinymceModulePromise: Promise<any> | null = null;
+
+export async function preloadTinyMCE() {
+    if (tinymceModulePromise) return tinymceModulePromise;
+    tinymceModulePromise = import("tinymce/tinymce");
+    return tinymceModulePromise;
+}
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -60,14 +67,14 @@ import {ShowToastWithDelay} from "./toast";
             size: string;
             fileUrl?: string;
         }
-        let tinymceLoaded = false;
-        let tinymceLoadingPromise: Promise<void> | null = null;
-
+        let tinymceInitialized = false;
+        let tinymceInitPromise: Promise<void> | null = null;
         async function initTinyMCE() {
-            if (tinymceLoaded) return;
-            if (tinymceLoadingPromise) return tinymceLoadingPromise;
-            tinymceLoadingPromise = (async () => {
-                const tinymce = await import("tinymce/tinymce");
+            if (tinymceInitialized) return;
+            if (tinymceInitPromise) return tinymceInitPromise;
+            tinymceInitPromise = (async () => {
+                // Use preloaded module if available, otherwise load it now
+                const tinymce = tinymceModulePromise ? await tinymceModulePromise : await import("tinymce/tinymce");
                 await tinymce.default.init({
                     selector: "#addPostText",
                     plugins: "code table lists emoticons",
@@ -81,7 +88,7 @@ import {ShowToastWithDelay} from "./toast";
                     branding: false,
                     license_key: "gpl",
                     //paste_data_images: false, // todo
-                    setup: function(editor) {
+                    setup: function(editor: any) {
                         editor.on("input", function() {
                             debounceHandler();
                         });
@@ -90,9 +97,9 @@ import {ShowToastWithDelay} from "./toast";
                         });
                     }
                 });
-                tinymceLoaded = true;
+                tinymceInitialized = true;
             })();
-            return tinymceLoadingPromise;
+            return tinymceInitPromise;
         }
 
         function hideModal() {
@@ -103,7 +110,7 @@ import {ShowToastWithDelay} from "./toast";
             modalBackdrops.forEach(backdrop => {
                 backdrop.remove();
             })
-            if (tinymceLoaded) {
+            if (tinymceInitialized) {
                 (window as any).tinymce.get("addPostText")?.setContent("");
             }
         }
@@ -115,7 +122,7 @@ import {ShowToastWithDelay} from "./toast";
         }
 
         async function submitPost() {
-            if (!tinymceLoaded) return;
+            if (!tinymceInitialized) return;
 
             let payload = (window as any).tinymce.get("addPostText")?.getContent();
             if (!payload || payload.trim() === "") {
@@ -211,7 +218,7 @@ import {ShowToastWithDelay} from "./toast";
             }
         }
         async function checkSpiciness() {
-            if (!tinymceLoaded) return;
+            if (!tinymceInitialized) return;
             let quote = (window as any).tinymce.get("addPostText")?.getContent();
             if (!quote) return;
             // Strip HTML tags for spiciness check

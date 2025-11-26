@@ -1,6 +1,7 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/pages/home.scss";
 import "../components/addPost";
+import {preloadTinyMCE} from "../components/addPost";
 import "../components/menu";
 import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
 import {HttpGetJson} from "../util/network";
@@ -428,5 +429,6 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
         DOM.followersFeedDiv.style.display = "block";
         ShowNotifications(); // Load notifications in background - don't block page loading
         loadFollowersFeed().then();
+        preloadTinyMCE(); // Preload TinyMCE in background after page loads
     }
 })();
