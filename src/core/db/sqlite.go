@@ -1631,6 +1631,90 @@ func (db *SQLite) SearchGetProfiles(query string) []map[string]interface{} {
 	}
 	return profiles
 }
+func (db *SQLite) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
+	var profiles []map[string]interface{}
+	sqlQuery := `SELECT address, blockchain FROM onchain_meta ORDER BY RANDOM() LIMIT ?`
+	rows, err := db.runParamSQLSelect(sqlQuery, limit)
+	if err != nil {
+		core.LogDebug("Could not get random profiles from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var address, blockchain string
+		err = rows.Scan(&address, &blockchain)
+		if err != nil {
+			core.LogDebug("Could not parse random profiles from database rows: " + err.Error())
+			return nil
+		}
+		profile := map[string]interface{}{
+			"address":    address,
+			"blockchain": blockchain,
+		}
+		profiles = append(profiles, profile)
+	}
+	return profiles
+}
+func (db *SQLite) DiscoverGetTopByFollowers(limit int) []map[string]interface{} {
+	var profiles []map[string]interface{}
+	sqlQuery := `SELECT followeeAddress, followeeBlockchain, COUNT(*) as follower_count
+		FROM onchain_follow
+		GROUP BY followeeAddress, followeeBlockchain
+		ORDER BY follower_count DESC
+		LIMIT ?`
+	rows, err := db.runParamSQLSelect(sqlQuery, limit)
+	if err != nil {
+		core.LogDebug("Could not get top profiles by followers from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var address, blockchain string
+		var followerCount int
+		err = rows.Scan(&address, &blockchain, &followerCount)
+		if err != nil {
+			core.LogDebug("Could not parse top follower profiles from database rows: " + err.Error())
+			return nil
+		}
+		profile := map[string]interface{}{
+			"address":       address,
+			"blockchain":    blockchain,
+			"followerCount": followerCount,
+		}
+		profiles = append(profiles, profile)
+	}
+	return profiles
+}
+func (db *SQLite) DiscoverGetTopByPosts(limit int) []map[string]interface{} {
+	var profiles []map[string]interface{}
+	sqlQuery := `SELECT fromAddress, blockchain, COUNT(*) as post_count
+		FROM onchain_post
+		GROUP BY fromAddress, blockchain
+		ORDER BY post_count DESC
+		LIMIT ?`
+	rows, err := db.runParamSQLSelect(sqlQuery, limit)
+	if err != nil {
+		core.LogDebug("Could not get top profiles by posts from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var address, blockchain string
+		var postCount int
+		err = rows.Scan(&address, &blockchain, &postCount)
+		if err != nil {
+			core.LogDebug("Could not parse top post profiles from database rows: " + err.Error())
+			return nil
+		}
+		profile := map[string]interface{}{
+			"address":    address,
+			"blockchain": blockchain,
+			"postCount":  postCount,
+		}
+		profiles = append(profiles, profile)
+	}
+	return profiles
+}
 
 // --- Auth --- //
 func (db *SQLite) AuthGetNonceStatus(nonce string) string {

@@ -95,3 +95,34 @@
   color: map.get(global.$colors, "text");
   font-size: 1.1em;
 }
+#discoverSection {
+  width: 100%;
+  padding-top: 1.5em;
+}
+.discoverRow {
+  margin-bottom: 1.5em;
+}
+.discoverRowLabel {
+  color: map.get(global.$colors, "text");
+  font-weight: 600;
+  margin-bottom: 0.75em;
+  padding-left: 0.5em;
+  border-left: 3px solid map.get(global.$colors, "quaternary");
+}
+.discoverCol {
+  margin-bottom: 0.5em;
+}
+.discoverCol .profileCard {
+  height: 100%;
+  background-color: map.get(global.$colors, "secondary");
+  border: 1px solid map.get(global.$colors, "border");
+}
+.discoverCol .profileCardDescription {
+  display: none;
+}
+.discoverCol .profileCardAddress {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}

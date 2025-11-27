@@ -21,6 +21,10 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             resultsDiv: document.getElementById("resultsDiv")! as HTMLDivElement,
             followersFeedDiv: document.getElementById("followersFeedDiv")! as HTMLDivElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
+            discoverSection: document.getElementById("discoverSection")! as HTMLDivElement,
+            discoverRandomRow: document.getElementById("discoverRandomRow")! as HTMLDivElement,
+            discoverFollowersRow: document.getElementById("discoverFollowersRow")! as HTMLDivElement,
+            discoverPostsRow: document.getElementById("discoverPostsRow")! as HTMLDivElement,
         }
         type user = { // address is the map key
             blockchain: string,
@@ -134,12 +138,98 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                 console.error("Error loading followers feed:", error);
             }
         }
+        async function loadDiscoverProfiles() {
+            try {
+                let resp = await HttpGetJson("/discover");
+                if (resp[0] !== 200) {
+                    console.error("Failed to load discover profiles:", resp[0], resp[1]);
+                    return;
+                }
+                const data = resp[1];
+                await populateDiscoverRow(DOM.discoverRandomRow, data.random || []);
+                await populateDiscoverRow(DOM.discoverFollowersRow, data.byFollowers || []);
+                await populateDiscoverRow(DOM.discoverPostsRow, data.byPosts || []);
+            } catch (error) {
+                console.error("Error loading discover profiles:", error);
+            }
+        }
+        async function populateDiscoverRow(rowElement: HTMLDivElement, profiles: any[]) {
+            const columns = rowElement.querySelectorAll(".discoverCol");
+            for (let i = 0; i < Math.min(profiles.length, columns.length); i++) {
+                const profile = profiles[i];
+                const col = columns[i] as HTMLDivElement;
+                col.innerHTML = "";
+                profile.name = "Loading...";
+                profile.avatarSrc = "/static/image/avatar.png";
+                profile.description = "";
+                const profileCard = await CreateProfileCard(profile);
+                col.appendChild(profileCard);
+                fetchAndUpdateProfileCard(profileCard, profile.blockchain, profile.address);
+            }
+        }
+        async function fetchAndUpdateProfileCard(profileCard: HTMLDivElement, blockchain: string, address: string) {
+            const key = blockchain + address;
+            let cached = globalProfileCache.get(key);
+            if (cached === null) {
+                let name: string | null = null;
+                try {
+                    name = await WalletGetName(blockchain, address);
+                } catch (e) {
+                    console.warn("Failed to get ENS name:", e);
+                }
+                if (name === null || name.length === 0) {
+                    let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
+                    if (response[0] === 200 && response[1] && response[1].name && response[1].name.length > 0) {
+                        name = response[1].name;
+                    }
+                }
+                let avatarStr: string | null = null;
+                try {
+                    avatarStr = await WalletGetAvatar(blockchain, address);
+                } catch (e) {
+                    console.warn("Failed to get ENS avatar:", e);
+                }
+                if (!avatarStr || avatarStr === "") {
+                    let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
+                    if (response[0] === 200 && response[1] && response[1].avatarAddress) {
+                        const avatarAddress = response[1].avatarAddress.trim();
+                        if (avatarAddress.length > 0) {
+                            const avatarURL = CIDToSubdomainURL(avatarAddress);
+                            if (IsValidURL(avatarURL)) {
+                                avatarStr = avatarURL;
+                            }
+                        }
+                    }
+                }
+                globalProfileCache.set(key, {name, avatar: avatarStr || null, description: null, address, blockchain});
+                cached = globalProfileCache.get(key);
+            }
+            const profileData = cached as ProfileData;
+            const nameDiv = profileCard.querySelector('.profileCardName') as HTMLDivElement;
+            const avatarImg = profileCard.querySelector('img.profileCardAvatar') as HTMLImageElement;
+            if (nameDiv) nameDiv.textContent = profileData.name || "Unknown";
+            if (avatarImg) {
+                const defaultPath = "/static/image/avatar.png";
+                if (profileData.avatar) {
+                    const avatarUrl = XSSSanitizeUrl(profileData.avatar);
+                    avatarImg.onerror = () => {
+                        avatarImg.src = defaultPath;
+                        avatarImg.onerror = null;
+                    };
+                    avatarImg.src = avatarUrl;
+                } else {
+                    avatarImg.src = defaultPath;
+                }
+            }
+        }
         async function handleSearch() {
             DOM.resultsDiv.replaceChildren();
             DOM.followersFeedDiv.style.display = "none";
+            DOM.discoverSection.style.display = "none";
             let query = DOM.searchInput.value;
             if (query.length <= 0) {
                 DOM.followersFeedDiv.style.display = "block";
+                DOM.discoverSection.style.display = "block";
                 return;
             }
             DOM.resultsDiv.style.display = "block";
@@ -421,14 +511,17 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             DOM.resultsDiv.replaceChildren();
             DOM.resultsDiv.style.display = "none";
             DOM.followersFeedDiv.style.display = "block";
+            DOM.discoverSection.style.display = "block";
         });
 
         /* --- Initialize page variables and start loading --- */
         DOM.searchInput.value = "";
         DOM.resultsDiv.style.display = "none"; // Initialize followers feed on page load
         DOM.followersFeedDiv.style.display = "block";
+        DOM.discoverSection.style.display = "block";
         ShowNotifications(); // Load notifications in background - don't block page loading
         loadFollowersFeed().then();
+        loadDiscoverProfiles().then();
         preloadTinyMCE(); // Preload TinyMCE in background after page loads
     }
 })();

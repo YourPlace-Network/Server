@@ -434,6 +434,27 @@ func (db *Database) SearchGetProfiles(query string) []map[string]interface{} {
 	}
 	return nil
 }
+func (db *Database) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.DiscoverGetRandomProfiles(limit)
+	}
+	return nil
+}
+func (db *Database) DiscoverGetTopByFollowers(limit int) []map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.DiscoverGetTopByFollowers(limit)
+	}
+	return nil
+}
+func (db *Database) DiscoverGetTopByPosts(limit int) []map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.DiscoverGetTopByPosts(limit)
+	}
+	return nil
+}
 
 // --- Profile Functions --- //
 func (db *Database) ProfileGetName(address string, blockchain string) string {
