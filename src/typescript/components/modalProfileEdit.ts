@@ -84,7 +84,9 @@ export async function showProfileEditModal() {
             avatarLabel: document.querySelector('label[for="inputAvatar"]') as HTMLLabelElement,
             bannerLabel: document.querySelector('label[for="inputBanner"]') as HTMLLabelElement,
         }
-        let modal = new window.bootstrap.Modal(DOM.modalProfileEdit, {});
+        function getModalInstance() {
+            return window.bootstrap.Modal.getInstance(DOM.modalProfileEdit) || new window.bootstrap.Modal(DOM.modalProfileEdit, {});
+        }
         function isGatewayMode(): boolean {
             const hostname = window.location.hostname;
             const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
@@ -102,17 +104,17 @@ export async function showProfileEditModal() {
             DOM.modalProfileEdit.addEventListener("hidden.bs.modal", () => {
                 ShowDialogModalHTML(message);
             }, {once: true});
-            modal.hide();
+            getModalInstance().hide();
         }
         function showGatewayBannerMessage() {
             let message = "To change your banner, you need to <a href='https://yourplace.network/download' target='_blank'>download the YourPlace app</a> to host files yourself.";
             DOM.modalProfileEdit.addEventListener("hidden.bs.modal", () => {
                 ShowDialogModalHTML(message);
             }, {once: true});
-            modal.hide();
+            getModalInstance().hide();
         }
         function hideModalAndShowToast() {
-            modal.hide();
+            getModalInstance().hide();
             const modalBackdrops = document.querySelectorAll(".modal-backdrop");
             modalBackdrops.forEach(backdrop => backdrop.remove());
             ShowToastWithDelay("Your profile update should show up shortly. Please wait for it to spread through the network.", 10000);
