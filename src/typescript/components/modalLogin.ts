@@ -72,7 +72,16 @@ export function HideModalLogin() {
                     return;
                 }
                 if (window.location.pathname !== "/setup") {
-                    await WalletLogin();
+                    let loginResult = await WalletLogin();
+                    if (loginResult === "wallet_not_deployed") {
+                        // User is being shown deployment dialog - don't proceed with login callback
+                        return;
+                    }
+                    if (loginResult !== "success") {
+                        // Login failed or user cancelled - redirect to login page
+                        window.location.href = "/login";
+                        return;
+                    }
                 }
                 window.LoginCallback(status);
             }

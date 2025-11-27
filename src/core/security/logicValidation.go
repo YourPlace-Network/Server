@@ -324,18 +324,38 @@ func IsValidENSName(payload string) (bool, string) {
 	}
 	return true, blockchain
 }
-func IsValidERC6492Signature(payload string, signature string, address string) bool {
-	signatureBytes := []byte(signature)
-	var ERC6492_DETECTION_SUFFIX = "6492649264926492649264926492649264926492649264926492649264926492"
-	//var ERC6492_DETECTION_HASH = common.HexToHash("0x6492649264926492649264926492649264926492649264926492649264926492")
-	if len(signatureBytes) < 32 {
+func IsERC6492Signature(signature string) bool {
+	// Detects if signature is wrapped with EIP-6492 magic bytes for undeployed smart wallets
+	// Magic suffix: 0x6492649264926492649264926492649264926492649264926492649264926492
+	const ERC6492_DETECTION_SUFFIX = "6492649264926492649264926492649264926492649264926492649264926492"
+	if !strings.HasPrefix(signature, "0x") {
 		return false
 	}
-	suffix := hex.EncodeToString(signatureBytes[len(signatureBytes)-32:])
-	if !strings.EqualFold(suffix, ERC6492_DETECTION_SUFFIX) {
+	sigHex := signature[2:]
+	if len(sigHex) < 64 {
 		return false
 	}
-	return false // todo
+	suffix := sigHex[len(sigHex)-64:]
+	return strings.EqualFold(suffix, ERC6492_DETECTION_SUFFIX)
+}
+func IsContractDeployed(address string, database *db.Database) bool {
+	// Checks if a contract is deployed at the given address by calling eth_getCode
+	baseRPC := database.SettingsGetValue("baseURL")
+	client, err := ethclient.Dial(baseRPC)
+	if err != nil {
+		core.LogDebug("Failed to connect to Base RPC for contract check: " + err.Error())
+		return false
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	contractAddress := common.HexToAddress(address)
+	code, err := client.CodeAt(ctx, contractAddress, nil)
+	if err != nil {
+		core.LogDebug("Failed to get code at address: " + err.Error())
+		return false
+	}
+	return len(code) > 0
 }
 func IsValidEthSignature(payload string, signature string, address string) bool {
 	decodedSignature, err := hex.DecodeString(signature[2:])
@@ -392,11 +412,23 @@ func ValidateERC1271Signature(message string, signature string, address string, 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	contractAddress := common.HexToAddress(address)
-	hash := crypto.Keccak256([]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(message), message)))
 	sigBytes, err := hex.DecodeString(signature[2:])
 	if err != nil {
 		core.LogDebug("Failed to decode signature: " + err.Error())
 		return false
+	}
+	// Strip EIP-6492 wrapper if present to get the inner signature
+	const ERC6492_SUFFIX_LEN = 32
+	innerSigBytes := sigBytes
+	if len(sigBytes) > ERC6492_SUFFIX_LEN {
+		suffix := hex.EncodeToString(sigBytes[len(sigBytes)-ERC6492_SUFFIX_LEN:])
+		if strings.EqualFold(suffix, "6492649264926492649264926492649264926492649264926492649264926492") {
+			core.LogDebug("Stripping EIP-6492 wrapper from signature")
+			// EIP-6492 format: abi.encode((factory, factoryCalldata, originalSig), magicBytes)
+			// We need to decode and extract the original signature
+			// For now, try using the full signature as some wallets handle this internally
+			innerSigBytes = sigBytes[:len(sigBytes)-ERC6492_SUFFIX_LEN]
+		}
 	}
 	bytes32Type, _ := abi.NewType("bytes32", "", nil)
 	bytesType, _ := abi.NewType("bytes", "", nil)
@@ -404,12 +436,38 @@ func ValidateERC1271Signature(message string, signature string, address string, 
 		{Type: bytes32Type},
 		{Type: bytesType},
 	}
+	methodID := crypto.Keccak256([]byte("isValidSignature(bytes32,bytes)"))[:4]
+	// Try EIP-191 prefixed hash first (standard for personal_sign messages)
+	eip191Hash := crypto.Keccak256([]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(message), message)))
+	core.LogDebug("Trying ERC-1271 with EIP-191 hash: " + hex.EncodeToString(eip191Hash))
+	if tryERC1271Call(client, ctx, contractAddress, eip191Hash, innerSigBytes, arguments, methodID, ERC1271_MAGIC_VALUE) {
+		core.LogDebug("ERC-1271 validation succeeded with EIP-191 hash")
+		return true
+	}
+	// Try raw message hash (some smart wallets expect this)
+	rawHash := crypto.Keccak256([]byte(message))
+	core.LogDebug("Trying ERC-1271 with raw hash: " + hex.EncodeToString(rawHash))
+	if tryERC1271Call(client, ctx, contractAddress, rawHash, innerSigBytes, arguments, methodID, ERC1271_MAGIC_VALUE) {
+		core.LogDebug("ERC-1271 validation succeeded with raw hash")
+		return true
+	}
+	// Try with full signature including EIP-6492 wrapper (wallet may handle internally)
+	if len(innerSigBytes) != len(sigBytes) {
+		core.LogDebug("Trying ERC-1271 with full EIP-6492 wrapped signature")
+		if tryERC1271Call(client, ctx, contractAddress, eip191Hash, sigBytes, arguments, methodID, ERC1271_MAGIC_VALUE) {
+			core.LogDebug("ERC-1271 validation succeeded with full wrapped signature")
+			return true
+		}
+	}
+	core.LogDebug("All ERC-1271 validation attempts failed")
+	return false
+}
+func tryERC1271Call(client *ethclient.Client, ctx context.Context, contractAddress common.Address, hash []byte, sigBytes []byte, arguments abi.Arguments, methodID []byte, magicValue string) bool {
 	callData, err := arguments.Pack(common.BytesToHash(hash), sigBytes)
 	if err != nil {
 		core.LogDebug("Failed to pack isValidSignature call: " + err.Error())
 		return false
 	}
-	methodID := crypto.Keccak256([]byte("isValidSignature(bytes32,bytes)"))[:4]
 	fullCallData := append(methodID, callData...)
 	msg := map[string]interface{}{
 		"to":   contractAddress.Hex(),
@@ -425,7 +483,7 @@ func ValidateERC1271Signature(message string, signature string, address string, 
 		return false
 	}
 	returnValue := hex.EncodeToString(result[:4])
-	return strings.EqualFold(returnValue, ERC1271_MAGIC_VALUE)
+	return strings.EqualFold(returnValue, magicValue)
 }
 func IsValidHex(payload string) bool {
 	_, err := hex.DecodeString(payload)

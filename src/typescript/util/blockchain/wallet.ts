@@ -21,6 +21,10 @@ export async function WalletLogin() {
         case "cbwalletbase":
             LogInfo("Logging in to Base wallet - WalletLogin()");
             let loginStatus = await baseAuthLogin();
+            if (loginStatus === "wallet_not_deployed") {
+                // User is being shown a dialog to deploy their wallet - don't treat as error
+                return "wallet_not_deployed";
+            }
             if (loginStatus !== "success") {
                 LogError("Failed to login to Base wallet: " + loginStatus);
                 return "";

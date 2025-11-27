@@ -122,6 +122,26 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 		_, err = message.Verify(payload.Signature, nil, nil, nil)
 		if err != nil {
 			core.LogDebug("EIP-191 verification failed, trying ERC-1271 for smart wallet: " + err.Error())
+			// Check if this is an EIP-6492 signature (undeployed smart wallet)
+			isERC6492 := security.IsERC6492Signature(payload.Signature)
+			isDeployed := security.IsContractDeployed(payload.Address, database)
+			core.LogDebug("Signature analysis: EIP-6492=" + strconv.FormatBool(isERC6492) + ", ContractDeployed=" + strconv.FormatBool(isDeployed))
+			if isERC6492 && !isDeployed {
+				core.LogDebug("Detected undeployed smart wallet with EIP-6492 signature - wallet deployment required")
+				c.AbortWithStatusJSON(http.StatusPreconditionRequired, gin.H{
+					"status": "wallet_not_deployed",
+					"error":  "Smart wallet not deployed. Please send a transaction to deploy your wallet first.",
+				})
+				return
+			}
+			if !isDeployed {
+				core.LogDebug("Contract not deployed at address, cannot verify ERC-1271 signature")
+				c.AbortWithStatusJSON(http.StatusPreconditionRequired, gin.H{
+					"status": "wallet_not_deployed",
+					"error":  "Smart wallet not deployed. Please send a transaction to deploy your wallet first.",
+				})
+				return
+			}
 			if !security.ValidateERC1271Signature(payload.Message, payload.Signature, payload.Address, database) {
 				core.LogDebug("Both EIP-191 and ERC-1271 signature verification failed")
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid signature"})

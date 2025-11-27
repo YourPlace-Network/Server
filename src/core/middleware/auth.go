@@ -17,10 +17,12 @@ import (
 var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/", "GET"},
 	{"/setup", "GET"}, {"/setup/installed", "GET"}, {"/setup", "POST"},
+	{"/discover", "GET"},
 	{"/favicon.ico", "GET"},
 	{"/ping", "GET"},
 	{"/mentalHealth", "GET"},
 	{"/faq", "GET"},
+	{"/notification", "GET"},
 	{"/robots.txt", "GET"},
 	{"/settings/base", "GET"}, {"/settings/ipfs/port", "GET"}, {"/settings/base/url", "GET"}, {"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"},
 	{"/s/", "GET"},

@@ -57,3 +57,15 @@ export function EnableDialogModalExit() {
     modalDialog.removeAttribute("data-bs-backdrop");
     modalDialog.removeAttribute("data-bs-keyboard");
 }
+export function ShowDialogModalWithCallback(message: string, onOk: () => void) {
+    document.getElementById("modalDialogContent")!.textContent = message;
+    let element = document.getElementById("modalDialog")!;
+    let okBtn = element.querySelector(".yp-modal-btn")! as HTMLButtonElement;
+    let modal = window.bootstrap.Modal.getOrCreateInstance(element);
+    const handleOk = () => {
+        okBtn.removeEventListener("click", handleOk);
+        onOk();
+    };
+    okBtn.addEventListener("click", handleOk);
+    modal.show();
+}

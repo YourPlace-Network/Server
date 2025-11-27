@@ -15,7 +15,6 @@ import {
     getConnections,
     http as wagmiHttp,
     readContract,
-    sendTransaction,
     signMessage,
 } from "@wagmi/core";
 import {base as wagmiBase} from "@wagmi/core/chains";
@@ -159,6 +158,19 @@ export async function baseAuthLogin(): Promise<string> {
     };
     const response2 = await HttpPostJson("/login/wallet/base", loginPayload, csrfToken);
     LogInfo(`Login response: status=${response2[0]}, body=${JSON.stringify(response2[1])}`);
+    // Handle undeployed smart wallet - prompt user to deploy
+    if (response2[0] === 428 && response2[1]?.status === "wallet_not_deployed") {
+        LogInfo("Smart wallet not deployed, prompting user to deploy...");
+        const {ShowDialogModalWithCallback} = await import("../../components/modalDialog");
+        ShowDialogModalWithCallback(
+            "Your Coinbase Smart Wallet needs to be deployed before you can sign in. Click OK to open the Coinbase wallet deployment page.",
+            () => {
+                window.open("https://keys.coinbase.com/settings/deploy-wallet", "_blank");
+                window.location.href = "/login";
+            }
+        );
+        return "wallet_not_deployed";
+    }
     if (response2[0] != 200) {
         LogError("Failed to login with Base: " + JSON.stringify(response2[1]));
         await Sleep(3000);
