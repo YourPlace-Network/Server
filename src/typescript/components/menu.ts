@@ -2,7 +2,8 @@ import "bootstrap/dist/js/bootstrap.bundle";
 import "../../scss/components/menu.scss";
 import {DisconnectWallet, GetAddress, GetChain, WalletGetAvatar, WalletIsConnected} from "../util/blockchain/wallet";
 import {XSSSanitizeUrl} from "../util/security";
-import {CIDToSubdomainURL} from "../util/ipfs";
+import {getIpfsAvatarUrl} from "../util/ipfs";
+import {IsGatewayMode} from "../util/miscellaneous";
 
 declare global {
     interface Window {
@@ -65,14 +66,17 @@ declare global {
             let blockchain = GetChain();
             let address = GetAddress();
             if (blockchain && address) {
-                let avatar = await WalletGetAvatar(blockchain, address);
+                let avatar: string | null = null;
+                if (IsGatewayMode()) {
+                    avatar = await getIpfsAvatarUrl(blockchain, address);
+                }
+                if (!avatar) {
+                    avatar = await WalletGetAvatar(blockchain, address);
+                }
                 if (avatar) {
-                    let cidURL = CIDToSubdomainURL(avatar.toString());
-                    if (cidURL) {
-                        DOM.menuAvatar.src = cidURL;
-                    } else {
-                        DOM.menuAvatar.src = XSSSanitizeUrl(avatar.toString());
-                    }
+                    DOM.menuAvatar.src = XSSSanitizeUrl(avatar);
+                } else {
+                    DOM.menuAvatar.src = "/static/image/avatar.png";
                 }
             } else {
                 DOM.menuAvatar.src = "/static/image/avatar.png";
