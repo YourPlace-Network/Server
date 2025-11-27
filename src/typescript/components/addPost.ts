@@ -8,6 +8,7 @@ import {UploadFile} from "../util/files";
 import {AddFileToIPFS} from "../util/ipfs";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 import {ShowToastWithDelay} from "./toast";
+import {ShowDialogModalHTML} from "./modalDialog";
 // TinyMCE will be lazy loaded when needed
 let tinymceModulePromise: Promise<any> | null = null;
 
@@ -42,19 +43,20 @@ export async function preloadTinyMCE() {
                    hostname === '[::1]';
         }
 
-        function disableUploadInGatewayMode() {
-            if (DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost()) {
-                DOM.uploadFileButton.disabled = true;
-                DOM.uploadFileButton.style.opacity = "0.5";
-                DOM.uploadFileButton.style.cursor = "not-allowed";
-                DOM.uploadFileButton.setAttribute("data-bs-original-title", "File uploads are disabled on this gateway.<br>Download your own server at <a href='https://yourplace.network/download' target='_blank' style='color: #fff; text-decoration: underline;'>yourplace.network/download</a> to enable file uploading");
-            }
+        function isGatewayMode(): boolean {
+            return DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost();
+        }
+        function showGatewayUploadDialog() {
+            hideModal();
+            ShowDialogModalHTML(
+                "To attach a file to a post, you need to host your own YourPlace server.<br><br>" +
+                "<a href=\"https://yourplace.network/download\" target=\"_blank\" rel=\"noopener noreferrer\">Download YourPlace</a>"
+            );
         }
 
         let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
 
-        disableUploadInGatewayMode();
         let postObj = {postText: "", fileHash: "", status: "", cid: "", extension: ""}
         let addPostModal = new window.bootstrap.Modal(DOM.addPostModal, {});
         let uploadedFiles: fileData[] = [];
@@ -257,6 +259,10 @@ export async function preloadTinyMCE() {
         };
         const debounceHandler = debounce(handleInput, 2000);
         function clickFileInput() {
+            if (isGatewayMode()) {
+                showGatewayUploadDialog();
+                return;
+            }
             DOM.fileInput.click();
         }
 

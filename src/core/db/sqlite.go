@@ -29,7 +29,6 @@ type SQLite struct {
 const (
 	burnAddressETH      = "0x0000000000000000000000000000000000000000"
 	burnAddressShortETH = "0x0"
-	schemaVersion       = 1
 )
 
 func (db *SQLite) Init(path string) {
@@ -61,8 +60,11 @@ func (db *SQLite) Init(path string) {
 	if err != nil {
 		core.LogDebug("Could not create tables: " + err.Error())
 	}
-	// Check and run migrations
-	db.checkAndRunMigrations()
+	// Check and run schema migrations (see schema.go)
+	if err := db.RunMigrations(); err != nil {
+		core.LogFatal("Schema migration failed: " + err.Error())
+		return
+	}
 }
 
 // --- SQL --- //
@@ -217,8 +219,20 @@ func (db *SQLite) withTransaction(fn func(*sql.Tx) error) error {
 	}
 	return nil
 }
+
+// createTables creates all database tables using CREATE TABLE IF NOT EXISTS.
+// These table definitions should always reflect the LATEST schema version.
+//
+// When modifying the database schema:
+//  1. Update the CREATE TABLE statement(s) below to the new structure
+//  2. Increment SchemaVersion in schema.go
+//  3. Add a migration function in schema.go to ALTER existing tables
+//
+// This ensures:
+//   - Fresh installs get the latest schema directly (no migrations needed)
+//   - Existing databases are upgraded via migrations in schema.go
 func (db *SQLite) createTables(ctx context.Context) error {
-	// Tables schema map
+	// Tables schema map - keep at LATEST schema version
 	tables := map[string]string{
 		"meta":          "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
@@ -271,25 +285,6 @@ func (db *SQLite) setSchemaVersion(version int) {
 	_, err := db.runParamSQLUpdate(query, "schema_version", fmt.Sprintf("%d", version))
 	if err != nil {
 		core.LogDebug("Could not set schema version: " + err.Error())
-	}
-}
-func (db *SQLite) checkAndRunMigrations() {
-	dbVersion := db.getSchemaVersion()
-	if dbVersion > schemaVersion {
-		core.LogFatal(fmt.Sprintf("Database schema version (%d) is ahead of binary schema version (%d). Please upgrade the binary.", dbVersion, schemaVersion))
-		return
-	}
-	if dbVersion < schemaVersion {
-		core.LogDebug(fmt.Sprintf("Running database migrations from version %d to %d", dbVersion, schemaVersion))
-		for version := dbVersion + 1; version <= schemaVersion; version++ {
-			core.LogDebug(fmt.Sprintf("Running migration to version %d", version))
-			switch version {
-			case 1:
-				// Migration 1: Add blockchain column to file_txn_hash if missing
-			}
-			db.setSchemaVersion(version)
-		}
-		core.LogDebug("Database migrations completed successfully")
 	}
 }
 func (db *SQLite) runExternalSQLFile(path string) {
@@ -2138,7 +2133,7 @@ func (db *SQLite) OnchainMB(blockchain string, address string, banner string, ti
 }
 func (db *SQLite) OnchainMBD(blockchain string, address string, birthdate uint64, timestamp uint64) {
 	query := "INSERT INTO onchain_meta (blockchain, address, birthdate, birthdateTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET birthdate = excluded.birthdate, birthdateTimestamp = excluded.birthdateTimestamp WHERE excluded.birthdateTimestamp > birthdateTimestamp"
-	_, err := db.runParamSQLUpdate(query, blockchain, address, birthdate, timestamp)
+	_, err := db.runParamSQLUpdate(query, blockchain, address, int64(birthdate), int64(timestamp))
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
@@ -2230,16 +2225,16 @@ func (db *SQLite) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64
 }
 
 // --- Followers Feed --- //
-func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int) []map[string]interface{} {
+func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int, offset int) []map[string]interface{} {
 	var posts []map[string]interface{}
-	query := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, p.blockchain 
-			  FROM onchain_post p 
-			  INNER JOIN onchain_follow f ON p.fromAddress = f.followeeAddress AND p.blockchain = f.followeeBlockchain 
-			  WHERE f.followerAddress = LOWER(?) AND f.followerBlockchain = ? AND p.data IS NOT NULL 
-			  ORDER BY p.timestamp DESC 
-			  LIMIT ?`
+	query := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, p.blockchain
+			  FROM onchain_post p
+			  INNER JOIN onchain_follow f ON p.fromAddress = f.followeeAddress AND p.blockchain = f.followeeBlockchain
+			  WHERE f.followerAddress = LOWER(?) AND f.followerBlockchain = ? AND p.data IS NOT NULL
+			  ORDER BY p.timestamp DESC
+			  LIMIT ? OFFSET ?`
 
-	rows, err := db.runParamSQLSelect(query, followerAddress, followerBlockchain, limit)
+	rows, err := db.runParamSQLSelect(query, followerAddress, followerBlockchain, limit, offset)
 	if err != nil {
 		core.LogDebug("Could not get followers feed from database: " + err.Error())
 		return nil

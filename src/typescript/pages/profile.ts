@@ -12,7 +12,7 @@ import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
 import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetDescription, WalletGetName, WalletSendPostNudge, WalletFollowUser, WalletUnfollowUser, GetChain} from "../util/blockchain/wallet";
-import {CreatePostCard} from "../util/domFactory";
+import {CreatePostCard, processTextWithTags} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {CIDToSubdomainURL, loadImageWithTimeout} from "../util/ipfs";
 import PersistentCache from "../util/cache";
@@ -74,6 +74,8 @@ declare global { // Extend the window interface with public objects
         }
         let copiedTooltip: any;
         let isFollowing = false;
+        let refreshIntervalId: ReturnType<typeof setInterval> | null = null;
+        const REFRESH_INTERVAL_MS = 60000; // 60 seconds
         const profileCache = new PersistentCache({
             defaultTtl: 3600000, // 60 minutes
             keyPrefix: "profile_"
@@ -137,6 +139,63 @@ declare global { // Extend the window interface with public objects
                     postDiv.classList.add("shaded");
                 }
                 DOM.contentDiv.appendChild(postDiv);
+            }
+        }
+        async function refreshProfileData() { // Refreshes profile data and posts without full page reload
+            let requestedAddress = DOM.injectedAddress.value;
+            let requestedBlockchain = DOM.injectedBlockchain.value;
+            if (!requestedAddress || !IsValidAddress(requestedAddress, requestedBlockchain)) {
+                return;
+            }
+            const profileKey = `${requestedBlockchain}_${requestedAddress}`;
+            try {
+                // Fetch fresh profile data (bypass cache)
+                const [profileResponse, posts] = await Promise.all([
+                    HttpGetJson(`/profile/data/${requestedBlockchain}/${requestedAddress}`),
+                    FetchPosts(requestedBlockchain, requestedAddress)
+                ]);
+                // Update profile data if successful
+                if (profileResponse[0] === 200 && profileResponse[1]?.profileData) {
+                    const profileData = profileResponse[1].profileData;
+                    profileCache.set(profileKey, { profileData });
+                    await renderProfileFromCache(profileData, requestedBlockchain, requestedAddress);
+                }
+                // Update posts - compare count to detect changes
+                const currentPostCount = Number(DOM.postsNum.textContent);
+                const newPostCount = posts ? posts.length : 0;
+                if (newPostCount !== currentPostCount || newPostCount > 0) {
+                    // Clear existing posts and re-render
+                    const existingPosts = DOM.contentDiv.querySelectorAll('.postCard');
+                    existingPosts.forEach(post => post.remove());
+                    if (posts && posts.length > 0) {
+                        DOM.postsNum.textContent = String(posts.length);
+                        for (let i = 0; i < posts.length; i++) {
+                            let postDiv = await CreatePostCard(posts[i]);
+                            if (i % 2 === 0) {
+                                postDiv.classList.add("shaded");
+                            }
+                            DOM.contentDiv.appendChild(postDiv);
+                        }
+                    } else {
+                        DOM.postsNum.textContent = "0";
+                    }
+                }
+                // Update guest view state (follow button, placeholder visibility)
+                await renderGuestView();
+            } catch (error) {
+                LogError("Profile refresh failed: " + error);
+            }
+        }
+        function startAutoRefresh() {
+            if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+            }
+            refreshIntervalId = setInterval(refreshProfileData, REFRESH_INTERVAL_MS);
+        }
+        function stopAutoRefresh() {
+            if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+                refreshIntervalId = null;
             }
         }
 
@@ -301,12 +360,14 @@ declare global { // Extend the window interface with public objects
         async function renderProfileDescriptionFromData(description: string, blockchain: string, address: string) {
             if (description && description.length > 0) {
                 DOM.profileDescription.textContent = description;
+                processTextWithTags(DOM.profileDescription);
                 return;
             }
             try {
                 const ensDescription = await WalletGetDescription(blockchain, address);
                 if (ensDescription && ensDescription.length > 0) {
                     DOM.profileDescription.textContent = ensDescription;
+                    processTextWithTags(DOM.profileDescription);
                     const profileKey = `${blockchain}_${address}`;
                     const cached = profileCache.get(profileKey);
                     if (cached && cached.profileData) {
@@ -440,8 +501,19 @@ declare global { // Extend the window interface with public objects
             }
         });
 
+        // Cleanup auto-refresh on page unload
+        window.addEventListener("beforeunload", stopAutoRefresh);
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else {
+                startAutoRefresh();
+            }
+        });
+
         init().then(() => {
             preloadTinyMCE(); // Preload TinyMCE in background after page loads
+            startAutoRefresh(); // Start auto-refresh after initial load
         });
     }
 })();

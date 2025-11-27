@@ -44,7 +44,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		var addressParam string
 
 		if len(segments) == 1 {
-			name := segments[0]
+			name := strings.ToLower(segments[0])
 			var valid bool
 			var err error
 			valid, blockchainParam = security.IsValidENSName(name)

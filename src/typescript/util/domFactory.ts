@@ -10,6 +10,76 @@ import {ShowModalMediaViewer} from "../components/modalMediaViewer";
 import {base64decode} from "byte-base64";
 import {LogError} from "./log";
 
+interface TagPattern {
+    regex: RegExp;
+    createLink: (match: string) => HTMLAnchorElement | null;
+}
+const tagPatterns: TagPattern[] = [
+    {
+        regex: /(^|\s)@(\S+?)(?=\s|$)/g,
+        createLink: (username: string) => {
+            if (IsValidURL(username)) return null;
+            const link = document.createElement("a");
+            link.href = "/p/" + encodeURIComponent(username);
+            link.textContent = "@" + username;
+            link.classList.add("mention-link");
+            return link;
+        }
+    }
+];
+export function processTextWithTags(element: HTMLElement): void {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
+    const textNodes: Text[] = [];
+    let node: Text | null;
+    while ((node = walker.nextNode() as Text | null)) {
+        textNodes.push(node);
+    }
+    for (const textNode of textNodes) {
+        const text = textNode.textContent || "";
+        const fragment = document.createDocumentFragment();
+        let lastIndex = 0;
+        let hasMatches = false;
+        const allMatches: { index: number; length: number; beforeSpace: string; tag: string; pattern: TagPattern }[] = [];
+        for (const pattern of tagPatterns) {
+            pattern.regex.lastIndex = 0;
+            let match;
+            while ((match = pattern.regex.exec(text)) !== null) {
+                allMatches.push({
+                    index: match.index,
+                    length: match[0].length,
+                    beforeSpace: match[1],
+                    tag: match[2],
+                    pattern: pattern
+                });
+            }
+        }
+        allMatches.sort((a, b) => a.index - b.index);
+        for (const match of allMatches) {
+            if (match.index < lastIndex) continue;
+            hasMatches = true;
+            if (match.index > lastIndex) {
+                fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+            }
+            if (match.beforeSpace) {
+                fragment.appendChild(document.createTextNode(match.beforeSpace));
+            }
+            const link = match.pattern.createLink(match.tag);
+            if (link) {
+                fragment.appendChild(link);
+            } else {
+                fragment.appendChild(document.createTextNode(text.slice(match.index + match.beforeSpace.length, match.index + match.length)));
+            }
+            lastIndex = match.index + match.length;
+        }
+        if (hasMatches) {
+            if (lastIndex < text.length) {
+                fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+            }
+            textNode.parentNode?.replaceChild(fragment, textNode);
+        }
+    }
+}
+
 async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLElement) {
     const blockchainInput = cardElement.querySelector('.postCardBlockchain, .profileCardBlockchain') as HTMLInputElement;
     const addressInput = cardElement.querySelector('.postCardAddress, .profileCardAddressInput') as HTMLInputElement;
@@ -248,6 +318,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     }
     // Post Rendering
     postTextDiv.innerHTML = XSSSanitizeTinyMCEHtml(postText);
+    processTextWithTags(postTextDiv);
     return postDiv;
 }
 export async function CreateProfileCard (profileData: any): Promise<HTMLDivElement>{
@@ -273,14 +344,16 @@ export async function CreateProfileCard (profileData: any): Promise<HTMLDivEleme
     avatarImg.referrerPolicy = "no-referrer";
     avatarImg.src = XSSSanitizeUrl(profileData.avatarSrc);
     nameDiv.classList.add("profileCardName");
-    nameDiv.textContent = profileData.name;
+    nameDiv.textContent = profileData.name || "Anonymous";
     addressDiv.classList.add("profileCardAddress");
-    addressDiv.textContent = profileData.address;
+    const addr = profileData.address;
+    addressDiv.textContent = addr.length > 12 ? addr.slice(0, 6) + "..." + addr.slice(-4) : addr;
     addressInput.type = "hidden";
     addressInput.classList.add("profileCardAddressInput");
     addressInput.value = XSSSanitizeValue(profileData.address);
     descriptionDiv.classList.add("profileCardDescription");
-    descriptionDiv.textContent = profileData.description;
+    descriptionDiv.textContent = profileData.description || "";
+    processTextWithTags(descriptionDiv);
     profileBlockchain.type = "hidden";
     profileBlockchain.classList.add("profileCardBlockchain");
     profileBlockchain.value = XSSSanitizeValue(profileData.blockchain);

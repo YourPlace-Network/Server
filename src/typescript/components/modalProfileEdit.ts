@@ -8,6 +8,7 @@ import "flatpickr/dist/flatpickr.min.css";
 import "flatpickr/dist/themes/material_blue.css";
 import DOMPurify from "dompurify";
 import {ShowToastWithDelay} from "./toast";
+import {ShowDialogModalHTML} from "./modalDialog";
 
 export async function showProfileEditModal() {
     let DOM = {
@@ -78,8 +79,36 @@ export async function showProfileEditModal() {
             profileWebsite: document.getElementById("profileWebsite")! as HTMLAnchorElement,
             profileBirthday: document.getElementById("profileBirthday")! as HTMLDivElement,
             modalProfileEdit: document.getElementById("modalProfileEdit")! as HTMLDivElement,
+            gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement,
+            injectedBlockchain: document.getElementById("injectedBlockchain") as HTMLInputElement,
+            avatarLabel: document.querySelector('label[for="inputAvatar"]') as HTMLLabelElement,
+            bannerLabel: document.querySelector('label[for="inputBanner"]') as HTMLLabelElement,
         }
         let modal = new window.bootstrap.Modal(DOM.modalProfileEdit, {});
+        function isGatewayMode(): boolean {
+            const hostname = window.location.hostname;
+            const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+            return DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost;
+        }
+        function showGatewayAvatarMessage() {
+            modal.hide();
+            document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
+            const blockchain = DOM.injectedBlockchain?.value?.toLowerCase() || "";
+            let message = "To change your avatar, you can either:<br><br>";
+            message += "• <a href='https://yourplace.network/download' target='_blank'>Download the YourPlace app</a> to host files yourself<br><br>";
+            if (blockchain === "base") {
+                message += "• Edit your avatar at <a href='https://www.base.org/names' target='_blank'>base.org/names</a> using your Basename";
+            } else {
+                message += "• Use a blockchain name service that supports avatar images";
+            }
+            ShowDialogModalHTML(message);
+        }
+        function showGatewayBannerMessage() {
+            modal.hide();
+            document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
+            let message = "To change your banner, you need to <a href='https://yourplace.network/download' target='_blank'>download the YourPlace app</a> to host files yourself.";
+            ShowDialogModalHTML(message);
+        }
         function hideModalAndShowToast() {
             modal.hide();
             const modalBackdrops = document.querySelectorAll(".modal-backdrop");
@@ -107,15 +136,13 @@ export async function showProfileEditModal() {
         async function updateAvatar() {
             let file = DOM.inputAvatar.files![0];
             let result = await UploadFile(file, DOM.csrfToken.value); // send file to server
-            if (result[0] == 200) {
-                if (result[1].status == "success") {
-                    // todo
-                    // File upload responses contain arrays now, response[1].data[i] is one file object. Look in files.go.
-                    /*try {
-                        await WalletSetAvatar("ipfs://" + result[1].cid);
-                    } catch (e) {
-                        LogError("Failed to set avatar: " + e);
-                    }*/
+            if (result[0] == 200 && result[1].status == "success" && result[1].data && result[1].data.length > 0) {
+                try {
+                    await WalletSetAvatar("ipfs://" + result[1].data[0].cid);
+                    hideModalAndShowToast();
+                    return;
+                } catch (e) {
+                    LogError("Failed to set avatar: " + e);
                 }
             }
             LogError("Failed to upload avatar: " + result[1].status);
@@ -183,12 +210,46 @@ export async function showProfileEditModal() {
             }
         }
 
+        if (DOM.avatarLabel) {
+            DOM.avatarLabel.addEventListener("click", (e) => {
+                if (isGatewayMode()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showGatewayAvatarMessage();
+                }
+            });
+        }
+        DOM.inputAvatar.addEventListener("click", (e) => {
+            if (isGatewayMode()) {
+                e.preventDefault();
+                e.stopPropagation();
+                showGatewayAvatarMessage();
+            }
+        });
         DOM.inputAvatar.addEventListener("change", () => {
+            if (isGatewayMode()) return;
             let file = DOM.inputAvatar.files![0];
             DOM.avatarPreview.src = URL.createObjectURL(file);
             updateAvatar().then();
         })
+        if (DOM.bannerLabel) {
+            DOM.bannerLabel.addEventListener("click", (e) => {
+                if (isGatewayMode()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showGatewayBannerMessage();
+                }
+            });
+        }
+        DOM.inputBanner.addEventListener("click", (e) => {
+            if (isGatewayMode()) {
+                e.preventDefault();
+                e.stopPropagation();
+                showGatewayBannerMessage();
+            }
+        });
         DOM.inputBanner.addEventListener("change", () => {
+            if (isGatewayMode()) return;
             let file = DOM.inputBanner.files![0];
             DOM.bannerPreview.src = URL.createObjectURL(file)
             updateBanner().then();

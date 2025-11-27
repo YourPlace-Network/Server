@@ -553,10 +553,10 @@ func (db *Database) ProfileIsFollower(address string, blockchain string, followe
 	}
 	return false
 }
-func (db *Database) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int) []map[string]interface{} {
+func (db *Database) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int, offset int) []map[string]interface{} {
 	switch db.Engine {
 	case "sqlite":
-		return db.sqlite.GetFollowersFeed(followerAddress, followerBlockchain, limit)
+		return db.sqlite.GetFollowersFeed(followerAddress, followerBlockchain, limit, offset)
 	}
 	return nil
 }

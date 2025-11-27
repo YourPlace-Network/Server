@@ -20,48 +20,105 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             searchClearBtn: document.getElementById("searchClearBtn")! as HTMLButtonElement,
             resultsDiv: document.getElementById("resultsDiv")! as HTMLDivElement,
             followersFeedDiv: document.getElementById("followersFeedDiv")! as HTMLDivElement,
+            followersFeedSection: document.getElementById("followersFeedSection")! as HTMLDivElement,
+            feedTopBtn: document.getElementById("feedTopBtn")! as HTMLButtonElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
             discoverSection: document.getElementById("discoverSection")! as HTMLDivElement,
             discoverRandomRow: document.getElementById("discoverRandomRow")! as HTMLDivElement,
             discoverFollowersRow: document.getElementById("discoverFollowersRow")! as HTMLDivElement,
             discoverPostsRow: document.getElementById("discoverPostsRow")! as HTMLDivElement,
         }
+        const FEED_PAGE_SIZE = 25;
+        let feedOffset = 0;
+        let feedLoading = false;
+        let feedHasMore = true;
+        let feedNewestTimestamp: number | null = null;
+        const loadedTxHashes = new Set<string>();
         type user = { // address is the map key
             blockchain: string,
             avatar: string,
             name: string,
         }
 
-        async function loadFollowersFeed() {
+        async function loadFollowersFeed(mode: "initial" | "more" | "refresh" = "initial") {
             if (DOM.isCookieAuthenticated.value !== "true") {
+                DOM.followersFeedSection.style.display = "none";
                 return;
             }
-            
+            if (feedLoading) return;
+            if (mode === "more" && !feedHasMore) return;
+            feedLoading = true;
             try {
-                // Get current user's address and blockchain from wallet functions
                 const userAddress = GetAddress();
                 const userBlockchain = GetChain();
                 if (!userAddress || !userBlockchain) {
+                    DOM.followersFeedSection.style.display = "none";
                     return;
                 }
-                DOM.followersFeedDiv.replaceChildren();
-                let resp = await HttpGetJson(`/feed/${userBlockchain}/${userAddress}?limit=20`);
+                if (mode === "initial") {
+                    DOM.followersFeedDiv.replaceChildren();
+                    feedOffset = 0;
+                    feedHasMore = true;
+                    feedNewestTimestamp = null;
+                    loadedTxHashes.clear();
+                }
+                const requestOffset = mode === "refresh" ? 0 : feedOffset;
+                let resp = await HttpGetJson(`/feed/${userBlockchain}/${userAddress}?limit=${FEED_PAGE_SIZE + 1}&offset=${requestOffset}`);
                 if (resp[0] !== 200 || !resp[1].posts) {
                     return;
                 }
                 let posts: any[] = resp[1].posts;
+                // Check if there are more posts (we requested one extra)
+                if (mode !== "refresh") {
+                    feedHasMore = posts.length > FEED_PAGE_SIZE;
+                    if (feedHasMore) {
+                        posts = posts.slice(0, FEED_PAGE_SIZE);
+                    }
+                    feedOffset += posts.length;
+                }
+                // Filter out already loaded posts
+                posts = posts.filter(post => !loadedTxHashes.has(post.txHash));
+                if (posts.length === 0) {
+                    return;
+                }
+                // Track loaded posts and update newest timestamp
+                posts.forEach(post => {
+                    loadedTxHashes.add(post.txHash);
+                    if (feedNewestTimestamp === null || post.timestamp > feedNewestTimestamp) {
+                        feedNewestTimestamp = post.timestamp;
+                    }
+                });
                 const pendingCards: HTMLDivElement[] = [];
-                // Create all cards with placeholder data first
+                // Create all cards with placeholder data
                 for (let i = 0; i < posts.length; i++) {
                     posts[i].author = "Loading...";
                     posts[i].avatarSrc = "/static/image/avatar.png";
                     let postDiv = await CreatePostCard(posts[i]);
-                    if (i % 2 === 0) {
-                        postDiv.classList.add("shaded");
-                    }
                     pendingCards.push(postDiv);
-                    DOM.followersFeedDiv.appendChild(postDiv);
                 }
+                // Add cards to DOM in correct order
+                if (mode === "refresh") {
+                    // Insert new posts at top in correct order (newest first)
+                    const firstChild = DOM.followersFeedDiv.firstChild;
+                    for (let i = pendingCards.length - 1; i >= 0; i--) {
+                        DOM.followersFeedDiv.insertBefore(pendingCards[i], firstChild);
+                    }
+                } else {
+                    for (const card of pendingCards) {
+                        DOM.followersFeedDiv.appendChild(card);
+                    }
+                }
+                // Update alternating stripes based on DOM position
+                const feedChildren = DOM.followersFeedDiv.children;
+                for (let i = 0; i < feedChildren.length; i++) {
+                    if (i % 2 === 0) {
+                        feedChildren[i].classList.add("shaded");
+                    } else {
+                        feedChildren[i].classList.remove("shaded");
+                    }
+                }
+                // Update top button state
+                DOM.feedTopBtn.disabled = DOM.followersFeedDiv.children.length === 0;
                 // Fetch profile data for each unique author
                 const profilePromises = posts.map(async post => {
                     let blockchain = post.blockchain;
@@ -115,7 +172,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                             if (postKey === key) {
                                 const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
                                 const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
-                                if (authorElement) authorElement.textContent = profileData.name || "Unknown";
+                                if (authorElement) authorElement.textContent = profileData.name || "Anonymous";
                                 if (avatarElement) {
                                     const defaultPath = "/static/image/avatar.png";
                                     if (profileData.avatar) {
@@ -136,6 +193,8 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                 await Promise.all(profilePromises);
             } catch (error) {
                 console.error("Error loading followers feed:", error);
+            } finally {
+                feedLoading = false;
             }
         }
         async function loadDiscoverProfiles() {
@@ -207,7 +266,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             const profileData = cached as ProfileData;
             const nameDiv = profileCard.querySelector('.profileCardName') as HTMLDivElement;
             const avatarImg = profileCard.querySelector('img.profileCardAvatar') as HTMLImageElement;
-            if (nameDiv) nameDiv.textContent = profileData.name || "Unknown";
+            if (nameDiv) nameDiv.textContent = profileData.name || "Anonymous";
             if (avatarImg) {
                 const defaultPath = "/static/image/avatar.png";
                 if (profileData.avatar) {
@@ -224,11 +283,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
         }
         async function handleSearch() {
             DOM.resultsDiv.replaceChildren();
-            DOM.followersFeedDiv.style.display = "none";
+            DOM.followersFeedSection.style.display = "none";
             DOM.discoverSection.style.display = "none";
             let query = DOM.searchInput.value;
             if (query.length <= 0) {
-                DOM.followersFeedDiv.style.display = "block";
+                DOM.followersFeedSection.style.display = "block";
                 DOM.discoverSection.style.display = "block";
                 return;
             }
@@ -435,7 +494,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                             const nameDiv = profileDiv.querySelector('.profileCardName') as HTMLDivElement;
                             const avatarImg = profileDiv.querySelector('img.profileCardAvatar') as HTMLImageElement;
                             const descriptionDiv = profileDiv.querySelector('.profileCardDescription') as HTMLDivElement;
-                            if (nameDiv) nameDiv.textContent = profileData.name || "Unknown";
+                            if (nameDiv) nameDiv.textContent = profileData.name || "Anonymous";
                             if (avatarImg) {
                                 const defaultPath = "/static/image/avatar.png";
                                 if (profileData.avatar) {
@@ -462,7 +521,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                         if (postKey === key) {
                             const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
                             const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
-                            if (authorElement) authorElement.textContent = profileData.name || "Unknown";
+                            if (authorElement) authorElement.textContent = profileData.name || "Anonymous";
                             if (avatarElement) {
                                 const defaultPath = "/static/image/avatar.png";
                                 if (profileData.avatar) {
@@ -510,18 +569,34 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             DOM.searchClearBtn.style.display = "none";
             DOM.resultsDiv.replaceChildren();
             DOM.resultsDiv.style.display = "none";
-            DOM.followersFeedDiv.style.display = "block";
+            DOM.followersFeedSection.style.display = "block";
             DOM.discoverSection.style.display = "block";
+        });
+        DOM.feedTopBtn.addEventListener("click", () => {
+            DOM.followersFeedDiv.scrollTo({ top: 0, behavior: "smooth" });
+        });
+        // Infinite scroll - load more when near bottom
+        DOM.followersFeedDiv.addEventListener("scroll", () => {
+            const { scrollTop, scrollHeight, clientHeight } = DOM.followersFeedDiv;
+            if (scrollTop + clientHeight >= scrollHeight - 100) {
+                loadFollowersFeed("more").then();
+            }
         });
 
         /* --- Initialize page variables and start loading --- */
         DOM.searchInput.value = "";
-        DOM.resultsDiv.style.display = "none"; // Initialize followers feed on page load
-        DOM.followersFeedDiv.style.display = "block";
+        DOM.resultsDiv.style.display = "none";
+        DOM.followersFeedSection.style.display = "block";
         DOM.discoverSection.style.display = "block";
         ShowNotifications(); // Load notifications in background - don't block page loading
-        loadFollowersFeed().then();
+        loadFollowersFeed("initial").then();
         loadDiscoverProfiles().then();
         preloadTinyMCE(); // Preload TinyMCE in background after page loads
+        // Auto-refresh feed every 60 seconds to fetch new posts
+        setInterval(() => {
+            if (DOM.followersFeedSection.style.display !== "none") {
+                loadFollowersFeed("refresh").then();
+            }
+        }, 60000);
     }
 })();
