@@ -91,8 +91,6 @@ export async function showProfileEditModal() {
             return DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost;
         }
         function showGatewayAvatarMessage() {
-            modal.hide();
-            document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
             const blockchain = DOM.injectedBlockchain?.value?.toLowerCase() || "";
             let message = "To change your avatar, you can either:<br><br>";
             message += "• <a href='https://yourplace.network/download' target='_blank'>Download the YourPlace app</a> to host files yourself<br><br>";
@@ -101,13 +99,17 @@ export async function showProfileEditModal() {
             } else {
                 message += "• Use a blockchain name service that supports avatar images";
             }
-            ShowDialogModalHTML(message);
+            DOM.modalProfileEdit.addEventListener("hidden.bs.modal", () => {
+                ShowDialogModalHTML(message);
+            }, {once: true});
+            modal.hide();
         }
         function showGatewayBannerMessage() {
-            modal.hide();
-            document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
             let message = "To change your banner, you need to <a href='https://yourplace.network/download' target='_blank'>download the YourPlace app</a> to host files yourself.";
-            ShowDialogModalHTML(message);
+            DOM.modalProfileEdit.addEventListener("hidden.bs.modal", () => {
+                ShowDialogModalHTML(message);
+            }, {once: true});
+            modal.hide();
         }
         function hideModalAndShowToast() {
             modal.hide();
