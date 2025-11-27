@@ -97,7 +97,7 @@ export function GetIPFSFile(cid: string): Promise<Blob> {
         const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
 
         // Set up our gateway URLs
-        const publicGatewayUrl = "https://" + cidv1 + ".ipfs." + IPFS_GATEWAY_DEFAULT;
+        const publicGatewayUrl = "https://" + IPFS_GATEWAY_DEFAULT + "/ipfs/" + cidv1;
         const localGatewayUrl = "http://" + cidv1 + ".ipfs.localhost:42426";
 
         LogInfo("Fetching IPFS file from public gateway: " + publicGatewayUrl);
