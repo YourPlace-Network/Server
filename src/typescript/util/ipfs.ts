@@ -1,10 +1,25 @@
 import {CID} from "multiformats/cid";
 import {IsValidIpfsCid} from "./security";
-import {HttpPostJson} from "./network";
+import {HttpGetJson, HttpPostJson} from "./network";
 import {LogError, LogInfo} from "./log";
+import {IsGatewayMode} from "./miscellaneous";
 
-const IPFS_PUBLIC_GATEWAY = "dweb.link";
+const IPFS_GATEWAY_DEFAULT = "ipfs.io";
+let ipfsGatewayCache: string | null = null;
 
+async function getIpfsGateway(): Promise<string> {
+    if (ipfsGatewayCache !== null) return ipfsGatewayCache;
+    try {
+        const response = await HttpGetJson("/settings/content/ipfsGateway");
+        if (response[0] === 200 && response[1].gateway) {
+            ipfsGatewayCache = response[1].gateway;
+            return ipfsGatewayCache as string;
+        }
+    } catch (error) {
+        LogError("Failed to get IPFS gateway setting: " + error);
+    }
+    return IPFS_GATEWAY_DEFAULT;
+}
 export async function AddFileToIPFS(fileUUID: string, csrfToken: string): Promise<CID | null> {
     let response = await HttpPostJson("/files/ipfs/add", {"fileUUID": fileUUID}, csrfToken);
     if (response[0] === 200) {
@@ -29,7 +44,39 @@ export function CIDToSubdomainURL(cid: string): string {
     try {
         const parsedCid = CID.parse(cid);
         const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
-        url = "http://" + cidv1 + IPFS_POSTFIX;
+        if (IsGatewayMode()) {
+            const ipfsGateway = ipfsGatewayCache || IPFS_GATEWAY_DEFAULT;
+            url = "https://" + cidv1 + ".ipfs." + ipfsGateway;
+        } else {
+            url = "http://" + cidv1 + IPFS_POSTFIX;
+        }
+    } catch (error) {
+        LogError("Invalid CID when trying to convert to subdomain syntax: " + error)
+    }
+    return url.trim();
+}
+export async function CIDToSubdomainURLAsync(cid: string): Promise<string> {
+    const IPFS_PREFIX = "ipfs://";
+    const IPFS_POSTFIX = ".ipfs.localhost:42426";
+    let url = "";
+    if (cid.startsWith(IPFS_PREFIX)) {
+        cid = cid.substring(IPFS_PREFIX.length);
+        if (cid.endsWith(IPFS_POSTFIX)) {
+            cid = cid.substring(0, (cid.length - IPFS_POSTFIX.length));
+        }
+    }
+    if (!IsValidIpfsCid(cid)) {
+        return url;
+    }
+    try {
+        const parsedCid = CID.parse(cid);
+        const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
+        if (IsGatewayMode()) {
+            const ipfsGateway = await getIpfsGateway();
+            url = "https://" + cidv1 + ".ipfs." + ipfsGateway;
+        } else {
+            url = "http://" + cidv1 + IPFS_POSTFIX;
+        }
     } catch (error) {
         LogError("Invalid CID when trying to convert to subdomain syntax: " + error)
     }
@@ -50,7 +97,7 @@ export function GetIPFSFile(cid: string): Promise<Blob> {
         const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
 
         // Set up our gateway URLs
-        const publicGatewayUrl = "https://" + cidv1 + ".ipfs." + IPFS_PUBLIC_GATEWAY;
+        const publicGatewayUrl = "https://" + cidv1 + ".ipfs." + IPFS_GATEWAY_DEFAULT;
         const localGatewayUrl = "http://" + cidv1 + ".ipfs.localhost:42426";
 
         LogInfo("Fetching IPFS file from public gateway: " + publicGatewayUrl);

@@ -58,6 +58,9 @@ import {Sleep} from "../util/time";
             pinataLI: document.getElementById("pinataLI")! as HTMLLIElement,
             saveIpfsPinningBtn: document.getElementById("saveIpfsPinningBtn")! as HTMLButtonElement,
             removeIpfsPinningBtn: document.getElementById("removeIpfsPinningBtn")! as HTMLButtonElement,
+            ipfsGatewayURL: document.getElementById("ipfsGatewayURL")! as HTMLInputElement,
+            defaultIpfsGatewayBtn: document.getElementById("defaultIpfsGatewayBtn")! as HTMLButtonElement,
+            saveIpfsGatewayBtn: document.getElementById("saveIpfsGatewayBtn")! as HTMLButtonElement,
             contentAccordion: document.getElementById("contentAccordion")! as HTMLDivElement,
             privacyAccordion: document.getElementById("privacyAccordion")! as HTMLDivElement,
             networkingAccordion: document.getElementById("networkingAccordion")! as HTMLDivElement,
@@ -302,6 +305,12 @@ import {Sleep} from "../util/time";
                 }
             } else {
                 ShowDialogModal("Failed to get IPFS Pinning settings");
+            }
+        }
+        async function getIpfsGateway() {
+            let response = await HttpGetJson("/settings/content/ipfsGateway");
+            if (response[0] === 200) {
+                DOM.ipfsGatewayURL.value = response[1].gateway || "ipfs.io";
             }
         }
         async function getDebugMode() {
@@ -581,6 +590,27 @@ import {Sleep} from "../util/time";
                 ShowSavedToast();
             }
         }
+        async function setIpfsGateway() {
+            const data = {
+                gateway: DOM.ipfsGatewayURL.value,
+            }
+            let response = await HttpPostJson("/settings/content/ipfsGateway", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                ShowSavedToast();
+            } else {
+                ShowDialogModal(response[1].status || "Failed to save IPFS gateway");
+            }
+        }
+        async function setDefaultIpfsGateway() {
+            const data = {
+                gateway: "default",
+            }
+            let response = await HttpPostJson("/settings/content/ipfsGateway", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                DOM.ipfsGatewayURL.value = response[1].gateway || "ipfs.io";
+                ShowSavedToast();
+            }
+        }
         async function setDebugMode() {
             const data = {
                 debug: DOM.serverDebugModeCheckbox.checked,
@@ -726,6 +756,8 @@ import {Sleep} from "../util/time";
                 DOM.ipfsPinningKey.value = "";
             }
         });
+        DOM.saveIpfsGatewayBtn.addEventListener("click", setIpfsGateway);
+        DOM.defaultIpfsGatewayBtn.addEventListener("click", setDefaultIpfsGateway);
         DOM.serverDebugModeCheckbox.addEventListener("change", setDebugMode);
         DOM.serverUpdateBtn.addEventListener("click", getServerUpdates);
         DOM.serverUninstallBtn.addEventListener("click", setUninstall);
@@ -737,6 +769,7 @@ import {Sleep} from "../util/time";
         DOM.collapseContent.addEventListener("show.bs.collapse", function() {
             getUploadDirectory().then();
             getIpfsPinning().then();
+            getIpfsGateway().then();
             getSpiceometer().then();
             getOllamaEnabled().then();
             getOllamaModelEnabled().then();

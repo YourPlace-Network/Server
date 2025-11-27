@@ -148,7 +148,12 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     if (postData.avatarSrc === "" || postData.avatarSrc === null || postData.avatarSrc === undefined) {
         avatarImg.src = "/static/image/avatar.png";
     } else {
-        avatarImg.src = XSSSanitizeUrl(postData.avatarSrc);
+        let avatarSrc = postData.avatarSrc;
+        if (avatarSrc.startsWith("ipfs://")) {
+            const converted = CIDToSubdomainURL(avatarSrc);
+            avatarSrc = converted || "/static/image/avatar.png";
+        }
+        avatarImg.src = XSSSanitizeUrl(avatarSrc);
     }
     avatarImg.addEventListener("load", function(): void {
         handleAvatarLoad(avatarImg, postDiv);
@@ -342,7 +347,12 @@ export async function CreateProfileCard (profileData: any): Promise<HTMLDivEleme
     avatarImg.classList.add("profileCardAvatar");
     avatarImg.crossOrigin = "anonymous";
     avatarImg.referrerPolicy = "no-referrer";
-    avatarImg.src = XSSSanitizeUrl(profileData.avatarSrc);
+    let profileAvatarSrc = profileData.avatarSrc;
+    if (profileAvatarSrc && profileAvatarSrc.startsWith("ipfs://")) {
+        const converted = CIDToSubdomainURL(profileAvatarSrc);
+        profileAvatarSrc = converted || "/static/image/avatar.png";
+    }
+    avatarImg.src = XSSSanitizeUrl(profileAvatarSrc || "/static/image/avatar.png");
     nameDiv.classList.add("profileCardName");
     nameDiv.textContent = profileData.name || "Anonymous";
     addressDiv.classList.add("profileCardAddress");

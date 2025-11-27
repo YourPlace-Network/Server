@@ -79,7 +79,7 @@ export function IsValidURL(url: string): boolean {
         if (urlObj.protocol === "https:") { // allow external HTTPS links
             return true;
         }
-        if (urlObj.protocol === "http:" && urlObj.hostname === "localhost") { // allow localhost HTTP links
+        if (urlObj.protocol === "http:" && (urlObj.hostname === "localhost" || urlObj.hostname.endsWith(".localhost"))) { // allow localhost HTTP links including subdomains
             return true;
         }
     } catch (error) {

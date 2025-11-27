@@ -338,6 +338,10 @@ declare global { // Extend the window interface with public objects
                 avatarURL = await WalletGetAvatar(blockchain, address);
             }
             DOM.profileAvatar.src = "/static/image/avatar.png"; // Clear any existing avatar loading to prevent memory leaks
+            // Convert ipfs:// URLs to HTTP gateway URLs
+            if (avatarURL && avatarURL.startsWith("ipfs://")) {
+                avatarURL = CIDToSubdomainURL(avatarURL);
+            }
             if (IsValidURL(avatarURL)) {
                 const success = await loadImageWithTimeout(avatarURL, 3000);
                 if (success) {

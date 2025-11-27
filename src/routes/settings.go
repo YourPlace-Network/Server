@@ -198,6 +198,15 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"pinningKey": pinningKeyMasked,
 		})
 	})
+	router.GET("/settings/content/ipfsGateway", func(c *gin.Context) {
+		gateway := database.SettingsGetValue("ipfsGateway")
+		if gateway == "" {
+			gateway = "ipfs.io"
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"gateway": gateway,
+		})
+	})
 	router.GET("/settings/base/indexerProgress", func(c *gin.Context) {
 		earliestBlock := _blockchain.GetEarliestBlock("base")
 		jobUUID := database.IndexerGetJobUUID("base")
@@ -570,6 +579,32 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		} else {
 			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "failed"})
 		}
+	})
+	router.POST("/settings/content/ipfsGateway", func(c *gin.Context) {
+		type Payload struct {
+			Gateway string `json:"gateway" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Gateway JSON"})
+			return
+		}
+		if payload.Gateway == "default" {
+			database.SettingsUpdateValue("ipfsGateway", "ipfs.io")
+			ipfs.IPFSSetGateway("ipfs.io")
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "gateway": "ipfs.io"})
+			return
+		}
+		gateway := security.SanitizeNonPrintable(payload.Gateway)
+		gateway = security.SanitizeHostname(gateway)
+		if gateway == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid IPFS Gateway hostname"})
+			return
+		}
+		database.SettingsUpdateValue("ipfsGateway", gateway)
+		ipfs.IPFSSetGateway(gateway)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "gateway": gateway})
 	})
 	router.POST("/settings/server/debug", func(c *gin.Context) {
 		type Payload struct {

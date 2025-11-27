@@ -1,6 +1,7 @@
 import {DisconnectWallet, GetAddress} from "./wallet";
 import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
+import {CIDToSubdomainURL} from "../ipfs";
 import {ethers} from "ethers";
 import {YP} from "../../services/yourplace";
 import {createPublicClient, defineChain, getAddress, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
@@ -360,9 +361,9 @@ export async function baseGetAvatar(address: string): Promise<string> {
         LogError("Invalid Base address provided to baseGetAvatar: " + address);
         return "";
     }
-    // Check cache first
+    // Check cache first (invalidate stale ipfs:// URLs and empty results)
     const cached = baseAvatarCache.get(address);
-    if (cached !== null) return cached as string;
+    if (cached !== null && cached !== "" && !cached.toString().startsWith("ipfs://")) return cached as string;
     // Check if request is already in progress
     if (pendingAvatarRequests.has(address)) return await pendingAvatarRequests.get(address)!;
     // Create new request
@@ -497,25 +498,39 @@ export async function baseGetNFTs(_address: string) {
 
 // ---------- ENS Functions ---------- //
 async function performBaseAvatarRequest(address: string): Promise<string> {
-    let baseName = await baseGetName(address);
-    if (!baseName || baseName === "") {
-        LogInfo("No Base name found for address, skipping avatar lookup: " + address);
-        return "";
-    }
+    // Priority 1: Local IPFS avatar from YourPlace
     try {
-        const ensAvatar = await cbGetAvatar({ensName: baseName, chain: wagmiBase});
-        if (!ensAvatar || ensAvatar === "") {
-            LogInfo("No ENS Avatar found for Base address: " + address);
-            baseAvatarCache.set(address, ""); // Cache empty result to avoid repeated failed lookups
-            return "";
+        const response = await HttpGetJson("/profile/avatar/base/" + address);
+        if (response[0] === 200 && response[1] && response[1].avatarAddress) {
+            const avatarAddress = response[1].avatarAddress.trim();
+            if (avatarAddress.length > 0) {
+                // Convert ipfs:// URL to HTTP gateway URL
+                const avatarUrl = CIDToSubdomainURL(avatarAddress);
+                if (avatarUrl !== "") {
+                    baseAvatarCache.set(address, avatarUrl);
+                    return avatarUrl;
+                }
+            }
         }
-        baseAvatarCache.set(address, ensAvatar);
-        return ensAvatar as string;
     } catch (error) {
-        LogError("Failed to get Base ENS avatar: " + error);
-        baseAvatarCache.set(address, ""); // Cache empty result to avoid repeated failed lookups
-        return "";
+        LogError("Failed to get local avatar: " + error);
     }
+    // Priority 2: ENS avatar from basename
+    let baseName = await baseGetName(address);
+    if (baseName && baseName !== "") {
+        try {
+            const ensAvatar = await cbGetAvatar({ensName: baseName, chain: wagmiBase});
+            if (ensAvatar && ensAvatar !== "") {
+                baseAvatarCache.set(address, ensAvatar);
+                return ensAvatar as string;
+            }
+            LogInfo("No ENS Avatar found for basename: " + baseName);
+        } catch (error) {
+            LogError("Failed to get Base ENS avatar: " + error);
+        }
+    }
+    baseAvatarCache.set(address, ""); // Cache empty result to avoid repeated failed lookups
+    return "";
 }
 async function performBasenameRequest(_address: string): Promise<string> {
     try {

@@ -62,6 +62,14 @@
                                                 <button class="btn btn-primary" id="saveIpfsPinningBtn">Save</button>
                                                 <button class="btn btn-primary" id="removeIpfsPinningBtn">Remove</button>
                                             </div>
+                                            <hr />
+                                            <label for="ipfsGatewayURL" class="form-label">Public IPFS Gateway</label>
+                                            <a href="/faq#collapseIPFSGateway" target="_blank" id="ipfsGatewayHelpLink"><i class="bi bi-question-circle" id="ipfsGatewayHelp" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" data-bs-delay="0" title="Public gateway used to resolve IPFS content when running in gateway mode"></i></a>
+                                            <div class="input-group mb-3" id="ipfsGatewayForm">
+                                                <input type="text" class="form-control" id="ipfsGatewayURL" placeholder="ipfs.io">
+                                                <button class="btn btn-primary btn-outline-secondary" id="defaultIpfsGatewayBtn" type="button">Default</button>
+                                                <button class="btn btn-primary btn-outline-secondary" id="saveIpfsGatewayBtn" type="button">Save</button>
+                                            </div>
                                             <div id="ipfsNodeLinkDiv">
                                                 <a id="ipfsNodeLink" href="http://localhost:42425/webui" target="_blank"><img src="/static/image/ipfs.svg" alt="ipfs" id="ipfsSvg"><span>IPFS Node Management</span></a>
                                             </div>

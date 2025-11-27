@@ -287,6 +287,24 @@ func (node *IPFS) IPFSAutoAddRemotePinning(name string) bool {
 	_core.LogError("Unexpected response when enabling auto remote pinning: " + response)
 	return false
 }
+func (node *IPFS) IPFSSetGateway(gateway string) bool {
+	// Set the public gateway URL in IPFS config
+	gatewayURL := "https://" + gateway + "/"
+	requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/config?arg=Gateway.PublicGateways.%s.Paths&arg=/ipfs&arg=/ipns&json=true", node.port, gateway)
+	response, err := HttpPost(requestString)
+	if err != nil {
+		_core.LogError("Could not set IPFS gateway paths: " + err.Error() + " - " + response)
+		return false
+	}
+	requestString = fmt.Sprintf("http://127.0.0.1:%d/api/v0/config?arg=Gateway.PublicGateways.%s.UseSubdomains&arg=true&bool=true", node.port, gateway)
+	response, err = HttpPost(requestString)
+	if err != nil {
+		_core.LogError("Could not set IPFS gateway subdomains: " + err.Error() + " - " + response)
+		return false
+	}
+	_core.LogDebug("IPFS gateway set to: " + gatewayURL)
+	return true
+}
 func (node *IPFS) IPFSCheckPinServiceHealth(serviceName string) bool {
 	listURL := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/service/ls", node.port)
 	response, err := HttpGet(listURL, 10)

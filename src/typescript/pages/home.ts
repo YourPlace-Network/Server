@@ -124,7 +124,14 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                     let blockchain = post.blockchain;
                     let address = post.address;
                     let key = blockchain + address;
-                    const cached = globalProfileCache.get(key);
+                    let cached = globalProfileCache.get(key);
+                    // Invalidate cache if avatar is missing or stale ipfs:// URL
+                    if (cached !== null) {
+                        const cachedAvatar = (cached as ProfileData).avatar;
+                        if (!cachedAvatar || cachedAvatar === "" || cachedAvatar.startsWith("ipfs://")) {
+                            cached = null;
+                        }
+                    }
                     if (cached === null) {
                         let name: string | null = null;
                         try {
@@ -176,7 +183,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                                 if (avatarElement) {
                                     const defaultPath = "/static/image/avatar.png";
                                     if (profileData.avatar) {
-                                        const avatarUrl = XSSSanitizeUrl(profileData.avatar);
+                                        let avatarSrc = profileData.avatar;
+                                        if (avatarSrc.startsWith("ipfs://")) {
+                                            avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
+                                        }
+                                        const avatarUrl = XSSSanitizeUrl(avatarSrc);
                                         avatarElement.onerror = () => {
                                             avatarElement.src = defaultPath;
                                             avatarElement.onerror = null;
@@ -229,6 +240,13 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
         async function fetchAndUpdateProfileCard(profileCard: HTMLDivElement, blockchain: string, address: string) {
             const key = blockchain + address;
             let cached = globalProfileCache.get(key);
+            // Invalidate cache if avatar is missing or stale ipfs:// URL
+            if (cached !== null) {
+                const cachedAvatar = (cached as ProfileData).avatar;
+                if (!cachedAvatar || cachedAvatar === "" || cachedAvatar.startsWith("ipfs://")) {
+                    cached = null;
+                }
+            }
             if (cached === null) {
                 let name: string | null = null;
                 try {
@@ -270,7 +288,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             if (avatarImg) {
                 const defaultPath = "/static/image/avatar.png";
                 if (profileData.avatar) {
-                    const avatarUrl = XSSSanitizeUrl(profileData.avatar);
+                    let avatarSrc = profileData.avatar;
+                    if (avatarSrc.startsWith("ipfs://")) {
+                        avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
+                    }
+                    const avatarUrl = XSSSanitizeUrl(avatarSrc);
                     avatarImg.onerror = () => {
                         avatarImg.src = defaultPath;
                         avatarImg.onerror = null;
@@ -404,7 +426,14 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                 let address = result.address;
                 let key = blockchain + address;
                 console.log("[DEBUG] Processing result for key:", key, "resultType:", result.resultType, "ensName:", result.ensName);
-                const cached = globalProfileCache.get(key);
+                let cached = globalProfileCache.get(key);
+                // Invalidate cache if avatar is missing or stale ipfs:// URL
+                if (cached !== null) {
+                    const cachedAvatar = (cached as ProfileData).avatar;
+                    if (!cachedAvatar || cachedAvatar === "" || cachedAvatar.startsWith("ipfs://")) {
+                        cached = null;
+                    }
+                }
                 const needsDescriptionFetch = cached && result.resultType === "profile" && !cached.description;
                 if (cached === null || needsDescriptionFetch) {
                     let name: string | null = null;
@@ -498,7 +527,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                             if (avatarImg) {
                                 const defaultPath = "/static/image/avatar.png";
                                 if (profileData.avatar) {
-                                    const avatarUrl = XSSSanitizeUrl(profileData.avatar);
+                                    let avatarSrc = profileData.avatar;
+                                    if (avatarSrc.startsWith("ipfs://")) {
+                                        avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
+                                    }
+                                    const avatarUrl = XSSSanitizeUrl(avatarSrc);
                                     avatarImg.onerror = () => {
                                         avatarImg.src = defaultPath;
                                         avatarImg.onerror = null;
@@ -525,7 +558,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                             if (avatarElement) {
                                 const defaultPath = "/static/image/avatar.png";
                                 if (profileData.avatar) {
-                                    const avatarUrl = XSSSanitizeUrl(profileData.avatar);
+                                    let avatarSrc = profileData.avatar;
+                                    if (avatarSrc.startsWith("ipfs://")) {
+                                        avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
+                                    }
+                                    const avatarUrl = XSSSanitizeUrl(avatarSrc);
                                     avatarElement.onerror = () => {
                                         avatarElement.src = defaultPath;
                                         avatarElement.onerror = null;

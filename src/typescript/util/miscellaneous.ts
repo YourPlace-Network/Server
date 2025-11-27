@@ -4,11 +4,15 @@ export function GetPageRoute(): string {
     return segments[1] || "";
 }
 export function IsGatewayMode(): boolean {
-    let gatewayMode = document.getElementById("gatewayModeAddPost") as HTMLInputElement;
+    const gatewayModeEl = document.getElementById("gatewayMode") as HTMLInputElement;
+    const gatewayModeAddPostEl = document.getElementById("gatewayModeAddPost") as HTMLInputElement;
+    const gatewayMode = gatewayModeEl?.value || gatewayModeAddPostEl?.value;
     if (gatewayMode == null) {
         return false;
     }
-    return gatewayMode.value === "false";
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+    return gatewayMode === "true" && !isLocalhost;
 }
 export function IsMobileDevice(): boolean {
     const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;

@@ -798,6 +798,27 @@ func SanitizeReservedTLDs(payload string) string {
 	}
 	return cleanPayload
 }
+func SanitizeHostname(hostname string) string {
+	hostname = strings.TrimSpace(hostname)
+	hostname = strings.ToLower(hostname)
+	hostname = strings.TrimPrefix(hostname, "http://")
+	hostname = strings.TrimPrefix(hostname, "https://")
+	hostname = strings.TrimSuffix(hostname, "/")
+	// Remove any path components
+	if idx := strings.Index(hostname, "/"); idx != -1 {
+		hostname = hostname[:idx]
+	}
+	// Basic hostname validation - alphanumeric, dots, and hyphens only
+	validHostname := regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*[a-z0-9]$`)
+	if !validHostname.MatchString(hostname) && hostname != "" {
+		// Single character hostnames
+		if len(hostname) == 1 && regexp.MustCompile(`^[a-z0-9]$`).MatchString(hostname) {
+			return hostname
+		}
+		return ""
+	}
+	return hostname
+}
 func ConvertPasskeyToEthSignature(passkeySig []byte) ([]byte, error) {
 	if len(passkeySig) < 65 {
 		return nil, core.LogErrorReturn("Invalid passkey signature")
