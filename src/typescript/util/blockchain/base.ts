@@ -59,7 +59,7 @@ const baseEnsCache = new PersistentCache({
     keyPrefix: "baseEnsCache_"
 });
 const baseAvatarCache = new PersistentCache({
-    defaultTtl: 21600000, // 6 hours
+    defaultTtl: 3600000, // 1 hour
     keyPrefix: "baseAvatarCache_"
 });
 const pendingOnchainkitRequests = new Map<string, Promise<string>>();

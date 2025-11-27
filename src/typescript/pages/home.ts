@@ -5,9 +5,9 @@ import {preloadTinyMCE} from "../components/addPost";
 import "../components/menu";
 import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
 import {HttpGetJson} from "../util/network";
-import {IsValidURL, XSSSanitizeUrl} from "../util/security";
+import {XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName, WalletGetAddressFromName, GetAddress, GetChain} from "../util/blockchain/wallet";
-import {CIDToSubdomainURL} from "../util/ipfs";
+import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
 import {ShowNotifications} from "../util/notifications";
 import {globalProfileCache, type ProfileData} from "../util/cache";
 
@@ -156,16 +156,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                             console.warn("Failed to get ENS avatar:", e);
                         }
                         if (!avatarStr || avatarStr === "") {
-                            let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
-                            if (response[0] === 200 && response[1] && response[1].avatarAddress) {
-                                const avatarAddress = response[1].avatarAddress.trim();
-                                if (avatarAddress.length > 0) {
-                                    const avatarURL = CIDToSubdomainURL(avatarAddress);
-                                    if (IsValidURL(avatarURL)) {
-                                        avatarStr = avatarURL;
-                                    }
-                                }
-                            }
+                            avatarStr = await getIpfsAvatarUrl(blockchain, address);
                         }
                         globalProfileCache.set(key, {name, avatar: avatarStr || null, description: null, address, blockchain});
                     }
@@ -267,16 +258,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                     console.warn("Failed to get ENS avatar:", e);
                 }
                 if (!avatarStr || avatarStr === "") {
-                    let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
-                    if (response[0] === 200 && response[1] && response[1].avatarAddress) {
-                        const avatarAddress = response[1].avatarAddress.trim();
-                        if (avatarAddress.length > 0) {
-                            const avatarURL = CIDToSubdomainURL(avatarAddress);
-                            if (IsValidURL(avatarURL)) {
-                                avatarStr = avatarURL;
-                            }
-                        }
-                    }
+                    avatarStr = await getIpfsAvatarUrl(blockchain, address);
                 }
                 globalProfileCache.set(key, {name, avatar: avatarStr || null, description: null, address, blockchain});
                 cached = globalProfileCache.get(key);
@@ -477,16 +459,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                             console.warn("Failed to get ENS avatar:", e);
                         }
                         if (!avatarStr || avatarStr === "") {
-                            let response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
-                            if (response[0] === 200 && response[1] && response[1].avatarAddress) {
-                                const avatarAddress = response[1].avatarAddress.trim();
-                                if (avatarAddress.length > 0) {
-                                    const avatarURL = CIDToSubdomainURL(avatarAddress);
-                                    if (IsValidURL(avatarURL)) {
-                                        avatarStr = avatarURL;
-                                    }
-                                }
-                            }
+                            avatarStr = await getIpfsAvatarUrl(blockchain, address);
                         }
                     }
                     let description: string | null = null;

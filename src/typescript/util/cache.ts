@@ -99,4 +99,9 @@ export const globalProfileCache = new PersistentCache({
     keyPrefix: "profile_"
 });
 
+export const globalIpfsAvatarCache = new PersistentCache({
+    defaultTtl: 3600000, // 1 hour
+    keyPrefix: "ipfsAvatar_"
+});
+
 export default PersistentCache;
