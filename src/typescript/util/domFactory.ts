@@ -292,7 +292,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
             attachmentUrls.add(fileUrl);
         }
     }
-    const urlRegex = /(https:\/\/[^\s]+)/g;
+    const urlRegex = /(https:\/\/[^\s"<>]+)/g;
     let postText = postData.payload;
     const urls = postData.payload.match(urlRegex);
     if (urls) {
