@@ -46,7 +46,7 @@ export function CIDToSubdomainURL(cid: string): string {
         const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
         if (IsGatewayMode()) {
             const ipfsGateway = ipfsGatewayCache || IPFS_GATEWAY_DEFAULT;
-            url = "https://" + cidv1 + "." + ipfsGateway;
+            url = "https://" + ipfsGateway + "/ipfs/" + cidv1;
         } else {
             url = "http://" + cidv1 + IPFS_POSTFIX;
         }
@@ -73,7 +73,7 @@ export async function CIDToSubdomainURLAsync(cid: string): Promise<string> {
         const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
         if (IsGatewayMode()) {
             const ipfsGateway = await getIpfsGateway();
-            url = "https://" + cidv1 + "." + ipfsGateway;
+            url = "https://" + ipfsGateway + "/ipfs/" + cidv1;
         } else {
             url = "http://" + cidv1 + IPFS_POSTFIX;
         }
