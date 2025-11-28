@@ -8,6 +8,7 @@ import {HttpGetJson} from "../util/network";
 import {XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName, WalletGetAddressFromName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
+import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowNotifications} from "../util/notifications";
 import {globalProfileCache, type ProfileData} from "../util/cache";
 
@@ -150,13 +151,17 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                             }
                         }
                         let avatarStr: string | null = null;
-                        try {
-                            avatarStr = await WalletGetAvatar(blockchain, address);
-                        } catch (e) {
-                            console.warn("Failed to get ENS avatar:", e);
-                        }
-                        if (!avatarStr || avatarStr === "") {
+                        if (IsGatewayMode()) {
                             avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                        } else {
+                            try {
+                                avatarStr = await WalletGetAvatar(blockchain, address);
+                            } catch (e) {
+                                console.warn("Failed to get ENS avatar:", e);
+                            }
+                            if (!avatarStr || avatarStr === "") {
+                                avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                            }
                         }
                         globalProfileCache.set(key, {name, avatar: avatarStr || null, description: null, address, blockchain});
                     }
@@ -252,13 +257,17 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                     }
                 }
                 let avatarStr: string | null = null;
-                try {
-                    avatarStr = await WalletGetAvatar(blockchain, address);
-                } catch (e) {
-                    console.warn("Failed to get ENS avatar:", e);
-                }
-                if (!avatarStr || avatarStr === "") {
+                if (IsGatewayMode()) {
                     avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                } else {
+                    try {
+                        avatarStr = await WalletGetAvatar(blockchain, address);
+                    } catch (e) {
+                        console.warn("Failed to get ENS avatar:", e);
+                    }
+                    if (!avatarStr || avatarStr === "") {
+                        avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                    }
                 }
                 globalProfileCache.set(key, {name, avatar: avatarStr || null, description: null, address, blockchain});
                 cached = globalProfileCache.get(key);
@@ -452,14 +461,18 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                         }
                         // Fetch avatar
                         console.log("[DEBUG] Fetching avatar for:", address, "with name:", name);
-                        try {
-                            avatarStr = await WalletGetAvatar(blockchain, address);
-                            console.log("[DEBUG] Avatar fetch result:", avatarStr ? "found" : "empty");
-                        } catch (e) {
-                            console.warn("Failed to get ENS avatar:", e);
-                        }
-                        if (!avatarStr || avatarStr === "") {
+                        if (IsGatewayMode()) {
                             avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                        } else {
+                            try {
+                                avatarStr = await WalletGetAvatar(blockchain, address);
+                                console.log("[DEBUG] Avatar fetch result:", avatarStr ? "found" : "empty");
+                            } catch (e) {
+                                console.warn("Failed to get ENS avatar:", e);
+                            }
+                            if (!avatarStr || avatarStr === "") {
+                                avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                            }
                         }
                     }
                     let description: string | null = null;

@@ -2,6 +2,7 @@ import {DisconnectWallet, GetAddress} from "./wallet";
 import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {CIDToSubdomainURL} from "../ipfs";
+import {IsGatewayMode} from "../miscellaneous";
 import {ethers} from "ethers";
 import {YP} from "../../services/yourplace";
 import {createPublicClient, defineChain, getAddress, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
@@ -37,12 +38,11 @@ export const mainnetBase = {
     name: "Base",
     currency: "ETH",
     explorerUrl: "https://basescan.org",
-    mainnetURL: "https://mainnet.base.org",
-    rpcUrl: await baseGetURL()!,
     ensUniversalResolverAddress: "0xce01f8eee7E479C928F8919abD53E553a36CeF67",
     ensBasenameResolverAddress: "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD",
     ensBaseResolverAddress: "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD",
     burnAddress: "0x0000000000000000000000000000000000000000",
+    rpcUrl: "", // Set dynamically in initBaseWallet
 }
 const metadataYourPlace = {
     name: "YourPlace",
@@ -73,8 +73,15 @@ let web3Client: Web3;
 async function initBaseWallet() {
     if (baseInit) { return; }
     try {
+        // Get RPC URL - uses proxy in gateway mode
+        const rpcUrl = await baseGetURL();
+        if (!rpcUrl) {
+            LogError("Failed to get Base RPC URL");
+            return;
+        }
+        mainnetBase.rpcUrl = rpcUrl;
         viemClient = createPublicClient({
-            transport: viemHttp(mainnetBase.rpcUrl!, {retryCount: 10, retryDelay: 1000}),
+            transport: viemHttp(rpcUrl, {retryCount: 3, retryDelay: 1000}),
             chain: defineChain(viemBase),
         });
         wagmiConfig = createConfig({
@@ -86,7 +93,7 @@ async function initBaseWallet() {
                     appLogoUrl: metadataYourPlace.icons[1],
                 })],
             transports: {
-                [wagmiBase.id]: wagmiHttp(mainnetBase.rpcUrl!, {retryCount: 10, retryDelay: 1000}),
+                [wagmiBase.id]: wagmiHttp(rpcUrl, {retryCount: 3, retryDelay: 1000}),
             },
             storage: createStorage({
                 key: "yourplace",
@@ -94,7 +101,7 @@ async function initBaseWallet() {
             }),
             ssr: true,
         });
-        web3Client = new Web3(mainnetBase.rpcUrl!);
+        web3Client = new Web3(rpcUrl);
     } catch (e) {
         LogError("Failed to initialize Base wallet: " + e);
         baseInit = false;
@@ -342,6 +349,12 @@ export async function baseUnfollowUser(toAddress: string, toBlockchain: string) 
 
 // ---------- Get Functions ---------- //
 async function baseGetURL(): Promise<string|null> {
+    // In gateway mode, use the server-side RPC proxy to avoid exposing the RPC URL
+    if (IsGatewayMode()) {
+        const proxyUrl = window.location.origin + "/rpc/base";
+        baseURLCache.set("rpcUrl", proxyUrl);
+        return proxyUrl;
+    }
     const cached = baseURLCache.get("rpcUrl");
     if (cached !== null) return cached as string;
     let response = await HttpGetJson("/settings/base/url");

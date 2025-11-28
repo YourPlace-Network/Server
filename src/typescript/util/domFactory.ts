@@ -3,7 +3,8 @@ import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
 import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar} from "./blockchain/wallet";
 import {IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
-import {CIDToSubdomainURL} from "./ipfs";
+import {CIDToSubdomainURL, getIpfsAvatarUrl} from "./ipfs";
+import {IsGatewayMode} from "./miscellaneous";
 import {getFileIcon, formatFileSize} from "./files";
 import {extensionToMimeType} from "./mimeTypes";
 import {ShowModalMediaViewer} from "../components/modalMediaViewer";
@@ -88,7 +89,12 @@ async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLEl
         const address = addressInput.value;
         if (blockchain && address && IsValidAddress(address, blockchain)) {
             try {
-                const avatarUrl = await WalletGetAvatar(blockchain, address);
+                let avatarUrl: string | null = null;
+                if (IsGatewayMode()) {
+                    avatarUrl = await getIpfsAvatarUrl(blockchain, address);
+                } else {
+                    avatarUrl = await WalletGetAvatar(blockchain, address);
+                }
                 if (avatarUrl && avatarUrl !== "" && avatarImg.src !== XSSSanitizeUrl(avatarUrl)) {
                     avatarImg.src = XSSSanitizeUrl(avatarUrl);
                 }

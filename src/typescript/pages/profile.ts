@@ -14,7 +14,8 @@ import {ShowNotifications} from "../util/notifications";
 import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetDescription, WalletGetName, WalletSendPostNudge, WalletFollowUser, WalletUnfollowUser, GetChain} from "../util/blockchain/wallet";
 import {CreatePostCard, processTextWithTags} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
-import {CIDToSubdomainURL, loadImageWithTimeout} from "../util/ipfs";
+import {CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util/ipfs";
+import {IsGatewayMode} from "../util/miscellaneous";
 import PersistentCache from "../util/cache";
 
 declare global { // Extend the window interface with public objects
@@ -334,8 +335,12 @@ declare global { // Extend the window interface with public objects
         }
         async function renderProfileAvatarFromData(avatarAddress: string, blockchain: string, address: string) {
             let avatarURL = avatarAddress;
-            if (!avatarAddress) { // If no cached avatar, try blockchain lookup
-                avatarURL = await WalletGetAvatar(blockchain, address);
+            if (!avatarAddress) { // If no cached avatar, try lookup
+                if (IsGatewayMode()) {
+                    avatarURL = await getIpfsAvatarUrl(blockchain, address) || "";
+                } else {
+                    avatarURL = await WalletGetAvatar(blockchain, address);
+                }
             }
             DOM.profileAvatar.src = "/static/image/avatar.png"; // Clear any existing avatar loading to prevent memory leaks
             // Convert ipfs:// URLs to HTTP gateway URLs
