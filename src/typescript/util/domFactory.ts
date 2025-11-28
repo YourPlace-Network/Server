@@ -411,8 +411,6 @@ function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
     iframe.classList.add("postCardEmbeddedIframe");
     let embedURL = `https://www.youtube-nocookie.com/embed/${videoId}`;
     iframe.src = XSSSanitizeUrl(embedURL);
-    iframe.width = "100%";
-    iframe.height = "auto";
     iframe.allow = "encrypted-media; picture-in-picture";
     iframe.allowFullscreen = true;
     iframe.setAttribute("loading", "lazy");

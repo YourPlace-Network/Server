@@ -259,6 +259,8 @@ input[type="file"] {
   }
   #profileAvatar {
     width: 30%;
+    height: auto;
+    aspect-ratio: 1 / 1;
   }
   #editImg, #editImg {
     padding: 0;

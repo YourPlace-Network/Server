@@ -123,8 +123,9 @@ ul.ellipsesMenu {
 }
 .postCardEmbeddedIframe {
   padding: 0 0 1em 0;
+  width: 100%;
   max-width: 35em;
-  height: 20em;
+  aspect-ratio: 16 / 9;
 }
 .postAttachment {
   height: 100%;
