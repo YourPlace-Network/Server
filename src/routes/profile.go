@@ -76,8 +76,16 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		if addressOk && blockchainOk && (viewerAddress == addressParam) && (viewerBlockchain == blockchainParam) {
 			isGuest = false
 		}
+		profileName := database.ProfileGetName(addressParam, blockchainParam)
+		profileDescription := database.ProfileGetDescription(addressParam, blockchainParam)
+		profileAvatar := database.ProfileGetAvatar(addressParam, blockchainParam)
+		displayName := profileName
+		if displayName == "" {
+			displayName = addressParam[:6] + "..." + addressParam[len(addressParam)-4:]
+		}
+		pageTitle := displayName + " | " + title
 		responseJson := gin.H{
-			"title":                 title,
+			"title":                 pageTitle,
 			"csrfToken":             token,
 			"pageName":              "profile",
 			"injectedAddress":       addressParam,
@@ -85,6 +93,10 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"isCookieAuthenticated": true,
 			"isGuest":               isGuest, // Guest mode distinguishes if the viewer is the guest or owner of the profile
 			"gatewayMode":           gateway,
+			"ogTitle":               displayName,
+			"ogDescription":         profileDescription,
+			"ogImage":               profileAvatar,
+			"ogType":                "profile",
 		}
 		c.HTML(http.StatusOK, "src/templates/pages/profile.tmpl", responseJson)
 	})
