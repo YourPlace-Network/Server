@@ -16,3 +16,8 @@
   transform: rotate(-135deg) scale(1.1);
   cursor: pointer;
 }
+@media(max-width: 704px) {
+  .scrollTop {
+    z-index: 1000;
+  }
+}

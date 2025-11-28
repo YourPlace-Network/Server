@@ -182,3 +182,12 @@ label.tox-label {
   background-color: map.get(global.$colors, "quaternary") !important;
   color: map.get(global.$colors, "text") !important;
 }
+@media(max-width: 704px) {
+  #addPostButton {
+    border: 2px solid map.get(global.$colors, "tertiary");
+    z-index: 1000;
+  }
+  .addPostPlus {
+    border: 1px solid map.get(global.$colors, "tertiary");
+  }
+}
