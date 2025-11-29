@@ -93,6 +93,7 @@ func (p *BaseRPCProxy) forwardRequest(body []byte) *proxyResponse {
 			err:        nil,
 		}
 	}
+	core.LogDebug("RPC proxy forwarding to: " + targetURL)
 	req, err := http.NewRequest("POST", targetURL, bytes.NewReader(body))
 	if err != nil {
 		return &proxyResponse{
@@ -152,10 +153,12 @@ func (p *BaseRPCProxy) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
+	core.LogDebug("RPC proxy request: " + string(body))
 	statusCode, respBody, err := p.ProxyRequest(body)
 	if err != nil {
 		core.LogError("RPC proxy error: " + err.Error())
 	}
+	core.LogDebug("RPC proxy response [" + strconv.Itoa(statusCode) + "]: " + string(respBody))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	w.Write(respBody)

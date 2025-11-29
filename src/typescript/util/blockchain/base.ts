@@ -359,11 +359,11 @@ async function baseGetURL(): Promise<string|null> {
     if (cached !== null) return cached as string;
     let response = await HttpGetJson("/settings/base/url");
     if (response[0] === 200) {
-        const url = response[1].baseURL || "https://mainnet.base.org/";
+        const url = response[1].baseURL || "/api/rpc/base";
         baseURLCache.set("rpcUrl", url);
         return url;
     } else {
-        const defaultUrl = "https://mainnet.base.org/";
+        const defaultUrl = "/api/rpc/base";
         baseURLCache.set("rpcUrl", defaultUrl);
         return defaultUrl;
     }
