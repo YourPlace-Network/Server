@@ -1,6 +1,9 @@
 @use "sass:map";
 @use "../global.scss";
 
+#addPostModal .modal-body {
+  position: relative;
+}
 #addPostButton {
   width: 3.7em;
   height: 3.7em;
@@ -83,6 +86,18 @@
 #addPostText {
   width: 100%;
   height: 7em;
+}
+.tinymce-spinner {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.3);
 }
 #addPostControls {
   width: 100%;

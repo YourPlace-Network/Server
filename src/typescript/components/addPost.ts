@@ -34,6 +34,7 @@ export async function preloadTinyMCE() {
             csrfToken: document.getElementById("csrfToken") as HTMLInputElement,
             attachmentDiv: document.getElementById("postAttachDiv")! as HTMLDivElement,
             gatewayMode: document.getElementById("gatewayModeAddPost") as HTMLInputElement,
+            tinymceSpinner: document.getElementById("tinymceSpinner")! as HTMLDivElement,
         }
 
         function isLocalhost(): boolean {
@@ -118,7 +119,11 @@ export async function preloadTinyMCE() {
         }
         async function showModal() {
             addPostModal.show();
+            if (!tinymceInitialized) {
+                DOM.tinymceSpinner.style.display = "flex";
+            }
             await initTinyMCE();
+            DOM.tinymceSpinner.style.display = "none";
             (window as any).tinymce.get("addPostText")?.focus();
             enableSpiceometer().then();
         }
