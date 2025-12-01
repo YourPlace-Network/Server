@@ -20,10 +20,13 @@ declare global {
             offcanvas: document.querySelectorAll('.offcanvas')! as NodeListOf<Element>,
             menuLoginBtn: document.getElementById("menuLoginBtn")! as HTMLButtonElement,
             menuAvatar: document.getElementById("menuAvatar")! as HTMLImageElement,
+            menuAvatarLink: document.getElementById("menuAvatarLink")! as HTMLAnchorElement,
             menuSettingsLink: document.getElementById("menuSettingsLink")! as HTMLAnchorElement,
             menuPlacesLink: document.getElementById("menuPlacesLink")! as HTMLAnchorElement,
-            isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
-            gatewayMode: document.getElementById("gatewayMode")! as HTMLInputElement,
+            isCookieAuthenticated: document.getElementById("isCookieAuthenticated") as HTMLInputElement | null,
+            gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement | null,
+            userAddress: document.getElementById("userAddress") as HTMLInputElement | null,
+            userBlockchain: document.getElementById("userBlockchain") as HTMLInputElement | null,
         }
 
         window.DisconnectWalletCallback = function() {}
@@ -61,11 +64,13 @@ declare global {
             let isAuthenticated = DOM.isCookieAuthenticated && DOM.isCookieAuthenticated.value === "true";
             if (!isAuthenticated) {
                 DOM.menuAvatar.src = "/static/image/avatar.png";
+                DOM.menuAvatarLink.href = "/login";
                 return;
             }
-            let blockchain = GetChain();
-            let address = GetAddress();
+            let blockchain = DOM.userBlockchain?.value || GetChain();
+            let address = DOM.userAddress?.value || GetAddress();
             if (blockchain && address) {
+                DOM.menuAvatarLink.href = `/p/${blockchain}/${address}`;
                 let avatar: string | null = null;
                 if (IsGatewayMode()) {
                     avatar = await getIpfsAvatarUrl(blockchain, address);
@@ -80,6 +85,7 @@ declare global {
                 }
             } else {
                 DOM.menuAvatar.src = "/static/image/avatar.png";
+                DOM.menuAvatarLink.href = "/login";
             }
         }
 
@@ -101,7 +107,7 @@ declare global {
         DOM.htmlMenu.addEventListener("focusin", (e) => {
             //e.preventDefault();
             //e.stopPropagation();
-            if (DOM.gatewayMode.value === "true" && !isLocalhost()) {
+            if (DOM.gatewayMode?.value === "true" && !isLocalhost()) {
                 DOM.menuSettingsLink.style.display = "none";
                 DOM.menuPlacesLink.href = `${window.location.protocol}//${window.location.host}/`;
             } else {

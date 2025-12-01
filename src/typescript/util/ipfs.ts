@@ -3,7 +3,6 @@ import {IsValidIpfsCid, IsValidURL} from "./security";
 import {HttpGetJson, HttpPostJson} from "./network";
 import {LogError, LogInfo} from "./log";
 import {IsGatewayMode} from "./miscellaneous";
-import {globalIpfsAvatarCache} from "./cache";
 
 const IPFS_GATEWAY_DEFAULT = "ipfs.io";
 let ipfsGatewayCache: string | null = null;
@@ -264,11 +263,6 @@ export async function checkIPFSContentExists(cid: string, timeoutMs: number = 30
 
 /* --- IPFS Avatar Caching --- */
 export async function getIpfsAvatarUrl(blockchain: string, address: string): Promise<string | null> {
-    const cacheKey = blockchain + "_" + address;
-    const cached = globalIpfsAvatarCache.get(cacheKey);
-    if (cached !== null) {
-        return cached as string;
-    }
     try {
         const response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
         if (response[0] === 200 && response[1] && response[1].avatarAddress) {
@@ -276,7 +270,6 @@ export async function getIpfsAvatarUrl(blockchain: string, address: string): Pro
             if (avatarCid.length > 0) {
                 const avatarURL = CIDToSubdomainURL(avatarCid);
                 if (IsValidURL(avatarURL)) {
-                    globalIpfsAvatarCache.set(cacheKey, avatarURL);
                     return avatarURL;
                 }
             }
@@ -284,7 +277,6 @@ export async function getIpfsAvatarUrl(blockchain: string, address: string): Pro
     } catch (error) {
         LogError("Failed to get IPFS avatar: " + error);
     }
-    globalIpfsAvatarCache.set(cacheKey, "");
     return null;
 }
 

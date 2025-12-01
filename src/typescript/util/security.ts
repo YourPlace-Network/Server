@@ -141,10 +141,10 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
             "p","div","h1","h2","h3","h4","h5","h6","ul","ol","li",
             "blockquote","pre","code","em","i","strong","b","s",
             "sub","sup","table","thead","tbody","tr","th","td","br",
-            "hr","span","img","iframe"],
+            "hr","span","img","iframe","video"],
         ALLOWED_ATTR: [
             "style","src","width","height","frameborder","allowfullscreen",
-            "allow","loading","credentialless","class"],
+            "allow","loading","credentialless","class","controls","alt"],
         ADD_ATTR: ["target"],
         FORBID_TAGS: ["script","style","form","input","button","textarea","svg"],
         FORBID_ATTR: forbiddenAttributes([]),

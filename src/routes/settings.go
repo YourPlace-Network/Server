@@ -25,9 +25,13 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	router.GET("/settings", func(c *gin.Context) { // Settings View
 		token := middleware.GetCSRFToken(c)
 		authenticated := false
+		userAddress := ""
+		userBlockchain := ""
 		authCookie, err := c.Request.Cookie("yp_auth")
 		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
 			authenticated = true
+			userAddress, _ = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
+			userBlockchain, _ = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
 		}
 		c.HTML(http.StatusOK, "src/templates/pages/settings.tmpl", gin.H{
 			"title":                 title,
@@ -35,6 +39,8 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"csrfToken":             token,
 			"isCookieAuthenticated": authenticated,
 			"gatewayMode":           gateway,
+			"userAddress":           userAddress,
+			"userBlockchain":        userBlockchain,
 		})
 	})
 	router.GET("/settings/uploadDirectory", func(c *gin.Context) { // Get file upload directory

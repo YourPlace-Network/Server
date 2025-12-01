@@ -6,7 +6,6 @@ import (
 	"YourPlace/src/core/services"
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"math/big"
 	"net/http"
@@ -22,15 +21,16 @@ import (
 )
 
 type Base struct {
-	MainnetChainId     uint
-	Name               string
-	Currency           string
-	ExplorerUrl        string
-	RpcUrl             string
-	RpcClient          *rpc.Client
-	EarliestBlock      big.Int
-	EthClient          *ethclient.Client
-	EnsResolverAddress string
+	MainnetChainId          uint
+	Name                    string
+	Currency                string
+	ExplorerUrl             string
+	RpcUrl                  string
+	RpcClient               *rpc.Client
+	EarliestBlock           big.Int
+	EthClient               *ethclient.Client
+	EnsResolverAddress      string
+	ReverseRegistrarAddress string
 }
 type loggingTransport struct {
 	transport http.RoundTripper
@@ -63,6 +63,7 @@ func (base *Base) init(database *db.Database, gateway bool) {
 	base.Currency = "ETH"
 	base.ExplorerUrl = "https://etherscan.io"
 	base.EnsResolverAddress = "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD"
+	base.ReverseRegistrarAddress = "0x79EA96012eEa67A83431F1701B3dFf7e37F9E282"
 	baseURL := os.Getenv("BASE_RPC_URL")
 	baseThrottle := os.Getenv("BASE_RPC_THROTTLE")
 	if gateway && baseURL != "" {
@@ -133,14 +134,6 @@ func (base *Base) GetPriceUSD() float64 {
 	price, _ := services.CoinbaseGetPriceUSD("ETH")
 	return price
 }
-func (base *Base) GetENSNames(address string) ([]string, error) {
-	commonAddress := common.HexToAddress(address)
-	reverse, err := ens.ReverseResolve(base.EthClient, commonAddress)
-	if err != nil {
-		return nil, core.LogWarningReturn("Could not get Base ENS names: " + err.Error())
-	}
-	return []string{reverse}, nil
-}
 func (base *Base) GetENSAddresses(name string) ([]string, error) {
 	resolverAddr := common.HexToAddress(base.EnsResolverAddress)
 	resolver, err := ens.NewResolverAt(base.EthClient, name, resolverAddr)
@@ -156,16 +149,6 @@ func (base *Base) GetENSAddresses(name string) ([]string, error) {
 func BaseGetEarliestBlock() big.Int {
 	return *big.NewInt(int64(38300000)) // YourPlace did not exist on-chain before this block
 }
-func BaseGetBytecode(database *db.Database, address string) ([]byte, error) {
-	base := new(Base)
-	base.Init(database)
-	var bytecode hexutil.Bytes
-	err := base.RpcClient.Call(&bytecode, "eth_getCode", address, "latest")
-	if err != nil {
-		return nil, core.LogWarningReturn("Could not get bytecode of Base address: " + err.Error())
-	}
-	return bytecode, nil
-}
 func BaseGetBalance(address string, database *db.Database) (big.Int, error) {
 	core.LogDebug("BaseGetBalance(): Getting Base balance for address: " + address)
 	base := new(Base)
@@ -178,20 +161,6 @@ func BaseGetBalance(address string, database *db.Database) (big.Int, error) {
 	}
 	//etherBalance := WeiToEther(*result.ToInt())
 	return *result.ToInt(), nil
-}
-func WeiToEther(wei big.Int) float64 {
-	weiAmount := big.NewInt(1000000000000000000) // 1 Ether = 10^18 Wei
-	weiBigFloat := new(big.Float).SetInt(weiAmount)
-	etherPerWei := big.NewFloat(1e-18) // 1 Ether = 10^18 Wei
-	etherBigFloat := new(big.Float).Mul(weiBigFloat, etherPerWei)
-	etherAmount, _ := etherBigFloat.Float64()
-	return etherAmount
-}
-func WeiToEtherString(wei big.Int) string {
-	ethValue := new(big.Float).SetInt(&wei)
-	ethValue.Quo(ethValue, big.NewFloat(1e18))
-	ethString := fmt.Sprintf("%.18f", ethValue)
-	return ethString
 }
 func (base *Base) GetBlockTimestamp(blockNumber *big.Int) uint64 {
 	blockNumberHex := "0x" + blockNumber.Text(16)
@@ -206,4 +175,31 @@ func (base *Base) GetBlockTimestamp(blockNumber *big.Int) uint64 {
 	}
 	timestamp, _ := strconv.ParseUint(timestampHex[2:], 16, 64)
 	return timestamp
+}
+func (base *Base) GetENSName(address string) (string, error) {
+	core.LogDebug("Base.GetENSName(): Getting ENS name for address: " + address)
+	commonAddress := common.HexToAddress(address)
+	name, err := ens.ReverseResolve(base.EthClient, commonAddress)
+	if err != nil {
+		core.LogDebug("Base.GetENSName(): No ENS name found for address: " + address + " - " + err.Error())
+		return "", err
+	}
+	core.LogDebug("Base ENS name for address " + address + " is " + name)
+	return name, nil
+}
+func (base *Base) GetENSAvatar(address string) (string, error) {
+	name, err := base.GetENSName(address)
+	if err != nil || name == "" {
+		return "", err
+	}
+	resolverAddr := common.HexToAddress(base.EnsResolverAddress)
+	resolver, err := ens.NewResolverAt(base.EthClient, name, resolverAddr)
+	if err != nil {
+		return "", err
+	}
+	avatar, err := resolver.Text("avatar")
+	if err != nil {
+		return "", err
+	}
+	return avatar, nil
 }

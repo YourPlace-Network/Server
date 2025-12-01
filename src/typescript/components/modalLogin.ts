@@ -1,20 +1,7 @@
-import type {MouseEvent} from "react";
-
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalLogin.scss";
-import {
-    DisableDialogModalExit,
-    DisableDialogModalOkBtn,
-    ShowDialogModal, ShowDialogModalHTML,
-    ShowDialogModalHTMLUnsafe
-} from "./modalDialog";
-import {
-    ConnectWallet,
-    DisconnectWallet,
-    ReconnectWallet,
-    WalletIsConnected,
-    WalletLogin
-} from "../util/blockchain/wallet";
+import {ShowDialogModal, ShowDialogModalHTML} from "./modalDialog";
+import {ConnectWallet, ReconnectWallet, WalletLogin} from "../util/blockchain/wallet";
 import {IsGatewayMode} from "../util/miscellaneous";
 
 let modal: bootstrap.Modal;
@@ -44,7 +31,6 @@ export function HideModalLogin() {
             modalDialog: document.getElementById("modalDialog")! as HTMLDivElement,
             modalDialogOkBtn: document.getElementsByClassName("yp-modal-btn")[0]! as HTMLButtonElement,
             peraWalletBtn: document.getElementById("peraWalletBtn")! as HTMLButtonElement,
-            txnlabWalletBtn: document.getElementById("txnlabWalletBtn")! as HTMLButtonElement
         }
 
         function connectWalletDispatcher(wallet: string) {
@@ -74,16 +60,16 @@ export function HideModalLogin() {
                 if (window.location.pathname !== "/setup") {
                     let loginResult = await WalletLogin();
                     if (loginResult === "wallet_not_deployed") {
-                        // User is being shown deployment dialog - don't proceed with login callback
                         return;
                     }
                     if (loginResult !== "success") {
-                        // Login failed or user cancelled - redirect to login page
                         window.location.href = "/login";
                         return;
                     }
                 }
-                window.LoginCallback(status);
+                if (typeof window.LoginCallback === "function") {
+                    window.LoginCallback(status);
+                }
             }
         }
 

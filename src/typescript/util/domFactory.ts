@@ -82,6 +82,11 @@ export function processTextWithTags(element: HTMLElement): void {
 }
 
 async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLElement) {
+    // Prevent infinite loop - only run once per image
+    if (avatarImg.dataset.avatarLoaded === "true") {
+        return;
+    }
+    avatarImg.dataset.avatarLoaded = "true";
     const blockchainInput = cardElement.querySelector('.postCardBlockchain, .profileCardBlockchain') as HTMLInputElement;
     const addressInput = cardElement.querySelector('.postCardAddress, .profileCardAddressInput') as HTMLInputElement;
     if (blockchainInput && addressInput) {
@@ -95,7 +100,7 @@ async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLEl
                 } else {
                     avatarUrl = await WalletGetAvatar(blockchain, address);
                 }
-                if (avatarUrl && avatarUrl !== "" && avatarImg.src !== XSSSanitizeUrl(avatarUrl)) {
+                if (avatarUrl && avatarUrl !== "" && !avatarImg.src.endsWith(XSSSanitizeUrl(avatarUrl))) {
                     avatarImg.src = XSSSanitizeUrl(avatarUrl);
                 }
             } catch (error) {
@@ -330,6 +335,30 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     // Post Rendering
     postTextDiv.innerHTML = XSSSanitizeTinyMCEHtml(postText);
     processTextWithTags(postTextDiv);
+    // Convert ipfs:// image sources to displayable URLs
+    const images = postTextDiv.querySelectorAll("img");
+    images.forEach(img => {
+        const src = img.getAttribute("src");
+        if (src && src.startsWith("ipfs://")) {
+            const converted = CIDToSubdomainURL(src);
+            if (converted) {
+                img.src = converted;
+                img.classList.add("postCardInlineImage");
+            }
+        }
+    });
+    // Convert ipfs:// video sources to displayable URLs
+    const videos = postTextDiv.querySelectorAll("video");
+    videos.forEach(video => {
+        const src = video.getAttribute("src");
+        if (src && src.startsWith("ipfs://")) {
+            const converted = CIDToSubdomainURL(src);
+            if (converted) {
+                video.src = converted;
+                video.classList.add("postCardInlineVideo");
+            }
+        }
+    });
     return postDiv;
 }
 export async function CreateProfileCard (profileData: any): Promise<HTMLDivElement>{
@@ -544,22 +573,31 @@ export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDi
 }
 export async function CreateAttachmentPreview(file: File): Promise<HTMLDivElement> {
     const previewDiv = document.createElement("div") as HTMLDivElement;
-    const icon = document.createElement("i") as HTMLElement;
     const removeButton = document.createElement("button") as HTMLButtonElement;
     const removeIcon = document.createElement("i") as HTMLElement;
     const fileNameText = document.createElement("span") as HTMLSpanElement;
     const mimeType = file.type;
-    const iconType = getFileIcon(mimeType);
     previewDiv.setAttribute("id", XSSSanitizeValue(file.name));
     removeButton.classList.add("removeButton");
     removeIcon.classList.add("bi", "bi-x-lg", "removeIcon");
-    icon.classList.add("icon", "attachmentIcon", iconType);
     previewDiv.classList.add("attachmentUploadGridItem");
     fileNameText.classList.add("fileNameSpan");
     fileNameText.textContent = file.name;
     removeButton.appendChild(removeIcon);
     previewDiv.appendChild(removeButton);
-    previewDiv.appendChild(icon);
+    if (mimeType.startsWith("image/")) {
+        const imgPreview = document.createElement("img") as HTMLImageElement;
+        imgPreview.classList.add("attachmentImagePreview");
+        const objectUrl = URL.createObjectURL(file);
+        imgPreview.src = objectUrl;
+        imgPreview.onload = () => URL.revokeObjectURL(objectUrl);
+        previewDiv.appendChild(imgPreview);
+    } else {
+        const icon = document.createElement("i") as HTMLElement;
+        const iconType = getFileIcon(mimeType);
+        icon.classList.add("icon", "attachmentIcon", iconType);
+        previewDiv.appendChild(icon);
+    }
     previewDiv.appendChild(fileNameText);
     return previewDiv;
 }

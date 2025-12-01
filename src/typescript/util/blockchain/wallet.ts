@@ -5,9 +5,29 @@ for the application. This code is stateful using localstorage to keep a few valu
     "accountAddress" = wallet address of the user
 */
 import {Transaction} from "algosdk";
-import {algoConnectSession, algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
-import {baseAuthLogin, baseConnectWallet, baseDisconnectWallet, baseFollowUser, baseUnfollowUser, baseGetAddressFromENS, baseGetAvatar, baseGetENSText, baseGetName, baseGetNFTs, baseIsWalletConnected, baseSetAvatar, baseSetBanner, baseSetBirthday, baseSetCachedName, baseSetDescription, baseSetLocation, baseSetName, baseSetWebsite, baseSubmitPost, baseSubmitPostAttach, baseTxn, mainnetBase} from "./base";
-import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
+import {algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
+import {
+    baseAuthLogin,
+    baseConnectWallet,
+    baseDisconnectWallet,
+    baseFollowUser,
+    baseUnfollowUser,
+    baseGetAvatar,
+    baseGetName,
+    baseSetAvatar,
+    baseSetBanner,
+    baseSetBirthday,
+    baseSetDescription,
+    baseSetLocation,
+    baseSetName,
+    baseSetWebsite,
+    baseSubmitPost,
+    baseSubmitPostAttach,
+    baseTxn,
+    mainnetBase,
+    baseGetDescription
+} from "./base";
+import {IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
 import {ShowDialogModal, ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
@@ -19,10 +39,8 @@ export async function WalletLogin() {
         case "pera":
             return ""; //return await algoAuthLogin(address);
         case "cbwalletbase":
-            LogInfo("Logging in to Base wallet - WalletLogin()");
             let loginStatus = await baseAuthLogin();
             if (loginStatus === "wallet_not_deployed") {
-                // User is being shown a dialog to deploy their wallet - don't treat as error
                 return "wallet_not_deployed";
             }
             if (loginStatus !== "success") {
@@ -113,15 +131,16 @@ export async function ConnectWallet(wallet: string): Promise<string> {
 }
 export async function ReconnectWallet() {
     let wallet = GetWallet();
+    if (!wallet) {
+        // No wallet stored - nothing to reconnect (this is normal on first visit)
+        return;
+    }
     switch (wallet) {
         case "pera":
             algoReconnectSession();
             break;
         case "cbwalletbase":
             await baseConnectWallet();
-            break;
-        default:
-            LogError("Invalid wallet selection when trying to reconnect");
             break;
     }
 }
@@ -151,51 +170,35 @@ export function GetChain() {
     return null;
 }
 export async function WalletGetAvatar(chain?: string, address?: string): Promise<string> {
+    let avatar;
     if (!chain) chain = GetChain()!;
     if (!address) address = GetAddress()!;
     switch (chain) {
         case "algorand":
             return "";
         case "base":
-            let avatarURL = await baseGetAvatar(address);
-            if (avatarURL) return avatarURL;
-            return "";
-        case "solana":
-            return "";
-        default:
-            LogError("Invalid chain when fetching avatar");
-            return "";
+            avatar = await baseGetAvatar(address);
     }
-}
-export async function WalletGetName(chain?: string, address?: string): Promise<string|null> {
-    if (!chain) chain = GetChain()!;
-    if (!address) address = GetAddress()!;
-    switch (chain) {
-        case "algorand":
-            return null;
-        case "base":
-            let baseName = await baseGetName(address);
-            if (baseName) return baseName;
-            return "";
+    if (avatar && IsValidURL(avatar)) {
+        return avatar;
     }
     return "";
 }
-export async function WalletGetAddressFromName(chain: string, ensName: string): Promise<string|null> {
+export async function WalletGetName(chain: string, address: string): Promise<string|null> {
+    let name;
     switch (chain) {
         case "algorand":
             return null;
         case "base":
-            const address = await baseGetAddressFromENS(ensName);
-            if (address) {
-                baseSetCachedName(address, ensName);
-            }
-            return address;
-        case "solana":
-            return null;
+            name = await baseGetName(address);
     }
-    return null;
+    if (name) {
+        return name;
+    }
+    return "";
 }
 export async function WalletGetDescription(chain?: string, address?: string): Promise<string|null> {
+    let description;
     if (!chain) {
         chain = GetChain()!;
     }
@@ -206,44 +209,10 @@ export async function WalletGetDescription(chain?: string, address?: string): Pr
         case "algorand":
             return null;
         case "base":
-            return await baseGetENSText(address, "description");
+            description = await baseGetDescription(address);
     }
-    return null;
-}
-export async function WalletGetLocation(chain?: string, address?: string): Promise<string|null> {
-    if (!chain) {
-        chain = GetChain()!;
-    }
-    if (!address) {
-        address = GetAddress()!;
-    }
-    switch(chain) {
-        case "algorand":
-            return null;
-        case "base":
-            return await baseGetENSText(address, "location");
-    }
-    return null;
-}
-export async function WalletGetWebsite(chain?: string, address?: string): Promise<URL|null> {
-    if (!chain) {
-        chain = GetChain()!;
-    }
-    if (!address) {
-        address = GetAddress()!;
-    }
-    switch(chain) {
-        case "algorand":
-            return null;
-        case "base":
-            let url = await baseGetENSText(address, "url");
-            if (!url.match(/^[a-zA-Z]+:\/\//)) {
-                url = `https://${url}`
-            }
-            if (url == "" || !IsValidURL(url)) {
-                return null;
-            }
-            return new URL(url);
+    if (description) {
+        return description;
     }
     return null;
 }
@@ -280,19 +249,6 @@ export function WalletGetYourPlaceAddressLink(address: string) {
     } else {
         return `${host}/p/${address}`;
     }
-}
-export async function WalletGetNFTs(chain?: string, address?: string): Promise<string[]|null> {
-    if (!chain) { chain = GetChain()!; }
-    if (!address) { address = GetAddress()!; }
-    switch (chain) {
-        case "algorand": return null;
-        case "base":
-            let nfts = await baseGetNFTs(address);
-            console.log(nfts);
-            break;
-        case "solana":
-    }
-    return null;
 }
 
 // ---------- Setters ---------- //
@@ -384,29 +340,51 @@ export async function WalletSetName(name: string): Promise<boolean> {
             return false;
     }
 }
-export async function WalletSubmitPost(payload: string) {
-    let wallet = GetWallet()!;
+export async function WalletSubmitPost(payload: string): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot submit post");
+        return false;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
     switch (wallet) {
         case "pera":
             await setAlgoPost(payload);
-            break;
+            return true;
         case "cbwalletbase":
             await baseSubmitPost(payload);
-            break;
+            return true;
         default:
-            LogError("Invalid wallet selection");
-            break;
+            LogError("Invalid wallet selection: " + wallet);
+            return false;
     }
 }
-export async function WalletSubmitPostAttach(payload: string, attach: string[][]) {
-    let wallet = GetWallet()!;
-    if (wallet == "pera") {
-        //await setAlgoPostAttach(payload, attach);
+export async function WalletSubmitPostAttach(payload: string, attach: string[][]): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot submit post with attachments");
+        return false;
     }
-    else if (wallet == "cbwalletbase") {
-        await baseSubmitPostAttach(payload, attach);
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
     }
-    return null;
+    switch (wallet) {
+        case "pera":
+            //await setAlgoPostAttach(payload, attach);
+            return true;
+        case "cbwalletbase":
+            await baseSubmitPostAttach(payload, attach);
+            return true;
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return false;
+    }
 }
 export async function WalletSendPostNudge(address: string) {
     let wallet = GetWallet()!;
@@ -473,7 +451,7 @@ export async function WalletIsConnected(): Promise<boolean> {
         case "pera":
             return !!peraWallet.connector?.connected;
         case "cbwalletbase":
-            return await baseIsWalletConnected();
+            return false;
     }
     return false;
 }
@@ -498,12 +476,6 @@ export function IsValidAddress(address: string, chain?: string): boolean {
             return IsValidBaseAddress(address);
     }
     return false;
-}
-export function WalletSignTransactions(unsignedTransaction: {txn: Transaction; signers: string[];}[][]) {
-    let walletSelection = localStorage.getItem("walletSelection");
-    if (walletSelection == "pera") {
-        return peraWallet.signTransaction(unsignedTransaction);
-    }
 }
 export function TruncateAddress(address: string) {
     let wallet = GetWallet()!;

@@ -53,6 +53,12 @@
 .attachmentIcon {
   font-size: 3em;
 }
+.attachmentImagePreview {
+  max-width: 90%;
+  max-height: 4em;
+  object-fit: contain;
+  border-radius: 0.5em;
+}
 .removeIcon {
   font-size: 1em;
   color: global.$secondary;

@@ -393,10 +393,10 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	if !installed {
 		routes.SetupRoutes(router, database, title, favicon, port)
 	} else {
-		routes.ProfileRoutes(router, title, database, _blockchain, cryptoSeed, gateway)
+		routes.ProfileRoutes(router, title, database, _blockchain, gateway)
 		routes.PostRoutes(router, database)
 		routes.FeedRoutes(router, database)
-		routes.FilesRoutes(router, database, ipfs, port)
+		routes.FilesRoutes(router, database, ipfs, port, gateway)
 		routes.MentalHealthRoutes(router, title, database, cryptoSeed, gateway)
 		routes.SearchRoutes(router, database, _blockchain)
 		routes.ServicesRoutes(router, database)
@@ -514,10 +514,6 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 	}
 	c.AddFunc("@every 168h", func() {
 		network.UpdateBadBits(database)
-	})
-	// ------- Clear Caches ------- //
-	c.AddFunc("@every 10m", func() {
-		db.CleanAllCaches()
 	})
 	// --- Start Cron --- //
 	c.Start()

@@ -7,10 +7,11 @@ import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/security"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 // List of path/method pairs that do not require authentication. Everything else requires a yp_auth cookie created from /login
@@ -25,7 +26,7 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/notification", "GET"},
 	{"/robots.txt", "GET"},
 	{"/settings/base", "GET"}, {"/settings/ipfs/port", "GET"}, {"/settings/base/url", "GET"}, {"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"},
-	{"/s/", "GET"},
+	{"/s", "GET"},
 	{"/404", "GET"},
 }
 

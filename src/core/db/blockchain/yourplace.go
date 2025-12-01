@@ -47,14 +47,14 @@ func isValidBurnAddress(blockchain string, toAddress string) bool {
 }
 func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]interface{}, timestamp uint64, blockNumber uint64) {
 	// Pattern-based tokenization and database storage of YourPlace transactions
-	data := transaction["input"].(string)[2:]       // get data from the transaction & drop the '0x' prefix
-	decodedDataBytes, err := hex.DecodeString(data) // hex decode data
+	data := transaction["input"].(string)[2:]
+	decodedDataBytes, err := hex.DecodeString(data)
 	if err != nil {
 		core.LogDebug("Could not decode YourPlace transaction: " + err.Error())
 		return
 	}
-	decodedDataStr := string(decodedDataBytes)                                                   // convert bytes to string
-	isValid, versionNumber, actionCode, payloadObject := isValidYourPlacePayload(decodedDataStr) // validate transaction and parse out payload
+	decodedDataStr := string(decodedDataBytes)
+	isValid, versionNumber, actionCode, payloadObject := isValidYourPlacePayload(decodedDataStr)
 	if !isValid {
 		core.LogDebug("Could not decode YourPlace transaction: ")
 		return
@@ -66,10 +66,9 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 	parentTxHash := ""
 	amountHexStr := transaction["value"].(string)[2:]
 	amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)
-	actionPrefix := actionCode[0]   // parse out the action prefix
-	actionPostfix := actionCode[1:] // parse out the action postfix
+	actionPrefix := actionCode[0]
+	actionPostfix := actionCode[1:]
 
-	// Execute the YourPlace transaction based on the action code
 	if versionNumber == 1 {
 		switch actionPrefix {
 		case 'p': // Post Actions

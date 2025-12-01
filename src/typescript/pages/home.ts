@@ -6,11 +6,11 @@ import "../components/menu";
 import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
 import {HttpGetJson} from "../util/network";
 import {XSSSanitizeUrl} from "../util/security";
-import {WalletGetAvatar, WalletGetDescription, WalletGetName, WalletGetAddressFromName, GetAddress, GetChain} from "../util/blockchain/wallet";
+import {WalletGetAvatar, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowNotifications} from "../util/notifications";
-import {globalProfileCache, type ProfileData} from "../util/cache";
+import {ShowDialogModalHTML} from "../components/modalDialog";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -35,11 +35,6 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
         let feedHasMore = true;
         let feedNewestTimestamp: number | null = null;
         const loadedTxHashes = new Set<string>();
-        type user = { // address is the map key
-            blockchain: string,
-            avatar: string,
-            name: string,
-        }
 
         async function loadFollowersFeed(mode: "initial" | "more" | "refresh" = "initial") {
             if (DOM.isCookieAuthenticated.value !== "true") {
@@ -125,47 +120,16 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                     let blockchain = post.blockchain;
                     let address = post.address;
                     let key = blockchain + address;
-                    let cached = globalProfileCache.get(key);
-                    // Invalidate cache if avatar is missing or stale ipfs:// URL
-                    if (cached !== null) {
-                        const cachedAvatar = (cached as ProfileData).avatar;
-                        if (!cachedAvatar || cachedAvatar === "" || cachedAvatar.startsWith("ipfs://")) {
-                            cached = null;
-                        }
-                    }
-                    if (cached === null) {
-                        let name: string | null = null;
-                        try {
-                            name = await WalletGetName(blockchain, address);
-                        } catch (e) {
-                            console.warn("Failed to get ENS name:", e);
-                        }
-                        if (name === null || name.length === 0) {
-                            let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
-                            if (response[0] === 200) {
-                                if (response[1] && response[1].name && response[1].name.length > 0) {
-                                    name = response[1].name;
-                                }
-                            } else if (response[0] !== 200) {
-                                console.warn("Failed to fetch profile name:", response[0], blockchain, address, response[1]);
-                            }
-                        }
-                        let avatarStr: string | null = null;
-                        if (IsGatewayMode()) {
+                    let name: string | null = await WalletGetName(blockchain, address);
+                    let avatarStr: string | null = null;
+                    if (IsGatewayMode()) {
+                        avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                    } else {
+                        avatarStr = await WalletGetAvatar(blockchain, address);
+                        if (!avatarStr || avatarStr === "") {
                             avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                        } else {
-                            try {
-                                avatarStr = await WalletGetAvatar(blockchain, address);
-                            } catch (e) {
-                                console.warn("Failed to get ENS avatar:", e);
-                            }
-                            if (!avatarStr || avatarStr === "") {
-                                avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                            }
                         }
-                        globalProfileCache.set(key, {name, avatar: avatarStr || null, description: null, address, blockchain});
                     }
-                    const profileData = globalProfileCache.get(key) as ProfileData;
                     // Update all posts for this profile
                     pendingCards.forEach(postDiv => {
                         const postAddress = postDiv.querySelector('.postCardAddress') as HTMLInputElement;
@@ -175,11 +139,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                             if (postKey === key) {
                                 const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
                                 const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
-                                if (authorElement) authorElement.textContent = profileData.name || "Anonymous";
+                                if (authorElement) authorElement.textContent = name || "Anonymous";
                                 if (avatarElement) {
                                     const defaultPath = "/static/image/avatar.png";
-                                    if (profileData.avatar) {
-                                        let avatarSrc = profileData.avatar;
+                                    if (avatarStr) {
+                                        let avatarSrc = avatarStr;
                                         if (avatarSrc.startsWith("ipfs://")) {
                                             avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
                                         }
@@ -234,52 +198,23 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             }
         }
         async function fetchAndUpdateProfileCard(profileCard: HTMLDivElement, blockchain: string, address: string) {
-            const key = blockchain + address;
-            let cached = globalProfileCache.get(key);
-            // Invalidate cache if avatar is missing or stale ipfs:// URL
-            if (cached !== null) {
-                const cachedAvatar = (cached as ProfileData).avatar;
-                if (!cachedAvatar || cachedAvatar === "" || cachedAvatar.startsWith("ipfs://")) {
-                    cached = null;
-                }
-            }
-            if (cached === null) {
-                let name: string | null = null;
-                try {
-                    name = await WalletGetName(blockchain, address);
-                } catch (e) {
-                    console.warn("Failed to get ENS name:", e);
-                }
-                if (name === null || name.length === 0) {
-                    let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
-                    if (response[0] === 200 && response[1] && response[1].name && response[1].name.length > 0) {
-                        name = response[1].name;
-                    }
-                }
-                let avatarStr: string | null = null;
-                if (IsGatewayMode()) {
+            let name: string | null = await WalletGetName(blockchain, address);
+            let avatarStr: string | null = null;
+            if (IsGatewayMode()) {
+                avatarStr = await getIpfsAvatarUrl(blockchain, address);
+            } else {
+                avatarStr = await WalletGetAvatar(blockchain, address);
+                if (!avatarStr || avatarStr === "") {
                     avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                } else {
-                    try {
-                        avatarStr = await WalletGetAvatar(blockchain, address);
-                    } catch (e) {
-                        console.warn("Failed to get ENS avatar:", e);
-                    }
-                    if (!avatarStr || avatarStr === "") {
-                        avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                    }
                 }
-                globalProfileCache.set(key, {name, avatar: avatarStr || null, description: null, address, blockchain});
-                cached = globalProfileCache.get(key);
             }
-            const profileData = cached as ProfileData;
             const nameDiv = profileCard.querySelector('.profileCardName') as HTMLDivElement;
             const avatarImg = profileCard.querySelector('img.profileCardAvatar') as HTMLImageElement;
-            if (nameDiv) nameDiv.textContent = profileData.name || "Anonymous";
+            if (nameDiv) nameDiv.textContent = name || "Anonymous";
             if (avatarImg) {
                 const defaultPath = "/static/image/avatar.png";
-                if (profileData.avatar) {
-                    let avatarSrc = profileData.avatar;
+                if (avatarStr) {
+                    let avatarSrc = avatarStr;
                     if (avatarSrc.startsWith("ipfs://")) {
                         avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
                     }
@@ -320,65 +255,13 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
             visibleText.textContent = "Searching...";
             spinnerDiv.appendChild(visibleText);
             DOM.resultsDiv.appendChild(spinnerDiv);
-            const ensSuffixes = [".base.eth"];
-            const ensPromises: Promise<any>[] = [];
-            if (query.endsWith(".base.eth")) {
-                const normalizedQuery = query.toLowerCase();
-                console.log("[DEBUG] Attempting direct ENS resolution for:", normalizedQuery);
-                ensPromises.push((async () => {
-                    const address = await WalletGetAddressFromName("base", normalizedQuery);
-                    if (address) {
-                        console.log("[DEBUG] Direct ENS resolution SUCCESS:", normalizedQuery, "->", address);
-                        return {
-                            resultType: "profile",
-                            address: address,
-                            blockchain: "base",
-                            ensName: normalizedQuery
-                        };
-                    } else {
-                        console.log("[DEBUG] Direct ENS resolution FAILED for:", normalizedQuery);
-                    }
-                    return null;
-                })());
-            } else if (!query.includes(".")) {
-                ensSuffixes.forEach(suffix => {
-                    const ensName = query.toLowerCase() + suffix;
-                    console.log("[DEBUG] Attempting ENS resolution for:", ensName);
-                    ensPromises.push((async () => {
-                        const address = await WalletGetAddressFromName("base", ensName);
-                        if (address) {
-                            console.log("[DEBUG] ENS resolution SUCCESS:", ensName, "->", address);
-                            return {
-                                resultType: "profile",
-                                address: address,
-                                blockchain: "base",
-                                ensName: ensName
-                            };
-                        } else {
-                            console.log("[DEBUG] ENS resolution FAILED for:", ensName);
-                        }
-                        return null;
-                    })());
-                });
-            }
-            const [backendResponse, ...ensResults] = await Promise.all([
-                HttpGetJson("/s/?q=" + query),
-                ...ensPromises
-            ]);
+            let resp = await HttpGetJson("/s/?q=" + query);
             DOM.resultsDiv.replaceChildren();
-            let resp = backendResponse;
             let results: any[] = [];
             if (resp[0] === 200 && resp[1] && resp[1].results !== null) {
                 results = resp[1].results;
             } else if (resp[0] !== 200) {
                 console.error("Search failed with status:", resp[0], "Response:", resp[1]);
-            }
-            const ensProfileResults = ensResults.filter(result => result !== null);
-            const backendAddresses = new Set(results.map(r => r.address.toLowerCase()));
-            for (const ensProfile of ensProfileResults) {
-                if (!backendAddresses.has(ensProfile!.address.toLowerCase())) {
-                    results.push(ensProfile);
-                }
             }
             if (results.length === 0) {
                 let noResultsDiv = document.createElement("div");
@@ -401,7 +284,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                     pendingCards.push(postDiv);
                     DOM.resultsDiv.appendChild(postDiv);
                 } else if (results[i].resultType == "profile") {
-                    results[i].name = "loading...";
+                    results[i].name = "Loading...";
                     results[i].avatarSrc = "/static/image/avatar.png";
                     let profileDiv = await CreateProfileCard(results[i]);
                     if (i % 2 === 0) {
@@ -416,90 +299,20 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                 let blockchain = result.blockchain;
                 let address = result.address;
                 let key = blockchain + address;
-                console.log("[DEBUG] Processing result for key:", key, "resultType:", result.resultType, "ensName:", result.ensName);
-                let cached = globalProfileCache.get(key);
-                // Invalidate cache if avatar is missing or stale ipfs:// URL
-                if (cached !== null) {
-                    const cachedAvatar = (cached as ProfileData).avatar;
-                    if (!cachedAvatar || cachedAvatar === "" || cachedAvatar.startsWith("ipfs://")) {
-                        cached = null;
+                let name: string | null = await WalletGetName(blockchain, address);
+                let avatarStr: string | null = null;
+                if (IsGatewayMode()) {
+                    avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                } else {
+                    avatarStr = await WalletGetAvatar(blockchain, address);
+                    if (!avatarStr || avatarStr === "") {
+                        avatarStr = await getIpfsAvatarUrl(blockchain, address);
                     }
                 }
-                const needsDescriptionFetch = cached && result.resultType === "profile" && !cached.description;
-                if (cached === null || needsDescriptionFetch) {
-                    let name: string | null = null;
-                    let avatarStr: string | null = null;
-
-                    if (needsDescriptionFetch) {
-                        console.log("[DEBUG] Cached profile missing description, re-fetching for:", cached.address);
-                        // Reuse cached name and avatar
-                        name = cached.name;
-                        avatarStr = cached.avatar;
-                    } else {
-                        // Fetch name
-                        if (result.ensName) {
-                            console.log("[DEBUG] Using preserved ENS name from search:", result.ensName);
-                            name = result.ensName;
-                        } else {
-                            console.log("[DEBUG] No preserved ENS name, attempting reverse resolution for:", address);
-                            try {
-                                name = await WalletGetName(blockchain, address);
-                                console.log("[DEBUG] Reverse resolution result:", name);
-                            } catch (e) {
-                                console.warn("Failed to get ENS name:", e);
-                            }
-                        }
-                        if (name === null || name.length === 0) {
-                            let response = await HttpGetJson("/profile/name/" + blockchain + "/" + address);
-                            if (response[0] === 200) {
-                                if (response[1] && response[1].name && response[1].name.length > 0) {
-                                    name = response[1].name;
-                                }
-                            } else if (response[0] !== 200) {
-                                console.warn("Failed to fetch profile name:", response[0], blockchain, address, response[1]);
-                            }
-                        }
-                        // Fetch avatar
-                        console.log("[DEBUG] Fetching avatar for:", address, "with name:", name);
-                        if (IsGatewayMode()) {
-                            avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                        } else {
-                            try {
-                                avatarStr = await WalletGetAvatar(blockchain, address);
-                                console.log("[DEBUG] Avatar fetch result:", avatarStr ? "found" : "empty");
-                            } catch (e) {
-                                console.warn("Failed to get ENS avatar:", e);
-                            }
-                            if (!avatarStr || avatarStr === "") {
-                                avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                            }
-                        }
-                    }
-                    let description: string | null = null;
-                    if (result.resultType == "profile") {
-                        console.log("[DEBUG] Fetching description for profile:", address, "with name:", name);
-                        let response = await HttpGetJson("/profile/description/" + blockchain + "/" + address);
-                        if (response[0] === 200) {
-                            if (response[1] && response[1].description && response[1].description.length > 0) {
-                                description = response[1].description;
-                                console.log("[DEBUG] Database description found:", description ? description.substring(0, 50) + "..." : "empty");
-                            }
-                        } else if (response[0] !== 200) {
-                            console.warn("Failed to fetch profile description:", response[0], blockchain, address, response[1]);
-                        }
-                        if (!description || description.length === 0) {
-                            try {
-                                description = await WalletGetDescription(result.blockchain, result.address);
-                                console.log("[DEBUG] ENS description fetch result:", description ? description.substring(0, 50) + "..." : "empty");
-                            } catch (e) {
-                                console.warn("Failed to get ENS description:", e);
-                            }
-                        }
-                    }
-                    globalProfileCache.set(key, {name, avatar: avatarStr || null, description, address, blockchain});
+                let description: string | null = null;
+                if (result.resultType == "profile") {
+                    description = await WalletGetDescription(result.blockchain, result.address);
                 }
-                const profileData = globalProfileCache.get(key) as ProfileData;
-
                 pendingCards.forEach(profileDiv => {
                     const profileAddress = profileDiv.querySelector('.profileCardAddressInput') as HTMLInputElement;
                     const profileBlockchain = profileDiv.querySelector('.profileCardBlockchain') as HTMLInputElement;
@@ -509,11 +322,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                             const nameDiv = profileDiv.querySelector('.profileCardName') as HTMLDivElement;
                             const avatarImg = profileDiv.querySelector('img.profileCardAvatar') as HTMLImageElement;
                             const descriptionDiv = profileDiv.querySelector('.profileCardDescription') as HTMLDivElement;
-                            if (nameDiv) nameDiv.textContent = profileData.name || "Anonymous";
+                            if (nameDiv) nameDiv.textContent = name || "Anonymous";
                             if (avatarImg) {
                                 const defaultPath = "/static/image/avatar.png";
-                                if (profileData.avatar) {
-                                    let avatarSrc = profileData.avatar;
+                                if (avatarStr) {
+                                    let avatarSrc = avatarStr;
                                     if (avatarSrc.startsWith("ipfs://")) {
                                         avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
                                     }
@@ -527,7 +340,7 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                                     avatarImg.src = defaultPath;
                                 }
                             }
-                            if (descriptionDiv) descriptionDiv.textContent = profileData.description || "";
+                            if (descriptionDiv) descriptionDiv.textContent = description || "";
                         }
                     }
                 });
@@ -540,11 +353,11 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                         if (postKey === key) {
                             const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
                             const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
-                            if (authorElement) authorElement.textContent = profileData.name || "Anonymous";
+                            if (authorElement) authorElement.textContent = name || "Anonymous";
                             if (avatarElement) {
                                 const defaultPath = "/static/image/avatar.png";
-                                if (profileData.avatar) {
-                                    let avatarSrc = profileData.avatar;
+                                if (avatarStr) {
+                                    let avatarSrc = avatarStr;
                                     if (avatarSrc.startsWith("ipfs://")) {
                                         avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
                                     }
@@ -562,7 +375,6 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
                     }
                 });
             });
-
             await Promise.all(profilePromises);
         }
 
@@ -598,8 +410,8 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
         DOM.feedTopBtn.addEventListener("click", () => {
             DOM.followersFeedDiv.scrollTo({ top: 0, behavior: "smooth" });
         });
-        // Infinite scroll - load more when near bottom
         DOM.followersFeedDiv.addEventListener("scroll", () => {
+            // Infinite scroll - load more when near bottom
             const { scrollTop, scrollHeight, clientHeight } = DOM.followersFeedDiv;
             if (scrollTop + clientHeight >= scrollHeight - 100) {
                 loadFollowersFeed("more").then();
@@ -611,15 +423,28 @@ import {globalProfileCache, type ProfileData} from "../util/cache";
         DOM.resultsDiv.style.display = "none";
         DOM.followersFeedSection.style.display = "block";
         DOM.discoverSection.style.display = "block";
-        ShowNotifications(); // Load notifications in background - don't block page loading
+        ShowNotifications().then(); // Load notifications in background - don't block page loading
         loadFollowersFeed("initial").then();
         loadDiscoverProfiles().then();
-        preloadTinyMCE(); // Preload TinyMCE in background after page loads
-        // Auto-refresh feed every 60 seconds to fetch new posts
+        preloadTinyMCE().then(); // Preload TinyMCE in background after page loads
         setInterval(() => {
             if (DOM.followersFeedSection.style.display !== "none") {
                 loadFollowersFeed("refresh").then();
             }
-        }, 60000);
+        }, 60000); // Auto-refresh feed every 60 seconds to fetch new posts
+        if (IsGatewayMode()) {
+            // Show gateway mode download prompt
+            const dismissedKey = "gatewayDownloadDismissed";
+            const dismissed = localStorage.getItem(dismissedKey);
+            if (!dismissed) {
+                ShowDialogModalHTML(
+                    `<h5>Welcome to YourPlace</h5>
+                    <p>This web app is provided as a convenience, but to use YourPlace in a truly distributed way, you should download and run it on your own device.</p>
+                    <p>Running YourPlace locally gives you full control over your data and helps strengthen the network.</p>
+                    <p><a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer"><b>Download YourPlace</b></a></p>`
+                );
+                localStorage.setItem(dismissedKey, "true");
+            }
+        }
     }
 })();

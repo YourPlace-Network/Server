@@ -6,12 +6,13 @@ import (
 	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
-func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool) {
+func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, gateway bool) {
 	router.GET("/p/*path", func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Param("path"), "/")
 		if path == "" {
@@ -71,14 +72,26 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		token := middleware.GetCSRFToken(c)
 		// Check if the profile viewer is the profile owner
 		isGuest := true
+		userAddress := ""
+		userBlockchain := ""
 		viewerAddress, addressOk := c.Get("accountAddress")
 		viewerBlockchain, blockchainOk := c.Get("blockchain")
-		if addressOk && blockchainOk && (viewerAddress == addressParam) && (viewerBlockchain == blockchainParam) {
-			isGuest = false
+		if addressOk && blockchainOk {
+			userAddress = viewerAddress.(string)
+			userBlockchain = viewerBlockchain.(string)
+			if (viewerAddress == addressParam) && (viewerBlockchain == blockchainParam) {
+				isGuest = false
+			}
 		}
 		profileName := database.ProfileGetName(addressParam, blockchainParam)
 		profileDescription := database.ProfileGetDescription(addressParam, blockchainParam)
 		profileAvatar := database.ProfileGetAvatar(addressParam, blockchainParam)
+		if profileAvatar == "" {
+			ensAvatar, err := blockchain.WalletGetAvatar(blockchainParam, addressParam, _blockchain)
+			if err == nil && ensAvatar != "" {
+				profileAvatar = ensAvatar
+			}
+		}
 		displayName := profileName
 		if displayName == "" {
 			displayName = addressParam[:6] + "..." + addressParam[len(addressParam)-4:]
@@ -93,6 +106,8 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"isCookieAuthenticated": true,
 			"isGuest":               isGuest, // Guest mode distinguishes if the viewer is the guest or owner of the profile
 			"gatewayMode":           gateway,
+			"userAddress":           userAddress,
+			"userBlockchain":        userBlockchain,
 			"ogTitle":               displayName,
 			"ogDescription":         profileDescription,
 			"ogImage":               profileAvatar,
@@ -111,6 +126,13 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
+		avatarAddress := database.ProfileGetAvatar(address, blockchainParam)
+		if avatarAddress == "" {
+			ensAvatar, err := blockchain.WalletGetAvatar(blockchainParam, address, _blockchain)
+			if err == nil && ensAvatar != "" {
+				avatarAddress = ensAvatar
+			}
+		}
 		profileData := gin.H{
 			"name":           database.ProfileGetName(address, blockchainParam),
 			"description":    database.ProfileGetDescription(address, blockchainParam),
@@ -120,12 +142,11 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"joinedDate":     database.ProfileGetJoinedDate(address, blockchainParam),
 			"followerCount":  database.ProfileGetFollowerCount(address, blockchainParam),
 			"followingCount": database.ProfileGetFollowingCount(address, blockchainParam),
-			"avatarAddress":  database.ProfileGetAvatar(address, blockchainParam),
+			"avatarAddress":  avatarAddress,
 			"bannerAddress":  database.ProfileGetBanner(address, blockchainParam),
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "profileData": profileData})
 	})
-
 	router.GET("/profile/name/:blockchain/:address", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchainParam) {
@@ -139,8 +160,11 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		name := database.ProfileGetName(address, blockchainParam)
 		if name == "" {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "no name found"})
-			return
+			_name, err := blockchain.WalletGetName(blockchainParam, address, _blockchain)
+			if err != nil || _name == "" {
+				c.SecureJSON(http.StatusOK, gin.H{"status": "no name found"})
+				return
+			}
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "name": name})
 	})
@@ -157,6 +181,11 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		avatarAddress := database.ProfileGetAvatar(address, blockchainParam)
 		if avatarAddress == "" {
+			ensAvatar, err := blockchain.WalletGetAvatar(blockchainParam, address, _blockchain)
+			if err == nil && ensAvatar != "" {
+				c.SecureJSON(http.StatusOK, gin.H{"status": "success", "avatarAddress": ensAvatar})
+				return
+			}
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no avatar found"})
 			return
 		}

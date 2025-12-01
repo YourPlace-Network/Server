@@ -69,6 +69,24 @@ type RequestTracker struct {
 	requestTimes []time.Time
 	windowSize   time.Duration
 }
+type smartWalletPayload struct {
+	fromAddress string
+	toAddress   string
+	payload     string
+}
+type userOperation struct { // userOperation represents an ERC-4337 UserOperation structure
+	sender               []byte
+	nonce                *big.Int
+	initCode             []byte
+	callData             []byte
+	callGasLimit         *big.Int
+	verificationGasLimit *big.Int
+	preVerificationGas   *big.Int
+	maxFeePerGas         *big.Int
+	maxPriorityFeePerGas *big.Int
+	paymasterAndData     []byte
+	signature            []byte
+}
 
 func NewSequentialBlockTracker(startBlock int64, uuid string, database *db.Database, direction string) *SequentialBlockTracker {
 	return &SequentialBlockTracker{
@@ -245,7 +263,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 			jitter := time.Duration(rand.Intn(500)) * time.Millisecond
 			time.Sleep(baseDelay + jitter)
 			defer wg.Done()
-			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlockBigInt, targetLatestBlock, batchSize, "forward", errorChan)
+			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlockBigInt, targetLatestBlock, batchSize, "forward")
 			if err != nil {
 				core.LogError("Worker thread failed: " + err.Error())
 				errorChan <- err // Send the error to the error channel
@@ -360,7 +378,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 			jitter := time.Duration(rand.Intn(500)) * time.Millisecond
 			time.Sleep(baseDelay + jitter)
 			defer wg.Done()
-			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward", errorChan)
+			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward")
 			if err != nil {
 				core.LogError("Worker encountered an error: " + err.Error())
 				errorChan <- err // Send the error to the error channel
@@ -461,7 +479,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 			jitter := time.Duration(rand.Intn(500)) * time.Millisecond
 			time.Sleep(baseDelay + jitter)
 			defer wg.Done()
-			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, &targetEarliestBlockBigInt, targetLatestBlock, batchSize, "backward", errorChan)
+			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, &targetEarliestBlockBigInt, targetLatestBlock, batchSize, "backward")
 			if err != nil {
 				core.LogError("Worker encountered an error: " + err.Error())
 				errorChan <- err
@@ -571,7 +589,7 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 	core.LogDebug("Chain Earliest Block: " + chainEarliestBlock.String())
 	return databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock
 }
-func dispatchTransaction(block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string) int {
+func dispatchTransaction(block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string, base *Base) int {
 	// ret 0 == success == transaction was a YP txn and was processed
 	// ret 1 == skipped == transaction was not a YP txn
 	// ret 2 == expired == transaction is older than the cached history limit
@@ -626,30 +644,8 @@ func isTimestampExpired(databaseHistoryDaysInt int64, timestamp int64) bool {
 	diff := now.Sub(time.Unix(timestamp, 0))
 	return diff > time.Duration(databaseHistoryDaysInt)*24*time.Hour
 }
-
-type smartWalletPayload struct {
-	fromAddress string
-	toAddress   string
-	payload     string
-}
-
-// userOperation represents an ERC-4337 UserOperation structure
-type userOperation struct {
-	sender               []byte
-	nonce                *big.Int
-	initCode             []byte
-	callData             []byte
-	callGasLimit         *big.Int
-	verificationGasLimit *big.Int
-	preVerificationGas   *big.Int
-	maxFeePerGas         *big.Int
-	maxPriorityFeePerGas *big.Int
-	paymasterAndData     []byte
-	signature            []byte
-}
-
-// parseUserOperationFromHandleOps parses the first UserOperation from handleOps calldata
 func parseUserOperationFromHandleOps(data []byte) (*userOperation, error) {
+	// parseUserOperationFromHandleOps parses the first UserOperation from handleOps calldata
 	if len(data) < 4 {
 		return nil, fmt.Errorf("data too short")
 	}
@@ -696,9 +692,8 @@ func parseUserOperationFromHandleOps(data []byte) (*userOperation, error) {
 	op.signature = parseDynamicBytes(data, opStart, signatureOffset)
 	return op, nil
 }
-
-// parseDynamicBytes extracts dynamic bytes from ABI-encoded data
 func parseDynamicBytes(data []byte, baseOffset uint64, relativeOffset uint64) []byte {
+	// parseDynamicBytes extracts dynamic bytes from ABI-encoded data
 	absOffset := baseOffset + relativeOffset
 	if absOffset+32 > uint64(len(data)) {
 		return nil
@@ -709,16 +704,14 @@ func parseDynamicBytes(data []byte, baseOffset uint64, relativeOffset uint64) []
 	}
 	return data[absOffset+32 : absOffset+32+length]
 }
-
-// getSenderFromUserOp returns the sender address from the UserOperation
-// The sender field in ERC-4337 UserOperation is the account that authorized the operation
 func getSenderFromUserOp(op *userOperation) string {
+	// getSenderFromUserOp returns the sender address from the UserOperation
+	// The sender field in ERC-4337 UserOperation is the account that authorized the operation
 	return "0x" + strings.ToLower(hex.EncodeToString(op.sender))
 }
-
-// extractTargetFromCallData extracts the target address from smart wallet callData
-// Supports: execute(address,uint256,bytes), executeBatch((address,uint256,bytes)[])
 func extractTargetFromCallData(callData []byte) string {
+	// extractTargetFromCallData extracts the target address from smart wallet callData
+	// Supports: execute(address,uint256,bytes), executeBatch((address,uint256,bytes)[])
 	if len(callData) < 4 {
 		return ""
 	}
@@ -780,7 +773,6 @@ func extractTargetFromCallData(callData []byte) string {
 	}
 	return ""
 }
-
 func extractSmartWalletPayloads(inputHex string) []smartWalletPayload {
 	var results []smartWalletPayload
 	if len(inputHex) < 10 {
@@ -834,11 +826,15 @@ func extractSmartWalletPayloads(inputHex string) []smartWalletPayload {
 		if payloadEndHex > payloadStartHex {
 			payloadBytes, err := hex.DecodeString(data[payloadStartHex:payloadEndHex])
 			if err == nil && strings.HasPrefix(string(payloadBytes), services.YpPrefix) {
-				results = append(results, smartWalletPayload{
-					fromAddress: signerAddr,
-					toAddress:   targetAddr,
-					payload:     string(payloadBytes),
-				})
+				payloadStr := string(payloadBytes)
+				isValid, _, _, _ := isValidYourPlacePayload(payloadStr)
+				if isValid {
+					results = append(results, smartWalletPayload{
+						fromAddress: signerAddr,
+						toAddress:   targetAddr,
+						payload:     payloadStr,
+					})
+				}
 			}
 		}
 		searchStart = payloadEndHex
@@ -1078,7 +1074,7 @@ BATCHRPCCALL:
 	}
 	return blocks
 }
-func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker, requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string, errorChan chan<- error) error {
+func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker, requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string) error {
 	// Worker thread to process batches of blocks
 	for {
 		batch, populated := batchJobQueue.Dequeue()
@@ -1148,7 +1144,7 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 				if !ok2 {
 					continue // Skip malformed transactions
 				}
-				ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, big.NewInt(currentBlockNumber), "base")
+				ret := dispatchTransaction(block, transaction, &databaseHistoryDaysInt, big.NewInt(currentBlockNumber), "base", base)
 				if ret == 1 || ret == 2 { // Skip transactions that are not valid YP posts
 					continue
 				}

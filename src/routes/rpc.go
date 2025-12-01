@@ -3,17 +3,13 @@ package routes
 import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/db/blockchain"
-	"strconv"
-
 	"github.com/gin-gonic/gin"
+	"strconv"
 )
 
 func RPCRoutes(router *gin.Engine, database *db.Database) {
 	// Get RPC URL and rate limit from database settings
 	baseURL := database.SettingsGetValue("baseURL")
-	if baseURL == "" {
-		baseURL = blockchain.DefaultBlockchainNodes["base"][0]
-	}
 	baseThrottle := database.SettingsGetValue("baseThrottle")
 	rateLimit := 5
 	if baseThrottle != "" {

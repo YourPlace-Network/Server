@@ -164,9 +164,6 @@ func (db *Database) Ping() bool {
 	}
 	return false
 }
-func SanitizeDatabase(path string) error {
-	return SanitizeSQLiteDatabase(path)
-}
 
 // --- Auth Functions --- //
 func (db *Database) AuthGetNonceStatus(nonce string) string {

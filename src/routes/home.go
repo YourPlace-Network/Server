@@ -12,9 +12,13 @@ func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool
 	router.GET("/", func(c *gin.Context) {
 		token := middleware.GetCSRFToken(c)
 		authenticated := false
+		userAddress := ""
+		userBlockchain := ""
 		authCookie, err := c.Request.Cookie("yp_auth")
 		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
 			authenticated = true
+			userAddress, _ = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
+			userBlockchain, _ = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
 		}
 		c.HTML(http.StatusOK, "src/templates/pages/home.tmpl", gin.H{
 			"title":                 title,
@@ -22,6 +26,8 @@ func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool
 			"csrfToken":             token,
 			"isCookieAuthenticated": authenticated,
 			"gatewayMode":           gateway,
+			"userAddress":           userAddress,
+			"userBlockchain":        userBlockchain,
 		})
 	})
 	router.GET("/favicon.ico", func(c *gin.Context) {

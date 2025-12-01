@@ -26,11 +26,6 @@ type SQLite struct {
 	path     string
 }
 
-const (
-	burnAddressETH      = "0x0000000000000000000000000000000000000000"
-	burnAddressShortETH = "0x0"
-)
-
 func (db *SQLite) Init(path string) {
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -45,6 +40,11 @@ func (db *SQLite) Init(path string) {
 	database.SetConnMaxLifetime(15 * time.Minute)
 	database.SetConnMaxIdleTime(3 * time.Minute)
 	db.database = database
+	// Enable Caching
+	_, err = database.Exec("PRAGMA cache_size = -64000") // 64MB
+	if err != nil {
+		core.LogDebug("Could not set cache size: " + err.Error())
+	}
 	// Enable WAL mode for better concurrency
 	_, err = database.Exec("PRAGMA journal_mode=WAL")
 	if err != nil {
@@ -229,7 +229,7 @@ func (db *SQLite) withTransaction(fn func(*sql.Tx) error) error {
 //  3. Add a migration function in schema.go to ALTER existing tables
 //
 // This ensures:
-//   - Fresh installs get the latest schema directly (no migrations needed)
+//   - Fresh installations get the latest schema directly (no migrations needed)
 //   - Existing databases are upgraded via migrations in schema.go
 func (db *SQLite) createTables(ctx context.Context) error {
 	// Tables schema map - keep at LATEST schema version
@@ -1118,51 +1118,6 @@ func (db *SQLite) Ping() bool {
 }
 func (db *SQLite) Close() error {
 	return db.database.Close()
-}
-func SanitizeSQLiteDatabase(path string) error {
-	// This function resets certain elements in the YourPlace database snapshot to get it back to a clean and updated state. Useful for "catch-up" jobs
-
-	// Resolve the user data directory without creating import cycles with the host package name
-	userDir, err := os.UserHomeDir()
-	if err != nil {
-		return core.LogDebugReturn("Could not get home directory: " + err.Error())
-	}
-	dataDir := userDir + string(os.PathSeparator) + "YourPlace" + string(os.PathSeparator)
-	// Connecting to the database file to sanitize
-	if path == dataDir+"yourplace.db" {
-		return core.LogDebugReturn("Cannot sanitize the main database")
-	}
-	database, err := sql.Open("sqlite", path)
-	if err != nil || database == nil {
-		return core.LogDebugReturn("Could not open sqlite db to sanitize it")
-	}
-	// Scrub it clean
-	queries := []string{"TRUNCATE TABLE IF EXISTS auth_expired",
-		"TRUNCATE TABLE IF EXISTS auth_nonce",
-		"TRUNCATE TABLE IF EXISTS login_nonce",
-		"TRUNCATE TABLE IF EXISTS files",
-		"TRUNCATE TABLE IF EXISTS meta",
-		"TRUNCATE TABLE IF EXISTS settings",
-	}
-	for _, query := range queries {
-		_, err = database.Exec(query)
-		if err != nil {
-			return core.LogDebugReturn("Could not sanitize sqlite db: " + err.Error())
-		}
-	}
-	return nil
-}
-func truncateBurnAddress(address string) string {
-	if strings.ToLower(address) == burnAddressETH {
-		return burnAddressShortETH
-	}
-	return address
-}
-func expandBurnAddress(address string) string {
-	if strings.ToLower(address) == burnAddressShortETH {
-		return burnAddressETH
-	}
-	return address
 }
 
 // --- Metadata & Settings --- //

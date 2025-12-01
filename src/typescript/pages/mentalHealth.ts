@@ -4,6 +4,15 @@ import "../components/menu";
 import {ShowDialogModalHTML} from "../components/modalDialog";
 import {LogInfo} from "../util/log";
 
+// Simple djb2 hash function for generating stable tip identifiers
+function hashTip(str: string): string {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+    }
+    return (hash >>> 0).toString(36);
+}
+
 // These tips can be added, modified and removed as needed to cultivate a healthy mind
 const tips = [
     "You are special and worth while",
@@ -989,6 +998,15 @@ const tips = [
     "Sometimes to build your own family, you need to break off pieces of your old one",
     "The forest was shrinking but the trees kept voting for the axe, for the axe was clever and convinced the trees that because his handle was made of wood, he was one of them",
     "Young people: Don't get a dog. Dogs might be fun and cute, but they're extremely limiting to your job and housing and most people can't afford that limit when building their career",
+    "Don't ever import people who cause problems and contribute nothing good to your society. And force the naive/malicious bleeding-hearts who want to bring them in to shut up, because they might find themselves or others with a *real* bloody heart",
+    "You don't get extra time just because you're healthy. Even physically fit people die suddenly. But don't use that as an excuse to be unhealthy either",
+    "Never bomb a country, then bring their people into your country as some kind of mea culpa. It's suicidal",
+    "It's better (albeit unpalatable) to be unfair to a random person in another nation, than to be unfair to your own people",
+    "Increasing the GDP is not worth decreasing sovereignty or the overall quality of life",
+    "Fraudsters will necessarily come up with a very sympathetic story",
+    "Don't upend society to allow an 80 year old a few more years to live. They've lived their life, and the young need a stable future more than the old need a year or two more in bed hooked up to machines",
+
+
 ];
 
 (function initialize() {
@@ -1001,14 +1019,29 @@ const tips = [
             tipDiv: document.getElementById("tip")! as HTMLDivElement,
             refreshBtn: document.getElementById("refreshBtn")! as HTMLButtonElement,
             emergencyBtn: document.getElementById("emergencyBtn")! as HTMLButtonElement,
+            shareBtn: document.getElementById("shareBtn")! as HTMLButtonElement,
         }
         let paused = false;
         let intervalId: NodeJS.Timeout;
         let intervalTimeout = 30000;
         let recentTips: number[] = [];
+        let currentTipIndex: number = -1;
 
         function randomInt(limit: number): number {
             return Math.floor(Math.random() * limit);
+        }
+        function displayTip(index: number) {
+            currentTipIndex = index;
+            DOM.tipDiv.innerHTML = tips[index];
+            history.replaceState(null, "", "#" + hashTip(tips[index]));
+        }
+        function findTipByHash(hash: string): number {
+            for (let i = 0; i < tips.length; i++) {
+                if (hashTip(tips[i]) === hash) {
+                    return i;
+                }
+            }
+            return -1;
         }
         function reload() {
             let newTip = randomInt(tips.length);
@@ -1020,7 +1053,17 @@ const tips = [
                 return;
             } else {
                 recentTips.push(newTip);
-                DOM.tipDiv.innerHTML = tips.at(newTip)!;
+                displayTip(newTip);
+            }
+        }
+        function shareTip() {
+            if (currentTipIndex >= 0) {
+                const url = window.location.origin + window.location.pathname + "#" + hashTip(tips[currentTipIndex]);
+                navigator.clipboard.writeText(url).then(() => {
+                    ShowDialogModalHTML("Link copied to clipboard!<br><br><small>" + url + "</small>");
+                }).catch(() => {
+                    ShowDialogModalHTML("Copy this link:<br><br><input type='text' value='" + url + "' style='width:100%' readonly onclick='this.select()'>");
+                });
             }
         }
         function emergency() {
@@ -1064,8 +1107,24 @@ const tips = [
             }
         }
 
-        intervalId = setInterval(reload, intervalTimeout);
-        DOM.play.classList.add("pressed");
+        // Check for hotlinked tip in URL hash
+        const urlHash = window.location.hash.slice(1);
+        if (urlHash) {
+            const linkedTipIndex = findTipByHash(urlHash);
+            if (linkedTipIndex >= 0) {
+                displayTip(linkedTipIndex);
+                recentTips.push(linkedTipIndex);
+                pause();
+            } else {
+                displayTip(randomInt(tips.length));
+                intervalId = setInterval(reload, intervalTimeout);
+                DOM.play.classList.add("pressed");
+            }
+        } else {
+            displayTip(randomInt(tips.length));
+            intervalId = setInterval(reload, intervalTimeout);
+            DOM.play.classList.add("pressed");
+        }
 
         DOM.refreshBtn.addEventListener("click", () => {
             if (intervalId) {
@@ -1076,8 +1135,8 @@ const tips = [
                 intervalId = setInterval(reload, intervalTimeout);
             }
         });
-        DOM.tipDiv.innerHTML = tips.at(randomInt(tips.length))!;
         DOM.emergencyBtn.addEventListener("click", emergency);
+        DOM.shareBtn.addEventListener("click", shareTip);
         DOM.pause.addEventListener("click", pause);
         DOM.play.addEventListener("click", play);
     }

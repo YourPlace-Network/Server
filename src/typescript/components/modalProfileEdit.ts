@@ -47,6 +47,10 @@ export async function showProfileEditModal() {
         DOM.inputWebsite.value = DOMPurify.sanitize(DOM.profileWebsite.innerText);
     }
     const modal = new window.bootstrap.Modal(DOM.modalProfileEdit, {});
+    DOM.modalProfileEdit.addEventListener("shown.bs.modal", () => {
+        let tooltipTriggerList = [].slice.call(DOM.modalProfileEdit.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl: HTMLElement) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
+    }, {once: true});
     modal.show();
 }
 
@@ -93,14 +97,8 @@ export async function showProfileEditModal() {
             return DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost;
         }
         function showGatewayAvatarMessage() {
-            const blockchain = DOM.injectedBlockchain?.value?.toLowerCase() || "";
-            let message = "To change your avatar, you can either:<br><br>";
+            let message = "To change your avatar, you must:<br><br>";
             message += "• <a href='https://yourplace.network/download' target='_blank'>Download the YourPlace app</a> to host files yourself<br><br>";
-            if (blockchain === "base") {
-                message += "• Edit your avatar at <a href='https://www.base.org/names' target='_blank'>base.org/names</a> using your Basename";
-            } else {
-                message += "• Use a blockchain name service that supports avatar images";
-            }
             DOM.modalProfileEdit.addEventListener("hidden.bs.modal", () => {
                 ShowDialogModalHTML(message);
             }, {once: true});
@@ -114,10 +112,12 @@ export async function showProfileEditModal() {
             getModalInstance().hide();
         }
         function hideModalAndShowToast() {
+            DOM.modalProfileEdit.addEventListener("hidden.bs.modal", () => {
+                const modalBackdrops = document.querySelectorAll(".modal-backdrop");
+                modalBackdrops.forEach(backdrop => backdrop.remove());
+                ShowToastWithDelay("Your profile update should show up shortly. Please wait for it to spread through the network.", 10000);
+            }, {once: true});
             getModalInstance().hide();
-            const modalBackdrops = document.querySelectorAll(".modal-backdrop");
-            modalBackdrops.forEach(backdrop => backdrop.remove());
-            ShowToastWithDelay("Your profile update should show up shortly. Please wait for it to spread through the network.", 10000);
         }
 
         const minAge = new Date();

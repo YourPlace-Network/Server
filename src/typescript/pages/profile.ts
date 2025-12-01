@@ -16,13 +16,13 @@ import {CreatePostCard, processTextWithTags} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
-import PersistentCache from "../util/cache";
 
 declare global { // Extend the window interface with public objects
     interface Window {
         LoginCallback: (status: string) => void;
         PageReloadCallback: () => void;
         DisconnectWalletCallback: () => void;
+        PostSubmitCallback: () => void;
     }
 }
 
@@ -76,15 +76,12 @@ declare global { // Extend the window interface with public objects
         let copiedTooltip: any;
         let isFollowing = false;
         let refreshIntervalId: ReturnType<typeof setInterval> | null = null;
+        let lastPostsHash = "";
         const REFRESH_INTERVAL_MS = 60000; // 60 seconds
-        const profileCache = new PersistentCache({
-            defaultTtl: 3600000, // 60 minutes
-            keyPrefix: "profile_"
-        });
 
         // --------- Page Functions --------- //
         async function init() {
-            let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]:not(#modalProfileEdit [data-bs-toggle="tooltip"])'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});}); // enable tooltips
             await updateProfile();
             ShowNotifications().then(); // Load notifications in background - don't block profile loading
@@ -97,14 +94,6 @@ declare global { // Extend the window interface with public objects
                 LogError("profile.ts updateProfile() - invalid address");
                 return;
             }
-            const profileKey = `${requestedBlockchain}_${requestedAddress}`;
-            const cached = profileCache.get(profileKey);
-            if (cached && cached.profileData) {
-                await displayPosts(requestedBlockchain, requestedAddress);
-                await renderProfileFromCache(cached.profileData, requestedBlockchain, requestedAddress);
-                await renderGuestView();
-                return;
-            }
             // Phase 1: Load critical profile info immediately (address only)
             await renderProfileAddress(requestedAddress);
             // Phase 2: Load profile data in background
@@ -115,7 +104,6 @@ declare global { // Extend the window interface with public objects
             try {
                 const response = await profileDataPromise;
                 if (response[0] === 200 && response[1]?.profileData) {
-                    profileCache.set(profileKey, { profileData: response[1].profileData });
                     await renderProfileFromCache(response[1].profileData, requestedBlockchain, requestedAddress);
                 } else {
                     LogError("Failed to fetch profile data - profile will show minimal info");
@@ -131,8 +119,10 @@ declare global { // Extend the window interface with public objects
             let posts = await FetchPosts(blockchain, address);
             if (!posts || posts.length == 0) {
                 DOM.postsNum.textContent = "0";
+                lastPostsHash = "";
                 return;
             }
+            lastPostsHash = JSON.stringify(posts.map((p: any) => p.id || p.hash || p.txHash));
             DOM.postsNum.textContent = String(posts.length);
             for (let i = 0; i < posts.length; i++) {
                 let postDiv = await CreatePostCard(posts[i]);
@@ -148,9 +138,8 @@ declare global { // Extend the window interface with public objects
             if (!requestedAddress || !IsValidAddress(requestedAddress, requestedBlockchain)) {
                 return;
             }
-            const profileKey = `${requestedBlockchain}_${requestedAddress}`;
             try {
-                // Fetch fresh profile data (bypass cache)
+                // Fetch fresh profile data
                 const [profileResponse, posts] = await Promise.all([
                     HttpGetJson(`/profile/data/${requestedBlockchain}/${requestedAddress}`),
                     FetchPosts(requestedBlockchain, requestedAddress)
@@ -158,18 +147,19 @@ declare global { // Extend the window interface with public objects
                 // Update profile data if successful
                 if (profileResponse[0] === 200 && profileResponse[1]?.profileData) {
                     const profileData = profileResponse[1].profileData;
-                    profileCache.set(profileKey, { profileData });
                     await renderProfileFromCache(profileData, requestedBlockchain, requestedAddress);
                 }
-                // Update posts - compare count to detect changes
-                const currentPostCount = Number(DOM.postsNum.textContent);
-                const newPostCount = posts ? posts.length : 0;
-                if (newPostCount !== currentPostCount || newPostCount > 0) {
+                // Update posts only if they've changed
+                const newPostsHash = posts ? JSON.stringify(posts.map((p: any) => p.id || p.hash || p.txHash)) : "";
+                if (newPostsHash !== lastPostsHash) {
+                    lastPostsHash = newPostsHash;
                     // Clear existing posts and re-render
                     const existingPosts = DOM.contentDiv.querySelectorAll('.postCard');
                     existingPosts.forEach(post => post.remove());
                     if (posts && posts.length > 0) {
-                        DOM.postsNum.textContent = String(posts.length);
+                        if (DOM.postsNum.textContent !== String(posts.length)) {
+                            DOM.postsNum.textContent = String(posts.length);
+                        }
                         for (let i = 0; i < posts.length; i++) {
                             let postDiv = await CreatePostCard(posts[i]);
                             if (i % 2 === 0) {
@@ -178,7 +168,9 @@ declare global { // Extend the window interface with public objects
                             DOM.contentDiv.appendChild(postDiv);
                         }
                     } else {
-                        DOM.postsNum.textContent = "0";
+                        if (DOM.postsNum.textContent !== "0") {
+                            DOM.postsNum.textContent = "0";
+                        }
                     }
                 }
                 // Update guest view state (follow button, placeholder visibility)
@@ -245,9 +237,17 @@ declare global { // Extend the window interface with public objects
         // --------- Profile Render --------- //
         async function renderProfileAddress(address: string) {
             let truncatedAddress = truncateAddress(address);
-            DOM.profileAddressFull.value = XSSSanitizeValue(address);
-            DOM.profileAddress.textContent = truncatedAddress;
-            DOM.profileAddressLink.href = XSSSanitizeUrl(WalletGetExplorerAddressLink(address));
+            let sanitizedAddress = XSSSanitizeValue(address);
+            let explorerLink = XSSSanitizeUrl(WalletGetExplorerAddressLink(address));
+            if (DOM.profileAddressFull.value !== sanitizedAddress) {
+                DOM.profileAddressFull.value = sanitizedAddress;
+            }
+            if (DOM.profileAddress.textContent !== truncatedAddress) {
+                DOM.profileAddress.textContent = truncatedAddress;
+            }
+            if (DOM.profileAddressLink.href !== explorerLink) {
+                DOM.profileAddressLink.href = explorerLink;
+            }
         }
         async function renderGuestView() {
             // Edit the profile view, depending on if the viewer is the owner of the profile or not
@@ -302,6 +302,10 @@ declare global { // Extend the window interface with public objects
             LogInfo("profile.ts DisconnectWalletCallback() stub - redirecting to logout");
             window.location.href = "/logout";
         }
+        window.PostSubmitCallback = function () {
+            LogInfo("profile.ts PostSubmitCallback() - refreshing profile data");
+            refreshProfileData().then();
+        }
 
         // --------- Cache Render Helper Functions --------- //
         async function renderProfileNameFromData(cachedName: string, blockchain: string, address: string) {
@@ -310,6 +314,9 @@ declare global { // Extend the window interface with public objects
             if (name === null || name.length === 0) {
                 // Fall back to cached database name
                 name = cachedName && cachedName.length > 0 ? cachedName : truncateAddress(address);
+            }
+            if (DOM.profileName.textContent === name) {
+                return; // No change, skip DOM updates
             }
             DOM.profileName.textContent = name;
             const updatePostAuthors = () => {
@@ -342,15 +349,16 @@ declare global { // Extend the window interface with public objects
                     avatarURL = await WalletGetAvatar(blockchain, address);
                 }
             }
-            DOM.profileAvatar.src = "/static/image/avatar.png"; // Clear any existing avatar loading to prevent memory leaks
             // Convert ipfs:// URLs to HTTP gateway URLs
             if (avatarURL && avatarURL.startsWith("ipfs://")) {
                 avatarURL = CIDToSubdomainURL(avatarURL);
             }
+            // Determine the final avatar URL to use
+            let finalAvatarUrl = "/static/image/avatar.png";
             if (IsValidURL(avatarURL)) {
                 const success = await loadImageWithTimeout(avatarURL, 3000);
                 if (success) {
-                    DOM.profileAvatar.src = XSSSanitizeUrl(avatarURL);
+                    finalAvatarUrl = XSSSanitizeUrl(avatarURL);
                 } else {
                     LogError(`Avatar failed to load, using default: ${avatarURL}`);
                 }
@@ -359,38 +367,39 @@ declare global { // Extend the window interface with public objects
                 if (ipfsURL) {
                     const success = await loadImageWithTimeout(ipfsURL, 3000);
                     if (success) {
-                        DOM.profileAvatar.src = XSSSanitizeUrl(ipfsURL);
+                        finalAvatarUrl = XSSSanitizeUrl(ipfsURL);
                     } else {
                         LogError(`IPFS avatar failed to load, using default: ${ipfsURL}`);
                     }
                 }
             }
+            // Only update DOM if avatar changed
+            if (DOM.profileAvatar.src !== finalAvatarUrl && !DOM.profileAvatar.src.endsWith(finalAvatarUrl)) {
+                DOM.profileAvatar.src = finalAvatarUrl;
+            }
         }
         async function renderProfileDescriptionFromData(description: string, blockchain: string, address: string) {
-            if (description && description.length > 0) {
-                DOM.profileDescription.textContent = description;
-                processTextWithTags(DOM.profileDescription);
-                return;
-            }
-            try {
-                const ensDescription = await WalletGetDescription(blockchain, address);
-                if (ensDescription && ensDescription.length > 0) {
-                    DOM.profileDescription.textContent = ensDescription;
-                    processTextWithTags(DOM.profileDescription);
-                    const profileKey = `${blockchain}_${address}`;
-                    const cached = profileCache.get(profileKey);
-                    if (cached && cached.profileData) {
-                        cached.profileData.description = ensDescription;
-                        profileCache.set(profileKey, cached);
+            let finalDescription = description;
+            if (!description || description.length === 0) {
+                try {
+                    const ensDescription = await WalletGetDescription(blockchain, address);
+                    if (ensDescription && ensDescription.length > 0) {
+                        finalDescription = ensDescription;
                     }
+                } catch (e) {
+                    console.warn("Failed to get ENS description for profile:", e);
                 }
-            } catch (e) {
-                console.warn("Failed to get ENS description for profile:", e);
+            }
+            if (finalDescription && finalDescription.length > 0 && DOM.profileDescription.textContent !== finalDescription) {
+                DOM.profileDescription.textContent = finalDescription;
+                processTextWithTags(DOM.profileDescription);
             }
         }
         async function renderProfileLocationFromData(location: string) {
             if (location && location.length > 0) {
-                DOM.profileLocation.textContent = location;
+                if (DOM.profileLocation.textContent !== location) {
+                    DOM.profileLocation.textContent = location;
+                }
                 DOM.profileLocation.parentElement?.classList.remove("hidden");
             } else {
                 DOM.profileLocation.parentElement?.classList.add("hidden");
@@ -398,13 +407,21 @@ declare global { // Extend the window interface with public objects
         }
         async function renderProfileWebsiteFromData(website: string) {
             if (website && website.length > 0) {
+                let href: string;
+                let displayText: string;
                 try {
                     const url = new URL(website.startsWith('http') ? website : `https://${website}`);
-                    DOM.profileWebsite.href = XSSSanitizeUrl(url.href);
-                    DOM.profileWebsite.textContent = url.hostname;
+                    href = XSSSanitizeUrl(url.href);
+                    displayText = url.hostname;
                 } catch {
-                    DOM.profileWebsite.href = XSSSanitizeUrl(`https://${website}`);
-                    DOM.profileWebsite.textContent = website;
+                    href = XSSSanitizeUrl(`https://${website}`);
+                    displayText = website;
+                }
+                if (DOM.profileWebsite.href !== href) {
+                    DOM.profileWebsite.href = href;
+                }
+                if (DOM.profileWebsite.textContent !== displayText) {
+                    DOM.profileWebsite.textContent = displayText;
                 }
                 DOM.profileWebsite.parentElement?.parentElement?.classList.remove("hidden");
             } else {
@@ -418,7 +435,9 @@ declare global { // Extend the window interface with public objects
                     day: 'numeric',
                     year: 'numeric'
                 });
-                DOM.profileBirthdate.textContent = birthdateFormatted;
+                if (DOM.profileBirthdate.textContent !== birthdateFormatted) {
+                    DOM.profileBirthdate.textContent = birthdateFormatted;
+                }
                 DOM.profileBirthdate.parentElement?.classList.remove("hidden");
             } else {
                 DOM.profileBirthdate.parentElement?.classList.add("hidden");
@@ -431,17 +450,25 @@ declare global { // Extend the window interface with public objects
                     day: 'numeric',
                     year: 'numeric'
                 });
-                DOM.profileJoined.textContent = joinedDateFormatted;
+                if (DOM.profileJoined.textContent !== joinedDateFormatted) {
+                    DOM.profileJoined.textContent = joinedDateFormatted;
+                }
                 DOM.profileJoined.parentElement?.classList.remove("hidden");
             } else {
                 DOM.profileJoined.parentElement?.classList.add("hidden");
             }
         }
         async function renderProfileFollowerCountFromData(followerCount: number) {
-            DOM.followerCount.textContent = followerCount ? followerCount.toString() : "0";
+            const count = followerCount ? followerCount.toString() : "0";
+            if (DOM.followerCount.textContent !== count) {
+                DOM.followerCount.textContent = count;
+            }
         }
         async function renderProfileFollowingCountFromData(followingCount: number) {
-            DOM.followingCount.textContent = followingCount ? followingCount.toString() : "0";
+            const count = followingCount ? followingCount.toString() : "0";
+            if (DOM.followingCount.textContent !== count) {
+                DOM.followingCount.textContent = count;
+            }
         }
         async function renderProfileBannerFromData(bannerAddress: string) {
             if (bannerAddress && bannerAddress.length > 0) {
@@ -452,9 +479,14 @@ declare global { // Extend the window interface with public objects
                 if (IsValidURL(bannerURL)) {
                     const success = await loadImageWithTimeout(bannerURL, 3000);
                     if (success) {
-                        DOM.profileBanner.src = XSSSanitizeUrl(bannerURL);
+                        const sanitizedUrl = XSSSanitizeUrl(bannerURL);
+                        if (DOM.profileBanner.src !== sanitizedUrl && !DOM.profileBanner.src.endsWith(sanitizedUrl)) {
+                            DOM.profileBanner.src = sanitizedUrl;
+                        }
                     } else {
-                        DOM.profileBanner.src = "/static/image/banner.jpg";
+                        if (!DOM.profileBanner.src.endsWith("/static/image/banner.jpg")) {
+                            DOM.profileBanner.src = "/static/image/banner.jpg";
+                        }
                         LogError(`Banner failed to load, using default`);
                     }
                 }
