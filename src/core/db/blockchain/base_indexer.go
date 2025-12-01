@@ -644,8 +644,8 @@ func isTimestampExpired(databaseHistoryDaysInt int64, timestamp int64) bool {
 	diff := now.Sub(time.Unix(timestamp, 0))
 	return diff > time.Duration(databaseHistoryDaysInt)*24*time.Hour
 }
-func parseUserOperationFromHandleOps(data []byte) (*userOperation, error) {
-	// parseUserOperationFromHandleOps parses the first UserOperation from handleOps calldata
+func parseAllUserOperationsFromHandleOps(data []byte) ([]*userOperation, error) {
+	// parseAllUserOperationsFromHandleOps parses all UserOperations from handleOps calldata
 	if len(data) < 4 {
 		return nil, fmt.Errorf("data too short")
 	}
@@ -663,34 +663,39 @@ func parseUserOperationFromHandleOps(data []byte) (*userOperation, error) {
 	if arrayLen == 0 {
 		return nil, fmt.Errorf("empty ops array")
 	}
-	// After length comes offsets to each UserOperation
-	firstOpOffsetPos := opsOffset + 32
-	if firstOpOffsetPos+32 > uint64(len(data)) {
-		return nil, fmt.Errorf("invalid first op offset position")
+	var ops []*userOperation
+	for i := uint64(0); i < arrayLen; i++ {
+		opOffsetPos := opsOffset + 32 + (i * 32)
+		if opOffsetPos+32 > uint64(len(data)) {
+			continue
+		}
+		opOffset := new(big.Int).SetBytes(data[opOffsetPos : opOffsetPos+32]).Uint64()
+		opStart := opsOffset + 32 + opOffset
+		if opStart+32*11 > uint64(len(data)) {
+			continue
+		}
+		op := &userOperation{}
+		op.sender = data[opStart+12 : opStart+32]
+		op.nonce = new(big.Int).SetBytes(data[opStart+32 : opStart+64])
+		initCodeOffset := new(big.Int).SetBytes(data[opStart+64 : opStart+96]).Uint64()
+		callDataOffset := new(big.Int).SetBytes(data[opStart+96 : opStart+128]).Uint64()
+		op.callGasLimit = new(big.Int).SetBytes(data[opStart+128 : opStart+160])
+		op.verificationGasLimit = new(big.Int).SetBytes(data[opStart+160 : opStart+192])
+		op.preVerificationGas = new(big.Int).SetBytes(data[opStart+192 : opStart+224])
+		op.maxFeePerGas = new(big.Int).SetBytes(data[opStart+224 : opStart+256])
+		op.maxPriorityFeePerGas = new(big.Int).SetBytes(data[opStart+256 : opStart+288])
+		paymasterAndDataOffset := new(big.Int).SetBytes(data[opStart+288 : opStart+320]).Uint64()
+		signatureOffset := new(big.Int).SetBytes(data[opStart+320 : opStart+352]).Uint64()
+		op.initCode = parseDynamicBytes(data, opStart, initCodeOffset)
+		op.callData = parseDynamicBytes(data, opStart, callDataOffset)
+		op.paymasterAndData = parseDynamicBytes(data, opStart, paymasterAndDataOffset)
+		op.signature = parseDynamicBytes(data, opStart, signatureOffset)
+		ops = append(ops, op)
 	}
-	firstOpOffset := new(big.Int).SetBytes(data[firstOpOffsetPos : firstOpOffsetPos+32]).Uint64()
-	opStart := opsOffset + 32 + firstOpOffset // The actual UserOperation starts at opsOffset + 32 + firstOpOffset
-	if opStart+32*11 > uint64(len(data)) {    // Need at least 11 fields
-		return nil, fmt.Errorf("data too short for UserOperation")
+	if len(ops) == 0 {
+		return nil, fmt.Errorf("no valid ops parsed")
 	}
-	op := &userOperation{}
-	op.sender = data[opStart+12 : opStart+32]                       // Field 0: sender (address, 20 bytes in last 20 bytes of 32)
-	op.nonce = new(big.Int).SetBytes(data[opStart+32 : opStart+64]) // Field 1: nonce (uint256)
-	initCodeOffset := new(big.Int).SetBytes(data[opStart+64 : opStart+96]).Uint64()
-	callDataOffset := new(big.Int).SetBytes(data[opStart+96 : opStart+128]).Uint64()
-	op.callGasLimit = new(big.Int).SetBytes(data[opStart+128 : opStart+160])
-	op.verificationGasLimit = new(big.Int).SetBytes(data[opStart+160 : opStart+192])
-	op.preVerificationGas = new(big.Int).SetBytes(data[opStart+192 : opStart+224])
-	op.maxFeePerGas = new(big.Int).SetBytes(data[opStart+224 : opStart+256])
-	op.maxPriorityFeePerGas = new(big.Int).SetBytes(data[opStart+256 : opStart+288])
-	paymasterAndDataOffset := new(big.Int).SetBytes(data[opStart+288 : opStart+320]).Uint64()
-	signatureOffset := new(big.Int).SetBytes(data[opStart+320 : opStart+352]).Uint64()
-	// Parse dynamic fields
-	op.initCode = parseDynamicBytes(data, opStart, initCodeOffset)
-	op.callData = parseDynamicBytes(data, opStart, callDataOffset)
-	op.paymasterAndData = parseDynamicBytes(data, opStart, paymasterAndDataOffset)
-	op.signature = parseDynamicBytes(data, opStart, signatureOffset)
-	return op, nil
+	return ops, nil
 }
 func parseDynamicBytes(data []byte, baseOffset uint64, relativeOffset uint64) []byte {
 	// parseDynamicBytes extracts dynamic bytes from ABI-encoded data
@@ -786,60 +791,61 @@ func extractSmartWalletPayloads(inputHex string) []smartWalletPayload {
 	if err != nil {
 		return results
 	}
-	// Parse the UserOperation to get the signature and recover the signer
-	op, err := parseUserOperationFromHandleOps(dataBytes)
+	// Parse all UserOperations from the handleOps call
+	ops, err := parseAllUserOperationsFromHandleOps(dataBytes)
 	if err != nil {
-		core.LogDebug("Failed to parse UserOperation: " + err.Error())
+		core.LogDebug("Failed to parse UserOperations: " + err.Error())
 		return results
 	}
-	// Get the sender address from the UserOperation
-	signerAddr := getSenderFromUserOp(op)
-	if !security.RegexMatch(`^0x[a-f0-9]{40}$`, signerAddr) || signerAddr == burnAddressETH {
-		return results
-	}
-	// Extract target address from the callData
-	targetAddr := extractTargetFromCallData(op.callData)
-	if targetAddr == "" {
-		targetAddr = burnAddressETH // Default to burn address if target extraction fails
-	}
-	// Search for YourPlace payloads in the callData
-	data := inputHex[2:]
+	// For each UserOperation, check if it contains a YourPlace payload
 	ypPrefixHex := hex.EncodeToString([]byte(services.YpPrefix))
-	searchStart := 0
-	for {
-		idx := strings.Index(data[searchStart:], ypPrefixHex)
-		if idx == -1 {
-			break
+	for _, op := range ops {
+		signerAddr := getSenderFromUserOp(op)
+		if !security.RegexMatch(`^0x[a-f0-9]{40}$`, signerAddr) || signerAddr == burnAddressETH {
+			continue
 		}
-		payloadStartHex := searchStart + idx
-		payloadEndHex := payloadStartHex
-		for i := payloadStartHex; i < len(data)-1; i += 2 {
-			byteVal, err := strconv.ParseUint(data[i:i+2], 16, 8)
-			if err != nil {
+		targetAddr := extractTargetFromCallData(op.callData)
+		if targetAddr == "" {
+			targetAddr = burnAddressETH
+		}
+		// Search for YourPlace payloads within this UserOp's callData
+		callDataHex := hex.EncodeToString(op.callData)
+		searchStart := 0
+		for {
+			idx := strings.Index(callDataHex[searchStart:], ypPrefixHex)
+			if idx == -1 {
 				break
 			}
-			if byteVal == 0 {
-				break
+			payloadStartHex := searchStart + idx
+			payloadEndHex := payloadStartHex
+			for i := payloadStartHex; i < len(callDataHex)-1; i += 2 {
+				byteVal, err := strconv.ParseUint(callDataHex[i:i+2], 16, 8)
+				if err != nil {
+					break
+				}
+				if byteVal == 0 {
+					break
+				}
+				payloadEndHex = i + 2
 			}
-			payloadEndHex = i + 2
-		}
-		if payloadEndHex > payloadStartHex {
-			payloadBytes, err := hex.DecodeString(data[payloadStartHex:payloadEndHex])
-			if err == nil && strings.HasPrefix(string(payloadBytes), services.YpPrefix) {
-				payloadStr := string(payloadBytes)
-				isValid, _, _, _ := isValidYourPlacePayload(payloadStr)
-				if isValid {
-					results = append(results, smartWalletPayload{
-						fromAddress: signerAddr,
-						toAddress:   targetAddr,
-						payload:     payloadStr,
-					})
+			if payloadEndHex > payloadStartHex {
+				payloadBytes, err := hex.DecodeString(callDataHex[payloadStartHex:payloadEndHex])
+				if err == nil && strings.HasPrefix(string(payloadBytes), services.YpPrefix) {
+					payloadStr := string(payloadBytes)
+					isValid, _, _, _ := isValidYourPlacePayload(payloadStr)
+					if isValid {
+						results = append(results, smartWalletPayload{
+							fromAddress: signerAddr,
+							toAddress:   targetAddr,
+							payload:     payloadStr,
+						})
+					}
 				}
 			}
-		}
-		searchStart = payloadEndHex
-		if searchStart >= len(data) {
-			break
+			searchStart = payloadEndHex
+			if searchStart >= len(callDataHex) {
+				break
+			}
 		}
 	}
 	return results
