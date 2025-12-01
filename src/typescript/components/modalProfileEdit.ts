@@ -2,10 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalProfileEdit.scss";
 import {LogError, LogInfo} from "../util/log";
 import {UploadFile} from "../util/files";
-import {WalletSetAvatar, WalletSetBanner, WalletSetBirthday, WalletSetDescription, WalletSetLocation, WalletSetName, WalletSetWebsite} from "../util/blockchain/wallet";
-import flatpickr from "flatpickr";
-import "flatpickr/dist/flatpickr.min.css";
-import "flatpickr/dist/themes/material_blue.css";
+import {WalletSetAvatar, WalletSetBanner, WalletSetDescription, WalletSetLocation, WalletSetName, WalletSetWebsite} from "../util/blockchain/wallet";
 import DOMPurify from "dompurify";
 import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
@@ -62,8 +59,6 @@ export async function showProfileEditModal() {
             avatarPreview: document.getElementById("avatarPreview")! as HTMLImageElement,
             profileBanner: document.getElementById("profileBanner")! as HTMLImageElement,
             bannerPreview: document.getElementById("bannerPreview")! as HTMLImageElement,
-            birthDateEpoch: document.getElementById("birthDateEpoch")! as HTMLInputElement,
-            btnBirthdaySave: document.getElementById("btnBirthdaySave")! as HTMLButtonElement,
             btnDescriptionSave: document.getElementById("btnDescriptionSave")! as HTMLButtonElement,
             btnLocationSave: document.getElementById("btnLocationSave")! as HTMLButtonElement,
             btnUsernameSave: document.getElementById("btnUsernameSave")! as HTMLButtonElement,
@@ -71,7 +66,6 @@ export async function showProfileEditModal() {
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
             inputAvatar: document.getElementById("inputAvatar")! as HTMLInputElement,
             inputBanner: document.getElementById("inputBanner")! as HTMLInputElement,
-            inputBirthday: document.getElementById("inputBirthday")! as HTMLInputElement,
             inputDescription: document.getElementById("inputDescription")! as HTMLTextAreaElement,
             inputUsername: document.getElementById("inputUsername")! as HTMLInputElement,
             inputLocation: document.getElementById("inputLocation")! as HTMLInputElement,
@@ -81,7 +75,6 @@ export async function showProfileEditModal() {
             profileName: document.getElementById("profileName")! as HTMLDivElement,
             profileLocation: document.getElementById("profileLocation")! as HTMLDivElement,
             profileWebsite: document.getElementById("profileWebsite")! as HTMLAnchorElement,
-            profileBirthday: document.getElementById("profileBirthday")! as HTMLDivElement,
             modalProfileEdit: document.getElementById("modalProfileEdit")! as HTMLDivElement,
             gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement,
             injectedBlockchain: document.getElementById("injectedBlockchain") as HTMLInputElement,
@@ -120,30 +113,13 @@ export async function showProfileEditModal() {
             getModalInstance().hide();
         }
 
-        const minAge = new Date();
-        minAge.setFullYear(minAge.getFullYear() - 13);
-        flatpickr(DOM.inputBirthday, {
-            dateFormat: "Y-m-d",
-            allowInput: true,
-            altInput: true,
-            altFormat: "F j, Y",
-            maxDate: minAge,
-            minDate: "1900-01-01",
-            enableTime: false,
-            onChange: function (selectedDates, dateStr, instance) {
-                const epochMs = selectedDates[0].getTime();
-                const epochSeconds = Math.floor(epochMs / 1000);
-                DOM.birthDateEpoch.value = epochSeconds.toString();
-            },
-        });
-
         async function updateAvatar() {
             let file = DOM.inputAvatar.files![0];
             let result = await UploadFile(file, DOM.csrfToken.value); // send file to server
             if (result[0] == 200 && result[1].status == "success" && result[1].data && result[1].data.length > 0) {
                 try {
-                    await WalletSetAvatar("ipfs://" + result[1].data[0].cid);
-                    hideModalAndShowToast();
+                    let success = await WalletSetAvatar("ipfs://" + result[1].data[0].cid);
+                    if (success) hideModalAndShowToast();
                     return;
                 } catch (e) {
                     LogError("Failed to set avatar: " + e);
@@ -159,8 +135,8 @@ export async function showProfileEditModal() {
             if (result[0] == 200) {
                 if (result[1].status == "success") {
                     try {
-                        await WalletSetBanner("ipfs://" + result[1].cid);
-                        hideModalAndShowToast();
+                        let success = await WalletSetBanner("ipfs://" + result[1].cid);
+                        if (success) hideModalAndShowToast();
                     } catch (e) {
                         LogError("Failed to set banner" + e);
                     }
@@ -169,10 +145,9 @@ export async function showProfileEditModal() {
         }
         async function updateName() {
             let name = DOM.inputUsername.value;
-            let splitName = name.split(".")[0];
             try {
-                await WalletSetName(name);
-                hideModalAndShowToast();
+                let success = await WalletSetName(name);
+                if (success) hideModalAndShowToast();
             } catch (e) {
                 LogError("failed to set username: " + e)
             }
@@ -180,8 +155,8 @@ export async function showProfileEditModal() {
         async function updateDescription() {
             let description = DOM.inputDescription.value;
             try {
-                await WalletSetDescription(description);
-                hideModalAndShowToast();
+                let success = await WalletSetDescription(description);
+                if (success) hideModalAndShowToast();
             } catch (e) {
                 LogError("Failed to set description" + e);
             }
@@ -189,8 +164,8 @@ export async function showProfileEditModal() {
         async function updateLocation() {
             let location = DOM.inputLocation.value;
             try {
-                await WalletSetLocation(location);
-                hideModalAndShowToast();
+                let success = await WalletSetLocation(location);
+                if (success) hideModalAndShowToast();
             } catch (e) {
                 LogError("Failed to set location" + e);
             }
@@ -198,22 +173,12 @@ export async function showProfileEditModal() {
         async function updateWebsite() {
             let website = DOM.inputWebsite.value;
             try {
-                await WalletSetWebsite(website);
-                hideModalAndShowToast();
+                let success = await WalletSetWebsite(website);
+                if (success) hideModalAndShowToast();
             } catch (e) {
                 LogError("Failed to set website" + e);
             }
         }
-        async function updateBirthday() {
-            let birthday = DOM.birthDateEpoch.value;
-            try {
-                await WalletSetBirthday(birthday);
-                hideModalAndShowToast();
-            } catch (e) {
-                LogError("Failed to set birthday" + e);
-            }
-        }
-
         if (DOM.avatarLabel) {
             DOM.avatarLabel.addEventListener("click", (e) => {
                 if (isGatewayMode()) {
@@ -265,6 +230,5 @@ export async function showProfileEditModal() {
         DOM.btnDescriptionSave.addEventListener("click", updateDescription);
         DOM.btnLocationSave.addEventListener("click", updateLocation);
         DOM.btnWebsiteSave.addEventListener("click", updateWebsite);
-        DOM.btnBirthdaySave.addEventListener("click", updateBirthday);
     }
 })();

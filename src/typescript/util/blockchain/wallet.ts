@@ -279,7 +279,7 @@ export async function WalletSetAvatar(avatarURL: string): Promise<boolean> {
     if (walletSelection == "pera") {
         await setAlgoAvatar(avatarURL);
     } else if (walletSelection == "cbwalletbase") {
-        await baseSetAvatar(avatarURL);
+        return !!await baseSetAvatar(avatarURL);
     }
     return false;
 }
@@ -288,7 +288,7 @@ export async function WalletSetBanner(bannerURL: string): Promise<boolean> {
     if (walletSelection == "pera") {
         //algo stuff
     } else if (walletSelection == "cbwalletbase") {
-        await baseSetBanner(bannerURL);
+        return !!await baseSetBanner(bannerURL);
     }
     return false;
 }
@@ -297,7 +297,7 @@ export async function WalletSetDescription(description: string): Promise<boolean
     if (walletSelection == "pera") {
         //algo stuff
     } else if (walletSelection == "cbwalletbase") {
-        await baseSetDescription(description);
+        return !!await baseSetDescription(description);
     }
     return false;
 }
@@ -306,7 +306,7 @@ export async function WalletSetLocation(location: string): Promise<boolean> {
     if (walletSelection == "pera") {
         //algo stuff
     } else if (walletSelection == "cbwalletbase") {
-        await baseSetLocation(location);
+        return !!await baseSetLocation(location);
     }
     return false;
 }
@@ -315,7 +315,7 @@ export async function WalletSetWebsite(website: string): Promise<boolean> {
     if (walletSelection == "pera") {
         //algo stuff
     } else if (walletSelection == "cbwalletbase") {
-        await baseSetWebsite(website);
+        return !!await baseSetWebsite(website);
     }
     return false;
 }
@@ -324,7 +324,7 @@ export async function WalletSetBirthday(birthday: string): Promise<boolean> {
     if (walletSelection == "pera") {
         //algo stuff
     } else if (walletSelection == "cbwalletbase") {
-        await baseSetBirthday(birthday);
+        return !!await baseSetBirthday(birthday);
     }
     return false;
 }
@@ -334,8 +334,7 @@ export async function WalletSetName(name: string): Promise<boolean> {
         case "pera":
             return await algoSetName(name);
         case "cbwalletbase":
-            await baseSetName(name);
-            return true;
+            return !!await baseSetName(name);
         default:
             return false;
     }

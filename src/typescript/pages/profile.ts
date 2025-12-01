@@ -56,7 +56,6 @@ declare global { // Extend the window interface with public objects
             profileDescription: document.getElementById("profileDescription")! as HTMLDivElement,
             profileLocation: document.getElementById("profileLocation")! as HTMLDivElement,
             profileWebsite: document.getElementById("profileWebsite")! as HTMLAnchorElement,
-            profileBirthdate: document.getElementById("profileBirthdate")! as HTMLDivElement,
             profileJoined: document.getElementById("profileJoined")! as HTMLDivElement,
             postAvatars: document.getElementsByClassName("postCardAvatar")! as HTMLCollectionOf<HTMLImageElement>,
             postsDiv: document.getElementsByClassName("postCard")! as HTMLCollectionOf<HTMLDivElement>,
@@ -225,7 +224,6 @@ declare global { // Extend the window interface with public objects
             await renderProfileDescriptionFromData(profileData.description, blockchain, address);
             await renderProfileLocationFromData(profileData.location);
             await renderProfileWebsiteFromData(profileData.website);
-            await renderProfileBirthdateFromData(profileData.birthdate);
             await renderProfileJoinedDateFromData(profileData.joinedDate);
             await renderProfileFollowerCountFromData(profileData.followerCount);
             await renderProfileFollowingCountFromData(profileData.followingCount);
@@ -426,21 +424,6 @@ declare global { // Extend the window interface with public objects
                 DOM.profileWebsite.parentElement?.parentElement?.classList.remove("hidden");
             } else {
                 DOM.profileWebsite.parentElement?.parentElement?.classList.add("hidden");
-            }
-        }
-        async function renderProfileBirthdateFromData(birthdate: number) {
-            if (birthdate && birthdate > 0) {
-                const birthdateFormatted = new Date(birthdate * 1000).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                });
-                if (DOM.profileBirthdate.textContent !== birthdateFormatted) {
-                    DOM.profileBirthdate.textContent = birthdateFormatted;
-                }
-                DOM.profileBirthdate.parentElement?.classList.remove("hidden");
-            } else {
-                DOM.profileBirthdate.parentElement?.classList.add("hidden");
             }
         }
         async function renderProfileJoinedDateFromData(joinedDate: number) {

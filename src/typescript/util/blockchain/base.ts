@@ -276,31 +276,31 @@ export async function baseTxn(dest: string, payload: string) {
 // ---------- Set Functions ---------- //
 export async function baseSetAvatar(avatarAddress: string) {
     let jsonData = YP.metadataAvatar(avatarAddress);
-    baseTxn(mainnetBase.burnAddress, jsonData).then();
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseSetBanner(bannerAddress: string) {
     let jsonData = YP.metadataBanner(bannerAddress);
-    baseTxn(mainnetBase.burnAddress, jsonData).then();
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseSetDescription(description: string) {
     let jsonData = YP.metadataDescription(description);
-    baseTxn(mainnetBase.burnAddress, jsonData).then();
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseSetLocation(location: string) {
     let jsonData = YP.metadataLocation(location);
-    baseTxn(mainnetBase.burnAddress, jsonData).then();
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseSetWebsite(website: string) {
     let jsonData = YP.metadataWebsite(website);
-    baseTxn(mainnetBase.burnAddress, jsonData).then();
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseSetBirthday(birthday: string) {
     let jsonData = YP.metadataBirthday(birthday);
-    baseTxn(mainnetBase.burnAddress, jsonData).then();
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseSetName(name: string) {
     let jsonData = YP.metadataName(name);
-    baseTxn(mainnetBase.burnAddress, jsonData).then();
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseSubmitPost(payload: string) {
     let jsonData = YP.post(payload);
