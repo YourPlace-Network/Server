@@ -49,7 +49,7 @@ jobs:
 
     - name: Install NPM Dependencies
       run: |
-        make install
+        npm install --force
 
     - name: Build Gateway Binary
       run: |

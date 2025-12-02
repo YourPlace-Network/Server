@@ -56,7 +56,7 @@ else
 	go clean
 endif
 install:
-	$(NPM) install
+	$(NPM) install --force
 test:
 	$(which golangci-lint) run --enable-all
 	go test
