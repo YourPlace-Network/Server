@@ -362,7 +362,6 @@ export async function baseGetAvatar(address: string): Promise<string> {
     }
     const cached = avatarCache.get<string>(address);
     if (cached !== null) {
-        LogInfo("baseGetAvatar(): Cache hit for " + address);
         return cached;
     }
     try {
