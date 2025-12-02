@@ -54,6 +54,9 @@
 }
 #menuBody {
   padding-left: 0.8em;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 .menuItemDiv {
   display: block;

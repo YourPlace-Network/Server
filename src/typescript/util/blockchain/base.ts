@@ -505,7 +505,6 @@ export async function baseGetEnsName(address: string): Promise<string> {
 export async function baseGetEnsAvatar(address: string): Promise<string> {
     const cached = ensAvatarCache.get<string>(address);
     if (cached !== null) {
-        LogInfo("baseGetEnsAvatar(): Base ENS cache hit for " + address);
         return cached;
     }
     const ensName = await baseGetEnsName(address);
