@@ -495,19 +495,25 @@ export async function baseGetNFTs(_address: string) {
 
 // ---------- ENS Functions ---------- //
 export async function baseGetEnsName(address: string): Promise<string> {
+    if (!baseInit) await initBaseWallet();
     const cached = ensNameCache.get<string>(address);
     if (cached !== null) {
         return cached;
     }
-    const ensName = await ockGetName({address: address as `0x${string}`, chain: viemBase});
-    if (ensName) {
-        LogInfo("baseGetEnsName(): Fetched ENS name: " + ensName);
-        ensNameCache.set(address, ensName);
-        return ensName;
+    try {
+        const ensName = await ockGetName({address: address as `0x${string}`, chain: viemBase});
+        if (ensName) {
+            LogInfo("baseGetEnsName(): Fetched ENS name: " + ensName);
+            ensNameCache.set(address, ensName);
+            return ensName;
+        }
+    } catch (e) {
+        LogError("baseGetEnsName(): Error fetching ENS name: " + e);
     }
     return "";
 }
 export async function baseGetEnsAvatar(address: string): Promise<string> {
+    if (!baseInit) await initBaseWallet();
     const cached = ensAvatarCache.get<string>(address);
     if (cached !== null) {
         return cached;
@@ -516,11 +522,17 @@ export async function baseGetEnsAvatar(address: string): Promise<string> {
     if (!ensName || ensName === "") {
         return "";
     }
-    const ensAvatar = await ockGetAvatar({ensName, chain: viemBase});
-    if (ensAvatar) {
-        LogInfo("baseGetEnsAvatar(): Fetched ENS avatar: " + ensAvatar);
-        ensAvatarCache.set(address, ensAvatar);
-        return ensAvatar;
+    try {
+        LogInfo("baseGetEnsAvatar(): Fetching avatar for " + ensName + " using RPC: " + mainnetBase.rpcUrl);
+        const ensAvatar = await ockGetAvatar({ensName, chain: viemBase});
+        if (ensAvatar) {
+            LogInfo("baseGetEnsAvatar(): Fetched ENS avatar: " + ensAvatar);
+            ensAvatarCache.set(address, ensAvatar);
+            return ensAvatar;
+        }
+        LogInfo("baseGetEnsAvatar(): No avatar returned for " + ensName);
+    } catch (e) {
+        LogError("baseGetEnsAvatar(): Error fetching ENS avatar: " + e);
     }
     return "";
 }
