@@ -33,6 +33,9 @@ export function ShowDialogModalHTMLUnsafe(message: string) {
 export function HideDialogModal() {
     let element = document.getElementById("modalDialog")!;
     let modal = window.bootstrap.Modal.getOrCreateInstance(element);
+    if (element.contains(document.activeElement)) {
+        (document.activeElement as HTMLElement).blur();
+    }
     modal.hide();
     document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
     document.body.classList.remove("modal-open");
