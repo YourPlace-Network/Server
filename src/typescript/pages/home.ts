@@ -7,6 +7,7 @@ import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
 import {HttpGetJson} from "../util/network";
 import {XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
+import {baseGetEnsAddress} from "../util/blockchain/base";
 import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowNotifications} from "../util/notifications";
@@ -255,13 +256,23 @@ import {ShowDialogModalHTML} from "../components/modalDialog";
             visibleText.textContent = "Searching...";
             spinnerDiv.appendChild(visibleText);
             DOM.resultsDiv.appendChild(spinnerDiv);
-            let resp = await HttpGetJson("/s/?q=" + query);
+            let ensQuery = query.toLowerCase().trim();
+            if (!ensQuery.endsWith(".base.eth")) {
+                ensQuery = ensQuery + ".base.eth";
+            }
+            const [resp, ensAddress] = await Promise.all([
+                HttpGetJson("/s/?q=" + query),
+                baseGetEnsAddress(ensQuery)
+            ]);
             DOM.resultsDiv.replaceChildren();
             let results: any[] = [];
             if (resp[0] === 200 && resp[1] && resp[1].results !== null) {
                 results = resp[1].results;
             } else if (resp[0] !== 200) {
                 console.error("Search failed with status:", resp[0], "Response:", resp[1]);
+            }
+            if (ensAddress && ensAddress !== "") {
+                results.unshift({resultType: "profile", blockchain: "base", address: ensAddress});
             }
             if (results.length === 0) {
                 let noResultsDiv = document.createElement("div");

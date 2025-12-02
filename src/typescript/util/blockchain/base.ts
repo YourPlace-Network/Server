@@ -17,7 +17,7 @@ import {
     readContract,
     signMessage,
 } from "@wagmi/core";
-import {getName as ockGetName, getAvatar as ockGetAvatar} from "@coinbase/onchainkit/identity";
+import {getName as ockGetName, getAvatar as ockGetAvatar, getAddress as ockGetAddress} from "@coinbase/onchainkit/identity";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {baseAccount} from "@wagmi/connectors";
 import {IsValidBaseAddress} from "../security";
@@ -66,6 +66,7 @@ const nameCache = new PersistentCache("base_name");
 const descriptionCache = new PersistentCache("base_description");
 const ensNameCache = new PersistentCache("base_ens_name");
 const ensAvatarCache = new PersistentCache("base_ens_avatar");
+const ensAddressCache = new PersistentCache("base_ens_address");
 const ensDescriptionCache = new PersistentCache("base_ens_description");
 
 // ---------- Initialization Functions ---------- //
@@ -488,7 +489,7 @@ export async function baseGetNFTs(_address: string) {
 }
 
 // ---------- ENS Functions ---------- //
-async function baseGetEnsName(address: string): Promise<string> {
+export async function baseGetEnsName(address: string): Promise<string> {
     const cached = ensNameCache.get<string>(address);
     if (cached !== null) {
         return cached;
@@ -501,7 +502,7 @@ async function baseGetEnsName(address: string): Promise<string> {
     }
     return "";
 }
-async function baseGetEnsAvatar(address: string): Promise<string> {
+export async function baseGetEnsAvatar(address: string): Promise<string> {
     const cached = ensAvatarCache.get<string>(address);
     if (cached !== null) {
         LogInfo("baseGetEnsAvatar(): Base ENS cache hit for " + address);
@@ -516,6 +517,19 @@ async function baseGetEnsAvatar(address: string): Promise<string> {
         LogInfo("baseGetEnsAvatar(): Fetched ENS avatar: " + ensAvatar);
         ensAvatarCache.set(address, ensAvatar);
         return ensAvatar;
+    }
+    return "";
+}
+export async function baseGetEnsAddress(ensName: string): Promise<string> {
+    const cached = ensAddressCache.get<string>(ensName);
+    if (cached !== null) {
+        return cached;
+    }
+    const ensAddress = await ockGetAddress({name: ensName});
+    if (ensAddress) {
+        LogInfo("baseGetEnsAddress(): Fetched ENS address: " + ensAddress);
+        ensAddressCache.set(ensName, ensAddress);
+        return ensAddress;
     }
     return "";
 }
