@@ -47,9 +47,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y make libpcap-dev
 
-    - name: Install NPM Dependencies
+    - name: Install
       run: |
-        npm install --force
+        make install
 
     - name: Build Gateway Binary
       run: |
