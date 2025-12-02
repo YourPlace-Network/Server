@@ -349,7 +349,11 @@ export async function baseUnfollowUser(toAddress: string, toBlockchain: string) 
 async function baseGetURL(): Promise<string|null> {
     let response = await HttpGetJson("/settings/base/url");
     if (response[0] === 200 && response[1] && response[1].baseURL !== "") {
-        return response[1].baseURL;
+        let url = response[1].baseURL;
+        if (url.startsWith('/')) {
+            url = window.location.origin + url;
+        }
+        return url;
     }
     LogError("Failed to get Base RPC URL from server: " + response[1]);
     return null;
