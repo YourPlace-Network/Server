@@ -97,6 +97,9 @@ async function initBaseWallet() {
         setOnchainKitConfig({
             chain: viemBase,
             rpcUrl: mainnetBase.rpcUrl!,
+            defaultPublicClients: {
+                [viemBase.id]: viemClient,
+            },
         });
     } catch (e) {
         LogError("Failed to initialize Base wallet: " + e);
@@ -403,12 +406,11 @@ export async function baseGetName(_address: string): Promise<string> {
                 nameCache.set(_address, name);
                 return name;
             }
-        } else {
-            const ensName = await baseGetEnsName(_address);
-            if (ensName && ensName !== "") {
-                nameCache.set(_address, ensName);
-                return ensName;
-            }
+        }
+        const ensName = await baseGetEnsName(_address);
+        if (ensName && ensName !== "") {
+            nameCache.set(_address, ensName);
+            return ensName;
         }
     } catch (error) {
         LogError("Failed to get Base name: " + error);
@@ -494,7 +496,7 @@ export async function baseGetEnsName(address: string): Promise<string> {
     if (cached !== null) {
         return cached;
     }
-    const ensName = await ockGetName({address: address as `0x${string}`});
+    const ensName = await ockGetName({address: address as `0x${string}`, chain: viemBase});
     if (ensName) {
         LogInfo("baseGetEnsName(): Fetched ENS name: " + ensName);
         ensNameCache.set(address, ensName);
@@ -511,7 +513,7 @@ export async function baseGetEnsAvatar(address: string): Promise<string> {
     if (!ensName || ensName === "") {
         return "";
     }
-    const ensAvatar = await ockGetAvatar({ensName});
+    const ensAvatar = await ockGetAvatar({ensName, chain: viemBase});
     if (ensAvatar) {
         LogInfo("baseGetEnsAvatar(): Fetched ENS avatar: " + ensAvatar);
         ensAvatarCache.set(address, ensAvatar);
