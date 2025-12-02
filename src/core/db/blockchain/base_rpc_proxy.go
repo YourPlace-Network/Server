@@ -87,6 +87,7 @@ func (p *BaseRPCProxy) forwardRequest(body []byte) *proxyResponse {
 	targetURL := p.targetURL
 	p.mu.RUnlock()
 	if targetURL == "" {
+		core.LogDebug("RPC proxy: targetURL is empty")
 		return &proxyResponse{
 			statusCode: http.StatusServiceUnavailable,
 			body:       []byte(`{"error": "RPC proxy not configured"}`),
@@ -94,8 +95,10 @@ func (p *BaseRPCProxy) forwardRequest(body []byte) *proxyResponse {
 		}
 	}
 	core.LogDebug("RPC proxy forwarding to: " + targetURL)
+	core.LogDebug("RPC proxy request body: " + string(body))
 	req, err := http.NewRequest("POST", targetURL, bytes.NewReader(body))
 	if err != nil {
+		core.LogDebug("RPC proxy: failed to create request: " + err.Error())
 		return &proxyResponse{
 			statusCode: http.StatusInternalServerError,
 			body:       []byte(`{"error": "Failed to create request"}`),
@@ -105,6 +108,7 @@ func (p *BaseRPCProxy) forwardRequest(body []byte) *proxyResponse {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := p.client.Do(req)
 	if err != nil {
+		core.LogDebug("RPC proxy: failed to reach endpoint: " + err.Error())
 		return &proxyResponse{
 			statusCode: http.StatusBadGateway,
 			body:       []byte(`{"error": "Failed to reach RPC endpoint"}`),
@@ -114,12 +118,15 @@ func (p *BaseRPCProxy) forwardRequest(body []byte) *proxyResponse {
 	defer resp.Body.Close()
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		core.LogDebug("RPC proxy: failed to read response: " + err.Error())
 		return &proxyResponse{
 			statusCode: http.StatusInternalServerError,
 			body:       []byte(`{"error": "Failed to read response"}`),
 			err:        err,
 		}
 	}
+	core.LogDebug("RPC proxy response status: " + strconv.Itoa(resp.StatusCode))
+	core.LogDebug("RPC proxy response body: " + string(respBody))
 	return &proxyResponse{
 		statusCode: resp.StatusCode,
 		body:       respBody,

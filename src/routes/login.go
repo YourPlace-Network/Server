@@ -24,7 +24,7 @@ type TxnLoginNonce struct {
 
 func LoginRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, domain string, port int, installed bool, gateway bool) {
 	var expectedDomain string
-	if gateway {
+	if gateway && port == 443 {
 		expectedDomain = domain
 	} else {
 		expectedDomain = domain + ":" + strconv.Itoa(port)

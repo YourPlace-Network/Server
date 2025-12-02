@@ -2,7 +2,6 @@
   "dependencies": {
     "@base-org/account": "^2.5.0",
     "@coinbase/onchainkit": "^1.1.2",
-    "@coinbase/wallet-sdk": "^4.3.7",
     "@floating-ui/dom": "^1.7.0",
     "@helia/interface": "^5.3.2",
     "@helia/strings": "^4.0.6",
@@ -12,8 +11,8 @@
     "@types/dompurify": "^3.2.0",
     "@types/react": "^19.2.6",
     "@wagmi/chains": "^1.8.0",
-    "@wagmi/connectors": "^5.10.2",
-    "@wagmi/core": "^2.21.1",
+    "@wagmi/connectors": "^7.0.2",
+    "@wagmi/core": "^3.0.0",
     "algosdk": "^3.5.2",
     "autoprefixer": "^10.4.21",
     "blockstore-idb": "^2.0.3",
@@ -48,8 +47,9 @@
     "tinymce": "^8.2.2",
     "tslib": "^2.8.1",
     "util": "^0.12.5",
-    "viem": "^2.30.5",
+    "viem": "^2.40.3",
     "viem-chains": "^1.0.2",
+    "web3-validator": "^2.0.6",
     "webpack": "^5.99.9"
   },
   "devDependencies": {
@@ -68,6 +68,7 @@
     "got": "^14.4.7",
     "gry": "^6.1.1",
     "parse-url": "^10.0.0",
+    "porto": "^0.2.37",
     "process": "^0.11.10",
     "protobufjs": "^7.5.3",
     "qs": "^6.14.0",

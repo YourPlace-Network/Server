@@ -2,9 +2,9 @@ import {DisconnectWallet, GetAddress} from "./wallet";
 import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {CIDToSubdomainURL} from "../ipfs";
-import {ethers} from "ethers";
+import {ensNormalize, ethers} from "ethers";
 import {YP} from "../../services/yourplace";
-import {createPublicClient, defineChain, getAddress, http as viemHttp, parseEther, UserRejectedRequestError} from "viem";
+import {createPublicClient, defineChain, getAddress, http as viemHttp, UserRejectedRequestError, toCoinType} from "viem";
 import {base as viemBase} from "viem/chains";
 import {SiweMessage} from "siwe";
 import {
@@ -12,16 +12,18 @@ import {
     createConfig,
     createStorage,
     disconnect,
-    getConnections,
+    getConnections, getEnsAvatar, getEnsName, getEnsText,
     http as wagmiHttp,
     readContract,
     signMessage,
 } from "@wagmi/core";
+import {getName as ockGetName, getAvatar as ockGetAvatar} from "@coinbase/onchainkit/identity";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {baseAccount} from "@wagmi/connectors";
 import {IsValidBaseAddress} from "../security";
 import {Sleep} from "../time";
 import {PersistentCache} from "../cache";
+import {setOnchainKitConfig} from "@coinbase/onchainkit";
 
 // ---------- Global Variables ---------- //
 export const mainnetBase = {
@@ -30,8 +32,19 @@ export const mainnetBase = {
     currency: "ETH",
     explorerUrl: "https://basescan.org",
     rpcUrl: await baseGetURL()!,
-    ensUniversalResolverAddress: "0xce01f8eee7E479C928F8919abD53E553a36CeF67",
-    ensBasenameResolverAddress: "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD",
+    // ENS Addresses: https://docs.ens.domains/learn/deployments/
+    // https://github.com/base/basenames
+    //ensUniversalResolverAddress: "0xce01f8eee7E479C928F8919abD53E553a36CeF67",
+    //ensBasenameResolverAddress: "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD",
+    //universalResolver: "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe",
+    //universalResolver: "0x0000000000D8e504002cC26E3Ec46D81971C1664",
+    //universalResolver: "0xF29100983E058B709F3D539b0c765937B804AC15",
+    //universalResolver: "0xED73a03F19e8D849E44a39252d222c6ad5217E1e",
+    //universalResolver: await baseGetUniversalResolverAddress(),
+    //universalResolver: "0x91d1777781884d03a6757a803996e38de2a42967fb37eeaca72729271025a9e2",
+    //universalResolver: "0xC014B9c02b0EDeA17255Ce019e6ab6c24E4AD073",
+    //universalResolver: "0x6533C94869D28fAA8dF77cc63f9e2b2D6Cf77eBA",
+    universalResolver: "0xf74b949f2105178eEEd4Ef35a131715E967337ab",
     burnAddress: "0x0000000000000000000000000000000000000000",
 }
 const metadataYourPlace = {
@@ -47,16 +60,21 @@ const metadataYourPlace = {
 let baseInit = false;
 let viemClient: any;
 let wagmiConfig: any;
+let ockProvider: any;
 const avatarCache = new PersistentCache("base_avatar");
 const nameCache = new PersistentCache("base_name");
+const descriptionCache = new PersistentCache("base_description");
+const ensNameCache = new PersistentCache("base_ens_name");
+const ensAvatarCache = new PersistentCache("base_ens_avatar");
+const ensDescriptionCache = new PersistentCache("base_ens_description");
 
 // ---------- Initialization Functions ---------- //
 async function initBaseWallet() {
     if (baseInit) { return; }
     try {
         viemClient = createPublicClient({
-            transport: viemHttp(mainnetBase.rpcUrl!, {retryCount: 10, retryDelay: 1000}),
-            chain: defineChain(viemBase),
+            transport: viemHttp(mainnetBase.rpcUrl!),
+            chain: viemBase,
         });
         wagmiConfig = createConfig({
             chains: [wagmiBase],
@@ -64,16 +82,20 @@ async function initBaseWallet() {
             connectors: [
                 baseAccount({
                     appName: metadataYourPlace.name,
-                    appLogoUrl: metadataYourPlace.icons[1],
+                    appLogoUrl: metadataYourPlace.icons[0],
                 })],
             transports: {
-                [wagmiBase.id]: wagmiHttp(),
+                [wagmiBase.id]: wagmiHttp(mainnetBase.rpcUrl!),
             },
             storage: createStorage({
                 key: "yourplace",
                 storage: window.localStorage,
             }),
             ssr: true,
+        });
+        setOnchainKitConfig({
+            chain: viemBase,
+            rpcUrl: mainnetBase.rpcUrl!,
         });
     } catch (e) {
         LogError("Failed to initialize Base wallet: " + e);
@@ -350,6 +372,12 @@ export async function baseGetAvatar(address: string): Promise<string> {
                     return avatarUrl;
                 }
             }
+        } else {
+            const ensAvatar = await baseGetEnsAvatar(address);
+            if (ensAvatar && ensAvatar !== "") {
+                avatarCache.set(address, ensAvatar);
+                return ensAvatar;
+            }
         }
     } catch (error) {
         LogError("Failed to get local avatar: " + error);
@@ -364,17 +392,21 @@ export async function baseGetName(_address: string): Promise<string> {
     }
     const cached = nameCache.get<string>(_address);
     if (cached !== null) {
-        LogInfo("baseGetName(): Cache hit for " + _address);
         return cached;
     }
     try {
         const response = await HttpGetJson("/profile/name/base/" + _address);
-        LogInfo("baseGetName(): Received response: " + JSON.stringify(response));
         if (response[0] === 200 && response[1] && response[1].name) {
             const name = response[1].name.trim();
             if (name.length > 0) {
                 nameCache.set(_address, name);
                 return name;
+            }
+        } else {
+            const ensName = await baseGetEnsName(_address);
+            if (ensName && ensName !== "") {
+                nameCache.set(_address, ensName);
+                return ensName;
             }
         }
     } catch (error) {
@@ -388,10 +420,22 @@ export async function baseGetDescription(_address: string): Promise<string> {
         LogError("Invalid Base address provided to baseGetDescription: " + _address);
         return "";
     }
+    const cached = descriptionCache.get<string>(_address);
+    if (cached !== null) {
+        LogInfo("baseGetDescription(): Cache hit for " + _address);
+        return cached;
+    }
     try {
         const response = await HttpGetJson("/profile/description/base/" + _address);
-        if (response[0] === 200 && response[1] && response[1].description) {
+        if (response[0] === 200 && response[1] && response[1].description && response[1].description !== "") {
+            descriptionCache.set(_address, response[1].description.trim());
             return response[1].description.trim();
+        } else {
+            const ensDescription = await baseGetEnsDescription(_address);
+            if (ensDescription && ensDescription !== "") {
+                descriptionCache.set(_address, ensDescription);
+                return ensDescription;
+            }
         }
     } catch (error) {
         LogError("Failed to get description: " + error);
@@ -441,4 +485,75 @@ export async function baseGetNFTs(_address: string) {
     } catch (error) {
         LogError("Failed to get NFTs: " + error);
     }
+}
+
+// ---------- ENS Functions ---------- //
+async function baseGetEnsName(address: string): Promise<string> {
+    const cached = ensNameCache.get<string>(address);
+    if (cached !== null) {
+        return cached;
+    }
+    const ensName = await ockGetName({address: address as `0x${string}`});
+    if (ensName) {
+        LogInfo("baseGetEnsName(): Fetched ENS name: " + ensName);
+        ensNameCache.set(address, ensName);
+        return ensName;
+    }
+    return "";
+}
+async function baseGetEnsAvatar(address: string): Promise<string> {
+    const cached = ensAvatarCache.get<string>(address);
+    if (cached !== null) {
+        LogInfo("baseGetEnsAvatar(): Base ENS cache hit for " + address);
+        return cached;
+    }
+    const ensName = await baseGetEnsName(address);
+    if (!ensName || ensName === "") {
+        return "";
+    }
+    const ensAvatar = await ockGetAvatar({ensName});
+    if (ensAvatar) {
+        LogInfo("baseGetEnsAvatar(): Fetched ENS avatar: " + ensAvatar);
+        ensAvatarCache.set(address, ensAvatar);
+        return ensAvatar;
+    }
+    return "";
+}
+async function baseGetEnsDescription(address: string): Promise<string> {
+    const cached = ensDescriptionCache.get<string>(address);
+    if (cached !== null) {
+        LogInfo("baseGetEnsDescription(): Base ENS cache hit for " + address);
+        return cached;
+    }
+    const ensName = await baseGetEnsName(address);
+    if (!ensName || ensName === "") {
+        return "";
+    }
+    const ensDescription = await getEnsText(wagmiConfig, {
+        name: ensNormalize(ensName),
+        key: "description",
+        chainId: wagmiBase.id,
+    });
+    if (ensDescription) {
+        LogInfo("baseGetEnsDescription(): Fetched ENS description: " + ensDescription);
+        ensDescriptionCache.set(address, ensDescription);
+        return ensDescription;
+    }
+    return "";
+}
+async function baseGetUniversalResolverAddress(): Promise<string> {
+    try {
+        const response = await fetch("https://raw.githubusercontent.com/ensdomains/ens-contracts/refs/heads/staging/deployments/mainnet/UniversalResolver.json");
+        if (!response.ok) {
+            LogError("Failed to fetch ENS Universal Resolver address: " + response.status);
+            return "";
+        }
+        const data = await response.json();
+        if (data && data.address) {
+            return data.address;
+        }
+    } catch (error) {
+        LogError("Failed to fetch ENS Universal Resolver address: " + error);
+    }
+    return "";
 }

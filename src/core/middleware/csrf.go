@@ -177,6 +177,7 @@ func isCSRFExcluded(c *gin.Context) bool {
 	// Exclude specific API endpoints that handle their own validation
 	excludedPaths := []string{
 		"/login/wallet/base",
+		"/rpc/base",
 		"/settings/database/exportSnapshot",
 		"/settings/database/importSnapshot",
 	}

@@ -180,12 +180,12 @@ endif
 gateway_run:
 	@VERSION=$$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' | tr -d '"') && \
 	./target/YourPlace-$$VERSION -g -d -du
-gateway_noinstall_run:
+dbg_gateway_noinstall_run:
 ifeq ($(DETECTED_OS),Windows_NT)
-	target\\YourPlace-$(VERSION).exe -du -g
+	target\\YourPlace-$(VERSION).exe -du -d -g
 else ifeq ($(DETECTED_OS),Darwin)
 	@VERSION=$$(grep 'version.*=.*".*"' main.go | sed -E 's/.*version.*=.*"(.*)".*/\1/') && \
-	./target/YourPlace -du -g
+	./target/YourPlace -du -d -g
 endif
 testing:
 	go run test.go

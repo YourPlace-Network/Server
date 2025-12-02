@@ -13,7 +13,6 @@ type Blockchain struct {
 }
 
 var DefaultBlockchainNodes = map[string][]string{
-	// blockchain: {rpcURL, rateLimit}
 	"base": {"/rpc/base", "5"},
 }
 
