@@ -6,6 +6,18 @@ import "../../scss/components/modalDialog.scss"
 
 // HTML Template:  {{template "modalDialog" .}}
 
+// Blur focused element before modal hides to prevent aria-hidden accessibility warning
+document.addEventListener("DOMContentLoaded", () => {
+    const modalDialog = document.getElementById("modalDialog");
+    if (modalDialog) {
+        modalDialog.addEventListener("hide.bs.modal", () => {
+            if (modalDialog.contains(document.activeElement)) {
+                (document.activeElement as HTMLElement).blur();
+            }
+        });
+    }
+});
+
 export function ShowDialogModal(message: string) {
     document.getElementById("modalDialogContent")!.textContent = message;
     let element = document.getElementById("modalDialog")!;
