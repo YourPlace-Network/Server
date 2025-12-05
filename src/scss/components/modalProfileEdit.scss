@@ -35,3 +35,7 @@
 #inputDescriptionDiv {
   height: 4.5em;
 }
+#inputVertical {
+  max-height: 200px;
+  overflow-y: auto;
+}

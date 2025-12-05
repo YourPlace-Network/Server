@@ -4,19 +4,22 @@
         <div class="row">
             <div class="col-sm-2"></div>
             <div class="col-sm-8 centerColumn">
-                <h1>YourPlace Setup</h1>
+                <div id="setupHeader">
+                    <img src="/static/image/yourplace-banner-title.svg" class="imgBannerTitle mb-3" alt="YourPlace Banner">
+                    <h1>Setup</h1>
+                </div>
                 <div class="accordion accordion-flush" id="setupAccordion">
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingOne">
-                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-controls="collapseOne" id="buttonOne">
+                            <button class="accordion-button setupButton" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-controls="collapseOne" id="buttonOne">
                                 Step 1<div class="check" id="checkOne"></div>
                             </button>
                         </h2>
                         <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#setupAccordion">
                             <div class="accordion-body">
                                 <div id="cbWalletSetup">
-                                    <img src="/static/image/coinbase-wallet.png" class="imgWalletLogo" id="imgCBWallet" alt="">
-                                    <p>Download Coinbase Wallet:</p>
+                                    <img src="/static/image/base-square.svg" class="imgWalletLogo" id="imgCBWallet" alt="">
+                                    <p>Download Base App:</p>
                                     <img src="/static/image/appstore.png" class="img-store grow" id="imgAppstoreCBWallet" alt="">
                                     <img src="/static/image/playstore.png" class="img-store grow" id="imgPlaystoreCBWallet" alt="">
                                 </div>
@@ -26,7 +29,7 @@
 
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingTwo">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-controls="collapseTwo" id="buttonTwo">
+                            <button class="accordion-button collapsed setupButton" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-controls="collapseTwo" id="buttonTwo">
                                 Step 2<div class="check" id="checkTwo"></div><div id="address" style="display: none">Address: <div id="addressTruncated"></div></div>
                             </button>
                         </h2>
@@ -42,7 +45,7 @@
 
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingThree">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-controls="collapseThree" id="buttonThree">
+                            <button class="accordion-button collapsed setupButton" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-controls="collapseThree" id="buttonThree">
                                 Step 3<div class="check" id="checkThree"></div>
                             </button>
                         </h2>
@@ -60,7 +63,7 @@
 
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingFour">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-controls="collapseFour" id="buttonFour">
+                            <button class="accordion-button collapsed setupButton" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-controls="collapseFour" id="buttonFour">
                                 Step 4<div class="check" id="checkFour"></div>
                             </button>
                         </h2>

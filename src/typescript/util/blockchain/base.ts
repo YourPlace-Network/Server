@@ -320,12 +320,12 @@ export async function baseSetWebsite(website: string) {
     let jsonData = YP.metadataWebsite(website);
     return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
-export async function baseSetBirthday(birthday: string) {
-    let jsonData = YP.metadataBirthday(birthday);
-    return await baseTxn(mainnetBase.burnAddress, jsonData);
-}
 export async function baseSetName(name: string) {
     let jsonData = YP.metadataName(name);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function baseSetVertical(vertical: string) {
+    let jsonData = YP.metadataVertical(vertical);
     return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
 export async function baseSubmitPost(payload: string) {

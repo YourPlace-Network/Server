@@ -207,24 +207,19 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 					_Database.OnchainMB(blockchain, fromAddress, bannerStr, timestamp)
 				}
 				break
-			case "bd":
-				birthdate, ok1 := payloadObject["bd"]
+			case "v":
+				vertical, ok1 := payloadObject["v"]
 				if !ok1 {
-					core.LogDebug("Metadata action missing required birthdate field")
+					core.LogDebug("Metadata action missing required vertical field")
 					break
 				}
-				birthdateStr, ok2 := birthdate.(string)
+				verticalStr, ok2 := vertical.(string)
 				if !ok2 {
-					core.LogDebug("Metadata action birthdate field is not a string")
+					core.LogDebug("Metadata action vertical field is not a string")
 					break
 				}
-				birthdateInt, _err := strconv.ParseInt(birthdateStr, 10, 64)
-				if _err != nil {
-					core.LogDebug("Could not convert YourPlace transaction birthdate: " + _err.Error())
-					break
-				}
-				if security.IsValidBirthDate(birthdateInt) {
-					_Database.OnchainMBD(blockchain, fromAddress, uint64(birthdateInt), timestamp)
+				if security.IsValidVertical(verticalStr) {
+					_Database.OnchainMV(blockchain, fromAddress, verticalStr, timestamp)
 				}
 				break
 			case "l":

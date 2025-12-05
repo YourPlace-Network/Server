@@ -369,10 +369,10 @@ func (db *Database) OnchainMB(blockchain string, address string, avatar string, 
 		db.sqlite.OnchainMB(blockchain, address, avatar, timestamp)
 	}
 }
-func (db *Database) OnchainMBD(blockchain string, address string, birthdate uint64, timestamp uint64) {
+func (db *Database) OnchainMV(blockchain string, address string, vertical string, timestamp uint64) {
 	switch db.Engine {
 	case "sqlite":
-		db.sqlite.OnchainMBD(blockchain, address, birthdate, timestamp)
+		db.sqlite.OnchainMV(blockchain, address, vertical, timestamp)
 	}
 }
 func (db *Database) OnchainML(blockchain string, address string, location string, timestamp uint64) {
@@ -511,13 +511,13 @@ func (db *Database) ProfileGetWebsite(address string, blockchain string) string 
 	}
 	return website
 }
-func (db *Database) ProfileGetBirthDate(address string, blockchain string) *int64 {
-	var birthday *int64
+func (db *Database) ProfileGetVertical(address string, blockchain string) string {
+	var vertical string
 	switch db.Engine {
 	case "sqlite":
-		birthday = db.sqlite.ProfileGetBirthDate(address, blockchain)
+		vertical = db.sqlite.ProfileGetVertical(address, blockchain)
 	}
-	return birthday
+	return vertical
 }
 func (db *Database) ProfileGetJoinedDate(address string, blockchain string) *int64 {
 	var joineddate *int64

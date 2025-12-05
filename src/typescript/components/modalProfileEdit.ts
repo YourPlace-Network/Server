@@ -2,7 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalProfileEdit.scss";
 import {LogError, LogInfo} from "../util/log";
 import {UploadFile} from "../util/files";
-import {WalletSetAvatar, WalletSetBanner, WalletSetDescription, WalletSetLocation, WalletSetName, WalletSetWebsite} from "../util/blockchain/wallet";
+import {WalletSetAvatar, WalletSetBanner, WalletSetDescription, WalletSetLocation, WalletSetName, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
 import DOMPurify from "dompurify";
 import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
@@ -62,6 +62,7 @@ export async function showProfileEditModal() {
             btnDescriptionSave: document.getElementById("btnDescriptionSave")! as HTMLButtonElement,
             btnLocationSave: document.getElementById("btnLocationSave")! as HTMLButtonElement,
             btnUsernameSave: document.getElementById("btnUsernameSave")! as HTMLButtonElement,
+            btnVerticalSave: document.getElementById("btnVerticalSave")! as HTMLButtonElement,
             btnWebsiteSave: document.getElementById("btnWebsiteSave")! as HTMLButtonElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
             inputAvatar: document.getElementById("inputAvatar")! as HTMLInputElement,
@@ -69,6 +70,7 @@ export async function showProfileEditModal() {
             inputDescription: document.getElementById("inputDescription")! as HTMLTextAreaElement,
             inputUsername: document.getElementById("inputUsername")! as HTMLInputElement,
             inputLocation: document.getElementById("inputLocation")! as HTMLInputElement,
+            inputVertical: document.getElementById("inputVertical")! as HTMLSelectElement,
             inputWebsite: document.getElementById("inputWebsite")! as HTMLInputElement,
             profileAvatar: document.getElementById("profileAvatar")! as HTMLImageElement,
             profileDescription: document.getElementById("profileDescription")! as HTMLDivElement,
@@ -170,6 +172,16 @@ export async function showProfileEditModal() {
                 LogError("Failed to set location" + e);
             }
         }
+        async function updateVertical() {
+            let vertical = DOM.inputVertical.value;
+            if (!vertical) return;
+            try {
+                let success = await WalletSetVertical(vertical);
+                if (success) hideModalAndShowToast();
+            } catch (e) {
+                LogError("Failed to set vertical" + e);
+            }
+        }
         async function updateWebsite() {
             let website = DOM.inputWebsite.value;
             try {
@@ -179,6 +191,7 @@ export async function showProfileEditModal() {
                 LogError("Failed to set website" + e);
             }
         }
+
         if (DOM.avatarLabel) {
             DOM.avatarLabel.addEventListener("click", (e) => {
                 if (isGatewayMode()) {
@@ -229,6 +242,7 @@ export async function showProfileEditModal() {
         DOM.btnUsernameSave.addEventListener("click", updateName);
         DOM.btnDescriptionSave.addEventListener("click", updateDescription);
         DOM.btnLocationSave.addEventListener("click", updateLocation);
+        DOM.btnVerticalSave.addEventListener("click", updateVertical);
         DOM.btnWebsiteSave.addEventListener("click", updateWebsite);
     }
 })();

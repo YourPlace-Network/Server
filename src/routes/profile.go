@@ -138,7 +138,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"description":    database.ProfileGetDescription(address, blockchainParam),
 			"location":       database.ProfileGetLocation(address, blockchainParam),
 			"website":        database.ProfileGetWebsite(address, blockchainParam),
-			"birthdate":      database.ProfileGetBirthDate(address, blockchainParam),
+			"vertical":       database.ProfileGetVertical(address, blockchainParam),
 			"joinedDate":     database.ProfileGetJoinedDate(address, blockchainParam),
 			"followerCount":  database.ProfileGetFollowerCount(address, blockchainParam),
 			"followingCount": database.ProfileGetFollowingCount(address, blockchainParam),
@@ -245,7 +245,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"location": location})
 	})
-	router.GET("/profile/birthdate/:blockchain/:address", func(c *gin.Context) {
+	router.GET("/profile/vertical/:blockchain/:address", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchainParam) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
@@ -256,12 +256,12 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		birthdate := database.ProfileGetBirthDate(address, blockchainParam)
-		if birthdate == nil {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "no birthdate found"})
+		vertical := database.ProfileGetVertical(address, blockchainParam)
+		if vertical == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"status": "no vertical found"})
 			return
 		}
-		c.SecureJSON(http.StatusOK, gin.H{"birthdate": birthdate})
+		c.SecureJSON(http.StatusOK, gin.H{"vertical": vertical})
 	})
 	router.GET("/profile/joinedDate/:blockchain/:address", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")

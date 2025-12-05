@@ -35,17 +35,17 @@ export let YP = {
         }
         return `yp/1/mw:${JSON.stringify(payload)}`
     },
-    metadataBirthday: function(birthday: string): string {
-        const payload = {
-            bd: birthday
-        }
-        return `yp/1/mbd:${JSON.stringify(payload)}`
-    },
     metadataName: function(name: string): string {
         const payload = {
             n: name
         }
         return `yp/1/mn:${JSON.stringify(payload)}`
+    },
+    metadataVertical: function(vertical: string): string {
+        const payload = {
+            v: vertical
+        }
+        return `yp/1/mv:${JSON.stringify(payload)}`
     },
     post: function(post: string): string {
         const payload = {

@@ -16,10 +16,10 @@ import {
     baseGetName,
     baseSetAvatar,
     baseSetBanner,
-    baseSetBirthday,
     baseSetDescription,
     baseSetLocation,
     baseSetName,
+    baseSetVertical,
     baseSetWebsite,
     baseSubmitPost,
     baseSubmitPostAttach,
@@ -310,21 +310,21 @@ export async function WalletSetLocation(location: string): Promise<boolean> {
     }
     return false;
 }
+export async function WalletSetVertical(vertical: string): Promise<boolean> {
+    let walletSelection = GetWallet()!;
+    if (walletSelection == "pera") {
+        //algo stuff
+    } else if (walletSelection == "cbwalletbase") {
+        return !!await baseSetVertical(vertical);
+    }
+    return false;
+}
 export async function WalletSetWebsite(website: string): Promise<boolean> {
     let walletSelection = GetWallet()!;
     if (walletSelection == "pera") {
         //algo stuff
     } else if (walletSelection == "cbwalletbase") {
         return !!await baseSetWebsite(website);
-    }
-    return false;
-}
-export async function WalletSetBirthday(birthday: string): Promise<boolean> {
-    let walletSelection = GetWallet()!;
-    if (walletSelection == "pera") {
-        //algo stuff
-    } else if (walletSelection == "cbwalletbase") {
-        return !!await baseSetBirthday(birthday);
     }
     return false;
 }

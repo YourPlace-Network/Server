@@ -574,6 +574,23 @@ func IsValidBirthDate(payload int64) bool {
 	diff := now - int64(payload)
 	return diff >= thirteenYears && diff <= twoHundredYears
 }
+func IsValidVertical(payload string) bool {
+	validVerticals := []string{
+		"art", "music", "gaming", "education", "technology", "health", "fitness",
+		"finance", "travel", "lifestyle", "news", "sports", "entertainment",
+		"food", "cooking", "fashion", "beauty", "photography", "science", "history",
+		"nature", "culture", "business", "pets", "parenting", "automotive",
+		"comedy", "books", "diy", "politics", "spirituality", "anime", "movies",
+		"television", "outdoors", "sustainability", "realestate", "luxury",
+		"asmr", "career", "other",
+	}
+	for _, vertical := range validVerticals {
+		if strings.EqualFold(vertical, strings.ToLower(payload)) {
+			return true
+		}
+	}
+	return false
+}
 func IsVideo(filename string) bool {
 	// mov files are currently excluded from this check
 	fileType := ""

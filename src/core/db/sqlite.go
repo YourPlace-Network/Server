@@ -243,8 +243,8 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"auth_expired":  "CREATE TABLE IF NOT EXISTS auth_expired (uuid TEXT PRIMARY KEY, status TEXT)",
 		"login_nonce":   "CREATE TABLE IF NOT EXISTS login_nonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
 		"onchain_post":  "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', birthdate INTEGER DEFAULT NULL, server TEXT DEFAULT '', " +
-			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, birthdateTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', vertical TEXT DEFAULT '', server TEXT DEFAULT '', " +
+			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"csrf_tokens":    "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
@@ -1313,33 +1313,29 @@ func (db *SQLite) ProfileGetWebsite(address string, blockchain string) string {
 	}
 	return ""
 }
-func (db *SQLite) ProfileGetBirthDate(address string, blockchain string) *int64 {
-	rows, err := db.runParamSQLSelect("SELECT birthdate FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
+func (db *SQLite) ProfileGetVertical(address string, blockchain string) string {
+	rows, err := db.runParamSQLSelect("SELECT vertical FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
 	if err != nil {
-		core.LogDebug("Could not get profile birthdate from database: " + err.Error())
-		return nil
+		core.LogDebug("Could not get profile vertical from database: " + err.Error())
+		return ""
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var birthDateRaw sql.NullInt64
-		err = rows.Scan(&birthDateRaw)
-		if !birthDateRaw.Valid {
-			return nil
-		}
-		birthDate := birthDateRaw.Int64
+		var vertical string
+		err = rows.Scan(&vertical)
 		if err != nil {
-			core.LogDebug("Could not parse database rows for profile birthdate: " + err.Error())
-			return nil
+			core.LogDebug("Could not parse database rows for profile vertical: " + err.Error())
+			return ""
 		}
-		return &birthDate
+		return vertical
 	}
-	return nil
+	return ""
 }
 func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64 {
 	var metaAge int64 = 0
 	var postAge int64 = 0
 	var joinedDate int64 = 0
-	rowsmeta, err := db.runParamSQLSelect("SELECT COALESCE(MIN(CASE WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN birthdateTimestamp > 0 THEN birthdateTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp ELSE 0 END), 0) AS min_timestamp FROM onchain_meta WHERE blockchain = ? AND address = LOWER(?)", blockchain, address)
+	rowsmeta, err := db.runParamSQLSelect("SELECT COALESCE(MIN(CASE WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN verticalTimestamp > 0 THEN verticalTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp ELSE 0 END), 0) AS min_timestamp FROM onchain_meta WHERE blockchain = ? AND address = LOWER(?)", blockchain, address)
 	if err == nil {
 		if rowsmeta != nil {
 			defer rowsmeta.Close()
@@ -2086,9 +2082,9 @@ func (db *SQLite) OnchainMB(blockchain string, address string, banner string, ti
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
-func (db *SQLite) OnchainMBD(blockchain string, address string, birthdate uint64, timestamp uint64) {
-	query := "INSERT INTO onchain_meta (blockchain, address, birthdate, birthdateTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET birthdate = excluded.birthdate, birthdateTimestamp = excluded.birthdateTimestamp WHERE excluded.birthdateTimestamp > birthdateTimestamp"
-	_, err := db.runParamSQLUpdate(query, blockchain, address, int64(birthdate), int64(timestamp))
+func (db *SQLite) OnchainMV(blockchain string, address string, vertical string, timestamp uint64) {
+	query := "INSERT INTO onchain_meta (blockchain, address, vertical, verticalTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET vertical = excluded.vertical, verticalTimestamp = excluded.verticalTimestamp WHERE excluded.verticalTimestamp > verticalTimestamp"
+	_, err := db.runParamSQLUpdate(query, blockchain, address, vertical, int64(timestamp))
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
