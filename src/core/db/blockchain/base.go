@@ -147,7 +147,7 @@ func (base *Base) GetENSAddresses(name string) ([]string, error) {
 	return []string{address.Hex()}, nil
 }
 func BaseGetEarliestBlock() big.Int {
-	return *big.NewInt(int64(38300000)) // YourPlace did not exist on-chain before this block
+	return *big.NewInt(int64(39100000)) // YourPlace did not exist on-chain before this block
 }
 func BaseGetBalance(address string, database *db.Database) (big.Int, error) {
 	core.LogDebug("BaseGetBalance(): Getting Base balance for address: " + address)

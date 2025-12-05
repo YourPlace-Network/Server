@@ -503,7 +503,6 @@ export async function baseGetEnsName(address: string): Promise<string> {
     try {
         const ensName = await ockGetName({address: address as `0x${string}`, chain: viemBase});
         if (ensName) {
-            LogInfo("baseGetEnsName(): Fetched ENS name: " + ensName);
             ensNameCache.set(address, ensName);
             return ensName;
         }
@@ -513,27 +512,21 @@ export async function baseGetEnsName(address: string): Promise<string> {
     return "";
 }
 export async function baseGetEnsAvatar(address: string): Promise<string> {
-    LogInfo("baseGetEnsAvatar(): Fetching ENS avatar for address: " + address);
     if (!baseInit) await initBaseWallet();
     const cached = ensAvatarCache.get<string>(address);
     if (cached !== null) {
-        LogInfo("baseGetEnsAvatar(): Base ENS avatar cache hit for " + address);
         return cached;
     }
     const ensName = await baseGetEnsName(address);
     if (!ensName || ensName === "") {
-        LogInfo("baseGetEnsAvatar(): No ENS name found for address: " + address);
         return "";
     }
     try {
-        LogInfo("baseGetEnsAvatar(): Fetching avatar for " + ensName + " using RPC: " + mainnetBase.rpcUrl);
         const ensAvatar = await ockGetAvatar({ensName, chain: viemBase});
         if (ensAvatar) {
-            LogInfo("baseGetEnsAvatar(): Fetched ENS avatar: " + ensAvatar);
             ensAvatarCache.set(address, ensAvatar);
             return ensAvatar;
         }
-        LogInfo("baseGetEnsAvatar(): No avatar returned for " + ensName);
     } catch (e) {
         LogError("baseGetEnsAvatar(): Error fetching ENS avatar: " + e);
     }
