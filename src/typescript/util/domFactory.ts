@@ -95,9 +95,8 @@ async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLEl
         if (blockchain && address && IsValidAddress(address, blockchain)) {
             try {
                 let avatarUrl: string | null = null;
-                if (IsGatewayMode()) {
-                    avatarUrl = await getIpfsAvatarUrl(blockchain, address);
-                } else {
+                avatarUrl = await getIpfsAvatarUrl(blockchain, address);
+                if (!avatarUrl || avatarUrl === "") {
                     avatarUrl = await WalletGetAvatar(blockchain, address);
                 }
                 if (avatarUrl && avatarUrl !== "" && !avatarImg.src.endsWith(XSSSanitizeUrl(avatarUrl))) {

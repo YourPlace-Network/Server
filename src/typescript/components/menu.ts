@@ -72,9 +72,7 @@ declare global {
             if (blockchain && address) {
                 DOM.menuAvatarLink.href = `/p/${blockchain}/${address}`;
                 let avatar: string | null = null;
-                if (IsGatewayMode()) {
-                    avatar = await getIpfsAvatarUrl(blockchain, address);
-                }
+                avatar = await getIpfsAvatarUrl(blockchain, address);
                 if (!avatar) {
                     avatar = await WalletGetAvatar(blockchain, address);
                 }

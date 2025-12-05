@@ -341,9 +341,8 @@ declare global { // Extend the window interface with public objects
         async function renderProfileAvatarFromData(avatarAddress: string, blockchain: string, address: string) {
             let avatarURL = avatarAddress;
             if (!avatarAddress) { // If no cached avatar, try lookup
-                if (IsGatewayMode()) {
-                    avatarURL = await getIpfsAvatarUrl(blockchain, address) || "";
-                } else {
+                avatarURL = await getIpfsAvatarUrl(blockchain, address) || "";
+                if (!avatarURL || avatarURL === "") {
                     avatarURL = await WalletGetAvatar(blockchain, address);
                 }
             }

@@ -123,13 +123,9 @@ import {ShowDialogModalHTML} from "../components/modalDialog";
                     let key = blockchain + address;
                     let name: string | null = await WalletGetName(blockchain, address);
                     let avatarStr: string | null = null;
-                    if (IsGatewayMode()) {
-                        avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                    } else {
+                    avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                    if (!avatarStr || avatarStr === "") {
                         avatarStr = await WalletGetAvatar(blockchain, address);
-                        if (!avatarStr || avatarStr === "") {
-                            avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                        }
                     }
                     // Update all posts for this profile
                     pendingCards.forEach(postDiv => {
@@ -201,13 +197,9 @@ import {ShowDialogModalHTML} from "../components/modalDialog";
         async function fetchAndUpdateProfileCard(profileCard: HTMLDivElement, blockchain: string, address: string) {
             let name: string | null = await WalletGetName(blockchain, address);
             let avatarStr: string | null = null;
-            if (IsGatewayMode()) {
-                avatarStr = await getIpfsAvatarUrl(blockchain, address);
-            } else {
+            avatarStr = await getIpfsAvatarUrl(blockchain, address);
+            if (!avatarStr || avatarStr === "") {
                 avatarStr = await WalletGetAvatar(blockchain, address);
-                if (!avatarStr || avatarStr === "") {
-                    avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                }
             }
             const nameDiv = profileCard.querySelector('.profileCardName') as HTMLDivElement;
             const avatarImg = profileCard.querySelector('img.profileCardAvatar') as HTMLImageElement;
@@ -312,13 +304,9 @@ import {ShowDialogModalHTML} from "../components/modalDialog";
                 let key = blockchain + address;
                 let name: string | null = await WalletGetName(blockchain, address);
                 let avatarStr: string | null = null;
-                if (IsGatewayMode()) {
-                    avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                } else {
+                avatarStr = await getIpfsAvatarUrl(blockchain, address);
+                if (!avatarStr || avatarStr === "") {
                     avatarStr = await WalletGetAvatar(blockchain, address);
-                    if (!avatarStr || avatarStr === "") {
-                        avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                    }
                 }
                 let description: string | null = null;
                 if (result.resultType == "profile") {
