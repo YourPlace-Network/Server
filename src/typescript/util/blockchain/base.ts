@@ -513,13 +513,16 @@ export async function baseGetEnsName(address: string): Promise<string> {
     return "";
 }
 export async function baseGetEnsAvatar(address: string): Promise<string> {
+    LogInfo("baseGetEnsAvatar(): Fetching ENS avatar for address: " + address);
     if (!baseInit) await initBaseWallet();
     const cached = ensAvatarCache.get<string>(address);
     if (cached !== null) {
+        LogInfo("baseGetEnsAvatar(): Base ENS avatar cache hit for " + address);
         return cached;
     }
     const ensName = await baseGetEnsName(address);
     if (!ensName || ensName === "") {
+        LogInfo("baseGetEnsAvatar(): No ENS name found for address: " + address);
         return "";
     }
     try {
