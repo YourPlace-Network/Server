@@ -27,10 +27,26 @@ func (blockchain *Blockchain) InitGateway(database *db.Database) {
 }
 func (blockchain *Blockchain) init(database *db.Database, gateway bool) {
 	algo := new(Algorand)
-	algoURL := database.SettingsGetValue("algoURL")
-	if algoURL == "" {
-		algoURL = DefaultBlockchainNodes["algorand"][0]
+	algoURLEnv := os.Getenv("ALGO_RPC_URL")
+	algoThrottleEnv := os.Getenv("ALGO_RPC_THROTTLE")
+	var algoURL string
+	if gateway && algoURLEnv != "" {
+		algoURL = algoURLEnv
 		database.SettingsUpdateValue("algoURL", algoURL)
+		if algoThrottleEnv != "" {
+			database.SettingsUpdateValue("algoThrottle", algoThrottleEnv)
+		}
+	} else {
+		algoURL = database.SettingsGetValue("algoURL")
+		if algoURL == "" {
+			if algoURLEnv != "" {
+				algoURL = algoURLEnv
+			} else {
+				algoURL = DefaultBlockchainNodes["algorand"][0]
+			}
+			database.SettingsUpdateValue("algoURL", algoURL)
+			database.SettingsUpdateValue("algoThrottle", DefaultBlockchainNodes["algorand"][1])
+		}
 	}
 	algoToken := database.SettingsGetValue("algodToken")
 	algoIndexerURL := database.SettingsGetValue("algoIndexerURL")
