@@ -357,7 +357,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		database.SettingsUpdateValue("baseURL", payload.BaseURL)
-		blockchain.IndexerStop()
+		blockchain.BaseIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/base/dataDirectory", func(c *gin.Context) {
@@ -416,7 +416,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		database.SettingsUpdateValue("baseThrottle", strconv.Itoa(payload.Throttle))
-		blockchain.IndexerStop()
+		blockchain.BaseIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/base/indexerReset", func(c *gin.Context) {
@@ -430,7 +430,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		if payload.IndexerReset {
-			blockchain.IndexerStop()
+			blockchain.BaseIndexerStop()
 			database.IndexerResetJobs("base")
 			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 		}
@@ -593,7 +593,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		database.SettingsUpdateValue("indexerRunning", "false")
 		database.SettingsUpdateValue("baseIndexerRunning", "false")
 		database.SettingsUpdateValue("algoIndexerRunning", "false")
-		blockchain.IndexerStop()
+		blockchain.BaseIndexerStop()
 		blockchain.AlgoIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{
 			"status":  "success",
@@ -623,7 +623,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			database.SettingsUpdateValue("baseIndexerRunning", "true")
 		} else {
 			database.SettingsUpdateValue("baseIndexerRunning", "false")
-			blockchain.IndexerStop()
+			blockchain.BaseIndexerStop()
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
@@ -660,7 +660,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		} else {
 			database.SettingsUpdateValue("indexerOnBattery", "false")
 		}
-		blockchain.IndexerStop()
+		blockchain.BaseIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/database/exportSnapshot", func(c *gin.Context) {
@@ -705,7 +705,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			}
 		}
 		database.MetaUpdateValue("importSnapshotStatus", "running")
-		blockchain.IndexerStop()
+		blockchain.BaseIndexerStop()
 		go func() {
 			for i := 0; i < 100; i++ {
 				uuids := database.IndexerGetRunningJobsUUIDs()

@@ -174,7 +174,7 @@ func (rt *RequestTracker) cleanupOldRequests(cutoff time.Time) {
 }
 
 // --- Indexer Main Method --- //
-func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) bool {
+func BaseIndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) bool {
 	_Blockchain = blockchain
 	_Database = database
 	databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock := indexerPreflight(chainName)
@@ -189,7 +189,7 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 	case "failed":
 		core.LogDebug("[Base] Restarting failed job from where it left off")
 		if databaseTailBlock == 0 { // If a full fill job started, but failed before the tail block was written, start all over
-			IndexerRestartJobs(_Database, chainName)
+			BaseIndexerRestartJobs(_Database, chainName)
 			IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock, database)
 			return true
 		}
@@ -583,7 +583,7 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 		_Database.IndexerUpdateTailBlock(uuid, chainEarliestBlock.Uint64()) // If not, reset the tail block to the earliest block
 		databaseTailBlock = chainEarliestBlock.Uint64()
 	}
-	core.LogDebug("[Base] --- IndexerFetchData(): Fetching posts for " + chainName + " ---")
+	core.LogDebug("[Base] --- BaseIndexerFetchData(): Fetching posts for " + chainName + " ---")
 	core.LogDebug("[Base] Chain Latest Block: " + chainLatestBlock.String())
 	core.LogDebug("[Base] Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
 	core.LogDebug("[Base] Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
@@ -1203,12 +1203,12 @@ func breakPoint(uuid string) bool {
 
 // --- Global Helper Functions --- //
 func IndexerClearOldCachedPosts(__database *db.Database) {} // Clear cached transactions that are older than the configured (expired) cached post history limit
-func IndexerRestartJobs(__database *db.Database, blockchain string) {
+func BaseIndexerRestartJobs(__database *db.Database, blockchain string) {
 	// set any indexer jobs to "failed" that were left in a "running" state from a crashed server
 	jobUUID := __database.IndexerGetJobUUID(blockchain)
 	__database.IndexerUpdateJobStatus(jobUUID, "failed")
 }
-func IndexerStop() {
+func BaseIndexerStop() {
 	IndexerMutex.Lock()
 	defer IndexerMutex.Unlock()
 	if IsIndexing && indexerCancel != nil {
@@ -1222,7 +1222,7 @@ func ToggleIndexer(database *db.Database) {
 	indexerRunning := database.SettingsGetValue("baseIndexerRunning")
 	if indexerRunning == "true" || indexerRunning == "" {
 		database.SettingsUpdateValue("baseIndexerRunning", "false")
-		IndexerStop()
+		BaseIndexerStop()
 	} else {
 		database.SettingsUpdateValue("baseIndexerRunning", "true")
 	}
@@ -1251,7 +1251,7 @@ func IndexerCatchUpAll(database *db.Database, blockchainStr string) (bool, strin
 	snapshotJsonURL := fmt.Sprintf("https://yourplace-snapshots.s3.us-east-1.amazonaws.com/%s-snapshot-complete.json", blockchainStr)
 	database.MetaUpdateValue("indexerCatchUpLastRun", strconv.FormatUint(core.GetTimestamp(), 10))
 	go func() {
-		IndexerStop()
+		BaseIndexerStop()
 		for i := 0; i < 120; i++ {
 			if !IsIndexing {
 				snapshotDir := filepath.Join(host.GetDataDir(), "snapshots")

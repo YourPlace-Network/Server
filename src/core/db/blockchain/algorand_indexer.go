@@ -470,7 +470,7 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 		_AlgoDatabase.AlgoIndexerUpdateTailBlock(uuid, chainEarliestBlock.Uint64())
 		databaseTailBlock = chainEarliestBlock.Uint64()
 	}
-	core.LogDebug("[Algo] --- IndexerFetchData(): Fetching posts for " + chainName + " ---")
+	core.LogDebug("[Algo] --- BaseIndexerFetchData(): Fetching posts for " + chainName + " ---")
 	core.LogDebug("[Algo] Chain Latest Block: " + chainLatestBlock.String())
 	core.LogDebug("[Algo] Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
 	core.LogDebug("[Algo] Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
