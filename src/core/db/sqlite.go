@@ -1584,7 +1584,11 @@ func (db *SQLite) SearchGetProfiles(query string) []map[string]interface{} {
 }
 func (db *SQLite) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
-	sqlQuery := `SELECT address, blockchain FROM onchain_meta ORDER BY RANDOM() LIMIT ?`
+	sqlQuery := `SELECT address, blockchain FROM (
+		SELECT address, blockchain FROM onchain_meta
+		UNION
+		SELECT followeeAddress, followeeBlockchain FROM onchain_follow
+	) ORDER BY RANDOM() LIMIT ?`
 	rows, err := db.runParamSQLSelect(sqlQuery, limit)
 	if err != nil {
 		core.LogDebug("Could not get random profiles from database: " + err.Error())

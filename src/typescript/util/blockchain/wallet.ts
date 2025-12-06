@@ -131,8 +131,9 @@ export async function ConnectWallet(wallet: string): Promise<string> {
 }
 export async function ReconnectWallet() {
     let wallet = GetWallet();
-    if (!wallet) {
-        // No wallet stored - nothing to reconnect (this is normal on first visit)
+    let address = GetAddress();
+    if (!wallet || !address) {
+        // No wallet or address stored - nothing to reconnect (this is normal on first visit)
         return;
     }
     switch (wallet) {
@@ -140,7 +141,11 @@ export async function ReconnectWallet() {
             algoReconnectSession();
             break;
         case "cbwalletbase":
-            await baseConnectWallet();
+            // Only reconnect if we have stored credentials - don't prompt for new connection
+            const wagmiStore = localStorage.getItem("wagmi.store");
+            if (wagmiStore) {
+                await baseConnectWallet();
+            }
             break;
     }
 }

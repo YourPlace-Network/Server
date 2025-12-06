@@ -160,22 +160,43 @@ i.bi {
   padding-top: 10px;
   padding-left: 45px;
 }
-#baseIndexerProgressDiv {
+#baseIndexerProgressDiv,
+#algoIndexerProgressDiv {
   margin-bottom: 2em;
 }
-#baseIndexerProgressCached {
+#baseIndexerProgressCached,
+#algoIndexerProgressCached {
   background-color: global.$quaternary;
 }
-#baseThrottleNumber {
+#baseThrottleNumber,
+#algoThrottleNumber {
   display: inline;
+  font-weight: bold;
 }
-#baseIndexerCatchUpBtn {
-  position: absolute;
-  left: 5em;
-  top: -2.25em;
+.throttleLabel {
+  white-space: nowrap;
 }
-#baseIndexerCatchUpHelpIcon {
+.indexerBtns {
+  position: relative;
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+}
+.indexerCatchUpDropdown {
+  display: inline-block;
+}
+#baseIndexerCatchUpHelpIcon,
+#algoIndexerCatchUpHelpIcon {
   padding-left: 0.5em;
+}
+.indexerStatusLight {
+  height: 0.8em;
+  width: 0.8em;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: 0.5em;
+  position: relative;
+  top: 0.1em;
 }
 #baseFullNodeInputDiv, #baseUrlInputDiv {
   padding-bottom: 10px;

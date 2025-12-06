@@ -44,9 +44,7 @@ import {Sleep} from "../util/time";
             indexerStatusText: document.getElementById("indexerStatusText")! as HTMLSpanElement,
             ollamaTrafficLight: document.getElementById("ollamaTrafficLight")! as HTMLDivElement,
             ollamaModelTrafficLight: document.getElementById("ollamaModelTrafficLight")! as HTMLDivElement,
-            postHistoryDays: document.getElementById("postHistoryDays")! as HTMLInputElement,
             saveBaseURLBtn: document.getElementById("saveBaseURLBtn")! as HTMLButtonElement,
-            savePostHistoryDaysBtn: document.getElementById("savePostHistoryDaysBtn")! as HTMLButtonElement,
             saveUploadDirectoryBtn: document.getElementById("saveUploadDirectoryBtn")! as HTMLButtonElement,
             spiceometerCheck: document.getElementById("spiceometerCheck")! as HTMLInputElement,
             uploadDirectory: document.getElementById("uploadDirectory")! as HTMLInputElement,
@@ -94,8 +92,13 @@ import {Sleep} from "../util/time";
             defaultAlgoURLBtn: document.getElementById("defaultAlgoURLBtn")! as HTMLButtonElement,
             saveAlgoURLBtn: document.getElementById("saveAlgoURLBtn")! as HTMLButtonElement,
             collapseAlgo: document.getElementById("collapseAlgo")! as HTMLDivElement,
+            baseIndexerRunCheckbox: document.getElementById("baseIndexerRunCheckbox")! as HTMLInputElement,
+            algoIndexerRunCheckbox: document.getElementById("algoIndexerRunCheckbox")! as HTMLInputElement,
+            baseIndexerStatusLight: document.getElementById("baseIndexerStatusLight")! as HTMLDivElement,
+            algoIndexerStatusLight: document.getElementById("algoIndexerStatusLight")! as HTMLDivElement,
         }
         let popperInstance: Instance | null = null;
+        let algoPopperInstance: Instance | null = null;
 
         async function init() {
             InitTooltips();
@@ -105,6 +108,8 @@ import {Sleep} from "../util/time";
             setInterval(getAlgoIndexerProgress, 300000);
             setInterval(getIndexerStatus, 6000);
             setInterval(getIndexerRunning, 6000);
+            setInterval(getBaseIndexerStatus, 6000);
+            setInterval(getAlgoIndexerStatus, 6000);
         }
 
         /* Getting Current Settings Values */
@@ -250,14 +255,6 @@ import {Sleep} from "../util/time";
                 DOM.uploadDirectory.value = DOMPurify.sanitize(response[1].uploadDirectory);
             }
         }
-        async function getPostHistoryDays() {
-            let response = await HttpGetJson("/settings/post/history");
-            if (response[0] === 200) {
-                DOM.postHistoryDays.value = DOMPurify.sanitize(response[1].days);
-            } else {
-                DOM.postHistoryDays.value = "Error";
-            }
-        }
         async function getSpiceometer() {
             let ollamaEnabled = await AIIsEnabled();
             DOM.spiceometerCheck.checked = ollamaEnabled;
@@ -294,14 +291,18 @@ import {Sleep} from "../util/time";
             let response = await HttpGetJson("/settings/indexer/running");
             if (response[0] === 200) {
                 DOM.indexerRunCheckbox.checked = response[1].indexerRunning;
-                if (response[1].indexerRunning == true) {
-                    if (DOM.indexerStatusText.textContent !== "Warming Up") {
-                        DOM.indexerStatusText.textContent = "Warming Up";
-                    }
-                    if (DOM.indexerStatusText.style.color !== "#D3D3D3") {
-                        DOM.indexerStatusText.style.color = "#D3D3D3";
-                    }
-                }
+            }
+        }
+        async function getBaseIndexerRunning() {
+            let response = await HttpGetJson("/settings/base/indexer/running");
+            if (response[0] === 200) {
+                DOM.baseIndexerRunCheckbox.checked = response[1].indexerRunning;
+            }
+        }
+        async function getAlgoIndexerRunning() {
+            let response = await HttpGetJson("/settings/algorand/indexer/running");
+            if (response[0] === 200) {
+                DOM.algoIndexerRunCheckbox.checked = response[1].indexerRunning;
             }
         }
         async function getIndexerStatus() {
@@ -334,6 +335,36 @@ import {Sleep} from "../util/time";
                 }
             } else {
                 LogError("Indexer Status Error");
+            }
+        }
+        async function getBaseIndexerStatus() {
+            let response = await HttpGetJson("/settings/base/indexer/status");
+            if (response[0] === 200) {
+                let status = DOMPurify.sanitize(response[1].status);
+                updateIndexerStatusLight(DOM.baseIndexerStatusLight, status, "Base");
+            }
+        }
+        async function getAlgoIndexerStatus() {
+            let response = await HttpGetJson("/settings/algorand/indexer/status");
+            if (response[0] === 200) {
+                let status = DOMPurify.sanitize(response[1].status);
+                updateIndexerStatusLight(DOM.algoIndexerStatusLight, status, "Algorand");
+            }
+        }
+        function updateIndexerStatusLight(element: HTMLDivElement, status: string, blockchain: string) {
+            let isRunning = (status === "running");
+            let tooltip = element.getAttribute("data-bs-original-title") || element.getAttribute("data-bs-title");
+            let newTooltip = blockchain + " indexer " + (isRunning ? "running" : "stopped");
+            if (isRunning) {
+                element.classList.remove("redLight");
+                element.classList.add("greenLight");
+            } else {
+                element.classList.remove("greenLight");
+                element.classList.add("redLight");
+            }
+            if (tooltip !== newTooltip) {
+                element.setAttribute("data-bs-title", newTooltip);
+                element.setAttribute("data-bs-original-title", newTooltip);
             }
         }
         async function getNetworkPorts() {
@@ -549,18 +580,6 @@ import {Sleep} from "../util/time";
                 ShowSavedToast();
             }
         }
-        async function setPostHistoryDays() {
-            const data = {
-                days: DOM.postHistoryDays.valueAsNumber,
-            }
-            let response = await HttpPostJson("/settings/post/history", data, DOM.csrfToken.value);
-            if (response[0] === 200) {
-                LogInfo("Base Post Cache Days Saved");
-                ShowSavedToast();
-            } else {
-                DOM.postHistoryDays.value = "Error";
-            }
-        }
         async function setBaseIndexerReset() {
             const confirmed = await ShowModalYesNoHTML("⚠️ Are you sure you want to reset the indexer? ⚠️<br><br>This will delete cached YourPlace data and re-index everything<br><br>It will take a long time and download a lot of data<br><br>Your personal data, posts, and profile <u>will not</u> be deleted");
             if (confirmed) {
@@ -624,7 +643,7 @@ import {Sleep} from "../util/time";
                 DOM.algoURL.value = response[1].defaultAlgoURL;
                 ShowSavedToast();
             }
-            DOM.algoThrottle.value = "5";
+            DOM.algoThrottle.value = response[1].defaultAlgoThrottle;
             await setAlgoThrottle();
         }
         async function setAlgoIndexerReset() {
@@ -684,6 +703,8 @@ import {Sleep} from "../util/time";
                 if (response[0] === 200) {
                     LogInfo(response[1].status);
                     DOM.indexerOnBatteryCheckbox.disabled = false;
+                    DOM.baseIndexerRunCheckbox.checked = true;
+                    DOM.algoIndexerRunCheckbox.checked = true;
                 } else {
                     LogError("Indexer Run Error");
                 }
@@ -692,6 +713,8 @@ import {Sleep} from "../util/time";
                 if (response[0] === 200) {
                     LogInfo(response[1].status);
                     DOM.indexerOnBatteryCheckbox.disabled = true;
+                    DOM.baseIndexerRunCheckbox.checked = false;
+                    DOM.algoIndexerRunCheckbox.checked = false;
                 } else {
                     LogError("Indexer Stop Error");
                 }
@@ -706,6 +729,34 @@ import {Sleep} from "../util/time";
             } else {
                 LogError("Indexer On Battery Error");
             }
+        }
+        async function setBaseIndexerRunning() {
+            let response = await HttpPostJson("/settings/base/indexer/running",
+                {indexerRunning: DOM.baseIndexerRunCheckbox.checked}, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                LogInfo("Base Indexer " + (DOM.baseIndexerRunCheckbox.checked ? "Started" : "Stopped"));
+                ShowSavedToast();
+                updateGlobalIndexerCheckbox();
+            } else {
+                LogError("Base Indexer Toggle Error");
+                DOM.baseIndexerRunCheckbox.checked = !DOM.baseIndexerRunCheckbox.checked;
+            }
+        }
+        async function setAlgoIndexerRunning() {
+            let response = await HttpPostJson("/settings/algorand/indexer/running",
+                {indexerRunning: DOM.algoIndexerRunCheckbox.checked}, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                LogInfo("Algorand Indexer " + (DOM.algoIndexerRunCheckbox.checked ? "Started" : "Stopped"));
+                ShowSavedToast();
+                updateGlobalIndexerCheckbox();
+            } else {
+                LogError("Algorand Indexer Toggle Error");
+                DOM.algoIndexerRunCheckbox.checked = !DOM.algoIndexerRunCheckbox.checked;
+            }
+        }
+        function updateGlobalIndexerCheckbox() {
+            const anyRunning = DOM.baseIndexerRunCheckbox.checked || DOM.algoIndexerRunCheckbox.checked;
+            DOM.indexerRunCheckbox.checked = anyRunning;
         }
         async function setIPFSPinning() {
             if (DOM.ipfsPinningKey.value === "**********") {
@@ -802,14 +853,11 @@ import {Sleep} from "../util/time";
         }
 
         /* Throttle Slider */
-        const getThumbElement = (): HTMLElement => {
-            // Create a virtual reference for the thumb position
-            const thumbPosition = (Number(DOM.baseThrottle.value) - Number(DOM.baseThrottle.min)) /
-                (Number(DOM.baseThrottle.max) - Number(DOM.baseThrottle.min));
-
-            const inputRect = DOM.baseThrottle.getBoundingClientRect();
-            const thumbWidth = 16; // Default Bootstrap thumb width
-
+        function getThumbElement(slider: HTMLInputElement): HTMLElement {
+            const thumbPosition = (Number(slider.value) - Number(slider.min)) /
+                (Number(slider.max) - Number(slider.min));
+            const inputRect = slider.getBoundingClientRect();
+            const thumbWidth = 16;
             return {
                 getBoundingClientRect: () => ({
                     width: thumbWidth,
@@ -820,53 +868,70 @@ import {Sleep} from "../util/time";
                     right: inputRect.left + (thumbPosition * (inputRect.width - thumbWidth)) + thumbWidth,
                     x: inputRect.left + (thumbPosition * (inputRect.width - thumbWidth)),
                     y: inputRect.top,
-                    toJSON: () => {
-                    }
+                    toJSON: () => {}
                 }),
                 clientWidth: thumbWidth,
                 clientHeight: thumbWidth
             } as unknown as HTMLElement;
         }
-        const showTooltip = () => {
+        function showBaseTooltip() {
             DOM.baseThrottleTooltip.style.display = 'block';
-
             if (!popperInstance) {
-                popperInstance = createPopper(getThumbElement(), DOM.baseThrottleTooltip, {
+                popperInstance = createPopper(getThumbElement(DOM.baseThrottle), DOM.baseThrottleTooltip, {
                     placement: 'top',
-                    modifiers: [
-                        {
-                            name: 'offset',
-                            options: {
-                                offset: [0, 8],
-                            },
-                        },
-                    ],
+                    modifiers: [{name: 'offset', options: {offset: [0, 8]}}],
                 });
             }
         }
-        const hideTooltip = () => {
+        function hideBaseTooltip() {
             DOM.baseThrottleTooltip.style.display = 'none';
             if (popperInstance) {
                 popperInstance.destroy();
                 popperInstance = null;
             }
         }
-        const updateTooltip = () => {
-            document.querySelector('.throttle-tooltip-inner')!.textContent = DOM.baseThrottle.value;
+        function updateBaseTooltip() {
+            DOM.baseThrottleTooltip.querySelector('.throttle-tooltip-inner')!.textContent = DOM.baseThrottle.value;
             if (popperInstance) {
-                popperInstance.state.elements.reference = getThumbElement();
+                popperInstance.state.elements.reference = getThumbElement(DOM.baseThrottle);
                 popperInstance.update();
             }
         }
-        DOM.baseThrottle.addEventListener("input", () => {
-            showTooltip();
-            updateTooltip();
-        });
-        DOM.baseThrottle.addEventListener("mousedown", showTooltip);
-        DOM.baseThrottle.addEventListener("touchstart", showTooltip);
-        DOM.baseThrottle.addEventListener("mouseup", hideTooltip);
-        DOM.baseThrottle.addEventListener("mouseleave", hideTooltip);
-        DOM.baseThrottle.addEventListener("touchend", hideTooltip);
+        function showAlgoTooltip() {
+            DOM.algoThrottleTooltip.style.display = 'block';
+            if (!algoPopperInstance) {
+                algoPopperInstance = createPopper(getThumbElement(DOM.algoThrottle), DOM.algoThrottleTooltip, {
+                    placement: 'top',
+                    modifiers: [{name: 'offset', options: {offset: [0, 8]}}],
+                });
+            }
+        }
+        function hideAlgoTooltip() {
+            DOM.algoThrottleTooltip.style.display = 'none';
+            if (algoPopperInstance) {
+                algoPopperInstance.destroy();
+                algoPopperInstance = null;
+            }
+        }
+        function updateAlgoTooltip() {
+            DOM.algoThrottleTooltip.querySelector('.throttle-tooltip-inner')!.textContent = DOM.algoThrottle.value;
+            if (algoPopperInstance) {
+                algoPopperInstance.state.elements.reference = getThumbElement(DOM.algoThrottle);
+                algoPopperInstance.update();
+            }
+        }
+        DOM.baseThrottle.addEventListener("input", () => { showBaseTooltip(); updateBaseTooltip(); });
+        DOM.baseThrottle.addEventListener("mousedown", showBaseTooltip);
+        DOM.baseThrottle.addEventListener("touchstart", showBaseTooltip);
+        DOM.baseThrottle.addEventListener("mouseup", hideBaseTooltip);
+        DOM.baseThrottle.addEventListener("mouseleave", hideBaseTooltip);
+        DOM.baseThrottle.addEventListener("touchend", hideBaseTooltip);
+        DOM.algoThrottle.addEventListener("input", () => { showAlgoTooltip(); updateAlgoTooltip(); });
+        DOM.algoThrottle.addEventListener("mousedown", showAlgoTooltip);
+        DOM.algoThrottle.addEventListener("touchstart", showAlgoTooltip);
+        DOM.algoThrottle.addEventListener("mouseup", hideAlgoTooltip);
+        DOM.algoThrottle.addEventListener("mouseleave", hideAlgoTooltip);
+        DOM.algoThrottle.addEventListener("touchend", hideAlgoTooltip);
 
         /* Event Listeners */
         DOM.baseDataDirectory!.addEventListener("change", setBaseDataDirectory);
@@ -881,7 +946,6 @@ import {Sleep} from "../util/time";
         DOM.defaultUploadDirectoryBtn!.addEventListener("click", setDefaultUploadDirectory);
         DOM.saveBaseURLBtn!.addEventListener("click", setBaseURL);
         DOM.saveUploadDirectoryBtn!.addEventListener("click", setUploadDirectory);
-        DOM.savePostHistoryDaysBtn!.addEventListener("click", setPostHistoryDays);
         DOM.spiceometerCheck!.addEventListener("change", setSpiceometer);
         DOM.indexerRunCheckbox!.addEventListener("change", setIndexerRunning);
         DOM.indexerOnBatteryCheckbox!.addEventListener("change", setIndexerOnBattery);
@@ -906,13 +970,14 @@ import {Sleep} from "../util/time";
         DOM.serverLogsViewBtn.addEventListener("click", getServerLogs);
         DOM.helperLogsViewBtn.addEventListener("click", getHelperLogs);
         DOM.torHiddenServiceCheck.addEventListener("change", setTorHiddenService);
-        // Algorand Event Listeners
+        DOM.baseIndexerRunCheckbox!.addEventListener("change", setBaseIndexerRunning);
         DOM.algoThrottle!.addEventListener("change", setAlgoThrottle);
         DOM.algoIndexerResetBtn!.addEventListener("click", setAlgoIndexerReset);
         DOM.algoCatchUpFullBtn!.addEventListener("click", function() { setAlgoIndexerCatchUp("full").then(); });
         DOM.algoCatchUpHelpBtn!.addEventListener("click", function() { setAlgoIndexerCatchUp("h").then(); });
         DOM.defaultAlgoURLBtn!.addEventListener("click", setDefaultAlgoURL);
         DOM.saveAlgoURLBtn!.addEventListener("click", setAlgoURL);
+        DOM.algoIndexerRunCheckbox!.addEventListener("change", setAlgoIndexerRunning);
 
         /* On-Demand Loading */
         DOM.collapseContent.addEventListener("show.bs.collapse", function() {
@@ -930,16 +995,19 @@ import {Sleep} from "../util/time";
         });
         DOM.collapseBase.addEventListener("show.bs.collapse", function() {
             getBaseURL().then();
-            getPostHistoryDays().then();
             getBaseIndexerProgress().then();
             getBaseThrottle().then();
             getBaseFullNode().then();
             getBaseDataDirectory().then();
+            getBaseIndexerRunning().then();
+            getBaseIndexerStatus().then();
         });
         DOM.collapseAlgo.addEventListener("show.bs.collapse", function() {
             getAlgoURL().then();
             getAlgoIndexerProgress().then();
             getAlgoThrottle().then();
+            getAlgoIndexerRunning().then();
+            getAlgoIndexerStatus().then();
         });
         DOM.collapseServerInfo.addEventListener("show.bs.collapse", function() {
             getDebugMode().then();

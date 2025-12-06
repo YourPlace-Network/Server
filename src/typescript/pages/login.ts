@@ -85,10 +85,22 @@ declare global { // Extend the window interface with public callback objects
             e.preventDefault();
         });
         DOM.refreshBtn.addEventListener("click", () => {
+            document.cookie.split(";").forEach(cookie => {
+                const name = cookie.split("=")[0].trim();
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            });
+            localStorage.clear();
+            sessionStorage.clear();
             window.location.reload();
         });
 
         // --------- Running Functions --------- //
+        document.cookie.split(";").forEach(cookie => {
+            const name = cookie.split("=")[0].trim();
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+        });
+        localStorage.clear();
+        sessionStorage.clear();
         InitTooltips();
         ShowModalLogin();
     }

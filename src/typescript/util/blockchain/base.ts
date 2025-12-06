@@ -12,7 +12,7 @@ import {
     createConfig,
     createStorage,
     disconnect,
-    getConnections, getEnsAvatar, getEnsName, getEnsText,
+    getConnections, getEnsAvatar, getEnsName,
     http as wagmiHttp,
     readContract,
     signMessage,
@@ -67,7 +67,7 @@ const descriptionCache = new PersistentCache("base_description");
 const ensNameCache = new PersistentCache("base_ens_name");
 const ensAvatarCache = new PersistentCache("base_ens_avatar");
 const ensAddressCache = new PersistentCache("base_ens_address");
-const ensDescriptionCache = new PersistentCache("base_ens_description");
+// ensDescriptionCache removed - ENS description fetching not supported
 
 // ---------- Initialization Functions ---------- //
 async function initBaseWallet() {
@@ -436,13 +436,8 @@ export async function baseGetDescription(_address: string): Promise<string> {
         if (response[0] === 200 && response[1] && response[1].description && response[1].description !== "") {
             descriptionCache.set(_address, response[1].description.trim());
             return response[1].description.trim();
-        } else {
-            const ensDescription = await baseGetEnsDescription(_address);
-            if (ensDescription && ensDescription !== "") {
-                descriptionCache.set(_address, ensDescription);
-                return ensDescription;
-            }
         }
+        // ENS description fetching disabled - not supported right now
     } catch (error) {
         LogError("Failed to get description: " + error);
     }
@@ -545,28 +540,7 @@ export async function baseGetEnsAddress(ensName: string): Promise<string> {
     }
     return "";
 }
-async function baseGetEnsDescription(address: string): Promise<string> {
-    const cached = ensDescriptionCache.get<string>(address);
-    if (cached !== null) {
-        LogInfo("baseGetEnsDescription(): Base ENS cache hit for " + address);
-        return cached;
-    }
-    const ensName = await baseGetEnsName(address);
-    if (!ensName || ensName === "") {
-        return "";
-    }
-    const ensDescription = await getEnsText(wagmiConfig, {
-        name: ensNormalize(ensName),
-        key: "description",
-        chainId: wagmiBase.id,
-    });
-    if (ensDescription) {
-        LogInfo("baseGetEnsDescription(): Fetched ENS description: " + ensDescription);
-        ensDescriptionCache.set(address, ensDescription);
-        return ensDescription;
-    }
-    return "";
-}
+// baseGetEnsDescription removed - ENS description/text fetching not supported right now
 async function baseGetUniversalResolverAddress(): Promise<string> {
     try {
         const response = await fetch("https://raw.githubusercontent.com/ensdomains/ens-contracts/refs/heads/staging/deployments/mainnet/UniversalResolver.json");

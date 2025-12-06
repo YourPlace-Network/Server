@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/algorand/go-algorand-sdk/v2/client/v2/common/models"
+	"github.com/algorand/go-algorand-sdk/v2/crypto"
 	"golang.org/x/time/rate"
 )
 
@@ -40,7 +41,7 @@ var (
 	algoProgressLogMutex          sync.Mutex
 	algoLastProgressBlock         int64
 	algoTotalRequestsCount        int64
-	AlgoEarliestBlock             = big.NewInt(47000000) // Algorand YourPlace genesis block (approximate mainnet block)
+	AlgoEarliestBlock             = big.NewInt(56000000) // Algorand YourPlace genesis block (approximate mainnet block)
 )
 
 type AlgoSequentialBlockTracker struct {
@@ -105,10 +106,10 @@ func AlgorandIndexerFetchData(database *db.Database, blockchain *Blockchain, cha
 	_ = databaseHeadBlock
 	switch databaseStatus {
 	case "pending":
-		core.LogDebug("Starting Algorand pending job from the beginning")
+		core.LogDebug("[Algo] Starting pending job from the beginning")
 		IndexerAlgorandFullFill(blockchain.Algorand, uuid, chainLatestBlock, database)
 	case "failed":
-		core.LogDebug("Restarting Algorand failed job from where it left off")
+		core.LogDebug("[Algo] Restarting failed job from where it left off")
 		if databaseTailBlock == 0 {
 			AlgoIndexerRestartJobs(_AlgoDatabase, chainName)
 			IndexerAlgorandFullFill(blockchain.Algorand, uuid, chainLatestBlock, database)
@@ -120,7 +121,7 @@ func AlgorandIndexerFetchData(database *db.Database, blockchain *Blockchain, cha
 			IndexerAlgorandFrontFill(blockchain.Algorand, uuid, chainLatestBlock, database)
 		}
 	case "complete":
-		core.LogDebug("Algorand last job completed successfully. Getting new blocks")
+		core.LogDebug("[Algo] Last job completed successfully. Getting new blocks")
 		IndexerAlgorandFrontFill(blockchain.Algorand, uuid, chainLatestBlock, database)
 	}
 	return true
@@ -128,39 +129,39 @@ func AlgorandIndexerFetchData(database *db.Database, blockchain *Blockchain, cha
 
 // --- Algorand Indexer Functions --- //
 func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.Int, database *db.Database) {
-	core.LogDebug("--- IndexerAlgorandFrontFill()")
+	core.LogDebug("[Algo] --- IndexerAlgorandFrontFill()")
 	direction := "forward"
 	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "running")
 	headBlock := _AlgoDatabase.AlgoIndexerGetHeadBlock(uuid)
 	if headBlock <= 0 {
-		core.LogWarn("IndexerAlgorandFrontFill(): Head block is <= 0 - aborting")
+		core.LogWarn("[Algo] IndexerAlgorandFrontFill(): Head block is <= 0 - aborting")
 		return
 	}
 	targetLatestBlock := algoLatestBlock
 	targetEarliestBlock := headBlock
-	core.LogDebug("Algorand Target Latest Block: " + targetLatestBlock.String())
-	core.LogDebug("Algorand Target Earliest Block: " + strconv.Itoa(int(targetEarliestBlock)))
+	core.LogDebug("[Algo] Target Latest Block: " + targetLatestBlock.String())
+	core.LogDebug("[Algo] Target Earliest Block: " + strconv.Itoa(int(targetEarliestBlock)))
 	targetEarliestBlockBigInt := big.NewInt(int64(targetEarliestBlock))
 	algoThrottle, _ := strconv.Atoi(_AlgoDatabase.SettingsGetValue("algoThrottle"))
 	if algoThrottle == 0 {
-		algoThrottle = 5 // Default throttle
+		algoThrottle, _ = strconv.Atoi(DefaultBlockchainNodes["algorand"][1])
 	}
-	core.LogDebug("Algorand Throttle: " + strconv.Itoa(algoThrottle))
+	core.LogDebug("[Algo] Throttle: " + strconv.Itoa(algoThrottle))
 	batchSize := algoCalculateOptimalBatchSize(algoThrottle)
-	core.LogDebug("Algorand Batch Size: " + batchSize.String())
+	core.LogDebug("[Algo] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt)
 	if blockCount.Int64() <= 0 {
-		core.LogDebug("Algorand block count is negative or zero - likely up to date")
+		core.LogDebug("[Algo] Block count is negative or zero - likely up to date")
 		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
-	core.LogDebug("Algorand Number of Blocks: " + blockCount.String())
+	core.LogDebug("[Algo] Number of Blocks: " + blockCount.String())
 	batchCount := new(big.Int).Div(blockCount, batchSize)
 	batchSizeRemainder := new(big.Int).Mod(blockCount, batchSize)
 	if batchSizeRemainder.Cmp(big.NewInt(0)) != 0 {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
-	core.LogDebug("Algorand Batch Count: " + batchCount.String())
+	core.LogDebug("[Algo] Batch Count: " + batchCount.String())
 	rateLimiter := algoConfigureRateLimiter(algoThrottle)
 	batchStartBlock := new(big.Int).Set(targetEarliestBlockBigInt)
 	txnCount := core.NewThreadSafeCounter()
@@ -181,7 +182,7 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 			defer wg.Done()
 			err := algoWorkerThread(uuid, rateLimiter, algo, batchJobQueue, sequentialTracker, algoGlobalRequestTracker, txnCount, targetEarliestBlockBigInt, targetLatestBlock, batchSize, "forward")
 			if err != nil {
-				core.LogError("Algorand worker thread failed: " + err.Error())
+				core.LogError("[Algo] Worker thread failed: " + err.Error())
 				errorChan <- err
 			}
 		}(i)
@@ -213,7 +214,7 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 	}()
 	select {
 	case err := <-errorChan:
-		core.LogError("Algorand worker thread failed: " + err.Error())
+		core.LogError("[Algo] Worker thread failed: " + err.Error())
 		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "failed")
 		return
 	case <-done:
@@ -224,20 +225,20 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "complete")
 }
 func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.Int, database *db.Database) {
-	core.LogDebug("--- IndexerAlgorandBackFill() ---")
+	core.LogDebug("[Algo] --- IndexerAlgorandBackFill() ---")
 	direction := "backward"
 	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "running")
 	databaseTailBlock := big.NewInt(int64(_AlgoDatabase.AlgoIndexerGetTailBlock(uuid)))
 	if databaseTailBlock.Cmp(big.NewInt(0)) == 0 {
-		core.LogDebug("Algorand Database Tail Block is 0 - setting to Head Block")
+		core.LogDebug("[Algo] Database Tail Block is 0 - setting to Head Block")
 		headBlockInt := _AlgoDatabase.AlgoIndexerGetHeadBlock(uuid)
 		databaseTailBlock = big.NewInt(int64(headBlockInt))
-		core.LogDebug("Algorand Database Tail Block: " + databaseTailBlock.String())
+		core.LogDebug("[Algo] Database Tail Block: " + databaseTailBlock.String())
 	}
 	targetLatestBlock := databaseTailBlock
 	targetEarliestBlock := AlgoEarliestBlock
 	if targetLatestBlock.Cmp(targetEarliestBlock) == 0 {
-		core.LogDebug("Algorand target latest block is equal to target earliest block - completing")
+		core.LogDebug("[Algo] Target latest block is equal to target earliest block - completing")
 		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
@@ -245,19 +246,19 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 		targetLatestBlock = algoLatestBlock
 		targetEarliestBlock = AlgoEarliestBlock
 	}
-	core.LogDebug("Algorand Target Latest Block: " + targetLatestBlock.String())
-	core.LogDebug("Algorand Target Earliest Block: " + targetEarliestBlock.String())
+	core.LogDebug("[Algo] Target Latest Block: " + targetLatestBlock.String())
+	core.LogDebug("[Algo] Target Earliest Block: " + targetEarliestBlock.String())
 	algoThrottle, _ := strconv.Atoi(_AlgoDatabase.SettingsGetValue("algoThrottle"))
 	if algoThrottle == 0 {
-		algoThrottle = 5
+		algoThrottle, _ = strconv.Atoi(DefaultBlockchainNodes["algorand"][1])
 	}
-	core.LogDebug("Algorand Throttle: " + strconv.Itoa(algoThrottle))
+	core.LogDebug("[Algo] Throttle: " + strconv.Itoa(algoThrottle))
 	batchSize := algoCalculateOptimalBatchSize(algoThrottle)
-	core.LogDebug("Algorand Batch Size: " + batchSize.String())
+	core.LogDebug("[Algo] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlock)
-	core.LogDebug("Algorand Block Count: " + blockCount.String())
+	core.LogDebug("[Algo] Block Count: " + blockCount.String())
 	if blockCount.Int64() <= 0 {
-		core.LogError("Algorand block count is negative or zero")
+		core.LogError("[Algo] Block count is negative or zero")
 		return
 	}
 	batchCount := new(big.Int).Div(blockCount, batchSize)
@@ -265,7 +266,7 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	if batchSizeRemainder.Cmp(big.NewInt(0)) != 0 {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
-	core.LogDebug("Algorand Batch Count: " + batchCount.String())
+	core.LogDebug("[Algo] Batch Count: " + batchCount.String())
 	rateLimiter := algoConfigureRateLimiter(algoThrottle)
 	batchStartBlock := targetLatestBlock
 	txnCount := core.NewThreadSafeCounter()
@@ -285,7 +286,7 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 			defer wg.Done()
 			err := algoWorkerThread(uuid, rateLimiter, algo, batchJobQueue, sequentialTracker, algoGlobalRequestTracker, txnCount, targetEarliestBlock, targetLatestBlock, batchSize, "backward")
 			if err != nil {
-				core.LogError("Algorand worker encountered an error: " + err.Error())
+				core.LogError("[Algo] Worker encountered an error: " + err.Error())
 				errorChan <- err
 			}
 		}(i)
@@ -317,7 +318,7 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	}()
 	select {
 	case err := <-errorChan:
-		core.LogError("Algorand worker thread failed: " + err.Error())
+		core.LogError("[Algo] Worker thread failed: " + err.Error())
 		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "failed")
 		return
 	case <-done:
@@ -328,34 +329,34 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "complete")
 }
 func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.Int, database *db.Database) {
-	core.LogDebug("--- IndexerAlgorandFullFill()")
+	core.LogDebug("[Algo] --- IndexerAlgorandFullFill()")
 	direction := "backward"
 	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "running")
 	targetLatestBlock := algoLatestBlock
-	core.LogDebug("Algorand Target Latest Block: " + targetLatestBlock.String())
+	core.LogDebug("[Algo] Target Latest Block: " + targetLatestBlock.String())
 	targetEarliestBlock := AlgoGetEarliestBlock()
-	core.LogDebug("Algorand Target Earliest Block: " + targetEarliestBlock.String())
+	core.LogDebug("[Algo] Target Earliest Block: " + targetEarliestBlock.String())
 	targetEarliestBlockBigInt := targetEarliestBlock
 	_AlgoDatabase.AlgoIndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
 	algoThrottle, _ := strconv.Atoi(_AlgoDatabase.SettingsGetValue("algoThrottle"))
 	if algoThrottle == 0 {
-		algoThrottle = 5
+		algoThrottle, _ = strconv.Atoi(DefaultBlockchainNodes["algorand"][1])
 	}
-	core.LogDebug("Algorand Throttle: " + strconv.Itoa(algoThrottle))
+	core.LogDebug("[Algo] Throttle: " + strconv.Itoa(algoThrottle))
 	batchSize := algoCalculateOptimalBatchSize(algoThrottle)
-	core.LogDebug("Algorand Batch Size: " + batchSize.String())
+	core.LogDebug("[Algo] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, &targetEarliestBlockBigInt)
 	if blockCount.Int64() <= 0 {
-		core.LogError("Algorand block count is negative or zero")
+		core.LogError("[Algo] Block count is negative or zero")
 		return
 	}
-	core.LogDebug("Algorand Number of Blocks: " + blockCount.String())
+	core.LogDebug("[Algo] Number of Blocks: " + blockCount.String())
 	batchCount := new(big.Int).Div(blockCount, batchSize)
 	batchSizeRemainder := new(big.Int).Mod(blockCount, batchSize)
 	if batchSizeRemainder.Cmp(big.NewInt(0)) != 0 {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
-	core.LogDebug("Algorand Batch Count: " + batchCount.String())
+	core.LogDebug("[Algo] Batch Count: " + batchCount.String())
 	rateLimiter := algoConfigureRateLimiter(algoThrottle)
 	batchStartBlock := targetLatestBlock
 	txnCount := core.NewThreadSafeCounter()
@@ -376,7 +377,7 @@ func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 			defer wg.Done()
 			err := algoWorkerThread(uuid, rateLimiter, algo, batchJobQueue, sequentialTracker, algoGlobalRequestTracker, txnCount, &targetEarliestBlockBigInt, targetLatestBlock, batchSize, "backward")
 			if err != nil {
-				core.LogError("Algorand worker encountered an error: " + err.Error())
+				core.LogError("[Algo] Worker encountered an error: " + err.Error())
 				errorChan <- err
 			}
 		}(i)
@@ -408,7 +409,7 @@ func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	}()
 	select {
 	case err := <-errorChan:
-		core.LogError("Algorand worker thread failed: " + err.Error())
+		core.LogError("[Algo] Worker thread failed: " + err.Error())
 		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "failed")
 		return
 	case <-done:
@@ -434,8 +435,14 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 		IsAlgoIndexing = false
 		AlgoIndexerMutex.Unlock()
 	}()
-	indexerRunning := _AlgoDatabase.SettingsGetValue("algoIndexerRunning")
-	if indexerRunning != "true" {
+	globalIndexerRunning := _AlgoDatabase.SettingsGetValue("indexerRunning")
+	algoIndexerRunning := _AlgoDatabase.SettingsGetValue("algoIndexerRunning")
+	if globalIndexerRunning != "true" {
+		core.LogDebug("[Algo] Indexer skipped: global indexer not running")
+		return "", "", nil, 0, 0, nil
+	}
+	if algoIndexerRunning == "false" {
+		core.LogDebug("[Algo] Indexer skipped: Algorand indexer disabled")
 		return "", "", nil, 0, 0, nil
 	}
 	uuid := _AlgoDatabase.AlgoIndexerGetJobUUID(chainName)
@@ -448,27 +455,27 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 	}
 	chainLatestBlock, err := _AlgoBlockchain.GetLatestBlock(chainName)
 	if err != nil {
-		core.LogDebug("Could not get Algorand latest block number: GetLatestBlock returned error: " + err.Error())
+		core.LogDebug("[Algo] Could not get latest block number: GetLatestBlock returned error: " + err.Error())
 		return "", "", nil, 0, 0, nil
 	}
 	if chainLatestBlock.Cmp(big.NewInt(0)) == 0 {
-		core.LogDebug("Could not get Algorand latest block number: " + chainLatestBlock.String())
+		core.LogDebug("[Algo] Could not get latest block number: " + chainLatestBlock.String())
 		return "", "", nil, 0, 0, nil
 	}
 	chainEarliestBlock := AlgoGetEarliestBlock()
 	databaseHeadBlock := _AlgoDatabase.AlgoIndexerGetHeadBlock(uuid)
 	databaseTailBlock := _AlgoDatabase.AlgoIndexerGetTailBlock(uuid)
 	if databaseTailBlock < chainEarliestBlock.Uint64() && databaseTailBlock != 0 {
-		core.LogDebug("Algorand database tail block is too far back - resetting to EarliestBlock")
+		core.LogDebug("[Algo] Database tail block is too far back - resetting to EarliestBlock")
 		_AlgoDatabase.AlgoIndexerUpdateTailBlock(uuid, chainEarliestBlock.Uint64())
 		databaseTailBlock = chainEarliestBlock.Uint64()
 	}
-	core.LogDebug("--- AlgorandIndexerFetchData(): Fetching posts for " + chainName + " ---")
-	core.LogDebug("Algorand Chain Latest Block: " + chainLatestBlock.String())
-	core.LogDebug("Algorand Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
-	core.LogDebug("Algorand Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
-	core.LogDebug("Algorand Chain Earliest Block: " + chainEarliestBlock.String())
-	return databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock
+	core.LogDebug("[Algo] --- IndexerFetchData(): Fetching posts for " + chainName + " ---")
+	core.LogDebug("[Algo] Chain Latest Block: " + chainLatestBlock.String())
+	core.LogDebug("[Algo] Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
+	core.LogDebug("[Algo] Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
+	core.LogDebug("[Algo] Chain Earliest Block: " + chainEarliestBlock.String())
+	return databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, &chainEarliestBlock
 }
 func algoDispatchTransaction(transaction models.Transaction, blockIndex *big.Int) int {
 	// ret 0 == success == transaction was a YP txn and was processed
@@ -490,19 +497,19 @@ func algoDispatchTransaction(transaction models.Transaction, blockIndex *big.Int
 	if !strings.HasPrefix(noteStr, services.YpPrefix) {
 		return 1
 	}
-	core.LogDebug("Algorand YourPlace transaction found: " + txID)
+	core.LogDebug("[Algo] YourPlace transaction found: " + txID)
 	algoTokenizeYourPlaceTransaction("algorand", txID, fromAddr, toAddr, noteStr, amount, timestamp, blockIndex.Uint64())
 	return 0
 }
 func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddress string, toAddress string, noteStr string, amount uint64, timestamp uint64, blockNumber uint64) {
 	isValid, versionNumber, actionCode, payloadObject := isValidYourPlacePayload(noteStr)
 	if !isValid {
-		core.LogDebug("Could not decode Algorand YourPlace transaction: " + txID)
+		core.LogDebug("[Algo] Could not decode YourPlace transaction: " + txID)
 		return
 	}
 	txHash := strings.ToLower(txID)
 	fromAddr := strings.ToLower(fromAddress)
-	toAddr := strings.ToLower(toAddress)
+	_ = strings.ToLower(toAddress)
 	parentTxHash := ""
 	actionPrefix := actionCode[0]
 	actionPostfix := actionCode[1:]
@@ -513,7 +520,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 			case "":
 				postText, ok := payloadObject["p"]
 				if !ok {
-					core.LogDebug("Algorand Post Action: no p in payload")
+					core.LogDebug("[Algo] Post Action: no p in payload")
 					return
 				}
 				postTextStr, ok := postText.(string)
@@ -710,9 +717,9 @@ func algoCreateIndexerJob(blockchain string) string {
 	return uuid
 }
 func algoIndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, direction string, requestTracker *RequestTracker) {
-	core.LogDebug("------------------------")
-	core.LogDebug("Algorand index: " + blockIndex.String() + " - direction: " + direction)
-	core.LogDebug("Algorand target latest: " + targetLatestBlock.String() + " - target earliest: " + targetEarliestBlock.String())
+	core.LogDebug("[Algo] ------------------------")
+	core.LogDebug("[Algo] index: " + blockIndex.String() + " - direction: " + direction)
+	core.LogDebug("[Algo] target latest: " + targetLatestBlock.String() + " - target earliest: " + targetEarliestBlock.String())
 	totalRange := new(big.Int).Sub(targetLatestBlock, targetEarliestBlock)
 	var progressMade *big.Int
 	if direction == "forward" {
@@ -721,14 +728,14 @@ func algoIndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *b
 		progressMade = new(big.Int).Sub(targetLatestBlock, blockIndex)
 	}
 	progressPercent := calculatePercentage(totalRange, progressMade)
-	core.LogDebug("Algorand blocks processed: " + progressMade.String() + " - progress: " + progressPercent + " %")
+	core.LogDebug("[Algo] blocks processed: " + progressMade.String() + " - progress: " + progressPercent + " %")
 	progressRemaining := new(big.Int).Sub(totalRange, progressMade)
 	batchesRemaining := new(big.Int).Div(progressRemaining, batchSize)
 	batchSizeRemainder := new(big.Int).Mod(progressRemaining, batchSize)
 	if batchSizeRemainder.Cmp(big.NewInt(0)) != 0 {
 		batchesRemaining.Add(batchesRemaining, big.NewInt(1))
 	}
-	core.LogDebug("Algorand blocks remaining: " + progressRemaining.String() + " - batches remaining: " + batchesRemaining.String())
+	core.LogDebug("[Algo] blocks remaining: " + progressRemaining.String() + " - batches remaining: " + batchesRemaining.String())
 }
 func algoCalculateOptimalBatchSize(throttleValue int) *big.Int {
 	throttleBasedLimit := throttleValue - algoThrottleOffset
@@ -784,6 +791,9 @@ func algoStartThrottleController(uuid string, targetThrottleValue int, rateLimit
 						algoDynamicThrottleMultiplier = minMultiplier
 					}
 				}
+				//core.LogDebug("[Algo] Throttle adjustment:\tactual=" + strconv.FormatFloat(actualRPS, 'f', 2, 64) +
+				//	"\ttarget=" + strconv.FormatFloat(targetRPS, 'f', 2, 64) +
+				//	"\tmultiplier=" + strconv.FormatFloat(algoDynamicThrottleMultiplier, 'f', 3, 64))
 				algoThrottleControlMutex.Unlock()
 				newRate := algoCalculateDynamicRate(targetThrottleValue, 1)
 				rateLimiter.SetLimit(rate.Limit(newRate))
@@ -815,23 +825,24 @@ RETRYBLOCK:
 	if err != nil {
 		rpcErrorCount++
 		backoff := (rpcErrorCount + 1) * 2
+		core.LogDebug("[Algo] Block fetch failed, backing off for " + strconv.Itoa(backoff) + " seconds")
 		time.Sleep(time.Duration(backoff) * time.Second)
 		if rpcErrorCount >= 60 {
-			return nil, core.LogErrorReturn("Algorand block fetch failed too many times: " + err.Error())
+			return nil, core.LogErrorReturn("[Algo] Block fetch failed too many times: " + err.Error())
 		}
 		goto RETRYBLOCK
 	}
 	var transactions []models.Transaction
-	for _, stx := range block.Block.Payset {
+	for _, stx := range block.Payset {
 		txn := models.Transaction{
-			Id:     stx.Txn.ID().String(),
+			Id:     crypto.TransactionIDString(stx.Txn),
 			Sender: stx.Txn.Sender.String(),
 			PaymentTransaction: models.TransactionPayment{
 				Receiver: stx.Txn.Receiver.String(),
-				Amount:   stx.Txn.Amount.Raw,
+				Amount:   uint64(stx.Txn.Amount),
 			},
 			Note:      stx.Txn.Note,
-			RoundTime: uint64(block.Block.TimeStamp),
+			RoundTime: uint64(block.TimeStamp),
 		}
 		transactions = append(transactions, txn)
 	}
@@ -850,7 +861,7 @@ func algoWorkerThread(uuid string, rateLimiter *rate.Limiter, algo *Algorand, ba
 			err := rateLimiter.Wait(context.Background())
 			if err != nil {
 				algoRateLimiterMutex.Unlock()
-				return core.LogErrorReturn("Algorand rate limiter wait failed: " + err.Error())
+				return core.LogErrorReturn("[Algo] Rate limiter wait failed: " + err.Error())
 			}
 		}
 		algoRateLimiterMutex.Unlock()
@@ -895,7 +906,7 @@ func algoWorkerThread(uuid string, rateLimiter *rate.Limiter, algo *Algorand, ba
 			algoGlobalRequestTracker.RecordRequests(_batchSize)
 		}
 		if len(failedBlocks) > 0 {
-			core.LogDebug("Re-queuing " + strconv.Itoa(len(failedBlocks)) + " failed Algorand blocks individually")
+			core.LogDebug("[Algo] Re-queuing " + strconv.Itoa(len(failedBlocks)) + " failed blocks individually")
 			backoffTime := len(failedBlocks) * 1
 			if backoffTime > 30 {
 				backoffTime = 30
@@ -911,7 +922,7 @@ func algoWorkerThread(uuid string, rateLimiter *rate.Limiter, algo *Algorand, ba
 func algoBreakPoint(uuid string) bool {
 	select {
 	case <-algoIndexerCancel:
-		core.LogDebug("Algorand indexer cancelled in break point")
+		core.LogDebug("[Algo] Indexer cancelled in break point")
 		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "failed")
 		return true
 	default:

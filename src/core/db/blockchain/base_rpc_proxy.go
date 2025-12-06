@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -35,8 +36,17 @@ var (
 	baseRPCProxyOnce sync.Once
 )
 
+const DefaultPublicBaseRPC = "https://mainnet.base.org"
+const DefaultPublicBaseRPCRateLimit = 5
+
 func InitBaseRPCProxy(targetURL string, rateLimit int) *BaseRPCProxy {
 	baseRPCProxyOnce.Do(func() {
+		// Fallback to public RPC if no valid URL configured
+		if targetURL == "" || strings.HasPrefix(targetURL, "/") {
+			targetURL = DefaultPublicBaseRPC
+			rateLimit = DefaultPublicBaseRPCRateLimit
+			core.LogInfo("Base RPC Proxy using public fallback: " + DefaultPublicBaseRPC)
+		}
 		baseRPCProxy = &BaseRPCProxy{
 			targetURL:    targetURL,
 			rateLimit:    rateLimit,

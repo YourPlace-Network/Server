@@ -172,15 +172,84 @@
                                     <div class="col-8" id="blockchainGlobalSettingsDiv">
                                         <div class="form-check form-switch" id="indexerRun">
                                             <input class="form-check-input" type="checkbox" role="switch" id="indexerRunCheckbox">
-                                            <label class="form-check-label" for="indexerRunCheckbox">Run Indexer</label>
+                                            <label class="form-check-label" for="indexerRunCheckbox">Run Indexers</label>
                                         </div>
                                         <div class="form-check form-switch" id="indexerOnBatterySwitch">
                                             <input class="form-check-input" type="checkbox" role="switch" id="indexerOnBatteryCheckbox">
-                                            <label class="form-check-label" for="indexerOnBatteryCheckbox">Run Indexer On Battery</label>
+                                            <label class="form-check-label" for="indexerOnBatteryCheckbox">Run Indexers On Battery</label>
                                         </div>
                                     </div>
                                     <div class="col-4" id="indexerStatusDiv">
-                                        <span>Indexer Status: </span><span id="indexerStatusText">Stopped</span>
+                                        <span>Indexers Status: </span><span id="indexerStatusText">Stopped</span>
+                                    </div>
+                                </div>
+
+                                <!-- Algorand -->
+                                <div class="row">
+                                    <div class="col-12 centerColumn">
+                                        <div class="accordion accordion-flush" id="algoAccordion">
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingAlgo">
+                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAlgo" aria-expanded="false" aria-controls="collapseAlgo">
+                                                        <img src="/static/image/algorand.svg" class="settingsBlockchainImg" alt=""><b>Algorand</b>
+                                                    </button>
+                                                </h2>
+                                                <div id="collapseAlgo" class="accordion-collapse collapse" aria-labelledby="headingAlgo" data-bs-parent="#algoAccordion">
+                                                    <div class="accordion-body">
+                                                        <div class="form-check form-switch" id="algoIndexerRunSwitch">
+                                                            <input class="form-check-input" type="checkbox" role="switch" id="algoIndexerRunCheckbox">
+                                                            <label class="form-check-label" for="algoIndexerRunCheckbox">Run Indexer</label>
+                                                            <div id="algoIndexerStatusLight" class="indexerStatusLight redLight" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" data-bs-title="Algorand indexer stopped"></div>
+                                                        </div>
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label for="algoURL" id="algoUrlLabel" class="form-label">Algorand Node URL</label>
+                                                        <div class="input-group mb-3" id="algoUrlInputDiv">
+                                                            <input type="text" class="form-control" id="algoURL">
+                                                            <button class="btn btn-primary btn-outline-secondary" id="defaultAlgoURLBtn" type="button">Default</button>
+                                                            <button class="btn btn-primary btn-outline-secondary" id="saveAlgoURLBtn" type="button">Save</button>
+                                                        </div>
+
+                                                        <label for="algoThrottle" class="form-label throttleLabel" id="algoThrottleLabel">Server Throttle: <span id="algoThrottleNumber"></span> Requests-Per-Second</label>
+                                                        <div class="input-group mb3">
+                                                            <datalist id="algoThrottleMarkers">
+                                                                <option value="0" label="0"></option>
+                                                                <option value="10" label="10"></option>
+                                                                <option value="50" label="50"></option>
+                                                                <option value="100" label="100"></option>
+                                                                <option value="250" label="250"></option>
+                                                                <option value="500" label="500"></option>
+                                                                <option value="1000" label="1000"></option>
+                                                            </datalist>
+                                                            <input type="range" class="form-range" id="algoThrottle" min="0" max="1000" step="5" value="0" list="algoThrottleMarkers">
+                                                            <div id="algoThrottleTooltip" class="rangeTooltip" role="tooltip">
+                                                                <div class="throttle-tooltip-inner"></div>
+                                                                <div class="throttle-tooltip-arrow"></div>
+                                                            </div>
+                                                        </div>
+
+                                                        <hr /><!-- ----------------------------------- -->
+                                                        <label for="algoIndexerProgress" class="form-label" id="algoIndexerProgressLabel">Indexer Progress:</label>
+                                                        <div class="progress" id="algoIndexerProgressDiv">
+                                                            <div id="algoIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                            <div id="algoIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="algoIndexerCachedPercent">0%</span></div>
+                                                            <div id="algoIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        </div>
+
+                                                        <div id="algoIndexerBtns" class="indexerBtns">
+                                                            <button class="btn btn-primary" id="algoIndexerResetBtn">Reset</button>
+                                                            <div class="dropdown indexerCatchUpDropdown">
+                                                                <button class="btn btn-secondary dropdown-toggle" type="button" id="algoIndexerCatchUpBtn" data-bs-toggle="dropdown" aria-expanded="false">Catch-Up</button>
+                                                                <ul class="dropdown-menu">
+                                                                    <li><a class="dropdown-item" id="algoCatchUpFullBtn">Full</a></li>
+                                                                    <li><hr class="dropdown-divider"></li>
+                                                                    <li><a class="dropdown-item" id="algoCatchUpHelpBtn">Help<i class="bi bi-question-circle" id="algoIndexerCatchUpHelpIcon"></i></a></li>
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -196,6 +265,11 @@
                                                 </h2>
                                                 <div id="collapseBase" class="accordion-collapse collapse" aria-labelledby="headingBase" data-bs-parent="#baseAccordion">
                                                     <div class="accordion-body">
+                                                        <div class="form-check form-switch" id="baseIndexerRunSwitch">
+                                                            <input class="form-check-input" type="checkbox" role="switch" id="baseIndexerRunCheckbox">
+                                                            <label class="form-check-label" for="baseIndexerRunCheckbox">Run Indexer</label>
+                                                            <div id="baseIndexerStatusLight" class="indexerStatusLight redLight" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" data-bs-title="Base indexer stopped"></div>
+                                                        </div>
                                                         <div id="baseFullNodeDiv">
                                                             <div class="form-check form-switch" id="baseFullNodeSwitch">
                                                                 <input class="form-check-input" type="checkbox" role="switch" id="baseFullNodeCheckbox" disabled>
@@ -219,7 +293,7 @@
                                                             <button class="btn btn-primary btn-outline-secondary" id="saveBaseURLBtn" type="button">Save</button>
                                                         </div>
 
-                                                        <label for="baseThrottle" class="form-label" id="baseThrottleLabel">Server Throttle: <div id="baseThrottleNumber"></div> Requests-Per-Second</label>
+                                                        <label for="baseThrottle" class="form-label throttleLabel" id="baseThrottleLabel">Server Throttle: <span id="baseThrottleNumber"></span> Requests-Per-Second</label>
                                                         <div class="input-group mb3">
                                                             <datalist id="baseThrottleMarkers">
                                                                 <option value="0" label="0"></option>
@@ -245,9 +319,9 @@
                                                             <div id="baseIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
                                                         </div>
 
-                                                        <div id="baseIndexerBtns">
+                                                        <div id="baseIndexerBtns" class="indexerBtns">
                                                             <button class="btn btn-primary" id="baseIndexerResetBtn">Reset</button>
-                                                            <div class="dropdown">
+                                                            <div class="dropdown indexerCatchUpDropdown">
                                                                 <button class="btn btn-secondary dropdown-toggle" type="button" id="baseIndexerCatchUpBtn" data-bs-toggle="dropdown" aria-expanded="false">Catch-Up</button>
                                                                 <ul class="dropdown-menu">
                                                                     <li><a class="dropdown-item" id="baseCatchUpFullBtn">Full</a></li>
@@ -257,12 +331,12 @@
                                                             </div>
                                                         </div>
 
-                                                        <hr /><!-- ----------------------------------- -->
+                                                        <!--<hr />
                                                         <label class="form-label" for="postHistoryDays" id="postHistoryDaysLabel">Post History To Keep (days)</label>
                                                         <div class="input-group mb3">
                                                             <input type="number" class="form-control" id="postHistoryDays" placeholder="Days" min="1" max="365" step="1" data-bind="value:postHistoryDays" />
                                                             <button class="btn btn-primary" id="savePostHistoryDaysBtn">Save</button>
-                                                        </div>
+                                                        </div>-->
                                                     </div>
                                                 </div>
                                             </div>
@@ -340,68 +414,6 @@
                                                         <div class="input-group mb-3">
                                                             <input type="number" class="form-control" id="ethPostHistoryDays" placeholder="Days" min="1" max="365" step="1" data-bind="value:ethPostHistoryDays" />
                                                             <button class="btn btn-primary" id="saveEthPostHistoryDaysBtn">Save</button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Algorand -->
-                                <div class="row">
-                                    <div class="col-12 centerColumn">
-                                        <div class="accordion accordion-flush" id="algoAccordion">
-                                            <div class="accordion-item">
-                                                <h2 class="accordion-header" id="headingAlgo">
-                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAlgo" aria-expanded="false" aria-controls="collapseAlgo">
-                                                        <img src="/static/image/algorand.svg" class="settingsBlockchainImg" alt=""><b>Algorand</b>
-                                                    </button>
-                                                </h2>
-                                                <div id="collapseAlgo" class="accordion-collapse collapse" aria-labelledby="headingAlgo" data-bs-parent="#algoAccordion">
-                                                    <div class="accordion-body">
-                                                        <label for="algoURL" id="algoUrlLabel" class="form-label">Algorand Node URL</label>
-                                                        <div class="input-group mb-3" id="algoUrlInputDiv">
-                                                            <input type="text" class="form-control" id="algoURL">
-                                                            <button class="btn btn-primary btn-outline-secondary" id="defaultAlgoURLBtn" type="button">Default</button>
-                                                            <button class="btn btn-primary btn-outline-secondary" id="saveAlgoURLBtn" type="button">Save</button>
-                                                        </div>
-
-                                                        <label for="algoThrottle" class="form-label" id="algoThrottleLabel">Server Throttle: <div id="algoThrottleNumber"></div> Requests-Per-Second</label>
-                                                        <div class="input-group mb3">
-                                                            <datalist id="algoThrottleMarkers">
-                                                                <option value="0" label="0"></option>
-                                                                <option value="5" label="5"></option>
-                                                                <option value="10" label="10"></option>
-                                                                <option value="25" label="25"></option>
-                                                                <option value="50" label="50"></option>
-                                                                <option value="100" label="100"></option>
-                                                            </datalist>
-                                                            <input type="range" class="form-range" id="algoThrottle" min="0" max="100" step="1" value="0" list="algoThrottleMarkers">
-                                                            <div id="algoThrottleTooltip" class="rangeTooltip" role="tooltip">
-                                                                <div class="throttle-tooltip-inner"></div>
-                                                                <div class="throttle-tooltip-arrow"></div>
-                                                            </div>
-                                                        </div>
-
-                                                        <hr /><!-- ----------------------------------- -->
-                                                        <label for="algoIndexerProgress" class="form-label" id="algoIndexerProgressLabel">Indexer Progress:</label>
-                                                        <div class="progress" id="algoIndexerProgressDiv">
-                                                            <div id="algoIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
-                                                            <div id="algoIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="algoIndexerCachedPercent">0%</span></div>
-                                                            <div id="algoIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
-                                                        </div>
-
-                                                        <div id="algoIndexerBtns">
-                                                            <button class="btn btn-primary" id="algoIndexerResetBtn">Reset</button>
-                                                            <div class="dropdown">
-                                                                <button class="btn btn-secondary dropdown-toggle" type="button" id="algoIndexerCatchUpBtn" data-bs-toggle="dropdown" aria-expanded="false">Catch-Up</button>
-                                                                <ul class="dropdown-menu">
-                                                                    <li><a class="dropdown-item" id="algoCatchUpFullBtn">Full</a></li>
-                                                                    <li><hr class="dropdown-divider"></li>
-                                                                    <li><a class="dropdown-item" id="algoCatchUpHelpBtn">Help<i class="bi bi-question-circle" id="algoIndexerCatchUpHelpIcon"></i></a></li>
-                                                                </ul>
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

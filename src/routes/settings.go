@@ -182,6 +182,50 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"indexerRunning": indexerRunningBool,
 		})
 	})
+	router.GET("/settings/base/indexer/running", func(c *gin.Context) {
+		indexerRunning := database.SettingsGetValue("baseIndexerRunning")
+		indexerRunningBool := indexerRunning != "false"
+		c.SecureJSON(http.StatusOK, gin.H{
+			"indexerRunning": indexerRunningBool,
+		})
+	})
+	router.GET("/settings/algorand/indexer/running", func(c *gin.Context) {
+		indexerRunning := database.SettingsGetValue("algoIndexerRunning")
+		indexerRunningBool := indexerRunning != "false"
+		c.SecureJSON(http.StatusOK, gin.H{
+			"indexerRunning": indexerRunningBool,
+		})
+	})
+	router.GET("/settings/base/indexer/status", func(c *gin.Context) {
+		baseUUID := database.IndexerGetJobUUID("base")
+		baseIndexerStatus := database.IndexerGetJobStatus(baseUUID)
+		indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
+		indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
+		isOnBattery := host.IsOnBattery()
+		globalIndexerRunning := database.SettingsGetValue("indexerRunning")
+		baseIndexerRunning := database.SettingsGetValue("baseIndexerRunning")
+		if globalIndexerRunning != "true" || baseIndexerRunning == "false" || (isOnBattery && !indexerOnBatteryBool) {
+			baseIndexerStatus = "stopped"
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"status": baseIndexerStatus,
+		})
+	})
+	router.GET("/settings/algorand/indexer/status", func(c *gin.Context) {
+		algoUUID := database.AlgoIndexerGetJobUUID("algorand")
+		algoIndexerStatus := database.AlgoIndexerGetJobStatus(algoUUID)
+		indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
+		indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
+		isOnBattery := host.IsOnBattery()
+		globalIndexerRunning := database.SettingsGetValue("indexerRunning")
+		algoIndexerRunning := database.SettingsGetValue("algoIndexerRunning")
+		if globalIndexerRunning != "true" || algoIndexerRunning == "false" || (isOnBattery && !indexerOnBatteryBool) {
+			algoIndexerStatus = "stopped"
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"status": algoIndexerStatus,
+		})
+	})
 	router.GET("/settings/indexer/onBattery", func(c *gin.Context) {
 		indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
 		indexerOnBatteryBool := false
@@ -443,7 +487,8 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		if payload.AlgoURL == "default" {
 			database.SettingsUpdateValue("algoURL", blockchain.DefaultBlockchainNodes["algorand"][0])
-			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultAlgoURL": blockchain.DefaultBlockchainNodes["algorand"][0]})
+			database.SettingsUpdateValue("algoThrottle", blockchain.DefaultBlockchainNodes["algorand"][1])
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultAlgoURL": blockchain.DefaultBlockchainNodes["algorand"][0], "defaultAlgoThrottle": blockchain.DefaultBlockchainNodes["algorand"][1]})
 			return
 		}
 		if !security.IsValidURL(payload.AlgoURL) {
@@ -546,7 +591,10 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.POST("/settings/indexer/stop", func(c *gin.Context) {
 		database.SettingsUpdateValue("indexerRunning", "false")
+		database.SettingsUpdateValue("baseIndexerRunning", "false")
+		database.SettingsUpdateValue("algoIndexerRunning", "false")
 		blockchain.IndexerStop()
+		blockchain.AlgoIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{
 			"status":  "success",
 			"message": "Indexer stopped",
@@ -554,10 +602,48 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.POST("/settings/indexer/start", func(c *gin.Context) {
 		database.SettingsUpdateValue("indexerRunning", "true")
+		database.SettingsUpdateValue("baseIndexerRunning", "true")
+		database.SettingsUpdateValue("algoIndexerRunning", "true")
 		c.SecureJSON(http.StatusOK, gin.H{
 			"status":  "success",
 			"message": "Indexer started",
 		})
+	})
+	router.POST("/settings/base/indexer/running", func(c *gin.Context) {
+		type Payload struct {
+			IndexerRunning bool `json:"indexerRunning"`
+		}
+		var payload Payload
+		err := c.ShouldBindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid JSON"})
+			return
+		}
+		if payload.IndexerRunning {
+			database.SettingsUpdateValue("baseIndexerRunning", "true")
+		} else {
+			database.SettingsUpdateValue("baseIndexerRunning", "false")
+			blockchain.IndexerStop()
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.POST("/settings/algorand/indexer/running", func(c *gin.Context) {
+		type Payload struct {
+			IndexerRunning bool `json:"indexerRunning"`
+		}
+		var payload Payload
+		err := c.ShouldBindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid JSON"})
+			return
+		}
+		if payload.IndexerRunning {
+			database.SettingsUpdateValue("algoIndexerRunning", "true")
+		} else {
+			database.SettingsUpdateValue("algoIndexerRunning", "false")
+			blockchain.AlgoIndexerStop()
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/indexer/onBattery", func(c *gin.Context) {
 		type Payload struct {

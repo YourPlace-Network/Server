@@ -495,13 +495,15 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 		c.AddFunc("@every 60m", func() { // clean out the cached posts
 			blockchain.IndexerClearOldCachedPosts(database)
 		})
-		blockchain.IndexerRestartJobs(database, "base") // set any jobs to "failed" that were left hanging on startup
+		blockchain.IndexerRestartJobs(database, "base")         // set any jobs to "failed" that were left hanging on startup
+		blockchain.AlgoIndexerRestartJobs(database, "algorand") // set any Algorand jobs to "failed" that were left hanging on startup
 		c.AddFunc("@every 2m", func() {
 			indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
 			indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
 			isOnBattery := host.IsOnBattery()
 			if isOnBattery && !indexerOnBatteryBool { // Don't run the indexer if the computer is on battery
 				blockchain.IndexerStop()
+				blockchain.AlgoIndexerStop()
 				return
 			}
 			_ = blockchain.IndexerFetchData(database, _blockchain, "base")

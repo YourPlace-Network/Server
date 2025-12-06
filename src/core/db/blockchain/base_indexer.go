@@ -184,10 +184,10 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 	_ = databaseHeadBlock
 	switch databaseStatus { // Post fill job dispatch, based on last job status
 	case "pending":
-		core.LogDebug("Starting pending job from the beginning")
+		core.LogDebug("[Base] Starting pending job from the beginning")
 		IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock, database)
 	case "failed":
-		core.LogDebug("Restarting failed job from where it left off")
+		core.LogDebug("[Base] Restarting failed job from where it left off")
 		if databaseTailBlock == 0 { // If a full fill job started, but failed before the tail block was written, start all over
 			IndexerRestartJobs(_Database, chainName)
 			IndexerBaseFullFill(blockchain.Base, uuid, chainLatestBlock, database)
@@ -199,7 +199,7 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 			IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock, database)
 		}
 	case "complete": // If everything is backfilled, then just process the newest blocks
-		core.LogDebug("Last job completed successfully. Getting new blocks")
+		core.LogDebug("[Base] Last job completed successfully. Getting new blocks")
 		IndexerBaseFrontFill(blockchain.Base, uuid, chainLatestBlock, database)
 	}
 	return true
@@ -209,36 +209,36 @@ func IndexerFetchData(database *db.Database, blockchain *Blockchain, chainName s
 func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, database *db.Database) {
 	// (old) head block <----- latest block (starting traversal @ latest block)
 	// head block -----> latest block (starting traversal @ head block)
-	core.LogDebug("--- IndexerBaseFrontFill()")
+	core.LogDebug("[Base] --- IndexerBaseFrontFill()")
 	direction := "forward"
 	_Database.IndexerUpdateJobStatus(uuid, "running")
 	headBlock := _Database.IndexerGetHeadBlock(uuid)
 	if headBlock <= 0 {
-		core.LogWarn("IndexerBaseFrontFill(): Head block is <= 0 - aborting")
+		core.LogWarn("[Base] IndexerBaseFrontFill(): Head block is <= 0 - aborting")
 		return
 	}
 	targetLatestBlock := baseLatestBlock
 	targetEarliestBlock := headBlock
-	core.LogDebug("Target Latest Block: " + targetLatestBlock.String())
-	core.LogDebug("Target Earliest Block: " + strconv.Itoa(int(targetEarliestBlock)))
+	core.LogDebug("[Base] Target Latest Block: " + targetLatestBlock.String())
+	core.LogDebug("[Base] Target Earliest Block: " + strconv.Itoa(int(targetEarliestBlock)))
 	targetEarliestBlockBigInt := big.NewInt(int64(targetEarliestBlock))
 	databaseHistoryDaysInt, _ := strconv.Atoi(_Database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(_Database.SettingsGetValue("baseThrottle"))
-	core.LogDebug("Base Throttle: " + strconv.Itoa(baseThrottle))
+	core.LogDebug("[Base] Throttle: " + strconv.Itoa(baseThrottle))
 	batchSize := calculateOptimalBatchSize(baseThrottle)
-	core.LogDebug("Batch Size: " + batchSize.String())
+	core.LogDebug("[Base] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
-		core.LogError("Block count is negative or zero")
+		core.LogError("[Base] Block count is negative or zero")
 		return
 	}
-	core.LogDebug("Number of Blocks: " + blockCount.String())
+	core.LogDebug("[Base] Number of Blocks: " + blockCount.String())
 	batchCount := new(big.Int).Div(blockCount, batchSize)
 	batchSizeRemainder := new(big.Int).Mod(blockCount, batchSize)
 	if batchSizeRemainder.Cmp(big.NewInt(0)) != 0 {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
-	core.LogDebug("Batch Count: " + batchCount.String())
+	core.LogDebug("[Base] Batch Count: " + batchCount.String())
 	rateLimiter := configureRateLimiter(baseThrottle)
 	batchStartBlock := new(big.Int).Set(targetEarliestBlockBigInt) // Start at the earliest block
 	txnCount := core.NewThreadSafeCounter()
@@ -265,7 +265,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 			defer wg.Done()
 			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlockBigInt, targetLatestBlock, batchSize, "forward")
 			if err != nil {
-				core.LogError("Worker thread failed: " + err.Error())
+				core.LogError("[Base] Worker thread failed: " + err.Error())
 				errorChan <- err // Send the error to the error channel
 			}
 		}(i)
@@ -300,7 +300,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 	}()
 	select {
 	case err := <-errorChan:
-		core.LogError("Worker thread failed: " + err.Error())
+		core.LogError("[Base] Worker thread failed: " + err.Error())
 		_Database.IndexerUpdateJobStatus(uuid, "failed")
 		return
 	case <-done:
@@ -313,20 +313,20 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 }
 func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, database *db.Database) {
 	// earliest block <----- tail block (starting traversal @ tail block)—
-	core.LogDebug("--- IndexerBaseBackFill() ---")
+	core.LogDebug("[Base] --- IndexerBaseBackFill() ---")
 	direction := "backward"
 	_Database.IndexerUpdateJobStatus(uuid, "running")
 	databaseTailBlock := big.NewInt(int64(_Database.IndexerGetTailBlock(uuid)))
 	if databaseTailBlock.Cmp(big.NewInt(0)) == 0 { // if databaseTailBlock = 0, then the job is new
-		core.LogDebug("Database Tail Block is 0 - setting to Head Block")
+		core.LogDebug("[Base] Database Tail Block is 0 - setting to Head Block")
 		headBlockInt := _Database.IndexerGetHeadBlock(uuid)
 		databaseTailBlock = big.NewInt(int64(headBlockInt))
-		core.LogDebug("Database Tail Block: " + databaseTailBlock.String())
+		core.LogDebug("[Base] Database Tail Block: " + databaseTailBlock.String())
 	}
 	targetLatestBlock := databaseTailBlock
 	targetEarliestBlock := &base.EarliestBlock
 	if targetLatestBlock.Cmp(targetEarliestBlock) == 0 {
-		core.LogDebug("Target latest block is equal to target earliest block - completing")
+		core.LogDebug("[Base] Target latest block is equal to target earliest block - completing")
 		_Database.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
@@ -334,18 +334,18 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 		targetLatestBlock = baseLatestBlock // set the widest possible target for a new backfill
 		targetEarliestBlock = &base.EarliestBlock
 	}
-	core.LogDebug("Target Latest Block: " + targetLatestBlock.String())
-	core.LogDebug("Target Earliest Block: " + targetEarliestBlock.String())
+	core.LogDebug("[Base] Target Latest Block: " + targetLatestBlock.String())
+	core.LogDebug("[Base] Target Earliest Block: " + targetEarliestBlock.String())
 	targetEarliestBlockBigInt := targetEarliestBlock
 	databaseHistoryDaysInt, _ := strconv.Atoi(_Database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(_Database.SettingsGetValue("baseThrottle"))
-	core.LogDebug("Base Throttle: " + strconv.Itoa(baseThrottle))
+	core.LogDebug("[Base] Throttle: " + strconv.Itoa(baseThrottle))
 	batchSize := calculateOptimalBatchSize(baseThrottle)
-	core.LogDebug("Batch Size: " + batchSize.String())
+	core.LogDebug("[Base] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
-	core.LogDebug("Block Count: " + blockCount.String())
+	core.LogDebug("[Base] Block Count: " + blockCount.String())
 	if blockCount.Int64() <= 0 {
-		core.LogError("Block count is negative or zero")
+		core.LogError("[Base] Block count is negative or zero")
 		return
 	}
 	batchCount := new(big.Int).Div(blockCount, batchSize)
@@ -353,7 +353,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	if batchSizeRemainder.Cmp(big.NewInt(0)) != 0 {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
-	core.LogDebug("Batch Count: " + batchCount.String())
+	core.LogDebug("[Base] Batch Count: " + batchCount.String())
 	rateLimiter := configureRateLimiter(baseThrottle)                                                     // Configure rate limiter based on throttle and batch size
 	batchStartBlock := targetLatestBlock                                                                  // Start at the latest block
 	txnCount := core.NewThreadSafeCounter()                                                               // Count the number of transactions processed
@@ -380,7 +380,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 			defer wg.Done()
 			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, targetEarliestBlock, targetLatestBlock, batchSize, "backward")
 			if err != nil {
-				core.LogError("Worker encountered an error: " + err.Error())
+				core.LogError("[Base] Worker encountered an error: " + err.Error())
 				errorChan <- err // Send the error to the error channel
 			}
 		}(i)
@@ -415,7 +415,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	}()
 	select {
 	case err := <-errorChan:
-		core.LogError("Worker thread failed: " + err.Error())
+		core.LogError("[Base] Worker thread failed: " + err.Error())
 		_Database.IndexerUpdateJobStatus(uuid, "failed")
 		return
 	case <-done:
@@ -429,32 +429,32 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 }
 func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, database *db.Database) {
 	// earliest block <----- latest block (starting traversal @ latest block)
-	core.LogDebug("--- IndexerBaseFullFill()")
+	core.LogDebug("[Base] --- IndexerBaseFullFill()")
 	direction := "backward"
 	_Database.IndexerUpdateJobStatus(uuid, "running")
 	targetLatestBlock := baseLatestBlock
-	core.LogDebug("Target Latest Block: " + targetLatestBlock.String())
+	core.LogDebug("[Base] Target Latest Block: " + targetLatestBlock.String())
 	targetEarliestBlock := BaseGetEarliestBlock()
-	core.LogDebug("Target Earliest Block: " + targetEarliestBlock.String())
+	core.LogDebug("[Base] Target Earliest Block: " + targetEarliestBlock.String())
 	targetEarliestBlockBigInt := targetEarliestBlock
 	_Database.IndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
 	databaseHistoryDaysInt, _ := strconv.Atoi(_Database.SettingsGetValue("historyDays"))
 	baseThrottle, _ := strconv.Atoi(_Database.SettingsGetValue("baseThrottle"))
-	core.LogDebug("Base Throttle: " + strconv.Itoa(baseThrottle))
+	core.LogDebug("[Base] Throttle: " + strconv.Itoa(baseThrottle))
 	batchSize := calculateOptimalBatchSize(baseThrottle)
-	core.LogDebug("Batch Size: " + batchSize.String())
+	core.LogDebug("[Base] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, &targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
-		core.LogError("Block count is negative or zero")
+		core.LogError("[Base] Block count is negative or zero")
 		return
 	}
-	core.LogDebug("Number of Blocks: " + blockCount.String())
+	core.LogDebug("[Base] Number of Blocks: " + blockCount.String())
 	batchCount := new(big.Int).Div(blockCount, batchSize)
 	batchSizeRemainder := new(big.Int).Mod(blockCount, batchSize)
 	if batchSizeRemainder.Cmp(big.NewInt(0)) != 0 {
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
-	core.LogDebug("Batch Count: " + batchCount.String())
+	core.LogDebug("[Base] Batch Count: " + batchCount.String())
 	rateLimiter := configureRateLimiter(baseThrottle)                                                     // Configure a rate limiter based on throttle and batch size
 	batchStartBlock := targetLatestBlock                                                                  // Start at the latest block
 	txnCount := core.NewThreadSafeCounter()                                                               // Count the number of transactions processed
@@ -481,7 +481,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 			defer wg.Done()
 			err := workerThread(uuid, rateLimiter, base, batchJobQueue, sequentialTracker, globalRequestTracker, txnCount, databaseHistoryDaysInt, &targetEarliestBlockBigInt, targetLatestBlock, batchSize, "backward")
 			if err != nil {
-				core.LogError("Worker encountered an error: " + err.Error())
+				core.LogError("[Base] Worker encountered an error: " + err.Error())
 				errorChan <- err
 			}
 		}(i)
@@ -516,7 +516,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	}()
 	select {
 	case err := <-errorChan:
-		core.LogError("Worker thread failed: " + err.Error())
+		core.LogError("[Base] Worker thread failed: " + err.Error())
 		_Database.IndexerUpdateJobStatus(uuid, "failed")
 		return
 	case <-done:
@@ -544,9 +544,10 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 		IsIndexing = false
 		IndexerMutex.Unlock()
 	}()
-	indexerRunning := _Database.SettingsGetValue("indexerRunning") // Check if the indexer is globally enabled
-	if indexerRunning != "true" {
-		return "", "", nil, 0, 0, nil // bail out
+	indexerRunning := _Database.SettingsGetValue("indexerRunning")
+	baseIndexerRunning := _Database.SettingsGetValue("baseIndexerRunning")
+	if indexerRunning != "true" || baseIndexerRunning == "false" {
+		return "", "", nil, 0, 0, nil
 	}
 	uuid := _Database.IndexerGetJobUUID(chainName) // Lookup the UUID of the blockchain job
 	if uuid == "" {                                // If no job exists, create one
@@ -563,18 +564,18 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 	}
 	chainLatestBlock, err := _Blockchain.GetLatestBlock(chainName) // Get the latest block number from the blockchain RPC node
 	if err != nil {
-		core.LogDebug("Could not get Base latest block number: GetLatestBlock returned error: " + err.Error())
+		core.LogDebug("[Base] Could not get latest block number: GetLatestBlock returned error: " + err.Error())
 		return "", "", nil, 0, 0, nil // bail out
 	}
 	if chainLatestBlock.Cmp(big.NewInt(0)) == 0 { // Error checking the latest block number we got from the RPC node
-		core.LogDebug("Could not get Base latest block number: " + chainLatestBlock.String())
+		core.LogDebug("[Base] Could not get latest block number: " + chainLatestBlock.String())
 		return "", "", nil, 0, 0, nil // bail out
 	}
 	chainEarliestBlock := _Blockchain.GetEarliestBlock(chainName)                  // Get the earliest block number that a YourPlace post existed (YourPlace genesis block)
 	databaseHeadBlock := _Database.IndexerGetHeadBlock(uuid)                       // Get the head block from the database (latest block processed)
 	databaseTailBlock := _Database.IndexerGetTailBlock(uuid)                       // Get the tail block from the database (earliest block processed)
 	if databaseTailBlock < chainEarliestBlock.Uint64() && databaseTailBlock != 0 { // Check that the tail block is ahead of the earliest block
-		core.LogDebug("Database tail block is too far back - resetting to EarliestBlock")
+		core.LogDebug("[Base] Database tail block is too far back - resetting to EarliestBlock")
 		cutoffTimestamp := _Blockchain.Base.GetBlockTimestamp(chainEarliestBlock)
 		if cutoffTimestamp > 0 {
 			_Database.OnchainDeleteExpired(chainName, cutoffTimestamp)
@@ -582,11 +583,11 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 		_Database.IndexerUpdateTailBlock(uuid, chainEarliestBlock.Uint64()) // If not, reset the tail block to the earliest block
 		databaseTailBlock = chainEarliestBlock.Uint64()
 	}
-	core.LogDebug("--- IndexerFetchData(): Fetching posts for " + chainName + " ---")
-	core.LogDebug("Chain Latest Block: " + chainLatestBlock.String())
-	core.LogDebug("Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
-	core.LogDebug("Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
-	core.LogDebug("Chain Earliest Block: " + chainEarliestBlock.String())
+	core.LogDebug("[Base] --- IndexerFetchData(): Fetching posts for " + chainName + " ---")
+	core.LogDebug("[Base] Chain Latest Block: " + chainLatestBlock.String())
+	core.LogDebug("[Base] Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
+	core.LogDebug("[Base] Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
+	core.LogDebug("[Base] Chain Earliest Block: " + chainEarliestBlock.String())
 	return databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock
 }
 func dispatchTransaction(block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string, base *Base) int {
@@ -615,7 +616,7 @@ func dispatchTransaction(block map[string]interface{}, transaction map[string]in
 		payloads := extractSmartWalletPayloads(inputHex)
 		if len(payloads) > 0 {
 			for _, p := range payloads {
-				core.LogDebug("Smart wallet YourPlace transaction found on " + blockchain + ": " + txHash + " from " + p.fromAddress + " to " + p.toAddress)
+				core.LogDebug("[Base] Smart wallet YourPlace transaction found: " + txHash + " from " + p.fromAddress + " to " + p.toAddress)
 				syntheticTxn := map[string]interface{}{
 					"hash":  transaction["hash"],
 					"from":  p.fromAddress,
@@ -632,7 +633,7 @@ func dispatchTransaction(block map[string]interface{}, transaction map[string]in
 	decodedDataBytes, _ := hex.DecodeString(data)
 	decodedDataStr := string(decodedDataBytes)
 	if strings.HasPrefix(decodedDataStr, services.YpPrefix) { // Is the txn a YourPlace post
-		core.LogDebug("YourPlace transaction found on " + blockchain + ": " + txHash)
+		core.LogDebug("[Base] YourPlace transaction found: " + txHash)
 		tokenizeYourPlaceTransaction(blockchain, transaction, timestamp, blockIndex.Uint64())
 		return 0
 	} else {
@@ -856,9 +857,9 @@ func createIndexerJob(blockchain string) string {
 	return uuid
 }
 func indexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, direction string, requestTracker *RequestTracker) {
-	core.LogDebug("------------------------")
-	core.LogDebug("index: " + blockIndex.String() + " - direction: " + direction)
-	core.LogDebug("target latest: " + targetLatestBlock.String() + " - target earliest: " + targetEarliestBlock.String())
+	core.LogDebug("[Base] ------------------------")
+	core.LogDebug("[Base] index: " + blockIndex.String() + " - direction: " + direction)
+	core.LogDebug("[Base] target latest: " + targetLatestBlock.String() + " - target earliest: " + targetEarliestBlock.String())
 	totalRange := new(big.Int).Sub(targetLatestBlock, targetEarliestBlock)
 	var progressMade *big.Int
 	if direction == "forward" {
@@ -867,14 +868,14 @@ func indexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.I
 		progressMade = new(big.Int).Sub(targetLatestBlock, blockIndex)
 	}
 	progressPercent := calculatePercentage(totalRange, progressMade)
-	core.LogDebug("blocks processed: " + progressMade.String() + " - progress: " + progressPercent + " %")
+	core.LogDebug("[Base] blocks processed: " + progressMade.String() + " - progress: " + progressPercent + " %")
 	progressRemaining := new(big.Int).Sub(totalRange, progressMade)
 	batchesRemaining := new(big.Int).Div(progressRemaining, batchSize)
 	batchSizeRemainder := new(big.Int).Mod(progressRemaining, batchSize)
 	if batchSizeRemainder.Cmp(big.NewInt(0)) != 0 {
 		batchesRemaining.Add(batchesRemaining, big.NewInt(1))
 	}
-	core.LogDebug("blocks remaining: " + progressRemaining.String() + " - batches remaining: " + batchesRemaining.String())
+	core.LogDebug("[Base] blocks remaining: " + progressRemaining.String() + " - batches remaining: " + batchesRemaining.String())
 }
 func calculatePercentage(totalRange *big.Int, index *big.Int) string {
 	if totalRange.Sign() == 0 {
@@ -992,7 +993,7 @@ BATCHRPCCALL:
 	}
 	err := base.RpcClient.BatchCallContext(context.Background(), batch)
 	if err != nil {
-		core.LogDebug("Could not perform RPC call from rpcBatchGetBlockByNumber, backing off")
+		core.LogDebug("[Base] Could not perform RPC call from rpcBatchGetBlockByNumber, backing off")
 		// Check if this is a rate-limiting error
 		if strings.Contains(strings.ToLower(err.Error()), "rps limit") || strings.Contains(strings.ToLower(err.Error()), "rate limit") {
 			rateLimitErrorCount++
@@ -1003,7 +1004,7 @@ BATCHRPCCALL:
 			if backoff > 120 { // Cap at 2 minutes
 				backoff = 120
 			}
-			core.LogDebug("Rate limit detected for batch of " + strconv.Itoa(batchSize) + " requests, backing off for " + strconv.Itoa(backoff) + " seconds")
+			core.LogDebug("[Base] Rate limit detected for batch of " + strconv.Itoa(batchSize) + " requests, backing off for " + strconv.Itoa(backoff) + " seconds")
 			time.Sleep(time.Duration(backoff) * time.Second)
 			// Reduce throttle multiplier on rate limits (entire batch failed)
 			throttleControlMutex.Lock()
@@ -1011,10 +1012,10 @@ BATCHRPCCALL:
 			if dynamicThrottleMultiplier < 0.1 {
 				dynamicThrottleMultiplier = 0.1 // Don't go below 10% of original rate
 			}
-			core.LogDebug("Reducing throttle multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+			core.LogDebug("[Base] Reducing throttle multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 			throttleControlMutex.Unlock()
 			if rateLimitErrorCount >= 20 {
-				core.LogDebug("Too many rate limit errors, failing batch")
+				core.LogDebug("[Base] Too many rate limit errors, failing batch")
 				_Database.IndexerUpdateJobStatus(uuid, "failed")
 				return nil
 			}
@@ -1024,7 +1025,7 @@ BATCHRPCCALL:
 			backoff := (rpcErrorCount + 1) * 2
 			time.Sleep(time.Duration(backoff) * time.Second)
 			if rpcErrorCount >= 120 {
-				core.LogDebug("Backfill failed too many times: " + err.Error())
+				core.LogDebug("[Base] Backfill failed too many times: " + err.Error())
 				_Database.IndexerUpdateJobStatus(uuid, "failed")
 				return nil
 			}
@@ -1072,11 +1073,11 @@ BATCHRPCCALL:
 		if dynamicThrottleMultiplier < 0.1 {
 			dynamicThrottleMultiplier = 0.1 // Don't go below 10% of the original rate
 		}
-		core.LogDebug("All " + strconv.Itoa(batchSize) + " requests in a batch were rate limited, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
+		core.LogDebug("[Base] All " + strconv.Itoa(batchSize) + " requests in a batch were rate limited, reducing multiplier to " + strconv.FormatFloat(dynamicThrottleMultiplier, 'f', 3, 64))
 		throttleControlMutex.Unlock()
 	} else if hasRateLimitError {
 		// Only some requests were rate-limited, don't adjust throttle, just re-queue failed requests
-		core.LogDebug("\tPartial rate limiting in batch: " + strconv.Itoa(rateLimitCount) + "/" + strconv.Itoa(batchSize) + " requests throttled, not adjusting global throttle")
+		core.LogDebug("[Base] Partial rate limiting in batch: " + strconv.Itoa(rateLimitCount) + "/" + strconv.Itoa(batchSize) + " requests throttled, not adjusting global throttle")
 	}
 	return blocks
 }
@@ -1096,7 +1097,7 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 			err := rateLimiter.Wait(context.Background())
 			if err != nil {
 				rateLimiterMutex.Unlock()
-				return core.LogErrorReturn("Rate limiter wait failed: " + err.Error())
+				return core.LogErrorReturn("[Base] Rate limiter wait failed: " + err.Error())
 			}
 		}
 		rateLimiterMutex.Unlock()
@@ -1173,7 +1174,7 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 		}
 		// Re-queue failed blocks individually with backoff if any failed
 		if len(failedBlocks) > 0 {
-			core.LogDebug("Re-queuing " + strconv.Itoa(len(failedBlocks)) + " failed blocks individually")
+			core.LogDebug("[Base] Re-queuing " + strconv.Itoa(len(failedBlocks)) + " failed blocks individually")
 			// Apply exponential backoff before re-queuing failed blocks
 			backoffTime := len(failedBlocks) * 1 // 1 second per failed block
 			if backoffTime > 30 {
@@ -1192,7 +1193,7 @@ func breakPoint(uuid string) bool {
 	// This function is a break point for the indexer to allow for graceful cancellation when the signal is received
 	select {
 	case <-indexerCancel:
-		core.LogDebug("Indexer cancelled in break point")
+		core.LogDebug("[Base] Indexer cancelled in break point")
 		_Database.IndexerUpdateJobStatus(uuid, "failed")
 		return true
 	default:
@@ -1218,12 +1219,12 @@ func IndexerStop() {
 	}
 }
 func ToggleIndexer(database *db.Database) {
-	indexerRunning := database.SettingsGetValue("indexerRunning")
-	if indexerRunning == "true" {
-		database.SettingsUpdateValue("indexerRunning", "false")
+	indexerRunning := database.SettingsGetValue("baseIndexerRunning")
+	if indexerRunning == "true" || indexerRunning == "" {
+		database.SettingsUpdateValue("baseIndexerRunning", "false")
 		IndexerStop()
 	} else {
-		database.SettingsUpdateValue("indexerRunning", "true")
+		database.SettingsUpdateValue("baseIndexerRunning", "true")
 	}
 }
 func IndexerCatchUpAll(database *db.Database, blockchainStr string) (bool, string) {
@@ -1258,81 +1259,81 @@ func IndexerCatchUpAll(database *db.Database, blockchainStr string) (bool, strin
 				snapshotFile := filepath.Join(snapshotDir, fmt.Sprintf("%s-snapshot-complete.db.gz", blockchainStr))
 				snapshotMetadataFile := filepath.Join(snapshotDir, fmt.Sprintf("%s-snapshot-complete.json", blockchainStr))
 				if host.DoesExist(snapshotFile) {
-					core.LogDebug("Deleting existing snapshot file: " + snapshotFile)
+					core.LogDebug("[Base] Deleting existing snapshot file: " + snapshotFile)
 					host.DeleteIfExists(snapshotFile)
 				}
 				if host.DoesExist(snapshotMetadataFile) {
-					core.LogDebug("Deleting existing snapshot metadata file: " + snapshotMetadataFile)
+					core.LogDebug("[Base] Deleting existing snapshot metadata file: " + snapshotMetadataFile)
 					host.DeleteIfExists(snapshotMetadataFile)
 				}
-				core.LogInfo("Downloading snapshot from: " + snapshotURL)
+				core.LogInfo("[Base] Downloading snapshot from: " + snapshotURL)
 				err := network.HttpGetFile(snapshotURL, snapshotFile)
 				if err != nil {
-					core.LogError("Could not download snapshot: " + err.Error())
+					core.LogError("[Base] Could not download snapshot: " + err.Error())
 					database.MetaUpdateValue("indexerCatchUpLastRun", "")
 					return
 				}
-				core.LogInfo("Downloading snapshot metadata from: " + snapshotJsonURL)
+				core.LogInfo("[Base] Downloading snapshot metadata from: " + snapshotJsonURL)
 				err = network.HttpGetFile(snapshotJsonURL, snapshotMetadataFile)
 				if err != nil {
-					core.LogError("Could not download snapshot metadata: " + err.Error())
+					core.LogError("[Base] Could not download snapshot metadata: " + err.Error())
 					database.MetaUpdateValue("indexerCatchUpLastRun", "")
 					return
 				}
 				if !host.DoesExist(snapshotFile) {
-					core.LogError("Snapshot file not found: " + snapshotFile)
+					core.LogError("[Base] Snapshot file not found: " + snapshotFile)
 					database.MetaUpdateValue("indexerCatchUpLastRun", "")
 					return
 				}
 				if !host.DoesExist(snapshotMetadataFile) {
-					core.LogError("Snapshot metadata file not found: " + snapshotMetadataFile)
+					core.LogError("[Base] Snapshot metadata file not found: " + snapshotMetadataFile)
 					database.MetaUpdateValue("indexerCatchUpLastRun", "")
 					return
 				}
-				core.LogInfo("Importing snapshot from: " + snapshotFile)
+				core.LogInfo("[Base] Importing snapshot from: " + snapshotFile)
 				err = database.ImportSnapshotNoMetadata(snapshotFile)
 				if err != nil {
-					core.LogError("Could not import snapshot: " + err.Error())
+					core.LogError("[Base] Could not import snapshot: " + err.Error())
 					database.MetaUpdateValue("indexerCatchUpLastRun", "")
 					return
 				}
-				core.LogInfo("Reading snapshot metadata from: " + snapshotMetadataFile)
+				core.LogInfo("[Base] Reading snapshot metadata from: " + snapshotMetadataFile)
 				metadataBytes, err := os.ReadFile(snapshotMetadataFile)
 				if err != nil {
-					core.LogError("Could not read snapshot metadata: " + err.Error())
+					core.LogError("[Base] Could not read snapshot metadata: " + err.Error())
 					database.MetaUpdateValue("indexerCatchUpLastRun", "")
 					return
 				}
 				var metadata map[string]interface{}
 				err = json.Unmarshal(metadataBytes, &metadata)
 				if err != nil {
-					core.LogError("Could not parse snapshot metadata: " + err.Error())
+					core.LogError("[Base] Could not parse snapshot metadata: " + err.Error())
 					database.MetaUpdateValue("indexerCatchUpLastRun", "")
 					return
 				}
 				headBlock, headOk := metadata["head_block"].(float64)
 				tailBlock, tailOk := metadata["tail_block"].(float64)
 				if !headOk || !tailOk {
-					core.LogError("Snapshot metadata missing head_block or tail_block")
+					core.LogError("[Base] Snapshot metadata missing head_block or tail_block")
 					database.MetaUpdateValue("indexerCatchUpLastRun", "")
 					return
 				}
-				core.LogInfo(fmt.Sprintf("Updating indexer job with head_block: %d, tail_block: %d", uint64(headBlock), uint64(tailBlock)))
+				core.LogInfo(fmt.Sprintf("[Base] Updating indexer job with head_block: %d, tail_block: %d", uint64(headBlock), uint64(tailBlock)))
 				jobUUID := database.IndexerGetJobUUID(blockchainStr)
 				if jobUUID == "" {
-					core.LogError("Could not find indexer job UUID for blockchain: " + blockchainStr)
+					core.LogError("[Base] Could not find indexer job UUID for blockchain: " + blockchainStr)
 					database.MetaUpdateValue("indexerCatchUpLastRun", "")
 					return
 				}
 				database.IndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
 				database.IndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
 				host.DeleteAll(snapshotDir)
-				core.LogInfo("Snapshot import complete")
+				core.LogInfo("[Base] Snapshot import complete")
 				return
 			}
 			time.Sleep(5 * time.Second)
 		}
-		core.LogError("Indexer did not stop in time during snapshot import")
+		core.LogError("[Base] Indexer did not stop in time during snapshot import")
 		database.MetaUpdateValue("indexerCatchUpLastRun", "")
 		return
 	}()

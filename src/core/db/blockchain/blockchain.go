@@ -5,6 +5,8 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
 	"math/big"
+	"os"
+	"strings"
 )
 
 type Blockchain struct {
@@ -13,7 +15,7 @@ type Blockchain struct {
 }
 
 var DefaultBlockchainNodes = map[string][]string{
-	"algorand": {"https://mainnet-api.algonode.cloud", "5"},
+	"algorand": {"https://mainnet-api.4160.nodely.dev", "1000"},
 	"base":     {"/rpc/base", "5"},
 }
 
@@ -71,4 +73,26 @@ func (blockchain *Blockchain) GetEarliestBlock(chain string) *big.Int {
 	default:
 		return big.NewInt(0)
 	}
+}
+func ResolveRPCUrl(rpcUrl string) string {
+	if !strings.HasPrefix(rpcUrl, "/") {
+		return rpcUrl
+	}
+	domain := os.Getenv("YourPlaceDomain")
+	port := os.Getenv("YourPlacePort")
+	gateway := os.Getenv("YourPlaceGateway") == "true"
+	if domain == "" {
+		domain = "localhost"
+	}
+	if port == "" {
+		port = "42424"
+	}
+	protocol := "http"
+	if gateway {
+		protocol = "https"
+	}
+	if gateway && port == "443" {
+		return protocol + "://" + domain + rpcUrl
+	}
+	return protocol + "://" + domain + ":" + port + rpcUrl
 }

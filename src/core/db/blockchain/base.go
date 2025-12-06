@@ -84,11 +84,12 @@ func (base *Base) init(database *db.Database, gateway bool) {
 			database.SettingsUpdateValue("baseThrottle", DefaultBlockchainNodes["base"][1])
 		}
 	}
-	core.LogDebug("Base RPC URL: " + base.RpcUrl)
+	rpcUrl := ResolveRPCUrl(base.RpcUrl)
+	core.LogDebug("Base RPC URL: " + rpcUrl)
 	httpClient := &http.Client{
 		Transport: &loggingTransport{http.DefaultTransport},
 	}
-	rpcClient, err := rpc.DialOptions(context.Background(), base.RpcUrl, rpc.WithHTTPClient(httpClient))
+	rpcClient, err := rpc.DialOptions(context.Background(), rpcUrl, rpc.WithHTTPClient(httpClient))
 	if err != nil {
 		core.LogError("Could not connect to Base HTTPS RPC: " + err.Error())
 		return
