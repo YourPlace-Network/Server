@@ -391,6 +391,103 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 		}
 	})
+	// --- Algorand Settings Routes --- //
+	router.GET("/settings/algorand/url", func(c *gin.Context) {
+		if gateway {
+			c.SecureJSON(http.StatusOK, gin.H{
+				"algoURL": blockchain.DefaultBlockchainNodes["algorand"][0],
+			})
+		} else {
+			algoURL := database.SettingsGetValue("algoURL")
+			c.SecureJSON(http.StatusOK, gin.H{
+				"algoURL": algoURL,
+			})
+		}
+	})
+	router.GET("/settings/algorand/throttle", func(c *gin.Context) {
+		throttle := database.SettingsGetValue("algoThrottle")
+		throttleInt, err := strconv.Atoi(throttle)
+		if err != nil {
+			throttleInt = 5 // Default Algorand throttle
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"throttle": throttleInt,
+		})
+	})
+	router.GET("/settings/algorand/indexerProgress", func(c *gin.Context) {
+		earliestBlock := _blockchain.GetEarliestBlock("algorand")
+		jobUUID := database.AlgoIndexerGetJobUUID("algorand")
+		tailBlock := database.AlgoIndexerGetTailBlock(jobUUID)
+		headBlock := database.AlgoIndexerGetHeadBlock(jobUUID)
+		latestBlock, err := _blockchain.GetLatestBlock("algorand")
+		if err != nil || latestBlock == big.NewInt(0) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Algorand latest block"})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"earliestBlock": earliestBlock,
+			"tailBlock":     tailBlock,
+			"headBlock":     headBlock,
+			"latestBlock":   latestBlock,
+		})
+	})
+	router.POST("/settings/algorand/url", func(c *gin.Context) {
+		type Payload struct {
+			AlgoURL string `json:"algoURL" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Algorand JSON"})
+			return
+		}
+		if payload.AlgoURL == "default" {
+			database.SettingsUpdateValue("algoURL", blockchain.DefaultBlockchainNodes["algorand"][0])
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultAlgoURL": blockchain.DefaultBlockchainNodes["algorand"][0]})
+			return
+		}
+		if !security.IsValidURL(payload.AlgoURL) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Algorand URL"})
+			return
+		}
+		database.SettingsUpdateValue("algoURL", payload.AlgoURL)
+		blockchain.AlgoIndexerStop()
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.POST("/settings/algorand/throttle", func(c *gin.Context) {
+		type Payload struct {
+			Throttle int `json:"throttle" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Algorand throttle value"})
+			return
+		}
+		if !security.IsValidNumberRange(payload.Throttle, 0, 1000) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid throttle range"})
+			return
+		}
+		database.SettingsUpdateValue("algoThrottle", strconv.Itoa(payload.Throttle))
+		blockchain.AlgoIndexerStop()
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.POST("/settings/algorand/indexerReset", func(c *gin.Context) {
+		type Payload struct {
+			IndexerReset bool `json:"indexerReset" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Algorand indexer reset value"})
+			return
+		}
+		if payload.IndexerReset {
+			blockchain.AlgoIndexerStop()
+			database.AlgoIndexerResetJobs("algorand")
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+		}
+	})
 	router.POST("/settings/blockchain/indexerCatchUp", func(c *gin.Context) {
 		type Payload struct {
 			IndexerCatchUp string `json:"indexerCatchUp" required:"true"`

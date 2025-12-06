@@ -67,10 +67,14 @@ func main() {
 	_blockchain.Init(database)
 	c := _cron.New(_cron.WithSeconds())
 	blockchain.IndexerRestartJobs(database, "base")
+	blockchain.AlgoIndexerRestartJobs(database, "algorand")
 	c.AddFunc("@every 2m", func() {
 		// Only log if indexer actually starts (returns true)
 		if blockchain.IndexerFetchData(database, _blockchain, "base") {
 			core.LogDebug("Starting Base indexer run")
+		}
+		if blockchain.AlgorandIndexerFetchData(database, _blockchain, "algorand") {
+			core.LogDebug("Starting Algorand indexer run")
 		}
 		runtime.GC() // Force GC after indexer run to free memory
 	})

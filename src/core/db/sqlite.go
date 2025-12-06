@@ -250,6 +250,11 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"csrf_tokens":    "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
 		"notifications":  "CREATE TABLE IF NOT EXISTS notifications (uid TEXT PRIMARY KEY, message TEXT, timestamp INTEGER DEFAULT 0)",
 		"wallets":        "CREATE TABLE IF NOT EXISTS wallets (publicKey TEXT, blockchain TEXT, address TEXT, encryptedPrivateKey TEXT, isDefault INTEGER DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
+		// Algorand-specific tables
+		"algo_indexer_jobs":       "CREATE TABLE IF NOT EXISTS algo_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
+		"onchain_algorand_post":   "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"onchain_algorand_meta":   "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', vertical TEXT DEFAULT '', server TEXT DEFAULT '', blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_algorand_follow": "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 	}
 	for _, createStatement := range tables {
 		err := db.execWithRetry(ctx, createStatement, 3)
@@ -2172,6 +2177,315 @@ func (db *SQLite) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64
 		core.LogDebug("Could not delete expired metadata: " + err.Error())
 	} else if rows, _ := result.RowsAffected(); rows > 0 {
 		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired metadata entries from " + blockchain)
+	}
+}
+
+// --- Algorand Indexer Functions --- //
+func (db *SQLite) AlgoIndexerCreateJob(uuid string, blockchain string) {
+	core.LogDebug("AlgoIndexerCreateJob(): " + uuid + " - " + blockchain)
+	timestamp := core.GetTimestamp()
+	query := "INSERT INTO algo_indexer_jobs (uuid, blockchain, headBlock, status, tailBlock, timestamp, rps) VALUES (?, ?, 0, 'pending', 0, ?, 0) ON CONFLICT (uuid) DO UPDATE SET status = excluded.status, tailBlock = excluded.tailBlock, timestamp = excluded.timestamp"
+	_, err := db.runParamSQLUpdate(query, uuid, blockchain, timestamp)
+	if err != nil {
+		core.LogDebug("Could not create Algorand indexer job in the database: " + err.Error())
+	}
+}
+func (db *SQLite) AlgoIndexerGetJobUUID(blockchain string) string {
+	rows, err := db.runParamSQLSelect("SELECT uuid FROM algo_indexer_jobs WHERE blockchain = ?", blockchain)
+	if err != nil {
+		core.LogDebug("Could not get the Algorand indexer job UUID from the database: " + err.Error())
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var value string
+		err = rows.Scan(&value)
+		if err != nil {
+			core.LogDebug("Could not get the rows for the Algorand indexer job UUID from the database: " + err.Error())
+			return ""
+		}
+		return value
+	}
+	return ""
+}
+func (db *SQLite) AlgoIndexerGetJobStatus(uuid string) string {
+	rows, err := db.runParamSQLSelect("SELECT status FROM algo_indexer_jobs WHERE uuid = ?", uuid)
+	if err != nil {
+		core.LogDebug("Could not get the Algorand indexer job status from the database: " + err.Error())
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var value string
+		err = rows.Scan(&value)
+		if err != nil {
+			core.LogDebug("Could not get the rows for the Algorand indexer job status from the database: " + err.Error())
+			return ""
+		}
+		return value
+	}
+	return ""
+}
+func (db *SQLite) AlgoIndexerGetHeadBlock(uuid string) uint64 {
+	rows, err := db.runParamSQLSelect("SELECT headBlock FROM algo_indexer_jobs WHERE uuid = ?", uuid)
+	if err != nil {
+		core.LogDebug("Could not get the Algorand indexer head block from the database: " + err.Error())
+		return 0
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var value uint64
+		err = rows.Scan(&value)
+		if err != nil {
+			core.LogDebug("Could not get the rows for the Algorand indexer head block from the database: " + err.Error())
+			return 0
+		}
+		return value
+	}
+	return 0
+}
+func (db *SQLite) AlgoIndexerGetTailBlock(uuid string) uint64 {
+	rows, err := db.runParamSQLSelect("SELECT tailBlock FROM algo_indexer_jobs WHERE uuid = ?", uuid)
+	if err != nil {
+		core.LogDebug("Could not get the Algorand indexer tail block from the database: " + err.Error())
+		return 0
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var value uint64
+		err = rows.Scan(&value)
+		if err != nil {
+			core.LogDebug("Could not get the rows for the Algorand indexer tail block from the database: " + err.Error())
+			return 0
+		}
+		return value
+	}
+	return 0
+}
+func (db *SQLite) AlgoIndexerUpdateJobStatus(uuid string, status string) {
+	timestamp := core.GetTimestamp()
+	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET status = ?, timestamp = ? WHERE uuid = ?", status, timestamp, uuid)
+	db.runSQL("PRAGMA wal_checkpoint(FULL)")
+	if err != nil {
+		core.LogDebug("Could not update the Algorand indexer job status in the database: " + err.Error())
+	}
+}
+func (db *SQLite) AlgoIndexerUpdateHeadBlock(uuid string, headBlock uint64) {
+	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET headBlock = ?, timestamp = ? WHERE uuid = ?", headBlock, core.GetTimestamp(), uuid)
+	if err != nil {
+		core.LogDebug("Could not update the Algorand indexer head block in the database: " + err.Error())
+	}
+}
+func (db *SQLite) AlgoIndexerUpdateTailBlock(uuid string, tailBlock uint64) {
+	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET tailBlock = ?, timestamp = ? WHERE uuid = ?", tailBlock, core.GetTimestamp(), uuid)
+	if err != nil {
+		core.LogDebug("Could not update the Algorand indexer tail block in the database: " + err.Error())
+	}
+}
+func (db *SQLite) AlgoIndexerUpdateJobSpeed(uuid string, speed uint64) {
+	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET rps = ? WHERE uuid = ?", speed, uuid)
+	if err != nil {
+		if strings.Contains(err.Error(), "SQLITE_BUSY") || strings.Contains(err.Error(), "database is locked") {
+			return
+		}
+		core.LogDebug("Could not update the Algorand indexer job speed in the database: " + err.Error())
+	}
+}
+func (db *SQLite) AlgoIndexerResetJobs(blockchain string) {
+	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET status = 'pending', headBlock = 0, tailBlock = 0, timestamp = ? WHERE blockchain = ?", core.GetTimestamp(), blockchain)
+	if err != nil {
+		core.LogDebug("Could not reset the Algorand indexer in the database: " + err.Error())
+	}
+	_, err = db.runParamSQLUpdate("DELETE FROM onchain_algorand_post WHERE blockchain = ?", blockchain)
+	if err != nil {
+		core.LogDebug("Could not clear onchain_algorand_post for " + blockchain + ": " + err.Error())
+	}
+	_, err = db.runParamSQLUpdate("DELETE FROM onchain_algorand_meta WHERE blockchain = ?", blockchain)
+	if err != nil {
+		core.LogDebug("Could not clear onchain_algorand_meta for " + blockchain + ": " + err.Error())
+	}
+	_, err = db.runParamSQLUpdate("DELETE FROM onchain_algorand_follow WHERE followerBlockchain = ? OR followeeBlockchain = ?", blockchain, blockchain)
+	if err != nil {
+		core.LogDebug("Could not clear onchain_algorand_follow for " + blockchain + ": " + err.Error())
+	}
+	core.LogDebug("Cleared all Algorand onchain data for " + blockchain)
+}
+
+// --- Algorand Onchain Tokenized --- //
+func (db *SQLite) OnchainAlgorandP(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
+	query := "INSERT INTO onchain_algorand_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand post in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandPA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	query := "INSERT INTO onchain_algorand_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand post in the database: " + err.Error())
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		core.LogDebug("Could not count the Algorand post in the database: " + err.Error())
+		return
+	}
+	if rowsAffected == 0 {
+		core.LogDebug("Duplicate Algorand post detected, aborting entry")
+		return
+	}
+	for _, attachment := range attachments {
+		fileURL := attachment.FileURL
+		fileUUID := uuid.New().String()
+		cid := ""
+		if strings.HasPrefix(fileURL, "ipfs://") {
+			cid = strings.TrimPrefix(fileURL, "ipfs://")
+		}
+		mimeType := attachment.MimeType
+		size := attachment.FileSize
+		fileName := attachment.FileName
+		var existingFileUUID string
+		if fileURL != "" || cid != "" {
+			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
+			if err != nil {
+				core.LogDebug("Could not check for existing file: " + err.Error())
+				continue
+			}
+			if rows.Next() {
+				err = rows.Scan(&existingFileUUID)
+				if err != nil {
+					core.LogDebug("Could not scan existing file UUID: " + err.Error())
+					rows.Close()
+					continue
+				}
+			}
+			rows.Close()
+		}
+		if existingFileUUID != "" {
+			fileUUID = existingFileUUID
+		} else {
+			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain_algorand")
+			if err != nil {
+				core.LogDebug("Could not insert file record: " + err.Error())
+				continue
+			}
+		}
+		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?) ON CONFLICT (fileUUID, txHash, blockchain) DO NOTHING"
+		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
+		if err != nil {
+			core.LogDebug("Could not link file to Algorand transaction: " + err.Error())
+		}
+	}
+}
+func (db *SQLite) OnchainAlgorandMN(blockchain string, address string, name string, timestamp uint64) {
+	query := "INSERT INTO onchain_algorand_meta (blockchain, address, name, nameTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET name = excluded.name, nameTimestamp = excluded.nameTimestamp WHERE excluded.nameTimestamp > nameTimestamp"
+	_, err := db.runParamSQLUpdate(query, blockchain, address, name, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandMA(blockchain string, address string, avatar string, timestamp uint64) {
+	query := "INSERT INTO onchain_algorand_meta (blockchain, address, avatar, avatarTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET avatar = excluded.avatar, avatarTimestamp = excluded.avatarTimestamp WHERE excluded.avatarTimestamp > avatarTimestamp"
+	_, err := db.runParamSQLUpdate(query, blockchain, address, avatar, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandMB(blockchain string, address string, banner string, timestamp uint64) {
+	query := "INSERT INTO onchain_algorand_meta (blockchain, address, banner, bannerTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET banner = excluded.banner, bannerTimestamp = excluded.bannerTimestamp WHERE excluded.bannerTimestamp > bannerTimestamp"
+	_, err := db.runParamSQLUpdate(query, blockchain, address, banner, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandMV(blockchain string, address string, vertical string, timestamp uint64) {
+	query := "INSERT INTO onchain_algorand_meta (blockchain, address, vertical, verticalTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET vertical = excluded.vertical, verticalTimestamp = excluded.verticalTimestamp WHERE excluded.verticalTimestamp > verticalTimestamp"
+	_, err := db.runParamSQLUpdate(query, blockchain, address, vertical, int64(timestamp))
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandML(blockchain string, address string, location string, timestamp uint64) {
+	query := "INSERT INTO onchain_algorand_meta (blockchain, address, location, locationTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET location = excluded.location, locationTimestamp = excluded.locationTimestamp WHERE excluded.locationTimestamp > locationTimestamp"
+	_, err := db.runParamSQLUpdate(query, blockchain, address, location, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandMW(blockchain string, address string, website string, timestamp uint64) {
+	query := "INSERT INTO onchain_algorand_meta (blockchain, address, website, websiteTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET website = excluded.website, websiteTimestamp = excluded.websiteTimestamp WHERE excluded.websiteTimestamp > websiteTimestamp"
+	_, err := db.runParamSQLUpdate(query, blockchain, address, website, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandMD(blockchain string, address string, description string, timestamp uint64) {
+	query := "INSERT INTO onchain_algorand_meta (blockchain, address, description, descriptionTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET description = excluded.description, descriptionTimestamp = excluded.descriptionTimestamp WHERE excluded.descriptionTimestamp > descriptionTimestamp"
+	_, err := db.runParamSQLUpdate(query, blockchain, address, description, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandF(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
+	followQuery := "SELECT 1 FROM onchain_algorand_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(followQuery, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
+	if err != nil {
+		core.LogDebug("Could not check if the Algorand follow already exists in the database: " + err.Error())
+		return
+	}
+	followExists := rows.Next()
+	rows.Close()
+	if followExists {
+		return
+	}
+	query := "INSERT INTO onchain_algorand_follow (txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err = db.runParamSQLUpdate(query, txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand follow in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandFU(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
+	followQuery := "SELECT 1 FROM onchain_algorand_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
+	rows, err := db.runParamSQLSelect(followQuery, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
+	if err != nil {
+		core.LogDebug("Could not check if the Algorand follow exists in the database: " + err.Error())
+		return
+	}
+	followExists := rows.Next()
+	rows.Close()
+	if !followExists {
+		core.LogDebug("Algorand unfollow transaction dropped: follow relationship does not exist")
+		return
+	}
+	query := "DELETE FROM onchain_algorand_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ?"
+	_, err = db.runParamSQLUpdate(query, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
+	if err != nil {
+		core.LogDebug("Could not remove the Algorand follow relationship from the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandDeleteExpired(blockchain string, cutoffTimestamp uint64) {
+	query := "DELETE FROM onchain_algorand_post WHERE blockchain = ? AND timestamp < ?"
+	result, err := db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
+	if err != nil {
+		core.LogDebug("Could not delete expired Algorand posts: " + err.Error())
+	} else if rows, _ := result.RowsAffected(); rows > 0 {
+		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired Algorand posts from " + blockchain)
+	}
+	query = "DELETE FROM onchain_algorand_follow WHERE followerBlockchain = ? AND timestamp < ?"
+	result, err = db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
+	if err != nil {
+		core.LogDebug("Could not delete expired Algorand follows: " + err.Error())
+	} else if rows, _ := result.RowsAffected(); rows > 0 {
+		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired Algorand follows from " + blockchain)
+	}
+	query = "DELETE FROM onchain_algorand_meta WHERE blockchain = ? AND blockchainTimestamp < ? AND blockchainTimestamp > 0"
+	result, err = db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
+	if err != nil {
+		core.LogDebug("Could not delete expired Algorand metadata: " + err.Error())
+	} else if rows, _ := result.RowsAffected(); rows > 0 {
+		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired Algorand metadata entries from " + blockchain)
 	}
 }
 

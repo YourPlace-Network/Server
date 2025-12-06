@@ -13,7 +13,8 @@ type Blockchain struct {
 }
 
 var DefaultBlockchainNodes = map[string][]string{
-	"base": {"/rpc/base", "5"},
+	"algorand": {"https://mainnet-api.algonode.cloud", "5"},
+	"base":     {"/rpc/base", "5"},
 }
 
 func (blockchain *Blockchain) Init(database *db.Database) {
@@ -24,9 +25,16 @@ func (blockchain *Blockchain) InitGateway(database *db.Database) {
 }
 func (blockchain *Blockchain) init(database *db.Database, gateway bool) {
 	algo := new(Algorand)
-	algoURL := database.SettingsGetValue("algodURL")
+	algoURL := database.SettingsGetValue("algoURL")
+	if algoURL == "" {
+		algoURL = DefaultBlockchainNodes["algorand"][0]
+		database.SettingsUpdateValue("algoURL", algoURL)
+	}
 	algoToken := database.SettingsGetValue("algodToken")
 	algoIndexerURL := database.SettingsGetValue("algoIndexerURL")
+	if algoIndexerURL == "" {
+		algoIndexerURL = "https://mainnet-idx.algonode.cloud"
+	}
 	algoIndexerToken := database.SettingsGetValue("algoIndexerToken")
 	algo.Init(algoURL, algoToken, 443, "mainnet", algoIndexerURL, algoIndexerToken, 443)
 	blockchain.Algorand = algo
@@ -55,6 +63,9 @@ func (blockchain *Blockchain) GetLatestBlock(chain string) (*big.Int, error) {
 }
 func (blockchain *Blockchain) GetEarliestBlock(chain string) *big.Int {
 	switch chain {
+	case "algorand":
+		earliestBlock := AlgoGetEarliestBlock()
+		return &earliestBlock
 	case "base":
 		return &blockchain.Base.EarliestBlock
 	default:

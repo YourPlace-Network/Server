@@ -78,6 +78,22 @@ import {Sleep} from "../util/time";
             collapseBase: document.getElementById("collapseBase")! as HTMLDivElement,
             collapseServerInfo: document.getElementById("collapseServerInfo")! as HTMLDivElement,
             collapseNetworking: document.getElementById("collapseNetworking")! as HTMLDivElement,
+            // Algorand DOM elements
+            algoURL: document.getElementById("algoURL")! as HTMLInputElement,
+            algoThrottle: document.getElementById("algoThrottle")! as HTMLInputElement,
+            algoThrottleTooltip: document.getElementById("algoThrottleTooltip")! as HTMLElement,
+            algoThrottleNumber: document.getElementById("algoThrottleNumber")! as HTMLDivElement,
+            algoIndexerProgressUncachedTail: document.getElementById("algoIndexerProgressUncachedTail")! as HTMLDivElement,
+            algoIndexerCachedPercent: document.getElementById("algoIndexerCachedPercent")! as HTMLSpanElement,
+            algoIndexerProgressCached: document.getElementById("algoIndexerProgressCached")! as HTMLDivElement,
+            algoIndexerProgressUncachedHead: document.getElementById("algoIndexerProgressUncachedHead")! as HTMLDivElement,
+            algoIndexerResetBtn: document.getElementById("algoIndexerResetBtn")! as HTMLButtonElement,
+            algoIndexerCatchUpBtn: document.getElementById("algoIndexerCatchUpBtn")! as HTMLButtonElement,
+            algoCatchUpFullBtn: document.getElementById("algoCatchUpFullBtn")! as HTMLButtonElement,
+            algoCatchUpHelpBtn: document.getElementById("algoCatchUpHelpBtn")! as HTMLButtonElement,
+            defaultAlgoURLBtn: document.getElementById("defaultAlgoURLBtn")! as HTMLButtonElement,
+            saveAlgoURLBtn: document.getElementById("saveAlgoURLBtn")! as HTMLButtonElement,
+            collapseAlgo: document.getElementById("collapseAlgo")! as HTMLDivElement,
         }
         let popperInstance: Instance | null = null;
 
@@ -86,6 +102,7 @@ import {Sleep} from "../util/time";
             ExpandAccordionByHash();
 
             setInterval(getBaseIndexerProgress, 300000);
+            setInterval(getAlgoIndexerProgress, 300000);
             setInterval(getIndexerStatus, 6000);
             setInterval(getIndexerRunning, 6000);
         }
@@ -166,6 +183,65 @@ import {Sleep} from "../util/time";
                 DOM.baseThrottleNumber.textContent = cleanThrottle;
             } else {
                 DOM.baseThrottleNumber.textContent = "Error ⚠️";
+            }
+        }
+        // Algorand Getters
+        async function getAlgoURL() {
+            let response = await HttpGetJson("/settings/algorand/url");
+            if (response[0] === 200) {
+                DOM.algoURL.value = DOMPurify.sanitize(response[1].algoURL);
+            }
+        }
+        async function getAlgoThrottle() {
+            let response = await HttpGetJson("/settings/algorand/throttle");
+            if (response[0] === 200) {
+                const cleanThrottle = DOMPurify.sanitize(response[1].throttle);
+                DOM.algoThrottle.value = cleanThrottle;
+                DOM.algoThrottleNumber.textContent = cleanThrottle;
+            } else {
+                DOM.algoThrottleNumber.textContent = "Error ⚠️";
+            }
+        }
+        async function getAlgoIndexerProgress() {
+            let response = await HttpGetJson("/settings/algorand/indexerProgress");
+            if (response[0] === 200) {
+                let earliestBlock = response[1].earliestBlock;
+                let tailBlock = response[1].tailBlock;
+                let headBlock = response[1].headBlock;
+                let latestBlock = response[1].latestBlock;
+                LogInfo("Algorand Indexer Progress: " + earliestBlock + " " + tailBlock + " " + headBlock + " " + latestBlock);
+                if (isNaN(earliestBlock) || isNaN(tailBlock) || isNaN(headBlock) || isNaN(latestBlock)) {
+                    console.error("Invalid Algorand indexer data received from server");
+                    return;
+                }
+                const totalRange = latestBlock - earliestBlock;
+                if (totalRange <= 0) {
+                    console.error("Invalid Algorand indexer block range: ", {earliestBlock, latestBlock});
+                    return;
+                }
+                const earliestToTailRange = tailBlock - earliestBlock;
+                const headToLatestRange = latestBlock - headBlock;
+                const tailPercentage = Math.max(0, Math.min(100, Math.round((earliestToTailRange / totalRange) * 100)));
+                const latestPercentage = Math.max(0, Math.min(100, Math.round((headToLatestRange / totalRange) * 100)));
+                const cachedPercentage = Math.max(0, Math.min(100, 100 - (tailPercentage + latestPercentage)));
+                DOM.algoIndexerProgressUncachedTail.style.width = tailPercentage + "%";
+                DOM.algoIndexerProgressUncachedTail.setAttribute("aria-valuenow", tailPercentage.toString());
+                DOM.algoIndexerProgressCached.style.width = cachedPercentage + "%";
+                DOM.algoIndexerProgressCached.setAttribute("aria-valuenow", cachedPercentage.toString());
+                DOM.algoIndexerCachedPercent.textContent = cachedPercentage.toString() + "%";
+                if (cachedPercentage === 100) {
+                    DOM.algoIndexerCachedPercent.classList.remove("progress-bar-animated");
+                    DOM.algoIndexerProgressCached.classList.remove("progress-bar-striped");
+                    DOM.algoIndexerProgressCached.classList.add("bg-success");
+                } else {
+                    DOM.algoIndexerCachedPercent.classList.add("progress-bar-animated");
+                    DOM.algoIndexerProgressCached.classList.add("progress-bar-striped");
+                    DOM.algoIndexerProgressCached.classList.remove("bg-success");
+                }
+                DOM.algoIndexerProgressUncachedHead.style.width = latestPercentage + "%";
+                DOM.algoIndexerProgressUncachedHead.setAttribute("aria-valuenow", latestPercentage.toString());
+            } else {
+                console.error("Failed to get Algorand indexer progress");
             }
         }
         async function getUploadDirectory() {
@@ -515,6 +591,72 @@ import {Sleep} from "../util/time";
                     break;
             }
         }
+        // Algorand Setters
+        async function setAlgoURL() {
+            const data = {
+                algoURL: DOM.algoURL.value,
+            }
+            let response = await HttpPostJson("/settings/algorand/url", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                LogInfo("Algorand URL Saved");
+                ShowSavedToast();
+            } else {
+                DOM.algoURL.value = DOMPurify.sanitize(response[1].status);
+            }
+        }
+        async function setAlgoThrottle() {
+            const data = {
+                throttle: DOM.algoThrottle.valueAsNumber,
+            }
+            let response = await HttpPostJson("/settings/algorand/throttle", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                LogInfo("Algorand Throttle Saved");
+                DOM.algoThrottleNumber.textContent = DOM.algoThrottle.value;
+                ShowSavedToast();
+            }
+        }
+        async function setDefaultAlgoURL() {
+            const data = {
+                algoURL: "default",
+            }
+            let response = await HttpPostJson("/settings/algorand/url", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                DOM.algoURL.value = response[1].defaultAlgoURL;
+                ShowSavedToast();
+            }
+            DOM.algoThrottle.value = "5";
+            await setAlgoThrottle();
+        }
+        async function setAlgoIndexerReset() {
+            const confirmed = await ShowModalYesNoHTML("⚠️ Are you sure you want to reset the Algorand indexer? ⚠️<br><br>This will delete cached Algorand YourPlace data and re-index everything<br><br>It will take a long time and download a lot of data<br><br>Your personal data, posts, and profile <u>will not</u> be deleted");
+            if (confirmed) {
+                let response = await HttpPostJson("/settings/algorand/indexerReset",
+                    {indexerReset: true}, DOM.csrfToken.value);
+                if (response[0] === 200) {
+                    LogInfo("Algorand Indexer Reset");
+                    ShowSavedToast();
+                } else {
+                    LogInfo("Algorand Indexer Reset Error");
+                }
+            }
+        }
+        async function setAlgoIndexerCatchUp(variable: string) {
+            switch (variable) {
+                case "full":
+                    let response = await HttpPostJson("/settings/blockchain/indexerCatchUp",
+                        {indexerCatchUp: "full", blockchain: "algorand"}, DOM.csrfToken.value);
+                    if (response[0] === 200) {
+                        LogInfo("Algorand Indexer Full Catch-Up Started");
+                        ShowSavedToast();
+                    } else {
+                        ShowDialogModal(response[1].status);
+                    }
+                    break;
+                case "h":
+                    ShowDialogModalHTML("This Indexer Catch-Up feature will download a fully cached copy of YourPlace data that we've already downloaded from the blockchain. This prevents you from needing to traverse the whole chain, and allows Servers to quickly catch up to the latest data.<br><br>This will save you bandwidth and time, but can only be run once every 24 hours.<br><br>To stream YourPlace data in real-time, you will still need your own blockchain RPC server.");
+                    break;
+            }
+        }
         async function setSpiceometer() {
             if (DOM.spiceometerCheck.checked) {
                 let response = await HttpPostJson("/settings/ai/spiceometer", {enable: 1}, DOM.csrfToken.value);
@@ -764,6 +906,13 @@ import {Sleep} from "../util/time";
         DOM.serverLogsViewBtn.addEventListener("click", getServerLogs);
         DOM.helperLogsViewBtn.addEventListener("click", getHelperLogs);
         DOM.torHiddenServiceCheck.addEventListener("change", setTorHiddenService);
+        // Algorand Event Listeners
+        DOM.algoThrottle!.addEventListener("change", setAlgoThrottle);
+        DOM.algoIndexerResetBtn!.addEventListener("click", setAlgoIndexerReset);
+        DOM.algoCatchUpFullBtn!.addEventListener("click", function() { setAlgoIndexerCatchUp("full").then(); });
+        DOM.algoCatchUpHelpBtn!.addEventListener("click", function() { setAlgoIndexerCatchUp("h").then(); });
+        DOM.defaultAlgoURLBtn!.addEventListener("click", setDefaultAlgoURL);
+        DOM.saveAlgoURLBtn!.addEventListener("click", setAlgoURL);
 
         /* On-Demand Loading */
         DOM.collapseContent.addEventListener("show.bs.collapse", function() {
@@ -786,6 +935,11 @@ import {Sleep} from "../util/time";
             getBaseThrottle().then();
             getBaseFullNode().then();
             getBaseDataDirectory().then();
+        });
+        DOM.collapseAlgo.addEventListener("show.bs.collapse", function() {
+            getAlgoURL().then();
+            getAlgoIndexerProgress().then();
+            getAlgoThrottle().then();
         });
         DOM.collapseServerInfo.addEventListener("show.bs.collapse", function() {
             getDebugMode().then();

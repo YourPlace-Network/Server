@@ -505,6 +505,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 				return
 			}
 			_ = blockchain.IndexerFetchData(database, _blockchain, "base")
+			_ = blockchain.AlgorandIndexerFetchData(database, _blockchain, "algorand")
 		})
 	}
 	// ------- IPFS BadBits ------- //

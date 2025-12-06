@@ -412,6 +412,146 @@ func (db *Database) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint
 	}
 }
 
+// --- Algorand Indexer Functions --- //
+func (db *Database) AlgoIndexerCreateJob(uuid string, blockchain string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.AlgoIndexerCreateJob(uuid, blockchain)
+	}
+}
+func (db *Database) AlgoIndexerGetJobUUID(blockchain string) string {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.AlgoIndexerGetJobUUID(blockchain)
+	}
+	return ""
+}
+func (db *Database) AlgoIndexerGetJobStatus(uuid string) string {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.AlgoIndexerGetJobStatus(uuid)
+	}
+	return ""
+}
+func (db *Database) AlgoIndexerGetHeadBlock(uuid string) uint64 {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.AlgoIndexerGetHeadBlock(uuid)
+	}
+	return 0
+}
+func (db *Database) AlgoIndexerGetTailBlock(uuid string) uint64 {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.AlgoIndexerGetTailBlock(uuid)
+	}
+	return 0
+}
+func (db *Database) AlgoIndexerUpdateJobStatus(uuid string, status string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.AlgoIndexerUpdateJobStatus(uuid, status)
+	}
+}
+func (db *Database) AlgoIndexerUpdateHeadBlock(uuid string, headBlock uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.AlgoIndexerUpdateHeadBlock(uuid, headBlock)
+	}
+}
+func (db *Database) AlgoIndexerUpdateTailBlock(uuid string, tailBlock uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.AlgoIndexerUpdateTailBlock(uuid, tailBlock)
+	}
+}
+func (db *Database) AlgoIndexerUpdateJobSpeed(uuid string, rps uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.AlgoIndexerUpdateJobSpeed(uuid, rps)
+	}
+}
+func (db *Database) AlgoIndexerResetJobs(blockchain string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.AlgoIndexerResetJobs(blockchain)
+	}
+}
+
+// --- Algorand Onchain Tokenized Functions --- //
+func (db *Database) OnchainAlgorandP(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandP(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
+	}
+}
+func (db *Database) OnchainAlgorandPA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandPA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data, attachments)
+	}
+}
+func (db *Database) OnchainAlgorandMN(blockchain string, address string, name string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandMN(blockchain, address, name, timestamp)
+	}
+}
+func (db *Database) OnchainAlgorandMA(blockchain string, address string, avatar string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandMA(blockchain, address, avatar, timestamp)
+	}
+}
+func (db *Database) OnchainAlgorandMB(blockchain string, address string, avatar string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandMB(blockchain, address, avatar, timestamp)
+	}
+}
+func (db *Database) OnchainAlgorandMV(blockchain string, address string, vertical string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandMV(blockchain, address, vertical, timestamp)
+	}
+}
+func (db *Database) OnchainAlgorandML(blockchain string, address string, location string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandML(blockchain, address, location, timestamp)
+	}
+}
+func (db *Database) OnchainAlgorandMW(blockchain string, address string, website string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandMW(blockchain, address, website, timestamp)
+	}
+}
+func (db *Database) OnchainAlgorandMD(blockchain string, address string, description string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandMD(blockchain, address, description, timestamp)
+	}
+}
+func (db *Database) OnchainAlgorandF(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandF(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
+	}
+}
+func (db *Database) OnchainAlgorandFU(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandFU(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
+	}
+}
+func (db *Database) OnchainAlgorandDeleteExpired(blockchain string, cutoffTimestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandDeleteExpired(blockchain, cutoffTimestamp)
+	}
+}
+
 // --- Search Functions --- //
 func (db *Database) SearchGetPosts(query string) []map[string]interface{} {
 	var posts []map[string]interface{}
