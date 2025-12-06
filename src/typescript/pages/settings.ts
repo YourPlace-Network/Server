@@ -352,10 +352,10 @@ import {Sleep} from "../util/time";
             }
         }
         function updateIndexerStatusLight(element: HTMLDivElement, status: string, blockchain: string) {
-            let isRunning = (status === "running");
+            let isActive = (status === "running" || status === "complete" || status === "pending");
             let tooltip = element.getAttribute("data-bs-original-title") || element.getAttribute("data-bs-title");
-            let newTooltip = blockchain + " indexer " + (isRunning ? "running" : "stopped");
-            if (isRunning) {
+            let newTooltip = blockchain + " indexer " + (isActive ? "running" : "stopped");
+            if (isActive) {
                 element.classList.remove("redLight");
                 element.classList.add("greenLight");
             } else {
@@ -363,6 +363,10 @@ import {Sleep} from "../util/time";
                 element.classList.add("redLight");
             }
             if (tooltip !== newTooltip) {
+                let bsTooltip = window.bootstrap.Tooltip.getInstance(element);
+                if (bsTooltip) {
+                    bsTooltip.setContent({".tooltip-inner": newTooltip});
+                }
                 element.setAttribute("data-bs-title", newTooltip);
                 element.setAttribute("data-bs-original-title", newTooltip);
             }

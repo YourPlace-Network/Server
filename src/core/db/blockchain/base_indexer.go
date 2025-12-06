@@ -174,7 +174,8 @@ func (rt *RequestTracker) cleanupOldRequests(cutoff time.Time) {
 }
 
 // --- Indexer Main Method --- //
-func BaseIndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) bool {
+func BaseIndexerFetchData(database *db.Database, blockchain *Blockchain) bool {
+	chainName := "base"
 	_Blockchain = blockchain
 	_Database = database
 	databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock := indexerPreflight(chainName)

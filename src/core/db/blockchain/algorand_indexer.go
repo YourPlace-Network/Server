@@ -96,7 +96,8 @@ func (sbt *AlgoSequentialBlockTracker) HasPendingBlocks() bool {
 }
 
 // --- Algorand Indexer Main Method --- //
-func AlgorandIndexerFetchData(database *db.Database, blockchain *Blockchain, chainName string) bool {
+func AlgorandIndexerFetchData(database *db.Database, blockchain *Blockchain) bool {
+	chainName := "algorand"
 	_AlgoBlockchain = blockchain
 	_AlgoDatabase = database
 	databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock := algoIndexerPreflight(chainName)

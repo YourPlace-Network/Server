@@ -491,13 +491,13 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 	})
 	// ------- Blockchain Indexer ------- //
 	if indexer {
-		blockchain.IndexerClearOldCachedPosts(database)
+		/*blockchain.IndexerClearOldCachedPosts(database)
 		c.AddFunc("@every 60m", func() { // clean out the cached posts
 			blockchain.IndexerClearOldCachedPosts(database)
-		})
+		})*/
 		blockchain.BaseIndexerRestartJobs(database, "base")     // set any Base jobs to "failed" that were left hanging on startup
 		blockchain.AlgoIndexerRestartJobs(database, "algorand") // set any Algorand jobs to "failed" that were left hanging on startup
-		c.AddFunc("@every 2m", func() {
+		c.AddFunc("@every 1m", func() {
 			indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
 			indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
 			isOnBattery := host.IsOnBattery()
@@ -506,8 +506,8 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 				blockchain.AlgoIndexerStop()
 				return
 			}
-			_ = blockchain.BaseIndexerFetchData(database, _blockchain, "base")
-			_ = blockchain.AlgorandIndexerFetchData(database, _blockchain, "algorand")
+			_ = blockchain.BaseIndexerFetchData(database, _blockchain)
+			_ = blockchain.AlgorandIndexerFetchData(database, _blockchain)
 		})
 	}
 	// ------- IPFS BadBits ------- //
@@ -515,7 +515,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 		core.LogDebug("Badbits doesn't exist - creating")
 		network.UpdateBadBits(database)
 	}
-	c.AddFunc("@every 168h", func() {
+	c.AddFunc("@every 24h", func() {
 		network.UpdateBadBits(database)
 	})
 	// --- Start Cron --- //
