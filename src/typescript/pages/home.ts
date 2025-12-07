@@ -8,6 +8,7 @@ import {HttpGetJson} from "../util/network";
 import {XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {baseGetEnsAddress} from "../util/blockchain/base";
+import {algoGetNfdAddress} from "../util/blockchain/algorand";
 import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowNotifications} from "../util/notifications";
@@ -291,9 +292,14 @@ import {CreateXcomPostCard} from "../util/domFactory";
             if (!ensQuery.endsWith(".base.eth")) {
                 ensQuery = ensQuery + ".base.eth";
             }
-            const [resp, ensAddress] = await Promise.all([
+            let nfdQuery = query.toLowerCase().trim();
+            if (!nfdQuery.endsWith(".algo")) {
+                nfdQuery = nfdQuery + ".algo";
+            }
+            const [resp, ensAddress, nfdAddress] = await Promise.all([
                 HttpGetJson("/s/?q=" + query),
-                baseGetEnsAddress(ensQuery)
+                baseGetEnsAddress(ensQuery),
+                algoGetNfdAddress(nfdQuery)
             ]);
             DOM.resultsDiv.replaceChildren();
             let results: any[] = [];
@@ -301,6 +307,9 @@ import {CreateXcomPostCard} from "../util/domFactory";
                 results = resp[1].results;
             } else if (resp[0] !== 200) {
                 console.error("Search failed with status:", resp[0], "Response:", resp[1]);
+            }
+            if (nfdAddress && nfdAddress !== "") {
+                results.unshift({resultType: "profile", blockchain: "algorand", address: nfdAddress});
             }
             if (ensAddress && ensAddress !== "") {
                 results.unshift({resultType: "profile", blockchain: "base", address: ensAddress});

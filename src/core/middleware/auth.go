@@ -25,7 +25,7 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/faq", "GET"},
 	{"/notification", "GET"},
 	{"/robots.txt", "GET"},
-	{"/settings/base", "GET"}, {"/settings/ipfs/port", "GET"}, {"/settings/base/url", "GET"}, {"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"},
+	{"/settings/base", "GET"}, {"/settings/ipfs/port", "GET"}, {"/settings/base/url", "GET"}, {"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"}, {"/settings/services/algorand", "GET"},
 	{"/s", "GET"},
 	{"/404", "GET"},
 }

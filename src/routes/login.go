@@ -5,13 +5,18 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/algorand/go-algorand-sdk/v2/encoding/msgpack"
+	_algotypes "github.com/algorand/go-algorand-sdk/v2/types"
 	"github.com/gin-gonic/gin"
 	"github.com/spruceid/siwe-go"
 )
@@ -158,6 +163,62 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 		http.SetCookie(c.Writer, authCookie)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "Base wallet login success"})
 	})
+
+	router.POST("/login/wallet/pera", func(c *gin.Context) {
+		type Payload struct {
+			Address            string `json:"address" binding:"required"`
+			EncodedTransaction string `json:"encodedTransaction" binding:"required"`
+			Message            string `json:"message" binding:"required"`
+			Signature          string `json:"signature" binding:"required"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login json"})
+			return
+		}
+		if !security.IsValidAlgoAddress(payload.Address) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Algorand address"})
+			return
+		}
+		core.LogDebug("Received SIWA message: " + payload.Message)
+		siwaMessage, err := ParseSiwaMessage(payload.Message)
+		if err != nil {
+			core.LogDebug("Failed to parse SIWA message: " + err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid SIWA message"})
+			return
+		}
+		if !strings.EqualFold(siwaMessage.Address, payload.Address) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Address mismatch"})
+			return
+		}
+		if siwaMessage.Domain != expectedDomain {
+			core.LogDebug("Domain mismatch: got " + siwaMessage.Domain + ", expected " + expectedDomain)
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid domain"})
+			return
+		}
+		nonceHash := siwaMessage.Nonce
+		nonce := database.AuthGetLoginNonceByHash(nonceHash)
+		if nonce == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid or expired nonce"})
+			return
+		}
+		database.AuthDeleteLoginNonce(nonce)
+		if !VerifySiwaTransaction(payload.EncodedTransaction, payload.Signature, payload.Address, payload.Message) {
+			core.LogDebug("SIWA transaction verification failed")
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid signature"})
+			return
+		}
+		core.LogDebug("SIWA signature verified successfully for address: " + payload.Address)
+		authCookie := security.CreateAuthCookie(payload.Address, "algorand", cryptoSeed, database)
+		if authCookie == nil {
+			core.LogError("Pera wallet login - failed to create auth cookie")
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to create auth cookie"})
+			return
+		}
+		http.SetCookie(c.Writer, authCookie)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "Pera wallet login success"})
+	})
 }
 
 func GenerateLoginNonce(database *db.Database, domain string) (string, error) {
@@ -182,4 +243,92 @@ func parseSignature(sigHex string) ([]byte, error) {
 		return nil, err
 	}
 	return sigBytes, nil
+}
+
+type SiwaMessageParsed struct {
+	Address   string
+	Domain    string
+	Nonce     string
+	Statement string
+	URI       string
+	Version   string
+	ChainID   string
+	IssuedAt  string
+}
+
+func ParseSiwaMessage(message string) (*SiwaMessageParsed, error) {
+	parsed := &SiwaMessageParsed{}
+	lines := strings.Split(message, "\n")
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if i == 0 && strings.HasSuffix(line, " wants you to sign in with your Algorand account:") {
+			parsed.Domain = strings.TrimSuffix(line, " wants you to sign in with your Algorand account:")
+			continue
+		}
+		if security.IsValidAlgoAddress(line) && parsed.Address == "" {
+			parsed.Address = line
+			continue
+		}
+		if strings.HasPrefix(line, "URI: ") {
+			parsed.URI = strings.TrimPrefix(line, "URI: ")
+		} else if strings.HasPrefix(line, "Version: ") {
+			parsed.Version = strings.TrimPrefix(line, "Version: ")
+		} else if strings.HasPrefix(line, "Chain ID: ") {
+			parsed.ChainID = strings.TrimPrefix(line, "Chain ID: ")
+		} else if strings.HasPrefix(line, "Nonce: ") {
+			parsed.Nonce = strings.TrimPrefix(line, "Nonce: ")
+		} else if strings.HasPrefix(line, "Issued At: ") {
+			parsed.IssuedAt = strings.TrimPrefix(line, "Issued At: ")
+		} else if line != "" && parsed.Statement == "" && !strings.Contains(line, ": ") {
+			if !regexp.MustCompile(`^[A-Z2-7]{58}$`).MatchString(line) {
+				parsed.Statement = line
+			}
+		}
+	}
+	if parsed.Domain == "" || parsed.Address == "" || parsed.Nonce == "" {
+		return nil, core.LogErrorReturn("Invalid SIWA message format")
+	}
+	return parsed, nil
+}
+
+func VerifySiwaTransaction(encodedTransaction string, signatureBase64 string, address string, expectedMessage string) bool {
+	txnBytes, err := base64.StdEncoding.DecodeString(encodedTransaction)
+	if err != nil {
+		core.LogDebug("Failed to decode transaction from base64: " + err.Error())
+		return false
+	}
+	var signedTxn _algotypes.SignedTxn
+	err = msgpack.Decode(txnBytes, &signedTxn)
+	if err != nil {
+		core.LogDebug("Failed to decode signed transaction: " + err.Error())
+		return false
+	}
+	txnSignature := base64.StdEncoding.EncodeToString(signedTxn.Sig[:])
+	if txnSignature != signatureBase64 {
+		core.LogDebug("Signature mismatch: txn signature doesn't match provided signature")
+		return false
+	}
+	txn := signedTxn.Txn
+	if txn.Sender.String() != address {
+		core.LogDebug("Sender mismatch: expected " + address + ", got " + txn.Sender.String())
+		return false
+	}
+	noteStr := string(txn.Note)
+	if noteStr != expectedMessage {
+		core.LogDebug("Note mismatch: transaction note doesn't match SIWA message")
+		return false
+	}
+	algoAddr, err := _algotypes.DecodeAddress(address)
+	if err != nil {
+		core.LogDebug("Failed to decode Algorand address: " + err.Error())
+		return false
+	}
+	publicKey := ed25519.PublicKey(algoAddr[:])
+	txnBytesToSign := append([]byte("TX"), msgpack.Encode(txn)...)
+	signatureBytes, err := base64.StdEncoding.DecodeString(signatureBase64)
+	if err != nil {
+		core.LogDebug("Failed to decode signature from base64: " + err.Error())
+		return false
+	}
+	return ed25519.Verify(publicKey, txnBytesToSign, signatureBytes)
 }

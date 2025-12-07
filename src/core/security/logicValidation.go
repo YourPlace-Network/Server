@@ -222,9 +222,9 @@ func IsValidAlgodToken(payload string) bool {
 	return false
 }
 func IsValidAddress(payload string, blockchain string) bool {
-	if blockchain == "base" || blockchain == "eth" {
+	if blockchain == "base" || blockchain == "ethereum" {
 		return IsValidEthAddress(payload)
-	} else if blockchain == "algo" {
+	} else if blockchain == "algorand" {
 		return IsValidAlgoAddress(payload)
 	}
 	core.LogError("Invalid blockchain")
@@ -245,7 +245,7 @@ func IsValidAlgoTransaction(payload string) bool {
 	return RegexMatch("[a-zA-Z\\d+/]+={0,2}", payload)
 }
 func IsValidBlockchain(payload string) bool {
-	validBlockchains := []string{"algo", "algorand", "base", "eth"}
+	validBlockchains := []string{"algorand", "base", "ethereum"}
 	for _, validBlockchain := range validBlockchains {
 		if strings.EqualFold(validBlockchain, strings.ToLower(payload)) {
 			return true

@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@avmkit/siwa": "^1.0.8",
     "@base-org/account": "^2.5.0",
     "@coinbase/onchainkit": "^1.1.2",
     "@floating-ui/dom": "^1.7.0",

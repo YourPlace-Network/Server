@@ -147,6 +147,7 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 	if algoThrottle == 0 {
 		algoThrottle, _ = strconv.Atoi(DefaultBlockchainNodes["algorand"][1])
 	}
+	algoThrottle = int(float64(algoThrottle) * 0.95)
 	core.LogDebug("[Algo] Throttle: " + strconv.Itoa(algoThrottle))
 	batchSize := algoCalculateOptimalBatchSize(algoThrottle)
 	core.LogDebug("[Algo] Batch Size: " + batchSize.String())
@@ -253,6 +254,7 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	if algoThrottle == 0 {
 		algoThrottle, _ = strconv.Atoi(DefaultBlockchainNodes["algorand"][1])
 	}
+	algoThrottle = int(float64(algoThrottle) * 0.95)
 	core.LogDebug("[Algo] Throttle: " + strconv.Itoa(algoThrottle))
 	batchSize := algoCalculateOptimalBatchSize(algoThrottle)
 	core.LogDebug("[Algo] Batch Size: " + batchSize.String())
@@ -343,6 +345,7 @@ func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	if algoThrottle == 0 {
 		algoThrottle, _ = strconv.Atoi(DefaultBlockchainNodes["algorand"][1])
 	}
+	algoThrottle = int(float64(algoThrottle) * 0.95)
 	core.LogDebug("[Algo] Throttle: " + strconv.Itoa(algoThrottle))
 	batchSize := algoCalculateOptimalBatchSize(algoThrottle)
 	core.LogDebug("[Algo] Batch Size: " + batchSize.String())
