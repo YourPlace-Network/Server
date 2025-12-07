@@ -21,7 +21,7 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/discover", "GET"},
 	{"/favicon.ico", "GET"},
 	{"/ping", "GET"},
-	{"/mentalHealth", "GET"},
+	{"/mentalHealth", "GET"}, {"/mentalHealth/tips", "GET"},
 	{"/faq", "GET"},
 	{"/notification", "GET"},
 	{"/robots.txt", "GET"},

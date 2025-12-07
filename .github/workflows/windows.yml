@@ -35,7 +35,6 @@ jobs:
 
     - name: Make Install
       run: make install
-      continue-on-error: true
 
     - name: Make Build
       run: make build
