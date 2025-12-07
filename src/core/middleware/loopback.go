@@ -21,9 +21,13 @@ func LoopbackMiddleware(port int, gateway bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestPath := c.Request.RequestURI
 		// In gateway mode, allow specific settings endpoints
-		if gateway && c.Request.Method == "GET" && strings.HasPrefix(requestPath, "/settings/base/url") {
-			c.Next()
-			return
+		if gateway && c.Request.Method == "GET" {
+			if strings.HasPrefix(requestPath, "/settings/algorand/url") ||
+				strings.HasPrefix(requestPath, "/settings/base/url") ||
+				strings.HasPrefix(requestPath, "/settings/services/algorand") {
+				c.Next()
+				return
+			}
 		}
 		// Check if this request matches an exception rule
 		validHosts := map[string]bool{
