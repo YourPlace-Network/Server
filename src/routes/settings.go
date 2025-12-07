@@ -533,22 +533,46 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 		}
 	})
-	router.POST("/settings/blockchain/indexerCatchUp", func(c *gin.Context) {
+	router.POST("/settings/base/indexerCatchUp", func(c *gin.Context) {
 		type Payload struct {
 			IndexerCatchUp string `json:"indexerCatchUp" required:"true"`
-			Blockchain     string `json:"blockchain" required:"true"`
 		}
 		var payload Payload
 		err := c.BindJSON(&payload)
-		if err != nil || !security.IsValidBlockchain(payload.Blockchain) {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid indexer catch up blockchain value"})
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid request"})
 			return
 		}
 		if payload.IndexerCatchUp != "full" {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid indexer catch up value"})
 			return
 		}
-		blockchain.IndexerCatchUpAll(database, payload.Blockchain)
+		success, message := blockchain.BaseIndexerCatchUpAll(database)
+		if !success {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"status": message})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.POST("/settings/algorand/indexerCatchUp", func(c *gin.Context) {
+		type Payload struct {
+			IndexerCatchUp string `json:"indexerCatchUp" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid request"})
+			return
+		}
+		if payload.IndexerCatchUp != "full" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid indexer catch up value"})
+			return
+		}
+		success, message := blockchain.AlgoIndexerCatchUpAll(database)
+		if !success {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"status": message})
+			return
+		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/post/history", func(c *gin.Context) {

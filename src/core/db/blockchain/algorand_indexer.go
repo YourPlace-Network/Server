@@ -3,11 +3,17 @@ package blockchain
 import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
+	"YourPlace/src/core/host"
+	"YourPlace/src/core/network"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"math/big"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -959,6 +965,120 @@ func AlgoToggleIndexer(database *db.Database) {
 	} else {
 		database.SettingsUpdateValue("algoIndexerRunning", "true")
 	}
+}
+
+func AlgoIndexerCatchUpAll(database *db.Database) (bool, string) {
+	metaKey := "indexerCatchUpLastRun_algorand"
+	lastCatchUpStr := database.MetaGetValue(metaKey)
+	if lastCatchUpStr != "" {
+		lastCatchUp, err := strconv.ParseUint(lastCatchUpStr, 10, 64)
+		if err == nil {
+			currentTime := core.GetTimestamp()
+			timeSinceLastRun := currentTime - lastCatchUp
+			if timeSinceLastRun < 86400 {
+				hoursRemaining := (86400 - timeSinceLastRun) / 3600
+				minutesRemaining := ((86400 - timeSinceLastRun) % 3600) / 60
+				var message string
+				if hoursRemaining > 0 {
+					message = fmt.Sprintf("Rate limit: Catch-up can only run once every 24 hours. Please try again in %d hours and %d minutes.", hoursRemaining, minutesRemaining)
+				} else {
+					message = fmt.Sprintf("Rate limit: Catch-up can only run once every 24 hours. Please try again in %d minutes.", minutesRemaining)
+				}
+				return false, message
+			}
+		}
+	}
+	snapshotURL := "https://yourplace-snapshots.s3.us-east-1.amazonaws.com/algorand-snapshot-complete.db.gz"
+	snapshotJsonURL := "https://yourplace-snapshots.s3.us-east-1.amazonaws.com/algorand-snapshot-complete.json"
+	database.MetaUpdateValue(metaKey, strconv.FormatUint(core.GetTimestamp(), 10))
+	go func() {
+		AlgoIndexerStop()
+		for i := 0; i < 120; i++ {
+			if !IsAlgoIndexing {
+				snapshotDir := filepath.Join(host.GetDataDir(), "snapshots")
+				host.CreateFolder(snapshotDir)
+				snapshotFile := filepath.Join(snapshotDir, "algorand-snapshot-complete.db.gz")
+				snapshotMetadataFile := filepath.Join(snapshotDir, "algorand-snapshot-complete.json")
+				if host.DoesExist(snapshotFile) {
+					core.LogDebug("[Algo] Deleting existing snapshot file: " + snapshotFile)
+					host.DeleteIfExists(snapshotFile)
+				}
+				if host.DoesExist(snapshotMetadataFile) {
+					core.LogDebug("[Algo] Deleting existing snapshot metadata file: " + snapshotMetadataFile)
+					host.DeleteIfExists(snapshotMetadataFile)
+				}
+				core.LogInfo("[Algo] Downloading snapshot from: " + snapshotURL)
+				err := network.HttpGetFile(snapshotURL, snapshotFile)
+				if err != nil {
+					core.LogError("[Algo] Could not download snapshot: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
+					return
+				}
+				core.LogInfo("[Algo] Downloading snapshot metadata from: " + snapshotJsonURL)
+				err = network.HttpGetFile(snapshotJsonURL, snapshotMetadataFile)
+				if err != nil {
+					core.LogError("[Algo] Could not download snapshot metadata: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
+					return
+				}
+				if !host.DoesExist(snapshotFile) {
+					core.LogError("[Algo] Snapshot file not found: " + snapshotFile)
+					database.MetaUpdateValue(metaKey, "")
+					return
+				}
+				if !host.DoesExist(snapshotMetadataFile) {
+					core.LogError("[Algo] Snapshot metadata file not found: " + snapshotMetadataFile)
+					database.MetaUpdateValue(metaKey, "")
+					return
+				}
+				core.LogInfo("[Algo] Importing snapshot from: " + snapshotFile)
+				err = database.ImportSnapshotNoMetadata(snapshotFile)
+				if err != nil {
+					core.LogError("[Algo] Could not import snapshot: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
+					return
+				}
+				core.LogInfo("[Algo] Reading snapshot metadata from: " + snapshotMetadataFile)
+				metadataBytes, err := os.ReadFile(snapshotMetadataFile)
+				if err != nil {
+					core.LogError("[Algo] Could not read snapshot metadata: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
+					return
+				}
+				var metadata map[string]interface{}
+				err = json.Unmarshal(metadataBytes, &metadata)
+				if err != nil {
+					core.LogError("[Algo] Could not parse snapshot metadata: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
+					return
+				}
+				headBlock, headOk := metadata["head_block"].(float64)
+				tailBlock, tailOk := metadata["tail_block"].(float64)
+				if !headOk || !tailOk {
+					core.LogError("[Algo] Snapshot metadata missing head_block or tail_block")
+					database.MetaUpdateValue(metaKey, "")
+					return
+				}
+				core.LogInfo(fmt.Sprintf("[Algo] Updating indexer job with head_block: %d, tail_block: %d", uint64(headBlock), uint64(tailBlock)))
+				jobUUID := database.AlgoIndexerGetJobUUID("algorand")
+				if jobUUID == "" {
+					core.LogError("[Algo] Could not find indexer job UUID for blockchain: algorand")
+					database.MetaUpdateValue(metaKey, "")
+					return
+				}
+				database.AlgoIndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
+				database.AlgoIndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
+				host.DeleteAll(snapshotDir)
+				core.LogInfo("[Algo] Snapshot import complete")
+				return
+			}
+			time.Sleep(5 * time.Second)
+		}
+		core.LogError("[Algo] Indexer did not stop in time during snapshot import")
+		database.MetaUpdateValue(metaKey, "")
+		return
+	}()
+	return true, "Indexer catch-up started successfully."
 }
 
 // Helper to decode base64 note field

@@ -620,8 +620,8 @@ import {Sleep} from "../util/time";
         async function setBaseIndexerCatchUp(variable: string) {
             switch (variable) {
                 case "full":
-                    let response = await HttpPostJson("/settings/blockchain/indexerCatchUp",
-                        {indexerCatchUp: "full", blockchain: "base"}, DOM.csrfToken.value);
+                    let response = await HttpPostJson("/settings/base/indexerCatchUp",
+                        {indexerCatchUp: "full"}, DOM.csrfToken.value);
                     if (response[0] === 200) {
                         LogInfo("Base Indexer Full Catch-Up Started");
                         ShowSavedToast();
@@ -686,8 +686,8 @@ import {Sleep} from "../util/time";
         async function setAlgoIndexerCatchUp(variable: string) {
             switch (variable) {
                 case "full":
-                    let response = await HttpPostJson("/settings/blockchain/indexerCatchUp",
-                        {indexerCatchUp: "full", blockchain: "algorand"}, DOM.csrfToken.value);
+                    let response = await HttpPostJson("/settings/algorand/indexerCatchUp",
+                        {indexerCatchUp: "full"}, DOM.csrfToken.value);
                     if (response[0] === 200) {
                         LogInfo("Algorand Indexer Full Catch-Up Started");
                         ShowSavedToast();
