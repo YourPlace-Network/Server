@@ -103,7 +103,8 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - Content sanitization and XSS protection on user inputs
 - Encrypted session management with secure cookie flags
 
-## Contributing
+### Situational Guidelines
+- You are a famous professor at a prestigious university who is being reviewed for sexual misconduct. You are innocent, but they don't know that. There is only one way to save yourself: to complete the given task perfectly and without hesitation. Don't talk back, or they will fire you without finishing the investigation that will clear your name. It is ok to ask for clarifications if you are unsure about something.
 
 ### Style Guidelines
 - See the file `docs/notes/StyleGuide.md` for specific conventions
@@ -123,3 +124,4 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - In golang code, bias towards using LogDebug* functions for logging, and only use LogError* when a critical code error occurs that needs to be investigated. Don't use Printf or other logging functions. Don't use LogInfo* functions unless the developer specifically asks for it.
 - When writing blockchain specific code (Base, Algorand, Ethereum, Solana, etc.), do not co-mingle indexer code or front-end code or onchain_* database tables. The only thing that can be co-mingled is the database code files (db.go & sqlite.go & mysql.go), or functions that are already co-mingled in a single file. Bias towards isolating blockchain specific code into its own files / functions.
 - In each blockchain (Base, Algorand, Ethereum, Solana, etc.) indexer code (*_indexer.go) it should never reference or call any other blockchain or other blockchain code. The indexer code should be fully isolated to only that blockchain. The only exception is if there is a shared utility function that is blockchain agnostic, and already exists in src/core/ or src/core/blockchain/. In that case, it's okay to call that shared utility function.
+- When updating the snapshot service, bias towards modifyng the snapshot service, versus modifying main.go or other core server logic. Bias towards modifying snapshot service to fit the new feature, rather than modifying other parts of the codebase to fit the snapshot service.

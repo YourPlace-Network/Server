@@ -335,14 +335,24 @@ func PostServerRun(database *db.Database) {
 	}
 	// Gateway mode: trigger snapshot catch-up on first run
 	if gateway {
-		lastCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun")
+		lastCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun_base")
 		if lastCatchUpStr == "" {
-			core.LogInfo("Gateway first run detected - triggering snapshot catch-up")
-			success, message := blockchain.IndexerCatchUpAll(database, "base")
+			core.LogInfo("Gateway first run detected - triggering Base snapshot catch-up")
+			success, message := blockchain.BaseIndexerCatchUpAll(database)
 			if success {
-				core.LogInfo("Gateway snapshot catch-up: " + message)
+				core.LogInfo("Gateway Base snapshot catch-up: " + message)
 			} else {
-				core.LogWarn("Gateway snapshot catch-up failed: " + message)
+				core.LogWarn("Gateway Base snapshot catch-up failed: " + message)
+			}
+		}
+		lastAlgoCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun_algorand")
+		if lastAlgoCatchUpStr == "" {
+			core.LogInfo("Gateway first run detected - triggering Algorand snapshot catch-up")
+			success, message := blockchain.AlgoIndexerCatchUpAll(database)
+			if success {
+				core.LogInfo("Gateway Algorand snapshot catch-up: " + message)
+			} else {
+				core.LogWarn("Gateway Algorand snapshot catch-up failed: " + message)
 			}
 		}
 	}

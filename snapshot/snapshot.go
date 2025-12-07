@@ -99,7 +99,7 @@ func main() {
 	<-make(chan struct{})
 }
 func exportAlgorandSnapshot(database *db.Database, _blockchain *blockchain.Blockchain, snapshotDir string) {
-	progress := getAlgoIndexerProgress(database, _blockchain)
+	progress := getAlgorandIndexerProgress(database, _blockchain)
 	if progress < 99.0 {
 		core.LogInfo("[Algo] Skipping snapshot export - indexer progress is " + strconv.FormatFloat(progress, 'f', 2, 64) + "% (needs 99%+)")
 		return
@@ -121,7 +121,7 @@ func exportAlgorandSnapshot(database *db.Database, _blockchain *blockchain.Block
 	runtime.GC()
 }
 func exportBaseSnapshot(database *db.Database, _blockchain *blockchain.Blockchain, snapshotDir string) {
-	progress := getIndexerProgress(database, _blockchain, "base")
+	progress := getBaseIndexerProgress(database, _blockchain)
 	if progress < 99.0 {
 		core.LogInfo("[Base] Skipping snapshot export - indexer progress is " + strconv.FormatFloat(progress, 'f', 2, 64) + "% (needs 99%+)")
 		return
@@ -142,7 +142,7 @@ func exportBaseSnapshot(database *db.Database, _blockchain *blockchain.Blockchai
 	handleS3Upload(baseSnapshotDir, "base", headBlock, tailBlock)
 	runtime.GC()
 }
-func getAlgoIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain) float64 {
+func getAlgorandIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain) float64 {
 	uuid := database.AlgoIndexerGetJobUUID("algorand")
 	if uuid == "" {
 		return 0.0
@@ -167,8 +167,8 @@ func getAlgoIndexerProgress(database *db.Database, _blockchain *blockchain.Block
 	}
 	return progress
 }
-func getIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain, blockchainName string) float64 {
-	uuid := database.IndexerGetJobUUID(blockchainName)
+func getBaseIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain) float64 {
+	uuid := database.IndexerGetJobUUID("base")
 	if uuid == "" {
 		return 0.0
 	}
@@ -177,7 +177,7 @@ func getIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchai
 	if headBlock == 0 || tailBlock == 0 {
 		return 0.0
 	}
-	targetEarliestBlock := _blockchain.GetEarliestBlock(blockchainName)
+	targetEarliestBlock := _blockchain.GetEarliestBlock("base")
 	if targetEarliestBlock == nil {
 		return 0.0
 	}
