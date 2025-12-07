@@ -441,6 +441,62 @@
                                     </div>
                                 </div>
 
+
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Services -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingServices">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseServices" aria-expanded="false" aria-controls="collapseServices">
+                                <i class="bi bi-globe"></i><b>Services</b>
+                            </button>
+                        </h2>
+                        <div id="collapseServices" class="accordion-collapse collapse" aria-labelledby="headingServices" data-bs-parent="#settingsAccordion">
+                            <div class="accordion-body">
+                                <div class="accordion accordion-flush" id="servicesAccordion">
+                                    <!-- X.com -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="headingXcom">
+                                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseXcom" aria-expanded="false" aria-controls="collapseXcom">
+                                                <div id="xcomStatusLight" class="serviceStatusLight redLight" data-bs-toggle="tooltip" data-bs-placement="left" data-bs-custom-class="yp-tooltip" data-bs-title="X.com credentials not configured"></div>
+                                                <img src="/static/image/x.svg" class="settingsServiceImg" alt=""><b>X.com</b>
+                                            </button>
+                                        </h2>
+                                        <div id="collapseXcom" class="accordion-collapse collapse" aria-labelledby="headingXcom" data-bs-parent="#servicesAccordion">
+                                            <div class="accordion-body">
+                                                <div class="form-check form-switch" id="xcomCrossPostSwitch">
+                                                    <input class="form-check-input" type="checkbox" role="switch" id="xcomCrossPostCheckbox">
+                                                    <label class="form-check-label" for="xcomCrossPostCheckbox">Enable Cross-Post</label>
+                                                </div>
+                                                <div id="xcomCredentialsDiv">
+                                                    <p class="xcomDescription">Connect your X.com (Twitter) API credentials to enable cross-posting</p>
+                                                    <label for="xcomApiKey" class="form-label">API Key</label>
+                                                    <div class="input-group mb-3">
+                                                        <input type="text" class="form-control" id="xcomApiKey" placeholder="API Key" disabled>
+                                                    </div>
+                                                    <label for="xcomApiSecret" class="form-label">API Secret</label>
+                                                    <div class="input-group mb-3">
+                                                        <input type="password" class="form-control" id="xcomApiSecret" placeholder="API Secret" disabled>
+                                                    </div>
+                                                    <label for="xcomAccessToken" class="form-label">Access Token</label>
+                                                    <div class="input-group mb-3">
+                                                        <input type="text" class="form-control" id="xcomAccessToken" placeholder="Access Token" disabled>
+                                                    </div>
+                                                    <label for="xcomAccessTokenSecret" class="form-label">Access Token Secret</label>
+                                                    <div class="input-group mb-3">
+                                                        <input type="password" class="form-control" id="xcomAccessTokenSecret" placeholder="Access Token Secret" disabled>
+                                                    </div>
+                                                    <div id="xcomCredentialsBtns">
+                                                        <button class="btn btn-primary" id="saveXcomCredentialsBtn" disabled>Save</button>
+                                                        <button class="btn btn-primary" id="removeXcomCredentialsBtn" disabled>Remove</button>
+                                                        <button class="btn btn-primary btn-outline-secondary" id="testXcomCredentialsBtn" disabled>Test</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

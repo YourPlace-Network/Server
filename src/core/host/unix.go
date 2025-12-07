@@ -215,7 +215,6 @@ func GetSecret(name string) string {
 	cmd := exec.Command("secret-tool", "lookup", "application", "YourPlace", "name", name)
 	output, err := cmd.Output()
 	if err != nil {
-		core.LogError("Failed to retrieve secret: " + name)
 		return ""
 	}
 	return strings.TrimSpace(string(output))

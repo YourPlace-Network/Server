@@ -10,6 +10,7 @@ import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
 import {CreateAttachmentPreview} from "../util/domFactory";
+import {XcomCrossPost, XcomIsCrossPostEnabled} from "../services/twitter";
 // TinyMCE will be lazy loaded when needed
 let tinymceModulePromise: Promise<any> | null = null;
 
@@ -274,6 +275,16 @@ export async function preloadTinyMCE() {
             hideModal();
             ShowToastWithDelay("Your post should show up shortly. Please wait for it to spread through the network.", 10000);
             DOM.spiceometerText.innerText = "";
+            let crossPostEnabled = await XcomIsCrossPostEnabled();
+            if (crossPostEnabled) {
+                let plainText = payload.replace(/<[^>]*>/g, "").trim();
+                if (plainText.length > 0) {
+                    let crossPostSuccess = await XcomCrossPost(plainText, csrfToken);
+                    if (crossPostSuccess) {
+                        ShowToastWithDelay("Cross-posted to X.com", 3000);
+                    }
+                }
+            }
             if (typeof window.PostSubmitCallback === "function") {
                 window.PostSubmitCallback();
             }

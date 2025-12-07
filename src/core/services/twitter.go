@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/kb"
+	"github.com/dghubble/oauth1"
 )
 
 type Post struct {
@@ -179,6 +181,55 @@ func CheckTwitterCookiesAlive() {
 }
 func RefreshTwitterCookies() {
 	// perform a request to /home to refresh the cookie expiration
+}
+func XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret string) bool {
+	if apiKey == "" || apiSecret == "" || accessToken == "" || accessTokenSecret == "" {
+		return false
+	}
+	oauth1Config := oauth1.NewConfig(apiKey, apiSecret)
+	token := oauth1.NewToken(accessToken, accessTokenSecret)
+	httpClient := oauth1Config.Client(oauth1.NoContext, token)
+	httpClient.Timeout = 10 * time.Second
+	resp, err := httpClient.Get("https://api.twitter.com/2/users/me")
+	if err != nil {
+		core.LogDebug("X.com API test failed: " + err.Error())
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 200 {
+		core.LogDebug("X.com API test succeeded")
+		return true
+	}
+	core.LogDebug("X.com API test failed with status: " + resp.Status)
+	return false
+}
+func XcomCreatePost(apiKey, apiSecret, accessToken, accessTokenSecret, text string) bool {
+	if apiKey == "" || apiSecret == "" || accessToken == "" || accessTokenSecret == "" || text == "" {
+		return false
+	}
+	oauth1Config := oauth1.NewConfig(apiKey, apiSecret)
+	token := oauth1.NewToken(accessToken, accessTokenSecret)
+	httpClient := oauth1Config.Client(oauth1.NoContext, token)
+	httpClient.Timeout = 30 * time.Second
+	payload := fmt.Sprintf(`{"text": %q}`, text)
+	req, err := http.NewRequest("POST", "https://api.twitter.com/2/tweets", strings.NewReader(payload))
+	if err != nil {
+		core.LogDebug("X.com create post request failed: " + err.Error())
+		return false
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		core.LogDebug("X.com create post failed: " + err.Error())
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 201 {
+		core.LogDebug("X.com post created successfully")
+		return true
+	}
+	core.LogDebug("X.com create post failed with status: " + resp.Status)
+	return false
 }
 
 func slowType(selector, text string) chromedp.Action {

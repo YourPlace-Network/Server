@@ -826,7 +826,6 @@ RETRYBLOCK:
 	if err != nil {
 		rpcErrorCount++
 		backoff := (rpcErrorCount + 1) * 2
-		core.LogDebug("[Algo] Block fetch failed, backing off for " + strconv.Itoa(backoff) + " seconds")
 		time.Sleep(time.Duration(backoff) * time.Second)
 		if rpcErrorCount >= 60 {
 			return nil, core.LogErrorReturn("[Algo] Block fetch failed too many times: " + err.Error())

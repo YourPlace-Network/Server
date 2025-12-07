@@ -3,6 +3,7 @@ package routes
 import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
+	"YourPlace/src/core/host"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"net/http"
@@ -73,5 +74,47 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "spiciness": responseInt})
 		return
+	})
+	router.POST("/services/xcom/post", func(c *gin.Context) {
+		type Payload struct {
+			Text string `json:"text" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Request"})
+			return
+		}
+		crossPostEnabled := database.SettingsGetValue("xcomCrossPostEnabled")
+		if crossPostEnabled != "true" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Cross-posting is not enabled"})
+			return
+		}
+		apiKey := database.SettingsGetValue("xcomApiKey")
+		accessToken := database.SettingsGetValue("xcomAccessToken")
+		if apiKey == "" || accessToken == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "X.com credentials not configured"})
+			return
+		}
+		apiSecret := host.GetSecret("xcomApiSecret")
+		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
+		if apiSecret == "" || accessTokenSecret == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "X.com credentials not configured"})
+			return
+		}
+		text := security.SanitizeNonPrintable(payload.Text)
+		if len(text) == 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Post text cannot be empty"})
+			return
+		}
+		if len(text) > 280 {
+			text = text[:280]
+		}
+		success := services.XcomCreatePost(apiKey, apiSecret, accessToken, accessTokenSecret, text)
+		if !success {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Failed to post to X.com"})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 }

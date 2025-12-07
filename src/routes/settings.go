@@ -853,4 +853,114 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "enabled": payload.Enabled})
 	})
+	router.GET("/settings/services/xcom/crosspost", func(c *gin.Context) {
+		enabled := database.SettingsGetValue("xcomCrossPostEnabled")
+		c.SecureJSON(http.StatusOK, gin.H{
+			"enabled": enabled == "true",
+		})
+	})
+	router.POST("/settings/services/xcom/crosspost", func(c *gin.Context) {
+		type Payload struct {
+			Enabled bool `json:"enabled"`
+		}
+		var payload Payload
+		err := c.ShouldBindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid JSON"})
+			return
+		}
+		if payload.Enabled {
+			database.SettingsUpdateValue("xcomCrossPostEnabled", "true")
+		} else {
+			database.SettingsUpdateValue("xcomCrossPostEnabled", "false")
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.GET("/settings/services/xcom/credentials", func(c *gin.Context) {
+		apiKey := database.SettingsGetValue("xcomApiKey")
+		accessToken := database.SettingsGetValue("xcomAccessToken")
+		if apiKey == "" || accessToken == "" {
+			c.SecureJSON(http.StatusOK, gin.H{
+				"apiKey":         "",
+				"accessToken":    "",
+				"hasCredentials": false,
+				"isValid":        false,
+			})
+			return
+		}
+		apiSecret := host.GetSecret("xcomApiSecret")
+		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
+		hasCredentials := apiSecret != "" && accessTokenSecret != ""
+		isValid := false
+		if hasCredentials {
+			isValid = services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"apiKey":         apiKey,
+			"accessToken":    accessToken,
+			"hasCredentials": hasCredentials,
+			"isValid":        isValid,
+		})
+	})
+	router.GET("/settings/services/xcom/test", func(c *gin.Context) {
+		apiKey := database.SettingsGetValue("xcomApiKey")
+		accessToken := database.SettingsGetValue("xcomAccessToken")
+		if apiKey == "" || accessToken == "" {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"isValid": false, "status": "X.com credentials not configured"})
+			return
+		}
+		apiSecret := host.GetSecret("xcomApiSecret")
+		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
+		if apiSecret == "" || accessTokenSecret == "" {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"isValid": false, "status": "X.com credentials not configured"})
+			return
+		}
+		isValid := services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
+		if isValid {
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": true, "status": "X.com credentials are valid"})
+		} else {
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "X.com credentials are invalid"})
+		}
+	})
+	router.POST("/settings/services/xcom/credentials", func(c *gin.Context) {
+		type Payload struct {
+			ApiKey            string `json:"apiKey" required:"true"`
+			ApiSecret         string `json:"apiSecret" required:"true"`
+			AccessToken       string `json:"accessToken" required:"true"`
+			AccessTokenSecret string `json:"accessTokenSecret" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid X.com credentials JSON"})
+			return
+		}
+		if len(payload.ApiKey) < 10 || len(payload.ApiSecret) < 10 || len(payload.AccessToken) < 10 || len(payload.AccessTokenSecret) < 10 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "X.com credentials must be at least 10 characters"})
+			return
+		}
+		apiKey := security.SanitizeNonPrintable(payload.ApiKey)
+		apiSecret := security.SanitizeNonPrintable(payload.ApiSecret)
+		accessToken := security.SanitizeNonPrintable(payload.AccessToken)
+		accessTokenSecret := security.SanitizeNonPrintable(payload.AccessTokenSecret)
+		isValid := services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
+		if !isValid {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "X.com credentials are invalid"})
+			return
+		}
+		host.DeleteSecret("xcomApiSecret")
+		host.DeleteSecret("xcomAccessTokenSecret")
+		host.AddSecret("xcomApiSecret", apiSecret)
+		host.AddSecret("xcomAccessTokenSecret", accessTokenSecret)
+		database.SettingsUpdateValue("xcomApiKey", apiKey)
+		database.SettingsUpdateValue("xcomAccessToken", accessToken)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com credentials saved"})
+	})
+	router.POST("/settings/services/xcom/credentials/remove", func(c *gin.Context) {
+		host.DeleteSecret("xcomApiSecret")
+		host.DeleteSecret("xcomAccessTokenSecret")
+		database.SettingsUpdateValue("xcomApiKey", "")
+		database.SettingsUpdateValue("xcomAccessToken", "")
+		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com credentials removed"})
+	})
 }

@@ -23,6 +23,7 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20250803210736-d308e07a266d
 	github.com/chromedp/chromedp v0.14.2
 	github.com/danieljoos/wincred v1.2.3
+	github.com/dghubble/oauth1 v0.7.3
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/ethereum/go-ethereum v1.16.7
 	github.com/getlantern/systray v1.2.2

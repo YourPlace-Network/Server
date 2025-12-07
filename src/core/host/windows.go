@@ -634,7 +634,6 @@ func AddSecret(name string, secret string) {
 func GetSecret(name string) string {
 	cred, err := wincred.GetGenericCredential(name)
 	if err != nil {
-		core.LogError("Failed to retrieve secret: " + name)
 		return ""
 	}
 	return string(cred.CredentialBlob)

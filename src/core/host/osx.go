@@ -259,7 +259,6 @@ func GetSecret(name string) string {
 		"-w")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		core.LogError("Failed to retrieve secret: " + name)
 		return ""
 	}
 	return strings.TrimSpace(string(output))

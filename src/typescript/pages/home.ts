@@ -438,8 +438,8 @@ import {ShowDialogModalHTML} from "../components/modalDialog";
             if (!dismissed) {
                 ShowDialogModalHTML(
                     `<h5>Welcome to YourPlace</h5>
-                    <p>This web app is provided as a convenience, but to use YourPlace in a truly distributed way, you should download and run it on your own device.</p>
-                    <p>Running YourPlace locally gives you full control over your data and helps strengthen the network.</p>
+                    <p>This web app is provided as a convenience to mostly just view posts and profiles. To use YourPlace in a truly distributed way, you should download and run it on your own device.</p>
+                    <p>Running YourPlace locally gives you full control over your data and enables tons of features that aren't available on this centralized app.</p>
                     <p><a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer"><b>Download YourPlace</b></a></p>`
                 );
                 localStorage.setItem(dismissedKey, "true");

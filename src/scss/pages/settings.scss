@@ -263,3 +263,35 @@ i.bi {
   white-space: pre;
   text-wrap: wrap;
 }
+.settingsServiceImg {
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.5em;
+}
+.serviceStatusLight {
+  height: 0.6em;
+  width: 0.6em;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 0.5em;
+}
+.xcomDescription {
+  color: global.$text;
+  margin-bottom: 1em;
+}
+#saveXcomCredentialsBtn,
+#removeXcomCredentialsBtn,
+#testXcomCredentialsBtn {
+  width: 100px;
+}
+#xcomCrossPostSwitch {
+  margin-bottom: 1em;
+}
+#xcomCredentialsDiv {
+  padding-top: 0.5em;
+}
+#xcomCredentialsDiv input:disabled,
+#xcomCredentialsBtns button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
