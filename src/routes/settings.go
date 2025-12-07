@@ -898,46 +898,85 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	router.GET("/settings/services/xcom/credentials", func(c *gin.Context) {
 		apiKey := database.SettingsGetValue("xcomApiKey")
 		accessToken := database.SettingsGetValue("xcomAccessToken")
+		rateLimited := false
+		rateLimitRemaining := ""
+		rateLimitUntil := database.MetaGetValue("xcomRateLimitUntil")
+		if rateLimitUntil != "" {
+			rateLimitTime, err := time.Parse(time.RFC3339, rateLimitUntil)
+			if err == nil && time.Now().Before(rateLimitTime) {
+				rateLimited = true
+				rateLimitRemaining = time.Until(rateLimitTime).Round(time.Minute).String()
+			}
+		}
 		if apiKey == "" || accessToken == "" {
 			c.SecureJSON(http.StatusOK, gin.H{
-				"apiKey":         "",
-				"accessToken":    "",
-				"hasCredentials": false,
-				"isValid":        false,
+				"apiKey":             "",
+				"accessToken":        "",
+				"hasCredentials":     false,
+				"isValid":            false,
+				"rateLimited":        rateLimited,
+				"rateLimitRemaining": rateLimitRemaining,
 			})
 			return
 		}
 		apiSecret := host.GetSecret("xcomApiSecret")
 		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
 		hasCredentials := apiSecret != "" && accessTokenSecret != ""
-		isValid := false
-		if hasCredentials {
-			isValid = services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
-		}
+		isValid := database.SettingsGetValue("xcomCredentialsValid") == "true"
 		c.SecureJSON(http.StatusOK, gin.H{
-			"apiKey":         apiKey,
-			"accessToken":    accessToken,
-			"hasCredentials": hasCredentials,
-			"isValid":        isValid,
+			"apiKey":             apiKey,
+			"accessToken":        accessToken,
+			"hasCredentials":     hasCredentials,
+			"isValid":            isValid,
+			"rateLimited":        rateLimited,
+			"rateLimitRemaining": rateLimitRemaining,
 		})
 	})
 	router.GET("/settings/services/xcom/test", func(c *gin.Context) {
+		rateLimitUntil := database.MetaGetValue("xcomRateLimitUntil")
+		if rateLimitUntil != "" {
+			rateLimitTime, err := time.Parse(time.RFC3339, rateLimitUntil)
+			if err == nil && time.Now().Before(rateLimitTime) {
+				remaining := time.Until(rateLimitTime).Round(time.Minute)
+				c.SecureJSON(http.StatusOK, gin.H{
+					"isValid":     false,
+					"rateLimited": true,
+					"status":      "X.com API rate limited. Please wait " + remaining.String() + " before testing again.",
+				})
+				return
+			}
+		}
 		apiKey := database.SettingsGetValue("xcomApiKey")
 		accessToken := database.SettingsGetValue("xcomAccessToken")
 		if apiKey == "" || accessToken == "" {
+			database.SettingsUpdateValue("xcomCredentialsValid", "false")
 			c.SecureJSON(http.StatusBadRequest, gin.H{"isValid": false, "status": "X.com credentials not configured"})
 			return
 		}
 		apiSecret := host.GetSecret("xcomApiSecret")
 		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
 		if apiSecret == "" || accessTokenSecret == "" {
+			database.SettingsUpdateValue("xcomCredentialsValid", "false")
 			c.SecureJSON(http.StatusBadRequest, gin.H{"isValid": false, "status": "X.com credentials not configured"})
 			return
 		}
-		isValid := services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
+		isValid, statusCode := services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
+		if statusCode == 429 {
+			rateLimitExpiry := time.Now().Add(24 * time.Hour)
+			database.MetaUpdateValue("xcomRateLimitUntil", rateLimitExpiry.Format(time.RFC3339))
+			c.SecureJSON(http.StatusOK, gin.H{
+				"isValid":     false,
+				"rateLimited": true,
+				"status":      "X.com API rate limited. Testing disabled for 24 hours.",
+			})
+			return
+		}
+		database.MetaUpdateValue("xcomRateLimitUntil", "")
 		if isValid {
+			database.SettingsUpdateValue("xcomCredentialsValid", "true")
 			c.SecureJSON(http.StatusOK, gin.H{"isValid": true, "status": "X.com credentials are valid"})
 		} else {
+			database.SettingsUpdateValue("xcomCredentialsValid", "false")
 			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "X.com credentials are invalid"})
 		}
 	})
@@ -962,17 +1001,29 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		apiSecret := security.SanitizeNonPrintable(payload.ApiSecret)
 		accessToken := security.SanitizeNonPrintable(payload.AccessToken)
 		accessTokenSecret := security.SanitizeNonPrintable(payload.AccessTokenSecret)
-		isValid := services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
+		isValid, statusCode := services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
+		if statusCode == 429 {
+			rateLimitExpiry := time.Now().Add(24 * time.Hour)
+			database.MetaUpdateValue("xcomRateLimitUntil", rateLimitExpiry.Format(time.RFC3339))
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+				"status":      "X.com API rate limited. Please try again in 24 hours.",
+				"rateLimited": true,
+			})
+			return
+		}
 		if !isValid {
+			database.SettingsUpdateValue("xcomCredentialsValid", "false")
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "X.com credentials are invalid"})
 			return
 		}
+		database.MetaUpdateValue("xcomRateLimitUntil", "")
 		host.DeleteSecret("xcomApiSecret")
 		host.DeleteSecret("xcomAccessTokenSecret")
 		host.AddSecret("xcomApiSecret", apiSecret)
 		host.AddSecret("xcomAccessTokenSecret", accessTokenSecret)
 		database.SettingsUpdateValue("xcomApiKey", apiKey)
 		database.SettingsUpdateValue("xcomAccessToken", accessToken)
+		database.SettingsUpdateValue("xcomCredentialsValid", "true")
 		services.XcomClearUserCache()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com credentials saved"})
 	})
@@ -981,7 +1032,91 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		host.DeleteSecret("xcomAccessTokenSecret")
 		database.SettingsUpdateValue("xcomApiKey", "")
 		database.SettingsUpdateValue("xcomAccessToken", "")
+		database.SettingsUpdateValue("xcomCredentialsValid", "")
 		services.XcomClearUserCache()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com credentials removed"})
+	})
+	router.GET("/settings/services/xcom/tier", func(c *gin.Context) {
+		apiKey := database.SettingsGetValue("xcomApiKey")
+		accessToken := database.SettingsGetValue("xcomAccessToken")
+		if apiKey == "" || accessToken == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"isFreeTier": true, "hasCredentials": false})
+			return
+		}
+		apiSecret := host.GetSecret("xcomApiSecret")
+		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
+		if apiSecret == "" || accessTokenSecret == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"isFreeTier": true, "hasCredentials": false})
+			return
+		}
+		isFreeTier := services.XcomIsFreeTier(apiKey, apiSecret, accessToken, accessTokenSecret)
+		c.SecureJSON(http.StatusOK, gin.H{"isFreeTier": isFreeTier, "hasCredentials": true})
+	})
+	router.GET("/settings/services/xcom/scrape/credentials", func(c *gin.Context) {
+		email := database.SettingsGetValue("xcomScrapeEmail")
+		username := database.SettingsGetValue("xcomScrapeUsername")
+		hasPassword := host.GetSecret("xcomScrapePassword") != ""
+		isValid := database.SettingsGetValue("xcomScrapeCredentialsValid") == "true"
+		c.SecureJSON(http.StatusOK, gin.H{
+			"email":       email,
+			"username":    username,
+			"hasPassword": hasPassword,
+			"isValid":     isValid,
+		})
+	})
+	router.POST("/settings/services/xcom/scrape/credentials", func(c *gin.Context) {
+		type Payload struct {
+			Email    string `json:"email" required:"true"`
+			Username string `json:"username" required:"true"`
+			Password string `json:"password" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid X.com scraping credentials JSON"})
+			return
+		}
+		if len(payload.Email) < 5 || len(payload.Username) < 3 || len(payload.Password) < 5 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "X.com scraping credentials are too short"})
+			return
+		}
+		email := security.SanitizeNonPrintable(payload.Email)
+		username := security.SanitizeNonPrintable(payload.Username)
+		password := security.SanitizeNonPrintable(payload.Password)
+		host.DeleteSecret("xcomScrapePassword")
+		host.AddSecret("xcomScrapePassword", password)
+		database.SettingsUpdateValue("xcomScrapeEmail", email)
+		database.SettingsUpdateValue("xcomScrapeUsername", username)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com scraping credentials saved"})
+	})
+	router.POST("/settings/services/xcom/scrape/credentials/remove", func(c *gin.Context) {
+		host.DeleteSecret("xcomScrapePassword")
+		database.SettingsUpdateValue("xcomScrapeEmail", "")
+		database.SettingsUpdateValue("xcomScrapeUsername", "")
+		database.SettingsUpdateValue("xcomScrapeCredentialsValid", "")
+		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com scraping credentials removed"})
+	})
+	router.GET("/settings/services/xcom/scrape/test", func(c *gin.Context) {
+		email := database.SettingsGetValue("xcomScrapeEmail")
+		username := database.SettingsGetValue("xcomScrapeUsername")
+		password := host.GetSecret("xcomScrapePassword")
+		if email == "" || username == "" || password == "" {
+			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "")
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "X.com scraping credentials not configured"})
+			return
+		}
+		cookies, err := services.LogInToTwitter(email, username, password)
+		if err != nil {
+			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "false")
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "Login failed: " + err.Error()})
+			return
+		}
+		if len(cookies) == 0 {
+			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "false")
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "Login failed: no cookies returned"})
+			return
+		}
+		database.SettingsUpdateValue("xcomScrapeCredentialsValid", "true")
+		c.SecureJSON(http.StatusOK, gin.H{"isValid": true})
 	})
 }

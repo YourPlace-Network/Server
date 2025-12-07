@@ -125,19 +125,38 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 		}
 		apiKey := database.SettingsGetValue("xcomApiKey")
 		accessToken := database.SettingsGetValue("xcomAccessToken")
-		if apiKey == "" || accessToken == "" {
-			c.SecureJSON(http.StatusOK, gin.H{"posts": []interface{}{}})
-			return
-		}
 		apiSecret := host.GetSecret("xcomApiSecret")
 		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
-		if apiSecret == "" || accessTokenSecret == "" {
+		hasOAuthCredentials := apiKey != "" && accessToken != "" && apiSecret != "" && accessTokenSecret != ""
+		isFreeTier := true
+		if hasOAuthCredentials {
+			isFreeTier = services.XcomIsFreeTier(apiKey, apiSecret, accessToken, accessTokenSecret)
+		}
+		if !isFreeTier {
+			posts, err := services.XcomGetHomeTimeline(apiKey, apiSecret, accessToken, accessTokenSecret, 25)
+			if err != nil {
+				core.LogDebug("Failed to get X.com timeline via API: " + err.Error())
+				c.SecureJSON(http.StatusOK, gin.H{"posts": []interface{}{}})
+				return
+			}
+			c.SecureJSON(http.StatusOK, gin.H{"posts": posts})
+			return
+		}
+		scrapeCredentialsValid := database.SettingsGetValue("xcomScrapeCredentialsValid") == "true"
+		if !scrapeCredentialsValid {
 			c.SecureJSON(http.StatusOK, gin.H{"posts": []interface{}{}})
 			return
 		}
-		posts, err := services.XcomGetHomeTimeline(apiKey, apiSecret, accessToken, accessTokenSecret, 25)
+		email := database.SettingsGetValue("xcomScrapeEmail")
+		username := database.SettingsGetValue("xcomScrapeUsername")
+		password := host.GetSecret("xcomScrapePassword")
+		if email == "" || username == "" || password == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"posts": []interface{}{}})
+			return
+		}
+		posts, err := services.XcomGetHomeTimelineScrape(email, username, password, 25)
 		if err != nil {
-			core.LogDebug("Failed to get X.com timeline: " + err.Error())
+			core.LogDebug("Failed to get X.com timeline via scraping: " + err.Error())
 			c.SecureJSON(http.StatusOK, gin.H{"posts": []interface{}{}})
 			return
 		}

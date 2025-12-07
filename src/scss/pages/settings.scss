@@ -281,17 +281,16 @@ i.bi {
 }
 #saveXcomCredentialsBtn,
 #removeXcomCredentialsBtn,
-#testXcomCredentialsBtn {
+#saveXcomScrapeCredentialsBtn,
+#removeXcomScrapeCredentialsBtn,
+#testXcomCredentialsBtn,
+#testXcomScrapeCredentialsBtn {
   width: 100px;
 }
-#xcomCrossPostSwitch {
-  margin-bottom: 1em;
-}
-#xcomCredentialsDiv {
-  padding-top: 0.5em;
-}
 #xcomCredentialsDiv input:disabled,
-#xcomCredentialsBtns button:disabled {
+#xcomCredentialsBtns button:disabled,
+#xcomScrapeCredentialsDiv input:disabled,
+#xcomScrapeCredentialsBtns button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

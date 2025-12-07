@@ -459,45 +459,42 @@
                                     <div class="accordion-item">
                                         <h2 class="accordion-header" id="headingXcom">
                                             <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseXcom" aria-expanded="false" aria-controls="collapseXcom">
-                                                <div id="xcomStatusLight" class="serviceStatusLight redLight" data-bs-toggle="tooltip" data-bs-placement="left" data-bs-custom-class="yp-tooltip" data-bs-title="X.com credentials not configured"></div>
                                                 <img src="/static/image/x.svg" class="settingsServiceImg" alt=""><b>X.com</b>
                                             </button>
                                         </h2>
                                         <div id="collapseXcom" class="accordion-collapse collapse" aria-labelledby="headingXcom" data-bs-parent="#servicesAccordion">
                                             <div class="accordion-body">
+                                                <div class="form-check form-switch" id="xcomCrossPostSwitch">
+                                                    <input class="form-check-input" type="checkbox" role="switch" id="xcomCrossPostCheckbox">
+                                                    <label class="form-check-label" for="xcomCrossPostCheckbox">Enable Cross-Post <i class="bi bi-question-circle" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" title="Automatically post your YourPlace posts to X.com"></i></label>
+                                                </div>
+                                                <div class="form-check form-switch" id="xcomFeedAggregationSwitch">
+                                                    <input class="form-check-input" type="checkbox" role="switch" id="xcomFeedAggregationCheckbox">
+                                                    <label class="form-check-label" for="xcomFeedAggregationCheckbox">Enable Feed Aggregation <i class="bi bi-question-circle" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" title="Display your X.com timeline posts in your YourPlace feed"></i></label>
+                                                </div>
+                                                <hr>
                                                 <div id="xcomCredentialsDiv">
-                                                    <p class="xcomDescription">Connect your X.com (Twitter) API credentials</p>
-                                                    <label for="xcomApiKey" class="form-label">API Key</label>
-                                                    <div class="input-group mb-3">
-                                                        <input type="text" class="form-control" id="xcomApiKey" placeholder="API Key">
-                                                    </div>
-                                                    <label for="xcomApiSecret" class="form-label">API Secret</label>
-                                                    <div class="input-group mb-3">
-                                                        <input type="password" class="form-control" id="xcomApiSecret" placeholder="API Secret">
-                                                    </div>
-                                                    <label for="xcomAccessToken" class="form-label">Access Token</label>
-                                                    <div class="input-group mb-3">
-                                                        <input type="text" class="form-control" id="xcomAccessToken" placeholder="Access Token">
-                                                    </div>
-                                                    <label for="xcomAccessTokenSecret" class="form-label">Access Token Secret</label>
-                                                    <div class="input-group mb-3">
-                                                        <input type="password" class="form-control" id="xcomAccessTokenSecret" placeholder="Access Token Secret">
-                                                    </div>
+                                                    <p class="xcomDescription"><div id="xcomStatusLight" class="serviceStatusLight redLight" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="yp-tooltip" data-bs-title="API credentials not configured"></div>API Credentials</p>
+                                                    <input type="text" class="form-control mb-2" id="xcomApiKey" placeholder="API Key">
+                                                    <input type="password" class="form-control mb-2" id="xcomApiSecret" placeholder="API Secret">
+                                                    <input type="text" class="form-control mb-2" id="xcomAccessToken" placeholder="Access Token">
+                                                    <input type="password" class="form-control mb-2" id="xcomAccessTokenSecret" placeholder="Access Token Secret">
                                                     <div id="xcomCredentialsBtns">
                                                         <button class="btn btn-primary" id="saveXcomCredentialsBtn">Save</button>
                                                         <button class="btn btn-primary" id="removeXcomCredentialsBtn">Remove</button>
                                                         <button class="btn btn-primary btn-outline-secondary" id="testXcomCredentialsBtn">Test</button>
                                                     </div>
                                                 </div>
-                                                <hr>
-                                                <div id="xcomFeaturesDiv">
-                                                    <div class="form-check form-switch" id="xcomCrossPostSwitch">
-                                                        <input class="form-check-input" type="checkbox" role="switch" id="xcomCrossPostCheckbox">
-                                                        <label class="form-check-label" for="xcomCrossPostCheckbox">Enable Cross-Post</label>
-                                                    </div>
-                                                    <div class="form-check form-switch" id="xcomFeedAggregationSwitch">
-                                                        <input class="form-check-input" type="checkbox" role="switch" id="xcomFeedAggregationCheckbox">
-                                                        <label class="form-check-label" for="xcomFeedAggregationCheckbox">Enable Feed Aggregation</label>
+                                                <div id="xcomScrapeCredentialsDiv" style="display: none;">
+                                                    <hr>
+                                                    <p class="xcomDescription"><div id="xcomScrapeStatusLight" class="serviceStatusLight redLight" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="yp-tooltip" data-bs-title="Login credentials not configured"></div>Login Credentials (for feed aggregation on Free tier)</p>
+                                                    <input type="email" class="form-control mb-2" id="xcomScrapeEmail" placeholder="Email">
+                                                    <input type="text" class="form-control mb-2" id="xcomScrapeUsername" placeholder="Username (without @)">
+                                                    <input type="password" class="form-control mb-2" id="xcomScrapePassword" placeholder="Password">
+                                                    <div id="xcomScrapeCredentialsBtns">
+                                                        <button class="btn btn-primary" id="saveXcomScrapeCredentialsBtn">Save</button>
+                                                        <button class="btn btn-primary" id="removeXcomScrapeCredentialsBtn">Remove</button>
+                                                        <button class="btn btn-primary btn-outline-secondary" id="testXcomScrapeCredentialsBtn">Test</button>
                                                     </div>
                                                 </div>
                                             </div>

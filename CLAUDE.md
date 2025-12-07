@@ -108,7 +108,6 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 ### Style Guidelines
 - See the file `docs/notes/StyleGuide.md` for specific conventions
 - Avoid adding unnecessary new-line characters in the code. Bias towards not adding new-lines between functions, classes or lines in a function, because when the code is folded in the IDE, it's easier to see all the function names together. Follow the existing new-line style.
-- Only add comments where necessary to clarify complex logic. Follow the existing comment style conventions.
 - When adding a new item into a list, ensure it is alphabetically sorted. If the list isn't sorted already, then sort it alphabetically using the most obvious identifier.
 - Write clean, maintainable code with clear variable names that follow the existing naming conventions.
 - Don't attempt to compile or run any code in this repository. The developer will do that for you and provide any feedback you need.
@@ -117,3 +116,8 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - Don't build, delete, or refactor anything that the developer didn't directly ask for.
 - Prioritize using the built-in and pre-created functions located in `src/core/` and `src/typescript/components/` and `src/typescript/util/` over standard lib and 3rd party code.
 - Bias towards writing your own implementation of a function rather than using a 3rd party library, unless the 3rd party library is already used in the project as a direct dependency.
+- Don't add comments to your code unless the developer specifically asks for them.
+- Try to group functions, types, classes, imports, and declarations together in their own respective block, in a given code file. This is so the user can see all declarations, functions, etc. visually together in the code. Separate these blocks with a single new-line character.
+- Ensure that within a block, functions, variables, lists and more are sorted alphabetically by their name.
+- Always check the security functions for any code you write that interacts with user input, external systems, the database, or the blockchain. Ensure that proper validation, sanitization, and error handling is in place to prevent vulnerabilities.
+- In golang code, bias towards using LogDebug* functions for logging, and only use LogError* when a critical code error occurs that needs to be investigated. Don't use Printf or other logging functions. Don't use LogInfo* functions unless the developer specifically asks for it.

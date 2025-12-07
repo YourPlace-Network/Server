@@ -108,6 +108,14 @@ import {Sleep} from "../util/time";
             xcomCrossPostCheckbox: document.getElementById("xcomCrossPostCheckbox")! as HTMLInputElement,
             xcomFeedAggregationCheckbox: document.getElementById("xcomFeedAggregationCheckbox")! as HTMLInputElement,
             xcomStatusLight: document.getElementById("xcomStatusLight")! as HTMLDivElement,
+            xcomScrapeCredentialsDiv: document.getElementById("xcomScrapeCredentialsDiv")! as HTMLDivElement,
+            xcomScrapeEmail: document.getElementById("xcomScrapeEmail")! as HTMLInputElement,
+            xcomScrapeUsername: document.getElementById("xcomScrapeUsername")! as HTMLInputElement,
+            xcomScrapePassword: document.getElementById("xcomScrapePassword")! as HTMLInputElement,
+            saveXcomScrapeCredentialsBtn: document.getElementById("saveXcomScrapeCredentialsBtn")! as HTMLButtonElement,
+            removeXcomScrapeCredentialsBtn: document.getElementById("removeXcomScrapeCredentialsBtn")! as HTMLButtonElement,
+            testXcomScrapeCredentialsBtn: document.getElementById("testXcomScrapeCredentialsBtn")! as HTMLButtonElement,
+            xcomScrapeStatusLight: document.getElementById("xcomScrapeStatusLight")! as HTMLDivElement,
         }
         let popperInstance: Instance | null = null;
         let algoPopperInstance: Instance | null = null;
@@ -868,11 +876,28 @@ import {Sleep} from "../util/time";
             }
         }
         let xcomCredentialsValid = false;
+        let xcomIsFreeTier = true;
+        let xcomRateLimited = false;
         async function getXcomSettings() {
             let response = await HttpGetJson("/settings/services/xcom/settings");
             if (response[0] === 200) {
                 DOM.xcomCrossPostCheckbox.checked = response[1].crossPostEnabled;
                 DOM.xcomFeedAggregationCheckbox.checked = response[1].feedAggregationEnabled;
+                updateXcomScrapeCredentialsVisibility();
+            }
+        }
+        async function getXcomTier() {
+            let response = await HttpGetJson("/settings/services/xcom/tier");
+            if (response[0] === 200) {
+                xcomIsFreeTier = response[1].isFreeTier;
+                updateXcomScrapeCredentialsVisibility();
+            }
+        }
+        function updateXcomScrapeCredentialsVisibility() {
+            if (xcomIsFreeTier && DOM.xcomFeedAggregationCheckbox.checked) {
+                DOM.xcomScrapeCredentialsDiv.style.display = "block";
+            } else {
+                DOM.xcomScrapeCredentialsDiv.style.display = "none";
             }
         }
         function showXcomCredentialsModal() {
@@ -889,10 +914,13 @@ import {Sleep} from "../util/time";
         }
         async function setXcomCrossPost() {
             const enabling = DOM.xcomCrossPostCheckbox.checked;
-            if (enabling && !xcomCredentialsValid) {
-                DOM.xcomCrossPostCheckbox.checked = false;
-                showXcomCredentialsModal();
-                return;
+            if (enabling) {
+                await getXcomCredentials();
+                if (!xcomCredentialsValid) {
+                    DOM.xcomCrossPostCheckbox.checked = false;
+                    showXcomCredentialsModal();
+                    return;
+                }
             }
             let response = await HttpPostJson("/settings/services/xcom/crosspost", {enabled: enabling}, DOM.csrfToken.value);
             if (response[0] === 200) {
@@ -904,26 +932,30 @@ import {Sleep} from "../util/time";
         }
         async function setXcomFeedAggregation() {
             const enabling = DOM.xcomFeedAggregationCheckbox.checked;
-            if (enabling && !xcomCredentialsValid) {
-                DOM.xcomFeedAggregationCheckbox.checked = false;
-                showXcomCredentialsModal();
-                return;
+            if (enabling) {
+                await getXcomCredentials();
+                if (!xcomCredentialsValid) {
+                    DOM.xcomFeedAggregationCheckbox.checked = false;
+                    showXcomCredentialsModal();
+                    return;
+                }
             }
             if (enabling) {
-                DOM.xcomFeedAggregationCheckbox.checked = false;
-                let confirmed = await ShowModalYesNoHTML(
-                    "<b>X.com API - Basic Tier Required</b><br><br>" +
-                    "Feed aggregation requires the X.com API <b>Basic tier</b> ($200/month) or higher. " +
-                    "The Free tier does not support reading timelines.<br><br>" +
-                    "If you have a Basic or higher tier subscription, enabling this feature will fetch your X.com timeline " +
-                    "and display posts alongside your YourPlace feed.<br><br>" +
-                    "Do you have a paid X.com API subscription and want to enable feed aggregation?"
-                );
-                if (confirmed) {
-                    DOM.xcomFeedAggregationCheckbox.checked = true;
+                await getXcomTier();
+                if (xcomIsFreeTier) {
                     let response = await HttpPostJson("/settings/services/xcom/feedaggregation", {enabled: true}, DOM.csrfToken.value);
                     if (response[0] === 200) {
                         ShowSavedToast();
+                        updateXcomScrapeCredentialsVisibility();
+                    } else {
+                        DOM.xcomFeedAggregationCheckbox.checked = false;
+                        ShowDialogModal(response[1].status || "Failed to enable feed aggregation");
+                    }
+                } else {
+                    let response = await HttpPostJson("/settings/services/xcom/feedaggregation", {enabled: true}, DOM.csrfToken.value);
+                    if (response[0] === 200) {
+                        ShowSavedToast();
+                        updateXcomScrapeCredentialsVisibility();
                     } else {
                         DOM.xcomFeedAggregationCheckbox.checked = false;
                         ShowDialogModal(response[1].status || "Failed to enable feed aggregation");
@@ -933,6 +965,7 @@ import {Sleep} from "../util/time";
                 let response = await HttpPostJson("/settings/services/xcom/feedaggregation", {enabled: false}, DOM.csrfToken.value);
                 if (response[0] === 200) {
                     ShowSavedToast();
+                    updateXcomScrapeCredentialsVisibility();
                 } else {
                     DOM.xcomFeedAggregationCheckbox.checked = true;
                     ShowDialogModal(response[1].status || "Failed to disable feed aggregation");
@@ -953,7 +986,20 @@ import {Sleep} from "../util/time";
                     DOM.xcomAccessTokenSecret.value = "";
                 }
                 xcomCredentialsValid = response[1].isValid;
+                xcomRateLimited = response[1].rateLimited || false;
                 updateXcomStatusLight(response[1].isValid);
+                updateXcomRateLimitUI(response[1].rateLimited, response[1].rateLimitRemaining);
+            }
+        }
+        function updateXcomRateLimitUI(rateLimited: boolean, remaining: string) {
+            if (rateLimited) {
+                DOM.testXcomCredentialsBtn.disabled = true;
+                DOM.testXcomCredentialsBtn.textContent = "Rate Limited";
+                DOM.testXcomCredentialsBtn.title = "X.com API rate limited. " + remaining + " remaining.";
+            } else {
+                DOM.testXcomCredentialsBtn.disabled = false;
+                DOM.testXcomCredentialsBtn.textContent = "Test";
+                DOM.testXcomCredentialsBtn.title = "";
             }
         }
         async function setXcomCredentials() {
@@ -968,9 +1014,21 @@ import {Sleep} from "../util/time";
                 accessTokenSecret: DOM.xcomAccessTokenSecret.value,
             }
             let response = await HttpPostJson("/settings/services/xcom/credentials", data, DOM.csrfToken.value);
+            if (response[0] === 429 || response[1].rateLimited) {
+                xcomRateLimited = true;
+                updateXcomRateLimitUI(true, "24h0m0s");
+                ShowDialogModalHTML(
+                    "<b>X.com API Rate Limited</b><br><br>" +
+                    "You have exceeded X.com's API rate limits. Credential testing is disabled for 24 hours.<br><br>" +
+                    "Please try saving your credentials again later."
+                );
+                return;
+            }
             if (response[0] === 200) {
                 ShowSavedToast();
                 await getXcomCredentials();
+                await getXcomTier();
+                updateXcomScrapeCredentialsVisibility();
             } else {
                 ShowDialogModal(response[1].status || "Failed to save X.com credentials");
             }
@@ -982,16 +1040,37 @@ import {Sleep} from "../util/time";
                 DOM.xcomApiSecret.value = "";
                 DOM.xcomAccessToken.value = "";
                 DOM.xcomAccessTokenSecret.value = "";
+                xcomCredentialsValid = false;
+                xcomIsFreeTier = true;
                 updateXcomStatusLight(false);
+                updateXcomScrapeCredentialsVisibility();
                 ShowSavedToast();
             } else {
                 ShowDialogModal(response[1].status || "Failed to remove X.com credentials");
             }
         }
         async function testXcomCredentials() {
+            if (xcomRateLimited) {
+                ShowDialogModalHTML(
+                    "<b>X.com API Rate Limited</b><br><br>" +
+                    "You have exceeded X.com's API rate limits. Testing is disabled for 24 hours to prevent further issues.<br><br>" +
+                    "Your credentials are saved and will continue to work once the rate limit expires."
+                );
+                return;
+            }
             DOM.testXcomCredentialsBtn.disabled = true;
             DOM.testXcomCredentialsBtn.textContent = "Testing...";
             let response = await HttpGetJson("/settings/services/xcom/test");
+            if (response[1].rateLimited) {
+                xcomRateLimited = true;
+                updateXcomRateLimitUI(true, "24h0m0s");
+                ShowDialogModalHTML(
+                    "<b>X.com API Rate Limited</b><br><br>" +
+                    "You have exceeded X.com's API rate limits. Testing is disabled for 24 hours to prevent further issues.<br><br>" +
+                    "Your credentials are saved and will continue to work once the rate limit expires."
+                );
+                return;
+            }
             DOM.testXcomCredentialsBtn.disabled = false;
             DOM.testXcomCredentialsBtn.textContent = "Test";
             if (response[0] === 200 && response[1].isValid) {
@@ -1004,7 +1083,7 @@ import {Sleep} from "../util/time";
         }
         function updateXcomStatusLight(isValid: boolean) {
             let tooltip = DOM.xcomStatusLight.getAttribute("data-bs-original-title") || DOM.xcomStatusLight.getAttribute("data-bs-title");
-            let newTooltip = isValid ? "X.com credentials configured" : "X.com credentials not configured";
+            let newTooltip = isValid ? "API credentials valid" : "API credentials not configured";
             if (isValid) {
                 DOM.xcomStatusLight.classList.remove("redLight");
                 DOM.xcomStatusLight.classList.add("greenLight");
@@ -1019,6 +1098,98 @@ import {Sleep} from "../util/time";
                 }
                 DOM.xcomStatusLight.setAttribute("data-bs-title", newTooltip);
                 DOM.xcomStatusLight.setAttribute("data-bs-original-title", newTooltip);
+            }
+        }
+        function updateXcomScrapeStatusLight(isValid: boolean) {
+            let tooltip = DOM.xcomScrapeStatusLight.getAttribute("data-bs-original-title") || DOM.xcomScrapeStatusLight.getAttribute("data-bs-title");
+            let newTooltip = isValid ? "Login credentials valid" : "Login credentials not configured";
+            if (isValid) {
+                DOM.xcomScrapeStatusLight.classList.remove("redLight");
+                DOM.xcomScrapeStatusLight.classList.add("greenLight");
+            } else {
+                DOM.xcomScrapeStatusLight.classList.remove("greenLight");
+                DOM.xcomScrapeStatusLight.classList.add("redLight");
+            }
+            if (tooltip !== newTooltip) {
+                let bsTooltip = window.bootstrap.Tooltip.getInstance(DOM.xcomScrapeStatusLight);
+                if (bsTooltip) {
+                    bsTooltip.setContent({".tooltip-inner": newTooltip});
+                }
+                DOM.xcomScrapeStatusLight.setAttribute("data-bs-title", newTooltip);
+                DOM.xcomScrapeStatusLight.setAttribute("data-bs-original-title", newTooltip);
+            }
+        }
+        async function getXcomScrapeCredentials() {
+            let response = await HttpGetJson("/settings/services/xcom/scrape/credentials");
+            if (response[0] === 200) {
+                DOM.xcomScrapeEmail.value = response[1].email || "";
+                DOM.xcomScrapeUsername.value = response[1].username || "";
+                if (response[1].hasPassword) {
+                    DOM.xcomScrapePassword.value = "**********";
+                } else {
+                    DOM.xcomScrapePassword.value = "";
+                }
+                updateXcomScrapeStatusLight(response[1].isValid || false);
+            }
+        }
+        async function setXcomScrapeCredentials() {
+            if (DOM.xcomScrapePassword.value === "**********") {
+                ShowDialogModal("Please enter a new password or clear the field to remove credentials");
+                return;
+            }
+            let confirmed = await ShowModalYesNoHTML(
+                "<b>Experimental Feature Warning</b><br><br>" +
+                "This screen scraping feature is <b>experimental</b> and may cause issues with your X.com account, " +
+                "including but not limited to account suspension or termination.<br><br>" +
+                "We recommend purchasing <a href='https://developer.x.com/en/portal/products' target='_blank'>Basic or Pro API access</a> " +
+                "for reliable feed aggregation.<br><br>" +
+                "By proceeding, you accept all responsibility for its use.<br><br>" +
+                "Do you wish to continue?"
+            );
+            if (!confirmed) {
+                await removeXcomScrapeCredentials();
+                DOM.xcomFeedAggregationCheckbox.checked = false;
+                await HttpPostJson("/settings/services/xcom/feedaggregation", {enabled: false}, DOM.csrfToken.value);
+                updateXcomScrapeCredentialsVisibility();
+                return;
+            }
+            const data = {
+                email: DOM.xcomScrapeEmail.value,
+                username: DOM.xcomScrapeUsername.value,
+                password: DOM.xcomScrapePassword.value,
+            }
+            let response = await HttpPostJson("/settings/services/xcom/scrape/credentials", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                ShowSavedToast();
+                await getXcomScrapeCredentials();
+            } else {
+                ShowDialogModal(response[1].status || "Failed to save X.com scraping credentials");
+            }
+        }
+        async function removeXcomScrapeCredentials() {
+            let response = await HttpPostJson("/settings/services/xcom/scrape/credentials/remove", {}, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                DOM.xcomScrapeEmail.value = "";
+                DOM.xcomScrapeUsername.value = "";
+                DOM.xcomScrapePassword.value = "";
+                updateXcomScrapeStatusLight(false);
+                ShowSavedToast();
+            } else {
+                ShowDialogModal(response[1].status || "Failed to remove X.com scraping credentials");
+            }
+        }
+        async function testXcomScrapeCredentials() {
+            DOM.testXcomScrapeCredentialsBtn.disabled = true;
+            DOM.testXcomScrapeCredentialsBtn.textContent = "Testing...";
+            let response = await HttpGetJson("/settings/services/xcom/scrape/test");
+            DOM.testXcomScrapeCredentialsBtn.disabled = false;
+            DOM.testXcomScrapeCredentialsBtn.textContent = "Test";
+            if (response[0] === 200 && response[1].isValid) {
+                updateXcomScrapeStatusLight(true);
+                ShowToast("Login credentials are valid");
+            } else {
+                updateXcomScrapeStatusLight(false);
+                ShowDialogModal(response[1].status || "Login credentials are invalid");
             }
         }
 
@@ -1163,6 +1334,14 @@ import {Sleep} from "../util/time";
                 DOM.xcomAccessTokenSecret.value = "";
             }
         });
+        DOM.saveXcomScrapeCredentialsBtn.addEventListener("click", setXcomScrapeCredentials);
+        DOM.removeXcomScrapeCredentialsBtn.addEventListener("click", removeXcomScrapeCredentials);
+        DOM.testXcomScrapeCredentialsBtn.addEventListener("click", testXcomScrapeCredentials);
+        DOM.xcomScrapePassword.addEventListener("focus", function() {
+            if (DOM.xcomScrapePassword.value === "**********") {
+                DOM.xcomScrapePassword.value = "";
+            }
+        });
 
         /* On-Demand Loading */
         DOM.collapseContent.addEventListener("show.bs.collapse", function() {
@@ -1204,6 +1383,8 @@ import {Sleep} from "../util/time";
         DOM.collapseXcom.addEventListener("show.bs.collapse", function() {
             getXcomCredentials().then();
             getXcomSettings().then();
+            getXcomTier().then();
+            getXcomScrapeCredentials().then();
         });
 
         init().then();
