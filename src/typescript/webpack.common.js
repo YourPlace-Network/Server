@@ -27,6 +27,11 @@ export default {
     mode: "production",
     module: {
         rules: [{
+            test: /node_modules\/@avmkit\/siwa/,
+            resolve: {
+                fullySpecified: false,
+            },
+        },{
             test: /tinymce\/skins\/.*\.(css|svg|ttf|woff|woff2)$/,
             type: "asset/resource",
             generator: {

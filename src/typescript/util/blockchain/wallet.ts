@@ -5,7 +5,7 @@ for the application. This code is stateful using localstorage to keep a few valu
     "accountAddress" = wallet address of the user
 */
 import {Transaction} from "algosdk";
-import {algoAuthLogin, algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
+import {algoAuthLogin, algoConnectWallet, algoDisconnectWallet, algoGetAvatar, algoGetName, algoGetNfdAddress, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
 import {
     baseAuthLogin,
     baseConnectWallet,
@@ -168,6 +168,10 @@ export async function ReconnectWallet() {
 export function GetAddress() {
     let address = localStorage.getItem("accountAddress");
     if (address !== null) {
+        let wallet = GetWallet();
+        if (wallet === "pera") {
+            return address.toUpperCase();
+        }
         return address.toLowerCase();
     }
     return null;
@@ -194,9 +198,11 @@ export async function WalletGetAvatar(chain?: string, address?: string): Promise
     if (!address) address = GetAddress()!;
     switch (chain) {
         case "algorand":
-            return "";
+            avatar = await algoGetAvatar(address);
+            break;
         case "base":
             avatar = await baseGetAvatar(address);
+            break;
     }
     if (avatar && IsValidURL(avatar)) {
         return avatar;
@@ -207,9 +213,11 @@ export async function WalletGetName(chain: string, address: string): Promise<str
     let name;
     switch (chain) {
         case "algorand":
-            return null;
+            name = await algoGetName(address);
+            break;
         case "base":
             name = await baseGetName(address);
+            break;
     }
     if (name) {
         return name;
@@ -477,8 +485,12 @@ export function IsValidAddress(address: string, chain?: string): boolean {
     let wallet: string | null = null;
     if (chain) {
         switch (chain) {
+            case "algorand":
+                wallet = "pera";
+                break;
             case "base":
                 wallet = "cbwalletbase";
+                break;
         }
     } else {
         wallet = GetWallet();
@@ -489,7 +501,7 @@ export function IsValidAddress(address: string, chain?: string): boolean {
     }
     switch (wallet) {
         case "pera":
-            return IsValidAddress(address);
+            return IsValidAlgoAddress(address);
         case "cbwalletbase":
             return IsValidBaseAddress(address);
     }

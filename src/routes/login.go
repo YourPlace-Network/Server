@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/algorand/go-algorand-sdk/v2/encoding/msgpack"
 	_algotypes "github.com/algorand/go-algorand-sdk/v2/types"
 	"github.com/gin-gonic/gin"
 	"github.com/spruceid/siwe-go"
@@ -165,9 +166,10 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 
 	router.POST("/login/wallet/pera", func(c *gin.Context) {
 		type Payload struct {
-			Signature string `json:"signature" binding:"required"`
-			Message   string `json:"message" binding:"required"`
-			Address   string `json:"address" binding:"required"`
+			Address            string `json:"address" binding:"required"`
+			EncodedTransaction string `json:"encodedTransaction" binding:"required"`
+			Message            string `json:"message" binding:"required"`
+			Signature          string `json:"signature" binding:"required"`
 		}
 		var payload Payload
 		err := c.BindJSON(&payload)
@@ -202,8 +204,8 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			return
 		}
 		database.AuthDeleteLoginNonce(nonce)
-		if !VerifySiwaSignature(payload.Message, payload.Signature, payload.Address) {
-			core.LogDebug("SIWA signature verification failed")
+		if !VerifySiwaTransaction(payload.EncodedTransaction, payload.Signature, payload.Address, payload.Message) {
+			core.LogDebug("SIWA transaction verification failed")
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid signature"})
 			return
 		}
@@ -289,14 +291,31 @@ func ParseSiwaMessage(message string) (*SiwaMessageParsed, error) {
 	return parsed, nil
 }
 
-func VerifySiwaSignature(message string, signatureBase64 string, address string) bool {
-	signatureBytes, err := base64.StdEncoding.DecodeString(signatureBase64)
+func VerifySiwaTransaction(encodedTransaction string, signatureBase64 string, address string, expectedMessage string) bool {
+	txnBytes, err := base64.StdEncoding.DecodeString(encodedTransaction)
 	if err != nil {
-		core.LogDebug("Failed to decode signature from base64: " + err.Error())
+		core.LogDebug("Failed to decode transaction from base64: " + err.Error())
 		return false
 	}
-	if len(signatureBytes) != ed25519.SignatureSize {
-		core.LogDebug("Invalid signature length: expected " + strconv.Itoa(ed25519.SignatureSize) + ", got " + strconv.Itoa(len(signatureBytes)))
+	var signedTxn _algotypes.SignedTxn
+	err = msgpack.Decode(txnBytes, &signedTxn)
+	if err != nil {
+		core.LogDebug("Failed to decode signed transaction: " + err.Error())
+		return false
+	}
+	txnSignature := base64.StdEncoding.EncodeToString(signedTxn.Sig[:])
+	if txnSignature != signatureBase64 {
+		core.LogDebug("Signature mismatch: txn signature doesn't match provided signature")
+		return false
+	}
+	txn := signedTxn.Txn
+	if txn.Sender.String() != address {
+		core.LogDebug("Sender mismatch: expected " + address + ", got " + txn.Sender.String())
+		return false
+	}
+	noteStr := string(txn.Note)
+	if noteStr != expectedMessage {
+		core.LogDebug("Note mismatch: transaction note doesn't match SIWA message")
 		return false
 	}
 	algoAddr, err := _algotypes.DecodeAddress(address)
@@ -305,6 +324,11 @@ func VerifySiwaSignature(message string, signatureBase64 string, address string)
 		return false
 	}
 	publicKey := ed25519.PublicKey(algoAddr[:])
-	messageBytes := []byte(message)
-	return ed25519.Verify(publicKey, messageBytes, signatureBytes)
+	txnBytesToSign := append([]byte("TX"), msgpack.Encode(txn)...)
+	signatureBytes, err := base64.StdEncoding.DecodeString(signatureBase64)
+	if err != nil {
+		core.LogDebug("Failed to decode signature from base64: " + err.Error())
+		return false
+	}
+	return ed25519.Verify(publicKey, txnBytesToSign, signatureBytes)
 }

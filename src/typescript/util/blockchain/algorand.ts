@@ -1,20 +1,24 @@
 import {PeraWalletConnect} from "@perawallet/connect";
-import algosdk, {Algodv2, type CustomTokenHeader, Indexer} from "algosdk";
+import algosdk, {Algodv2, type CustomTokenHeader} from "algosdk";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {DisconnectWallet, GetAddress, GetWallet, ReconnectWallet} from "./wallet";
 import {YP} from "../../services/yourplace";
 import {LogError, LogInfo} from "../log";
-import {bytesToBase64} from "byte-base64";
 import {SiwaMessage} from "@avmkit/siwa";
+import {PersistentCache} from "../cache";
+import {IsValidAlgoAddress} from "../security";
+import {CIDToSubdomainURL} from "../ipfs";
 
 // ---------- Algorand Variables & Objects ---------- //
 export let algod: Algodv2;
-export let indexer: Indexer;
 export let peraWallet = new PeraWalletConnect({shouldShowSignTxnToast: false, chainId: 416001});
-//export let txnlabManager: WalletManager;
 let algoInitialized = false;
-
-let algodURL: string, algodToken: string; let indexerURL: string, indexerToken: string;
+let algodURL: string, algodToken: string;
+const avatarCache = new PersistentCache("algo_avatar");
+const nameCache = new PersistentCache("algo_name");
+const nfdNameCache = new PersistentCache("algo_nfd_name");
+const nfdAddressCache = new PersistentCache("algo_nfd_address");
+const nfdAvatarCache = new PersistentCache("algo_nfd_avatar");
 const TESTNET_GENESIS_ID = 'testnet-v1.0';
 const TESTNET_GENESIS_HASH_STRING = 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=';
 const TESTNET_GENESIS_HASH = new Uint8Array(Buffer.from(TESTNET_GENESIS_HASH_STRING));
@@ -26,58 +30,9 @@ const MAINNET_GENESIS_HASH = new Uint8Array(Buffer.from(MAINNET_GENESIS_HASH_STR
 async function initAlgoWallet() {
     let response = await HttpGetJson("/settings/services/algorand");
     if (response[0] == 200) {
-        let indexerURLClean = response[1].indexerURL;
-        if (indexerURLClean === "https://indexer.yourplace.network") { // resolve the CNAME to allow for fast flux DNS
-            let indexerDomain = indexerURLClean.replace(/^(https?:\/\/)/, "");
-            //indexerURLClean = "https://" + await CnameResolve(indexerDomain);
-            indexerURLClean = indexerURLClean.replace(/\.$/, "");
-        }
-        let algodURLClean = response[1].algodURL;
-        if (algodURLClean === "https://algod.yourplace.network") { // resolve the CNAME to allow for fast flux DNS
-            let algodDomain = algodURLClean.replace(/^(https?:\/\/)/, "");
-            //algodURLClean = "https://" + await CnameResolve(algodDomain);
-            algodURLClean = algodURLClean.replace(/\.$/, "");
-        }
-        algodURL = algodURLClean!;
+        algodURL = response[1].algodURL;
         algodToken = response[1].algodToken;
-        indexerURL = indexerURLClean!;
-        indexerToken = response[1].indexerToken;
-
-        /*txnlabManager = new WalletManager({ // txnlab wallet object
-            wallets: [
-                WalletId.PERA,
-                WalletId.EXODUS,
-                WalletId.KIBISIS,
-                WalletId.DEFLY,
-                {
-                    id: WalletId.WALLETCONNECT,
-                    options: {
-                        projectId: "8f7393c672b4c75ce233c094330be3f9",
-                        metadata: {
-                            name: "YourPlace",
-                            description: "Distributed Social Media",
-                            url: "https://yourplace.network",
-                            icons: ["https://yourplace.network/image/yourplace.logo.svg"]
-                        }
-                    }
-                },
-                {
-                    id: WalletId.LUTE,
-                    options: {
-                        siteName: "YourPlace"
-                    }
-                },
-            ],
-            network: NetworkId.MAINNET,
-            algod: {
-                token: algodToken,
-                baseServer: algodURL,
-                port: 443,
-            }
-        });*/
-
         SetAlgodClient();
-        SetIndexerClient();
         algoInitialized = true;
     } else {
         console.log("Error getting Algorand parameters: ", response[1]);
@@ -93,18 +48,6 @@ function SetAlgodClient() {
         algod = new Algodv2(auth, algodURL, 443);
     } else {
         algod = new Algodv2(algodToken, algodURL, 443);
-    }
-}
-function SetIndexerClient() {
-    let url = new URL(algodURL);
-    if (url.host.endsWith("purestake.io")) {
-        let auth: CustomTokenHeader = {"X-API-Key": indexerToken};
-        indexer = new Indexer(auth, indexerURL, 443);
-    } else if (url.host.endsWith("algonode.cloud")) {
-        let auth: CustomTokenHeader = {"X-Algo-API-Token": indexerToken};
-        indexer = new Indexer(auth, indexerURL, 443);
-    } else {
-        indexer = new Indexer(indexerToken, indexerURL, 443);
     }
 }
 
@@ -172,6 +115,9 @@ export async function algoAuthLogin(address: string): Promise<string> {
         LogError("algoAuthLogin called with non-pera wallet");
         return "";
     }
+    if (!algoInitialized) {
+        await initAlgoWallet();
+    }
     const response = await HttpGetJson("/login/nonce");
     if (response[0] != 200) {
         LogError("Failed to get login nonce from server: " + response[1]);
@@ -181,9 +127,10 @@ export async function algoAuthLogin(address: string): Promise<string> {
     const domain = response[1].domain;
     const issuedAt = response[1].issuedAt;
     LogInfo("SIWA Login - Nonce: " + nonce);
+    const addressUpper = address.toUpperCase();
     const siwaMessage = new SiwaMessage({
         domain: domain,
-        address: address,
+        address: addressUpper,
         statement: "Sign in with Algorand to YourPlace",
         uri: window.location.origin,
         version: "1",
@@ -193,25 +140,35 @@ export async function algoAuthLogin(address: string): Promise<string> {
     });
     const messageToSign = siwaMessage.prepareMessage();
     LogInfo("SIWA Message: " + messageToSign);
-    const encoder = new TextEncoder();
-    const messageBytes = encoder.encode(messageToSign);
-    let signedData: Uint8Array[];
+    let signedTxn: Uint8Array[];
     try {
-        signedData = await peraWallet.signData([{data: messageBytes, message: "Sign in to YourPlace"}], address);
+        const suggestedParams = await algod.getTransactionParams().do();
+        const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            suggestedParams: suggestedParams,
+            sender: addressUpper,
+            receiver: addressUpper,
+            amount: 0,
+            note: new Uint8Array(Buffer.from(messageToSign)),
+        });
+        const txnGroup = [{txn: txn, signers: [addressUpper]}];
+        signedTxn = await peraWallet.signTransaction([txnGroup]);
     } catch (error) {
-        LogError("Failed to sign SIWA message: " + error);
+        LogError("Failed to sign SIWA transaction: " + error);
         return "";
     }
-    if (!signedData || signedData.length === 0) {
-        LogError("No signature returned from Pera Wallet");
+    if (!signedTxn || signedTxn.length === 0) {
+        LogError("No signed transaction returned from Pera Wallet");
         return "";
     }
-    const signature = bytesToBase64(signedData[0]);
+    const encodedTransaction = Buffer.from(signedTxn[0]).toString("base64");
+    const decodedTxn = algosdk.decodeSignedTransaction(signedTxn[0]);
+    const signature = Buffer.from(decodedTxn.sig!).toString("base64");
     const csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
     const payload = {
         message: messageToSign,
         signature: signature,
-        address: address,
+        encodedTransaction: encodedTransaction,
+        address: addressUpper,
     };
     const loginResponse = await HttpPostJson("/login/wallet/pera", payload, csrfToken);
     if (loginResponse[0] == 200) {
@@ -230,79 +187,6 @@ export async function algoEnrollRequest() {
 }
 
 // ---------- Getters ---------- //
-export async function getAlgoName(address: string): Promise<string> {
-    let prefix = "yp/1/mn";
-    try {
-        let noteObj = await algoGetPostTxn(address, address, prefix);
-        return noteObj.n;
-    } catch (error) {
-        return "None";
-    }
-}
-export async function getAlgoAvatar(address: string): Promise<string> {
-    let prefix = "yp/1/ma:";
-    try {
-        let noteObj = await algoGetPostTxn(address, address, prefix);
-        return noteObj.a;
-    } catch (error) {
-        return "None";
-    }
-}
-export async function getAlgoBanner(address: string): Promise<string> {
-    let prefix = "yp/1/mb:";
-    try {
-        let noteObj = await algoGetPostTxn(address, address, prefix);
-        return noteObj.b;
-    } catch (error) {
-        return "None";
-    }
-}
-export async function getPosts(address: string, limit: number) {  // loads algo transactions into IndexedDB
-    if (limit > 1000 || limit < 0 || !limit) limit = 100;
-    let prefix = "yp/1/p:";
-    try {
-        let txnInfo = await indexer.searchForTransactions()
-            .txType("pay")
-            .addressRole("sender").address(address)
-            .addressRole("receiver").address(address)
-            .notePrefix(encode(prefix)).limit(limit).do();
-        if (txnInfo.transactions.length == 0) return null;
-        let note = decode(txnInfo.transactions[0].note);
-        note = note.slice(prefix.length);
-        let noteObj = JSON.parse(note);
-        return noteObj.p;
-    } catch (error) {
-        return "None";
-    }
-}
-export async function getPostCount(address: string): Promise<number> {
-    let prefix = "yp/1/p:";
-    let postCount = 0;
-    let nextToken = "";
-    let numTxn = 1;
-    let posts = [];
-    while (numTxn > 0) {
-        let nextPage = nextToken;
-        let response = await indexer.lookupAccountTransactions(address)
-            .notePrefix(encode(prefix))
-            .nextToken(nextPage).do();
-        let transactions = response["transactions"];
-        numTxn = transactions.length;
-        posts.push(response);
-        postCount++
-        if (numTxn > 0) {
-            let temp = response["nextToken"];
-            if (temp) {
-                nextToken = temp
-            }
-        }
-    }
-    console.log(posts);
-    return postCount;
-}
-async function getLoginNonce(address: string) {
-
-}
 export async function getAlgoTxn(destination: string, payload: string, amount: number): Promise<algosdk.Transaction> {
     const suggestedParams = await algod.getTransactionParams().do();
     const ptxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
@@ -332,26 +216,6 @@ export async function setAlgoPost(text: string) {
 }
 
 // ---------- Helper Functions ------------ //
-const encode = (str: string): Uint8Array => new Uint8Array(Buffer.from(str, 'binary'));
-const decode = (bytes: Uint8Array | undefined): string => {
-    if (!bytes) return "";
-    return Buffer.from(bytes).toString('binary');
-};
-
-const algoGetPostTxn = async function (source: string, destination: string, prefix: string): Promise<any> {
-    try {
-        let txnInfo = await indexer!.searchForTransactions()
-            .txType("pay")
-            .addressRole("sender").address(source)
-            .addressRole("receiver").address(destination)
-            .notePrefix(encode(prefix)).limit(1).do();
-        if (txnInfo.transactions.length == 0) return null;
-        return txnInfo;
-    } catch (e) {
-        console.log("Could not get post txn: " + e);
-        return null;
-    }
-}
 const algoCreatePostTxn = async function(destination: string, payload: string): Promise<any> {
     await ReconnectWallet();
     try {
@@ -385,4 +249,176 @@ const algoSubmitTxn = async function (txn: any): Promise<any> {
     } catch (error) {
         console.log("algoSubmitTxn() error: ", error);
     }
+}
+
+// ---------- NFD (NFDomains) Functions ---------- //
+const NFD_API_URL = "https://api.nf.domains";
+interface NfdRecord {
+    name: string;
+    owner: string;
+    depositAccount?: string;
+    caAlgo?: string[];
+    avatar?: string;
+    properties?: {
+        internal?: Record<string, string>;
+        userDefined?: Record<string, string>;
+        verified?: Record<string, string>;
+    };
+}
+async function fetchNfdByAddress(address: string): Promise<NfdRecord | null> {
+    try {
+        const response = await fetch(`${NFD_API_URL}/nfd/lookup?address=${address}&view=brief`);
+        if (!response.ok) {
+            return null;
+        }
+        const data = await response.json();
+        if (data && Object.keys(data).length > 0) {
+            const firstKey = Object.keys(data)[0];
+            return data[firstKey] as NfdRecord;
+        }
+    } catch (error) {
+        LogError("fetchNfdByAddress() error: " + error);
+    }
+    return null;
+}
+async function fetchNfdByName(name: string): Promise<NfdRecord | null> {
+    try {
+        const response = await fetch(`${NFD_API_URL}/nfd/${name}?view=brief`);
+        if (!response.ok) {
+            return null;
+        }
+        return await response.json() as NfdRecord;
+    } catch (error) {
+        LogError("fetchNfdByName() error: " + error);
+    }
+    return null;
+}
+export async function algoGetNfdName(address: string): Promise<string> {
+    if (!IsValidAlgoAddress(address)) {
+        return "";
+    }
+    const cached = nfdNameCache.get<string>(address);
+    if (cached !== null) {
+        return cached;
+    }
+    try {
+        const nfd = await fetchNfdByAddress(address);
+        if (nfd && nfd.name) {
+            nfdNameCache.set(address, nfd.name);
+            return nfd.name;
+        }
+    } catch (error) {
+        LogError("algoGetNfdName() error: " + error);
+    }
+    nfdNameCache.set(address, "");
+    return "";
+}
+export async function algoGetNfdAvatar(address: string): Promise<string> {
+    if (!IsValidAlgoAddress(address)) {
+        return "";
+    }
+    const cached = nfdAvatarCache.get<string>(address);
+    if (cached !== null) {
+        return cached;
+    }
+    try {
+        const nfd = await fetchNfdByAddress(address);
+        if (nfd) {
+            let avatar = nfd.avatar ||
+                nfd.properties?.verified?.avatar ||
+                nfd.properties?.userDefined?.avatar || "";
+            if (avatar) {
+                if (avatar.startsWith("ipfs://")) {
+                    avatar = CIDToSubdomainURL(avatar) || avatar;
+                }
+                nfdAvatarCache.set(address, avatar);
+                return avatar;
+            }
+        }
+    } catch (error) {
+        LogError("algoGetNfdAvatar() error: " + error);
+    }
+    nfdAvatarCache.set(address, "");
+    return "";
+}
+export async function algoGetNfdAddress(nfdName: string): Promise<string> {
+    let name = nfdName.toLowerCase().trim();
+    if (!name.endsWith(".algo")) {
+        name = name + ".algo";
+    }
+    const cached = nfdAddressCache.get<string>(name);
+    if (cached !== null) {
+        return cached;
+    }
+    try {
+        const nfd = await fetchNfdByName(name);
+        if (nfd) {
+            const address = nfd.caAlgo?.[0] || nfd.depositAccount || nfd.owner || "";
+            if (address) {
+                nfdAddressCache.set(name, address);
+                return address;
+            }
+        }
+    } catch (error) {
+        LogError("algoGetNfdAddress() error: " + error);
+    }
+    nfdAddressCache.set(name, "");
+    return "";
+}
+export async function algoGetAvatar(address: string): Promise<string> {
+    if (!IsValidAlgoAddress(address)) {
+        return "";
+    }
+    const cached = avatarCache.get<string>(address);
+    if (cached !== null) {
+        return cached;
+    }
+    try {
+        const response = await HttpGetJson("/profile/avatar/algorand/" + address);
+        if (response[0] === 200 && response[1] && response[1].avatarAddress) {
+            const avatarAddress = response[1].avatarAddress.trim();
+            if (avatarAddress.length > 0) {
+                const avatarUrl = CIDToSubdomainURL(avatarAddress);
+                if (avatarUrl !== "") {
+                    avatarCache.set(address, avatarUrl);
+                    return avatarUrl;
+                }
+            }
+        }
+        const nfdAvatar = await algoGetNfdAvatar(address);
+        if (nfdAvatar && nfdAvatar !== "") {
+            avatarCache.set(address, nfdAvatar);
+            return nfdAvatar;
+        }
+    } catch (error) {
+        LogError("algoGetAvatar() error: " + error);
+    }
+    return "";
+}
+export async function algoGetName(address: string): Promise<string> {
+    if (!IsValidAlgoAddress(address)) {
+        return "";
+    }
+    const cached = nameCache.get<string>(address);
+    if (cached !== null) {
+        return cached;
+    }
+    try {
+        const response = await HttpGetJson("/profile/name/algorand/" + address);
+        if (response[0] === 200 && response[1] && response[1].name) {
+            const name = response[1].name.trim();
+            if (name.length > 0) {
+                nameCache.set(address, name);
+                return name;
+            }
+        }
+        const nfdName = await algoGetNfdName(address);
+        if (nfdName && nfdName !== "") {
+            nameCache.set(address, nfdName);
+            return nfdName;
+        }
+    } catch (error) {
+        LogError("algoGetName() error: " + error);
+    }
+    return "";
 }

@@ -8,17 +8,8 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base32"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/algorand/go-algorand-sdk/v2/client/v2/algod"
-	"github.com/algorand/go-algorand-sdk/v2/client/v2/common"
-	"github.com/algorand/go-algorand-sdk/v2/client/v2/indexer"
-	"github.com/algorand/go-algorand-sdk/v2/crypto"
-	"github.com/algorand/go-algorand-sdk/v2/encoding/msgpack"
-	"github.com/algorand/go-algorand-sdk/v2/mnemonic"
-	"github.com/algorand/go-algorand-sdk/v2/transaction"
-	"github.com/algorand/go-algorand-sdk/v2/types"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -26,19 +17,23 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/algorand/go-algorand-sdk/v2/client/v2/algod"
+	"github.com/algorand/go-algorand-sdk/v2/client/v2/common"
+	"github.com/algorand/go-algorand-sdk/v2/crypto"
+	"github.com/algorand/go-algorand-sdk/v2/encoding/msgpack"
+	"github.com/algorand/go-algorand-sdk/v2/mnemonic"
+	"github.com/algorand/go-algorand-sdk/v2/transaction"
+	"github.com/algorand/go-algorand-sdk/v2/types"
 )
 
 type Algorand struct {
 	algodClient   *algod.Client
-	IndexerClient *indexer.Client
 	mnemonic      string
 	network       string
 	algodHost     *url.URL
 	algodToken    string
 	algodPort     int
-	indexerHost   *url.URL
-	indexerToken  string
-	indexerPort   int
 	walletAddress types.Address
 }
 
@@ -57,46 +52,26 @@ type Algorand struct {
 	},
 }*/
 
-func (algo *Algorand) Init(algodHost string, algodToken string, algodPort int, algodNetwork string, indexerHost string, indexerToken string, indexerPort int) {
+func (algo *Algorand) Init(algodHost string, algodToken string, algodPort int, algodNetwork string) {
 	if !security.IsValidAlgoNetwork(algodNetwork) {
 		log.Panicln("Invalid Algorand network configuration")
 	}
 	algo.network = algodNetwork
-
 	algodURL, err := url.Parse(algodHost)
 	if err != nil {
 		log.Panicln("Invalid Algod host URL")
 	}
 	algo.algodHost = algodURL
-
-	indexerURL, err := url.Parse(indexerHost)
-	if err != nil {
-		log.Panicln("Invalid Algo Indexer host URL")
-	}
-	algo.indexerHost = indexerURL
-
 	if !security.IsValidPort(algodPort) {
 		log.Panicln("Invalid Algod Port")
 	}
 	algo.algodPort = algodPort
-
-	if !security.IsValidPort(indexerPort) {
-		log.Panicln("Invalid indexer Port")
-	}
-	algo.indexerPort = indexerPort
-
 	if !security.IsValidAlgodToken(algodToken) {
 		if algodToken != "" {
 			log.Panicln("Invalid Algod Token format")
 		}
 	}
 	algo.algodToken = algodToken
-
-	if !security.IsValidAlgodToken(indexerToken) {
-		log.Panicln("Invalid Algo Indexer token format")
-	}
-	algo.indexerToken = indexerToken
-
 	var algodClient *algod.Client
 	if strings.Contains(algodURL.Host, "purestake.io") {
 		var commonClient, err = common.MakeClient(algodHost, "X-API-Key", algodToken)
@@ -111,21 +86,6 @@ func (algo *Algorand) Init(algodHost string, algodToken string, algodPort int, a
 		}
 	}
 	algo.algodClient = algodClient
-
-	var indexerClient *indexer.Client
-	if strings.Contains(indexerURL.Host, "purestake.io") {
-		commonClient, err := common.MakeClient(indexerHost, "X-API-Key", indexerToken)
-		if err != nil {
-			log.Panicf("Can't create indexer client: %s\n", err)
-		}
-		indexerClient = (*indexer.Client)(commonClient)
-	} else {
-		indexerClient, err = indexer.MakeClient(algo.indexerHost.String(), algo.indexerToken)
-		if err != nil {
-			log.Panicf("can't make generic Algo Indexer client")
-		}
-	}
-	algo.IndexerClient = indexerClient
 }
 func (algo *Algorand) CreateTransaction(toAddr string, fromAddr string, amount uint64, message string) types.Transaction {
 	txParams, err := algo.algodClient.SuggestedParams().Do(context.Background())
@@ -223,15 +183,6 @@ func (algo *Algorand) RawVerifyTransaction(pubkey ed25519.PublicKey, transaction
 }
 
 // ----- Getters ----- //
-func (algo *Algorand) GetIndexerURL() *url.URL {
-	return algo.indexerHost
-}
-func (algo *Algorand) GetIndexerToken() string {
-	return algo.indexerToken
-}
-func (algo *Algorand) GetIndexerPort() int {
-	return algo.indexerPort
-}
 func (algo *Algorand) GetAlgodURL() *url.URL {
 	return algo.algodHost
 }
@@ -294,18 +245,6 @@ func (algo *Algorand) GetWalletAddress() types.Address {
 func (algo *Algorand) GetTransactionNonce(host string) string {
 	return ""
 }
-func (algo *Algorand) GetProfileMeta(address types.Address) string {
-	result, err := algo.IndexerClient.SearchForTransactions().AddressString(
-		address.String()).NotePrefix([]byte("yp/1/m")).Do(context.Background())
-	if err != nil {
-		return ""
-	}
-	JSON, err := json.MarshalIndent(result, "", "\t")
-	if err != nil {
-		return ""
-	}
-	return string(JSON)
-}
 func (algo *Algorand) GetProfileMetaTxn(avatarURL string, name string) types.Transaction {
 	txParams, err := algo.algodClient.SuggestedParams().Do(context.Background())
 	if err != nil {
@@ -324,34 +263,4 @@ func (algo *Algorand) GetPriceUSD() float64 {
 // ----- Setters ----- //
 func (algo *Algorand) SetWalletAddress(address types.Address) {
 	algo.walletAddress = address
-}
-
-// ----- Indexer ----- //
-func (algo *Algorand) GetTransactionNote(txID string) string {
-	result, err := algo.IndexerClient.SearchForTransactions().TXID(txID).Do(context.Background())
-	if err != nil {
-		fmt.Println("Could not get transaction: " + err.Error())
-		return ""
-	}
-	JSON, err := json.MarshalIndent(result, "", "\t")
-	if err != nil {
-		return ""
-	}
-	return string(JSON)
-}
-func (algo *Algorand) GetTransactionNotePrefix(prefix string) string {
-	result, err := algo.IndexerClient.SearchForTransactions().NotePrefix([]byte(prefix)).Do(context.Background())
-	if err != nil {
-		return ""
-	}
-	JSON, err := json.MarshalIndent(result, "", "\t")
-	return string(JSON)
-}
-func (algo *Algorand) GetTransactionNotePrefixAddress(prefix string, address types.Address) string {
-	result, err := algo.IndexerClient.SearchForTransactions().AddressString(address.String()).NotePrefix([]byte(prefix)).Do(context.Background())
-	if err != nil {
-		return ""
-	}
-	JSON, err := json.MarshalIndent(result, "", "\t")
-	return string(JSON)
 }

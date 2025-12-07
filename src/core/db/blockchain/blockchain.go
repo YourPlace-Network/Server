@@ -15,7 +15,7 @@ type Blockchain struct {
 }
 
 var DefaultBlockchainNodes = map[string][]string{
-	"algorand": {"https://mainnet-api.4160.nodely.dev", "1000"},
+	"algorand": {"https://mainnet-api.algonode.cloud", "60"},
 	"base":     {"/rpc/base", "5"},
 }
 
@@ -49,12 +49,7 @@ func (blockchain *Blockchain) init(database *db.Database, gateway bool) {
 		}
 	}
 	algoToken := database.SettingsGetValue("algodToken")
-	algoIndexerURL := database.SettingsGetValue("algoIndexerURL")
-	if algoIndexerURL == "" {
-		algoIndexerURL = "https://mainnet-idx.algonode.cloud"
-	}
-	algoIndexerToken := database.SettingsGetValue("algoIndexerToken")
-	algo.Init(algoURL, algoToken, 443, "mainnet", algoIndexerURL, algoIndexerToken, 443)
+	algo.Init(algoURL, algoToken, 443, "mainnet")
 	blockchain.Algorand = algo
 	base := new(Base)
 	base.init(database, gateway)

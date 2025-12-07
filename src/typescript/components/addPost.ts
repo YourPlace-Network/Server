@@ -185,8 +185,8 @@ export async function preloadTinyMCE() {
                 return;
             }
             if (!GetWallet()) {
-                console.log("[addPost] No wallet connected - setting pending callback and showing login modal");
-                ShowModalLogin();
+                console.log("[addPost] No wallet connected - redirecting to login page");
+                window.location.href = "/login";
                 return;
             }
             DOM.submitPostButton.disabled = true;

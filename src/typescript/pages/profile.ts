@@ -11,7 +11,7 @@ import {HttpGetJson} from "../util/network";
 import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
-import {GetAddress, WalletGetExplorerAddressLink, IsValidAddress, WalletGetAvatar, WalletGetDescription, WalletGetName, WalletSendPostNudge, WalletFollowUser, WalletUnfollowUser, GetChain} from "../util/blockchain/wallet";
+import {GetAddress, GetChain, GetWallet, IsValidAddress, WalletFollowUser, WalletGetAvatar, WalletGetDescription, WalletGetExplorerAddressLink, WalletGetName, WalletSendPostNudge, WalletUnfollowUser} from "../util/blockchain/wallet";
 import {CreatePostCard, processTextWithTags} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util/ipfs";
@@ -505,6 +505,10 @@ declare global { // Extend the window interface with public objects
             }, 1000);
         });
         DOM.followBtn.addEventListener("click", async function() {
+            if (!GetWallet()) {
+                window.location.href = "/login";
+                return;
+            }
             let toAddress = DOM.profileAddressFull.value;
             if (!toAddress || !IsValidAddress(toAddress)) {
                 return;

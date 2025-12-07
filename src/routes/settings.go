@@ -853,6 +853,17 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "enabled": payload.Enabled})
 	})
+	router.GET("/settings/services/algorand", func(c *gin.Context) {
+		algodURL := database.SettingsGetValue("algoURL")
+		if algodURL == "" {
+			algodURL = blockchain.DefaultBlockchainNodes["algorand"][0]
+		}
+		algodToken := database.SettingsGetValue("algodToken")
+		c.SecureJSON(http.StatusOK, gin.H{
+			"algodURL":   algodURL,
+			"algodToken": algodToken,
+		})
+	})
 	router.GET("/settings/services/xcom/settings", func(c *gin.Context) {
 		crossPostEnabled := database.SettingsGetValue("xcomCrossPostEnabled")
 		feedAggregationEnabled := database.SettingsGetValue("xcomFeedAggregationEnabled")
