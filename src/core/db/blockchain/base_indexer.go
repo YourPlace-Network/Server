@@ -1229,7 +1229,8 @@ func ToggleIndexer(database *db.Database) {
 	}
 }
 func IndexerCatchUpAll(database *db.Database, blockchainStr string) (bool, string) {
-	lastCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun")
+	metaKey := "indexerCatchUpLastRun_" + blockchainStr
+	lastCatchUpStr := database.MetaGetValue(metaKey)
 	if lastCatchUpStr != "" {
 		lastCatchUp, err := strconv.ParseUint(lastCatchUpStr, 10, 64)
 		if err == nil {
@@ -1250,92 +1251,112 @@ func IndexerCatchUpAll(database *db.Database, blockchainStr string) (bool, strin
 	}
 	snapshotURL := fmt.Sprintf("https://yourplace-snapshots.s3.us-east-1.amazonaws.com/%s-snapshot-complete.db.gz", blockchainStr)
 	snapshotJsonURL := fmt.Sprintf("https://yourplace-snapshots.s3.us-east-1.amazonaws.com/%s-snapshot-complete.json", blockchainStr)
-	database.MetaUpdateValue("indexerCatchUpLastRun", strconv.FormatUint(core.GetTimestamp(), 10))
+	database.MetaUpdateValue(metaKey, strconv.FormatUint(core.GetTimestamp(), 10))
+	logPrefix := "[" + blockchainStr + "]"
 	go func() {
-		BaseIndexerStop()
+		if blockchainStr == "algorand" {
+			AlgoIndexerStop()
+		} else {
+			BaseIndexerStop()
+		}
 		for i := 0; i < 120; i++ {
-			if !IsIndexing {
+			isIndexing := IsIndexing
+			if blockchainStr == "algorand" {
+				isIndexing = IsAlgoIndexing
+			}
+			if !isIndexing {
 				snapshotDir := filepath.Join(host.GetDataDir(), "snapshots")
 				host.CreateFolder(snapshotDir)
 				snapshotFile := filepath.Join(snapshotDir, fmt.Sprintf("%s-snapshot-complete.db.gz", blockchainStr))
 				snapshotMetadataFile := filepath.Join(snapshotDir, fmt.Sprintf("%s-snapshot-complete.json", blockchainStr))
 				if host.DoesExist(snapshotFile) {
-					core.LogDebug("[Base] Deleting existing snapshot file: " + snapshotFile)
+					core.LogDebug(logPrefix + " Deleting existing snapshot file: " + snapshotFile)
 					host.DeleteIfExists(snapshotFile)
 				}
 				if host.DoesExist(snapshotMetadataFile) {
-					core.LogDebug("[Base] Deleting existing snapshot metadata file: " + snapshotMetadataFile)
+					core.LogDebug(logPrefix + " Deleting existing snapshot metadata file: " + snapshotMetadataFile)
 					host.DeleteIfExists(snapshotMetadataFile)
 				}
-				core.LogInfo("[Base] Downloading snapshot from: " + snapshotURL)
+				core.LogInfo(logPrefix + " Downloading snapshot from: " + snapshotURL)
 				err := network.HttpGetFile(snapshotURL, snapshotFile)
 				if err != nil {
-					core.LogError("[Base] Could not download snapshot: " + err.Error())
-					database.MetaUpdateValue("indexerCatchUpLastRun", "")
+					core.LogError(logPrefix + " Could not download snapshot: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
 					return
 				}
-				core.LogInfo("[Base] Downloading snapshot metadata from: " + snapshotJsonURL)
+				core.LogInfo(logPrefix + " Downloading snapshot metadata from: " + snapshotJsonURL)
 				err = network.HttpGetFile(snapshotJsonURL, snapshotMetadataFile)
 				if err != nil {
-					core.LogError("[Base] Could not download snapshot metadata: " + err.Error())
-					database.MetaUpdateValue("indexerCatchUpLastRun", "")
+					core.LogError(logPrefix + " Could not download snapshot metadata: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
 					return
 				}
 				if !host.DoesExist(snapshotFile) {
-					core.LogError("[Base] Snapshot file not found: " + snapshotFile)
-					database.MetaUpdateValue("indexerCatchUpLastRun", "")
+					core.LogError(logPrefix + " Snapshot file not found: " + snapshotFile)
+					database.MetaUpdateValue(metaKey, "")
 					return
 				}
 				if !host.DoesExist(snapshotMetadataFile) {
-					core.LogError("[Base] Snapshot metadata file not found: " + snapshotMetadataFile)
-					database.MetaUpdateValue("indexerCatchUpLastRun", "")
+					core.LogError(logPrefix + " Snapshot metadata file not found: " + snapshotMetadataFile)
+					database.MetaUpdateValue(metaKey, "")
 					return
 				}
-				core.LogInfo("[Base] Importing snapshot from: " + snapshotFile)
+				core.LogInfo(logPrefix + " Importing snapshot from: " + snapshotFile)
 				err = database.ImportSnapshotNoMetadata(snapshotFile)
 				if err != nil {
-					core.LogError("[Base] Could not import snapshot: " + err.Error())
-					database.MetaUpdateValue("indexerCatchUpLastRun", "")
+					core.LogError(logPrefix + " Could not import snapshot: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
 					return
 				}
-				core.LogInfo("[Base] Reading snapshot metadata from: " + snapshotMetadataFile)
+				core.LogInfo(logPrefix + " Reading snapshot metadata from: " + snapshotMetadataFile)
 				metadataBytes, err := os.ReadFile(snapshotMetadataFile)
 				if err != nil {
-					core.LogError("[Base] Could not read snapshot metadata: " + err.Error())
-					database.MetaUpdateValue("indexerCatchUpLastRun", "")
+					core.LogError(logPrefix + " Could not read snapshot metadata: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
 					return
 				}
 				var metadata map[string]interface{}
 				err = json.Unmarshal(metadataBytes, &metadata)
 				if err != nil {
-					core.LogError("[Base] Could not parse snapshot metadata: " + err.Error())
-					database.MetaUpdateValue("indexerCatchUpLastRun", "")
+					core.LogError(logPrefix + " Could not parse snapshot metadata: " + err.Error())
+					database.MetaUpdateValue(metaKey, "")
 					return
 				}
 				headBlock, headOk := metadata["head_block"].(float64)
 				tailBlock, tailOk := metadata["tail_block"].(float64)
 				if !headOk || !tailOk {
-					core.LogError("[Base] Snapshot metadata missing head_block or tail_block")
-					database.MetaUpdateValue("indexerCatchUpLastRun", "")
+					core.LogError(logPrefix + " Snapshot metadata missing head_block or tail_block")
+					database.MetaUpdateValue(metaKey, "")
 					return
 				}
-				core.LogInfo(fmt.Sprintf("[Base] Updating indexer job with head_block: %d, tail_block: %d", uint64(headBlock), uint64(tailBlock)))
-				jobUUID := database.IndexerGetJobUUID(blockchainStr)
-				if jobUUID == "" {
-					core.LogError("[Base] Could not find indexer job UUID for blockchain: " + blockchainStr)
-					database.MetaUpdateValue("indexerCatchUpLastRun", "")
-					return
+				core.LogInfo(fmt.Sprintf("%s Updating indexer job with head_block: %d, tail_block: %d", logPrefix, uint64(headBlock), uint64(tailBlock)))
+				if blockchainStr == "algorand" {
+					jobUUID := database.AlgoIndexerGetJobUUID(blockchainStr)
+					if jobUUID == "" {
+						core.LogError(logPrefix + " Could not find indexer job UUID for blockchain: " + blockchainStr)
+						database.MetaUpdateValue(metaKey, "")
+						return
+					}
+					database.AlgoIndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
+					database.AlgoIndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
+				} else {
+					jobUUID := database.IndexerGetJobUUID(blockchainStr)
+					if jobUUID == "" {
+						core.LogError(logPrefix + " Could not find indexer job UUID for blockchain: " + blockchainStr)
+						database.MetaUpdateValue(metaKey, "")
+						return
+					}
+					database.IndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
+					database.IndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
 				}
-				database.IndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
-				database.IndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
 				host.DeleteAll(snapshotDir)
-				core.LogInfo("[Base] Snapshot import complete")
+				core.LogInfo(logPrefix + " Snapshot import complete")
 				return
 			}
 			time.Sleep(5 * time.Second)
 		}
-		core.LogError("[Base] Indexer did not stop in time during snapshot import")
-		database.MetaUpdateValue("indexerCatchUpLastRun", "")
+		core.LogError(logPrefix + " Indexer did not stop in time during snapshot import")
+		database.MetaUpdateValue(metaKey, "")
 		return
 	}()
 	return true, "Indexer catch-up started successfully."

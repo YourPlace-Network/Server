@@ -63,45 +63,109 @@ func main() {
 	baseThrottle := host.GetEnvVar("BASE_RPC_THROTTLE")
 	database.SettingsUpdateValue("baseURL", baseURL)
 	database.SettingsUpdateValue("baseThrottle", baseThrottle)
+	algoURL := host.GetEnvVar("ALGO_RPC_URL")
+	if algoURL == "" {
+		algoURL = blockchain.DefaultBlockchainNodes["algorand"][0]
+	}
+	algoThrottle := host.GetEnvVar("ALGO_RPC_THROTTLE")
+	if algoThrottle == "" {
+		algoThrottle = blockchain.DefaultBlockchainNodes["algorand"][1]
+	}
+	algoToken := host.GetEnvVar("ALGO_TOKEN")
+	database.SettingsUpdateValue("algoURL", algoURL)
+	database.SettingsUpdateValue("algoThrottle", algoThrottle)
+	if algoToken != "" {
+		database.SettingsUpdateValue("algodToken", algoToken)
+	}
 	_blockchain := new(blockchain.Blockchain)
 	_blockchain.Init(database)
 	c := _cron.New(_cron.WithSeconds())
 	blockchain.BaseIndexerRestartJobs(database, "base")
 	blockchain.AlgoIndexerRestartJobs(database, "algorand")
 	c.AddFunc("@every 2m", func() {
-		// Only log if indexer actually starts (returns true)
-		if blockchain.BaseIndexerFetchData(database, _blockchain, "base") {
+		if blockchain.BaseIndexerFetchData(database, _blockchain) {
 			core.LogDebug("Starting Base indexer run")
 		}
-		if blockchain.AlgorandIndexerFetchData(database, _blockchain, "algorand") {
+		if blockchain.AlgorandIndexerFetchData(database, _blockchain) {
 			core.LogDebug("Starting Algorand indexer run")
 		}
-		runtime.GC() // Force GC after indexer run to free memory
+		runtime.GC()
 	})
 	c.AddFunc("@every 60m", func() {
-		// Only export snapshots if indexer is at 99% or higher
-		progress := getIndexerProgress(database, _blockchain, "base")
-		if progress < 99.0 {
-			core.LogInfo("Skipping snapshot export - indexer progress is " + strconv.FormatFloat(progress, 'f', 2, 64) + "% (needs 99%+)")
-			return
-		}
-		core.LogDebug("Exporting snapshots (indexer at " + strconv.FormatFloat(progress, 'f', 2, 64) + "%)")
-		runtime.GC() // Free memory before snapshot export
-		host.DeleteAll(snapshotDir)
-		host.CreateFolder(snapshotDir)
-		uuid := database.IndexerGetJobUUID("base")
-		headBlock := database.IndexerGetHeadBlock(uuid)
-		tailBlock := database.IndexerGetTailBlock(uuid)
-		err := database.ExportSnapshots(snapshotDir, "base", headBlock, tailBlock)
-		if err != nil {
-			core.LogError("Error exporting snapshots:" + err.Error())
-			return
-		}
-		handleS3Upload(snapshotDir, "base", headBlock, tailBlock)
-		runtime.GC() // Free memory after snapshot export
+		exportBaseSnapshot(database, _blockchain, snapshotDir)
+		exportAlgorandSnapshot(database, _blockchain, snapshotDir)
 	})
 	c.Start()
 	<-make(chan struct{})
+}
+func exportAlgorandSnapshot(database *db.Database, _blockchain *blockchain.Blockchain, snapshotDir string) {
+	progress := getAlgoIndexerProgress(database, _blockchain)
+	if progress < 99.0 {
+		core.LogInfo("[Algo] Skipping snapshot export - indexer progress is " + strconv.FormatFloat(progress, 'f', 2, 64) + "% (needs 99%+)")
+		return
+	}
+	core.LogDebug("[Algo] Exporting snapshots (indexer at " + strconv.FormatFloat(progress, 'f', 2, 64) + "%)")
+	runtime.GC()
+	algoSnapshotDir := filepath.Join(snapshotDir, "algorand")
+	host.DeleteAll(algoSnapshotDir)
+	host.CreateFolder(algoSnapshotDir)
+	uuid := database.AlgoIndexerGetJobUUID("algorand")
+	headBlock := database.AlgoIndexerGetHeadBlock(uuid)
+	tailBlock := database.AlgoIndexerGetTailBlock(uuid)
+	err := database.ExportSnapshots(algoSnapshotDir, "algorand", headBlock, tailBlock)
+	if err != nil {
+		core.LogError("[Algo] Error exporting snapshots: " + err.Error())
+		return
+	}
+	handleS3Upload(algoSnapshotDir, "algorand", headBlock, tailBlock)
+	runtime.GC()
+}
+func exportBaseSnapshot(database *db.Database, _blockchain *blockchain.Blockchain, snapshotDir string) {
+	progress := getIndexerProgress(database, _blockchain, "base")
+	if progress < 99.0 {
+		core.LogInfo("[Base] Skipping snapshot export - indexer progress is " + strconv.FormatFloat(progress, 'f', 2, 64) + "% (needs 99%+)")
+		return
+	}
+	core.LogDebug("[Base] Exporting snapshots (indexer at " + strconv.FormatFloat(progress, 'f', 2, 64) + "%)")
+	runtime.GC()
+	baseSnapshotDir := filepath.Join(snapshotDir, "base")
+	host.DeleteAll(baseSnapshotDir)
+	host.CreateFolder(baseSnapshotDir)
+	uuid := database.IndexerGetJobUUID("base")
+	headBlock := database.IndexerGetHeadBlock(uuid)
+	tailBlock := database.IndexerGetTailBlock(uuid)
+	err := database.ExportSnapshots(baseSnapshotDir, "base", headBlock, tailBlock)
+	if err != nil {
+		core.LogError("[Base] Error exporting snapshots: " + err.Error())
+		return
+	}
+	handleS3Upload(baseSnapshotDir, "base", headBlock, tailBlock)
+	runtime.GC()
+}
+func getAlgoIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain) float64 {
+	uuid := database.AlgoIndexerGetJobUUID("algorand")
+	if uuid == "" {
+		return 0.0
+	}
+	headBlock := database.AlgoIndexerGetHeadBlock(uuid)
+	tailBlock := database.AlgoIndexerGetTailBlock(uuid)
+	if headBlock == 0 || tailBlock == 0 {
+		return 0.0
+	}
+	targetEarliestBlock := _blockchain.GetEarliestBlock("algorand")
+	if targetEarliestBlock == nil {
+		return 0.0
+	}
+	totalRange := float64(headBlock - targetEarliestBlock.Uint64())
+	if totalRange <= 0 {
+		return 100.0
+	}
+	indexedRange := float64(headBlock - tailBlock)
+	progress := (indexedRange / totalRange) * 100.0
+	if progress > 100.0 {
+		progress = 100.0
+	}
+	return progress
 }
 func getIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain, blockchainName string) float64 {
 	uuid := database.IndexerGetJobUUID(blockchainName)
@@ -113,12 +177,10 @@ func getIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchai
 	if headBlock == 0 || tailBlock == 0 {
 		return 0.0
 	}
-	// Get the earliest block from blockchain configuration
 	targetEarliestBlock := _blockchain.GetEarliestBlock(blockchainName)
 	if targetEarliestBlock == nil {
 		return 0.0
 	}
-	// Calculate progress: how much of the range from tail to head has been indexed
 	totalRange := float64(headBlock - targetEarliestBlock.Uint64())
 	if totalRange <= 0 {
 		return 100.0
@@ -153,7 +215,6 @@ func handleS3Upload(snapshotDir string, blockchain string, headBlock uint64, tai
 	core.LogInfo("S3 Upload Configuration - Endpoint: " + s3Endpoint + ", Bucket: " + bucketName + ", Using IAM: " + strconv.FormatBool(accessKey == ""))
 	var cfg aws.Config
 	if accessKey != "" && secretKey != "" {
-		// Use static credentials for DigitalOcean Spaces or custom S3
 		core.LogDebug("Using static credentials for S3")
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithCredentialsProvider(
@@ -166,7 +227,6 @@ func handleS3Upload(snapshotDir string, blockchain string, headBlock uint64, tai
 			config.WithRegion("us-east-1"),
 		)
 	} else {
-		// Use IAM role credentials for AWS (ECS task role)
 		core.LogDebug("Using IAM role credentials for S3")
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithRegion("us-east-1"),
