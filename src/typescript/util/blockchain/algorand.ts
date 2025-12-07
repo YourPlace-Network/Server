@@ -5,6 +5,7 @@ import {DisconnectWallet, GetAddress, GetWallet, ReconnectWallet} from "./wallet
 import {YP} from "../../services/yourplace";
 import {LogError, LogInfo} from "../log";
 import {bytesToBase64} from "byte-base64";
+import {SiwaMessage} from "@avmkit/siwa";
 
 // ---------- Algorand Variables & Objects ---------- //
 export let algod: Algodv2;
@@ -112,17 +113,22 @@ export async function algoConnectWallet(name: string): Promise<string> {
     if (!algoInitialized) {
         await initAlgoWallet();
     }
-    LogInfo("Connecting Algorand Wallet");
-    //await txnlabManager.getWallet(WalletId.PERA)!.connect();
-    /*await txnlabManager.wallets.at(0)!.connect();
-    const activeAccount = txnlabManager.activeAccount;
-    if (activeAccount) {
-        return activeAccount.address;
-    }*/
+    LogInfo("Connecting Algorand Wallet via Pera");
+    try {
+        const accounts = await peraWallet.connect();
+        if (accounts && accounts.length > 0) {
+            const account = accounts[0];
+            peraWallet.connector?.on("disconnect", DisconnectWallet);
+            localStorage.setItem("accountAddress", account);
+            localStorage.setItem("walletSelection", "pera");
+            localStorage.setItem("blockchain", "algorand");
+            LogInfo("Connected to Pera Wallet: " + account);
+            return account;
+        }
+    } catch (error) {
+        LogError("Failed to connect to Pera Wallet: " + error);
+    }
     return "";
-
-    //txnlabManager.activeWallet!.connect();
-    //return txnlabManager.activeWalletAccounts![0].address.toString();
 }
 export function algoReconnectSession() {
     peraWallet.reconnectSession().then((accounts) => {
@@ -161,53 +167,59 @@ export async function algoConnectSession(): Promise<string> {
     });
     return account;
 }
-export async function algoAuthLogin(address: string) {
-    if (GetWallet() == "pera") {
-        const response = await HttpGetJson("/login/nonce");
-        if (response[0] != 200) {
-            LogError("Failed to get login nonce from server: " + response[1]);
-            return;
-        }
-        let nonce = response[1].nonce
-        LogInfo("Login Nonce: " + nonce);
-        const encoder = new TextEncoder();
-        const nonceArray = encoder.encode(nonce);
-        let suggestedParams = await algod.getTransactionParams().do();
-        suggestedParams.fee = BigInt(0);
-        suggestedParams.flatFee = true;
-        suggestedParams.genesisHash = MAINNET_GENESIS_HASH;
-        suggestedParams.genesisID = MAINNET_GENESIS_ID;
-        const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-            sender: address,
-            receiver: address,
-            amount: 0o00000,
-            note: nonceArray,
-            suggestedParams: suggestedParams,
-        });
-        const singleTxnGroups = [{txn: txn, signers: [address]}];
-        let signedTxn: Uint8Array[];
-        try {
-            signedTxn = await peraWallet.signTransaction([singleTxnGroups]);
-        } catch (error) {
-            console.log(error);
-            return;
-        }
-        let encodedTxn = bytesToBase64(signedTxn[0]);
-        let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
-        let payload = {
-            txn: encodedTxn,
-            nonce: nonce
-        };
-        const loginResponse = await HttpPostJson("/login/wallet/pera/", payload, csrfToken);
-        if (loginResponse[0] == 200) {
-            LogInfo("Login Response Success");
-            window.location.replace("/");
-            return;
-        } else {
-            LogError("Login Response Error");
-            console.log(loginResponse);
-            return;
-        }
+export async function algoAuthLogin(address: string): Promise<string> {
+    if (GetWallet() != "pera") {
+        LogError("algoAuthLogin called with non-pera wallet");
+        return "";
+    }
+    const response = await HttpGetJson("/login/nonce");
+    if (response[0] != 200) {
+        LogError("Failed to get login nonce from server: " + response[1]);
+        return "";
+    }
+    const nonce = response[1].nonce;
+    const domain = response[1].domain;
+    const issuedAt = response[1].issuedAt;
+    LogInfo("SIWA Login - Nonce: " + nonce);
+    const siwaMessage = new SiwaMessage({
+        domain: domain,
+        address: address,
+        statement: "Sign in with Algorand to YourPlace",
+        uri: window.location.origin,
+        version: "1",
+        chainId: 416001,
+        nonce: nonce,
+        issuedAt: issuedAt,
+    });
+    const messageToSign = siwaMessage.prepareMessage();
+    LogInfo("SIWA Message: " + messageToSign);
+    const encoder = new TextEncoder();
+    const messageBytes = encoder.encode(messageToSign);
+    let signedData: Uint8Array[];
+    try {
+        signedData = await peraWallet.signData([{data: messageBytes, message: "Sign in to YourPlace"}], address);
+    } catch (error) {
+        LogError("Failed to sign SIWA message: " + error);
+        return "";
+    }
+    if (!signedData || signedData.length === 0) {
+        LogError("No signature returned from Pera Wallet");
+        return "";
+    }
+    const signature = bytesToBase64(signedData[0]);
+    const csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
+    const payload = {
+        message: messageToSign,
+        signature: signature,
+        address: address,
+    };
+    const loginResponse = await HttpPostJson("/login/wallet/pera", payload, csrfToken);
+    if (loginResponse[0] == 200) {
+        LogInfo("SIWA Login Success");
+        return "success";
+    } else {
+        LogError("SIWA Login Error: " + JSON.stringify(loginResponse[1]));
+        return "";
     }
 }
 export async function algoEnrollRequest() {

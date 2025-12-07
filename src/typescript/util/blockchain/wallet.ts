@@ -5,7 +5,7 @@ for the application. This code is stateful using localstorage to keep a few valu
     "accountAddress" = wallet address of the user
 */
 import {Transaction} from "algosdk";
-import {algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
+import {algoAuthLogin, algoConnectWallet, algoDisconnectWallet, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
 import {
     baseAuthLogin,
     baseConnectWallet,
@@ -27,7 +27,7 @@ import {
     mainnetBase,
     baseGetDescription
 } from "./base";
-import {IsValidBaseAddress, IsValidURL} from "../security";
+import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
 import {ShowDialogModal, ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
@@ -35,9 +35,14 @@ import {ShowDialogModal, ShowDialogModalHTMLUnsafe} from "../../components/modal
 // ---------- Connection ---------- //
 export async function WalletLogin() {
     let wallet = GetWallet();
+    let address = GetAddress();
     switch (wallet) {
         case "pera":
-            return ""; //return await algoAuthLogin(address);
+            if (!address) {
+                LogError("No address found for Pera wallet login");
+                return "";
+            }
+            return await algoAuthLogin(address);
         case "cbwalletbase":
             let loginStatus = await baseAuthLogin();
             if (loginStatus === "wallet_not_deployed") {
@@ -84,12 +89,21 @@ export async function ConnectWallet(wallet: string): Promise<string> {
         case "pera":
             LogInfo("Connecting to Pera wallet");
             let address = await algoConnectWallet("pera");
-            if (IsValidAddress(address, "algorand")) {
+            if (!address || address === "") {
+                LogError("Pera wallet returned empty address");
+                SetWallet("");
+                SetChain("");
+                SetAddress("");
+                return "Failed to connect to Pera wallet: Empty address";
+            }
+            if (IsValidAlgoAddress(address)) {
                 SetWallet("pera");
                 SetChain("algorand");
                 SetAddress(address);
+                return "success";
             }
-            break;
+            LogError("Failed to connect to Pera wallet: Invalid address");
+            return "Failed to connect to Pera wallet: Invalid address";
         case "cbwalletbase":
             LogInfo("Connecting to Base wallet");
             let addressBase = await baseConnectWallet();
