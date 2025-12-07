@@ -5,6 +5,7 @@ import (
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/security"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -230,6 +231,145 @@ func XcomCreatePost(apiKey, apiSecret, accessToken, accessTokenSecret, text stri
 	}
 	core.LogDebug("X.com create post failed with status: " + resp.Status)
 	return false
+}
+
+type XcomPost struct {
+	ID        string `json:"id"`
+	Text      string `json:"text"`
+	AuthorID  string `json:"author_id"`
+	CreatedAt string `json:"created_at"`
+	Username  string `json:"username"`
+	Name      string `json:"name"`
+}
+type XcomUserInfo struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
+}
+
+var xcomUserCache *XcomUserInfo
+var xcomDatabase interface {
+	MetaGetValue(key string) string
+	MetaUpdateValue(key, value string) error
+}
+
+func XcomSetDatabase(db interface {
+	MetaGetValue(key string) string
+	MetaUpdateValue(key, value string) error
+}) {
+	xcomDatabase = db
+}
+func XcomClearUserCache() {
+	xcomUserCache = nil
+	if xcomDatabase != nil {
+		xcomDatabase.MetaUpdateValue("xcomUserID", "")
+		xcomDatabase.MetaUpdateValue("xcomUsername", "")
+		xcomDatabase.MetaUpdateValue("xcomName", "")
+	}
+}
+func xcomGetCachedUser(apiKey, apiSecret, accessToken, accessTokenSecret string) (*XcomUserInfo, error) {
+	if xcomUserCache != nil {
+		return xcomUserCache, nil
+	}
+	if xcomDatabase != nil {
+		userID := xcomDatabase.MetaGetValue("xcomUserID")
+		username := xcomDatabase.MetaGetValue("xcomUsername")
+		name := xcomDatabase.MetaGetValue("xcomName")
+		if userID != "" && username != "" {
+			xcomUserCache = &XcomUserInfo{ID: userID, Username: username, Name: name}
+			return xcomUserCache, nil
+		}
+	}
+	oauth1Config := oauth1.NewConfig(apiKey, apiSecret)
+	token := oauth1.NewToken(accessToken, accessTokenSecret)
+	httpClient := oauth1Config.Client(oauth1.NoContext, token)
+	httpClient.Timeout = 30 * time.Second
+	meResp, err := httpClient.Get("https://api.twitter.com/2/users/me?user.fields=username,name")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	defer meResp.Body.Close()
+	if meResp.StatusCode != 200 {
+		return nil, fmt.Errorf("failed to get user, status: %s", meResp.Status)
+	}
+	var meData struct {
+		Data struct {
+			ID       string `json:"id"`
+			Username string `json:"username"`
+			Name     string `json:"name"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(meResp.Body).Decode(&meData); err != nil {
+		return nil, fmt.Errorf("failed to decode user response: %w", err)
+	}
+	xcomUserCache = &XcomUserInfo{
+		ID:       meData.Data.ID,
+		Username: meData.Data.Username,
+		Name:     meData.Data.Name,
+	}
+	if xcomDatabase != nil {
+		xcomDatabase.MetaUpdateValue("xcomUserID", xcomUserCache.ID)
+		xcomDatabase.MetaUpdateValue("xcomUsername", xcomUserCache.Username)
+		xcomDatabase.MetaUpdateValue("xcomName", xcomUserCache.Name)
+	}
+	return xcomUserCache, nil
+}
+func XcomGetHomeTimeline(apiKey, apiSecret, accessToken, accessTokenSecret string, maxResults int) ([]XcomPost, error) {
+	if apiKey == "" || apiSecret == "" || accessToken == "" || accessTokenSecret == "" {
+		return nil, fmt.Errorf("missing credentials")
+	}
+	userInfo, err := xcomGetCachedUser(apiKey, apiSecret, accessToken, accessTokenSecret)
+	if err != nil {
+		return nil, err
+	}
+	oauth1Config := oauth1.NewConfig(apiKey, apiSecret)
+	token := oauth1.NewToken(accessToken, accessTokenSecret)
+	httpClient := oauth1Config.Client(oauth1.NoContext, token)
+	httpClient.Timeout = 30 * time.Second
+	url := fmt.Sprintf("https://api.twitter.com/2/users/%s/reverse_chronological_timeline?max_results=%d&tweet.fields=created_at,author_id&expansions=author_id&user.fields=username,name", userInfo.ID, maxResults)
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get timeline: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("failed to get timeline, status: %s", resp.Status)
+	}
+	var timelineData struct {
+		Data []struct {
+			ID        string `json:"id"`
+			Text      string `json:"text"`
+			AuthorID  string `json:"author_id"`
+			CreatedAt string `json:"created_at"`
+		} `json:"data"`
+		Includes struct {
+			Users []struct {
+				ID       string `json:"id"`
+				Username string `json:"username"`
+				Name     string `json:"name"`
+			} `json:"users"`
+		} `json:"includes"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&timelineData); err != nil {
+		return nil, fmt.Errorf("failed to decode timeline response: %w", err)
+	}
+	userMap := make(map[string]struct{ Username, Name string })
+	for _, user := range timelineData.Includes.Users {
+		userMap[user.ID] = struct{ Username, Name string }{user.Username, user.Name}
+	}
+	var posts []XcomPost
+	for _, tweet := range timelineData.Data {
+		user := userMap[tweet.AuthorID]
+		posts = append(posts, XcomPost{
+			ID:        tweet.ID,
+			Text:      tweet.Text,
+			AuthorID:  tweet.AuthorID,
+			CreatedAt: tweet.CreatedAt,
+			Username:  user.Username,
+			Name:      user.Name,
+		})
+	}
+	return posts, nil
 }
 
 func slowType(selector, text string) chromedp.Action {

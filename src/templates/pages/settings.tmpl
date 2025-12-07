@@ -465,32 +465,39 @@
                                         </h2>
                                         <div id="collapseXcom" class="accordion-collapse collapse" aria-labelledby="headingXcom" data-bs-parent="#servicesAccordion">
                                             <div class="accordion-body">
-                                                <div class="form-check form-switch" id="xcomCrossPostSwitch">
-                                                    <input class="form-check-input" type="checkbox" role="switch" id="xcomCrossPostCheckbox">
-                                                    <label class="form-check-label" for="xcomCrossPostCheckbox">Enable Cross-Post</label>
-                                                </div>
                                                 <div id="xcomCredentialsDiv">
-                                                    <p class="xcomDescription">Connect your X.com (Twitter) API credentials to enable cross-posting</p>
+                                                    <p class="xcomDescription">Connect your X.com (Twitter) API credentials</p>
                                                     <label for="xcomApiKey" class="form-label">API Key</label>
                                                     <div class="input-group mb-3">
-                                                        <input type="text" class="form-control" id="xcomApiKey" placeholder="API Key" disabled>
+                                                        <input type="text" class="form-control" id="xcomApiKey" placeholder="API Key">
                                                     </div>
                                                     <label for="xcomApiSecret" class="form-label">API Secret</label>
                                                     <div class="input-group mb-3">
-                                                        <input type="password" class="form-control" id="xcomApiSecret" placeholder="API Secret" disabled>
+                                                        <input type="password" class="form-control" id="xcomApiSecret" placeholder="API Secret">
                                                     </div>
                                                     <label for="xcomAccessToken" class="form-label">Access Token</label>
                                                     <div class="input-group mb-3">
-                                                        <input type="text" class="form-control" id="xcomAccessToken" placeholder="Access Token" disabled>
+                                                        <input type="text" class="form-control" id="xcomAccessToken" placeholder="Access Token">
                                                     </div>
                                                     <label for="xcomAccessTokenSecret" class="form-label">Access Token Secret</label>
                                                     <div class="input-group mb-3">
-                                                        <input type="password" class="form-control" id="xcomAccessTokenSecret" placeholder="Access Token Secret" disabled>
+                                                        <input type="password" class="form-control" id="xcomAccessTokenSecret" placeholder="Access Token Secret">
                                                     </div>
                                                     <div id="xcomCredentialsBtns">
-                                                        <button class="btn btn-primary" id="saveXcomCredentialsBtn" disabled>Save</button>
-                                                        <button class="btn btn-primary" id="removeXcomCredentialsBtn" disabled>Remove</button>
-                                                        <button class="btn btn-primary btn-outline-secondary" id="testXcomCredentialsBtn" disabled>Test</button>
+                                                        <button class="btn btn-primary" id="saveXcomCredentialsBtn">Save</button>
+                                                        <button class="btn btn-primary" id="removeXcomCredentialsBtn">Remove</button>
+                                                        <button class="btn btn-primary btn-outline-secondary" id="testXcomCredentialsBtn">Test</button>
+                                                    </div>
+                                                </div>
+                                                <hr>
+                                                <div id="xcomFeaturesDiv">
+                                                    <div class="form-check form-switch" id="xcomCrossPostSwitch">
+                                                        <input class="form-check-input" type="checkbox" role="switch" id="xcomCrossPostCheckbox">
+                                                        <label class="form-check-label" for="xcomCrossPostCheckbox">Enable Cross-Post</label>
+                                                    </div>
+                                                    <div class="form-check form-switch" id="xcomFeedAggregationSwitch">
+                                                        <input class="form-check-input" type="checkbox" role="switch" id="xcomFeedAggregationCheckbox">
+                                                        <label class="form-check-label" for="xcomFeedAggregationCheckbox">Enable Feed Aggregation</label>
                                                     </div>
                                                 </div>
                                             </div>

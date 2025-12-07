@@ -117,4 +117,30 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
+	router.GET("/services/xcom/timeline", func(c *gin.Context) {
+		feedAggregationEnabled := database.SettingsGetValue("xcomFeedAggregationEnabled")
+		if feedAggregationEnabled != "true" {
+			c.SecureJSON(http.StatusOK, gin.H{"posts": []interface{}{}})
+			return
+		}
+		apiKey := database.SettingsGetValue("xcomApiKey")
+		accessToken := database.SettingsGetValue("xcomAccessToken")
+		if apiKey == "" || accessToken == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"posts": []interface{}{}})
+			return
+		}
+		apiSecret := host.GetSecret("xcomApiSecret")
+		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
+		if apiSecret == "" || accessTokenSecret == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"posts": []interface{}{}})
+			return
+		}
+		posts, err := services.XcomGetHomeTimeline(apiKey, apiSecret, accessToken, accessTokenSecret, 25)
+		if err != nil {
+			core.LogDebug("Failed to get X.com timeline: " + err.Error())
+			c.SecureJSON(http.StatusOK, gin.H{"posts": []interface{}{}})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"posts": posts})
+	})
 }

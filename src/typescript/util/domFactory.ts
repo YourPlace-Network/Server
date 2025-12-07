@@ -360,6 +360,59 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     });
     return postDiv;
 }
+export async function CreateXcomPostCard(postData: any): Promise<HTMLDivElement> {
+    let postDiv = document.createElement("div") as HTMLDivElement;
+    let avatarDiv = document.createElement("div") as HTMLDivElement;
+    let avatarImg = document.createElement("img") as HTMLImageElement;
+    let postHeaderDiv = document.createElement("div") as HTMLDivElement;
+    let postAuthorLink = document.createElement("a") as HTMLAnchorElement;
+    let postAuthor = document.createElement("b") as HTMLElement;
+    let postUsername = document.createElement("span") as HTMLSpanElement;
+    let postDate = document.createElement("div") as HTMLDivElement;
+    let xcomBadge = document.createElement("div") as HTMLDivElement;
+    let xcomIcon = document.createElement("img") as HTMLImageElement;
+    let postTextDiv = document.createElement("div") as HTMLDivElement;
+    let createdAtDate = new Date(postData.created_at);
+    let postdatevalue = createdAtDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true});
+    let tweetUrl = `https://x.com/${postData.username}/status/${postData.id}`;
+    postDiv.classList.add("postCard", "xcomPostCard");
+    avatarDiv.classList.add("postCardAvatar", "clickable");
+    avatarDiv.addEventListener("click", () => {
+        window.open(`https://x.com/${postData.username}`, "_blank");
+    });
+    avatarImg.classList.add("postCardAvatar");
+    avatarImg.crossOrigin = "anonymous";
+    avatarImg.referrerPolicy = "no-referrer";
+    avatarImg.src = "/static/image/avatar.png";
+    postHeaderDiv.classList.add("postCardHeaderDiv");
+    postAuthorLink.classList.add("postCardAuthorLink");
+    postAuthorLink.href = tweetUrl;
+    postAuthorLink.target = "_blank";
+    postAuthor.classList.add("postCardAuthor");
+    postAuthor.textContent = postData.name || postData.username;
+    postUsername.classList.add("postCardUsername");
+    postUsername.textContent = " @" + postData.username;
+    postDate.classList.add("postCardDate");
+    postDate.textContent = postdatevalue;
+    xcomBadge.classList.add("xcomBadge");
+    xcomBadge.title = "X.com post";
+    xcomIcon.src = "/static/image/x.svg";
+    xcomIcon.classList.add("xcomBadgeIcon");
+    postTextDiv.classList.add("postCardTextDiv");
+    postTextDiv.textContent = postData.text;
+    processTextWithTags(postTextDiv);
+    avatarDiv.appendChild(avatarImg);
+    postDiv.appendChild(avatarDiv);
+    postAuthorLink.appendChild(postAuthor);
+    postAuthorLink.appendChild(postUsername);
+    postHeaderDiv.appendChild(postAuthorLink);
+    postHeaderDiv.appendChild(postDate);
+    xcomBadge.appendChild(xcomIcon);
+    postHeaderDiv.appendChild(xcomBadge);
+    postDiv.appendChild(postHeaderDiv);
+    postDiv.appendChild(postTextDiv);
+    return postDiv;
+}
 export async function CreateProfileCard (profileData: any): Promise<HTMLDivElement>{
     let profileDiv = document.createElement("div") as HTMLDivElement;
     let avatarDiv = document.createElement("div") as HTMLDivElement; // append to profile div 1st

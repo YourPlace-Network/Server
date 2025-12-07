@@ -853,10 +853,12 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "enabled": payload.Enabled})
 	})
-	router.GET("/settings/services/xcom/crosspost", func(c *gin.Context) {
-		enabled := database.SettingsGetValue("xcomCrossPostEnabled")
+	router.GET("/settings/services/xcom/settings", func(c *gin.Context) {
+		crossPostEnabled := database.SettingsGetValue("xcomCrossPostEnabled")
+		feedAggregationEnabled := database.SettingsGetValue("xcomFeedAggregationEnabled")
 		c.SecureJSON(http.StatusOK, gin.H{
-			"enabled": enabled == "true",
+			"crossPostEnabled":       crossPostEnabled == "true",
+			"feedAggregationEnabled": feedAggregationEnabled == "true",
 		})
 	})
 	router.POST("/settings/services/xcom/crosspost", func(c *gin.Context) {
@@ -873,6 +875,23 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			database.SettingsUpdateValue("xcomCrossPostEnabled", "true")
 		} else {
 			database.SettingsUpdateValue("xcomCrossPostEnabled", "false")
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.POST("/settings/services/xcom/feedaggregation", func(c *gin.Context) {
+		type Payload struct {
+			Enabled bool `json:"enabled"`
+		}
+		var payload Payload
+		err := c.ShouldBindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid JSON"})
+			return
+		}
+		if payload.Enabled {
+			database.SettingsUpdateValue("xcomFeedAggregationEnabled", "true")
+		} else {
+			database.SettingsUpdateValue("xcomFeedAggregationEnabled", "false")
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
@@ -954,6 +973,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		host.AddSecret("xcomAccessTokenSecret", accessTokenSecret)
 		database.SettingsUpdateValue("xcomApiKey", apiKey)
 		database.SettingsUpdateValue("xcomAccessToken", accessToken)
+		services.XcomClearUserCache()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com credentials saved"})
 	})
 	router.POST("/settings/services/xcom/credentials/remove", func(c *gin.Context) {
@@ -961,6 +981,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		host.DeleteSecret("xcomAccessTokenSecret")
 		database.SettingsUpdateValue("xcomApiKey", "")
 		database.SettingsUpdateValue("xcomAccessToken", "")
+		services.XcomClearUserCache()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com credentials removed"})
 	})
 }

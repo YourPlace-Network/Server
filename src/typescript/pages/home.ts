@@ -12,6 +12,7 @@ import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowNotifications} from "../util/notifications";
 import {ShowDialogModalHTML} from "../components/modalDialog";
+import {CreateXcomPostCard} from "../util/domFactory";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -36,7 +37,19 @@ import {ShowDialogModalHTML} from "../components/modalDialog";
         let feedHasMore = true;
         let feedNewestTimestamp: number | null = null;
         const loadedTxHashes = new Set<string>();
+        const loadedXcomIds = new Set<string>();
 
+        async function loadXcomTimeline(): Promise<any[]> {
+            try {
+                let resp = await HttpGetJson("/services/xcom/timeline");
+                if (resp[0] === 200 && resp[1].posts) {
+                    return resp[1].posts.filter((post: any) => !loadedXcomIds.has(post.id));
+                }
+            } catch (error) {
+                console.error("Error loading X.com timeline:", error);
+            }
+            return [];
+        }
         async function loadFollowersFeed(mode: "initial" | "more" | "refresh" = "initial") {
             if (DOM.isCookieAuthenticated.value !== "true") {
                 DOM.followersFeedSection.style.display = "none";
@@ -58,14 +71,17 @@ import {ShowDialogModalHTML} from "../components/modalDialog";
                     feedHasMore = true;
                     feedNewestTimestamp = null;
                     loadedTxHashes.clear();
+                    loadedXcomIds.clear();
                 }
                 const requestOffset = mode === "refresh" ? 0 : feedOffset;
-                let resp = await HttpGetJson(`/feed/${userBlockchain}/${userAddress}?limit=${FEED_PAGE_SIZE + 1}&offset=${requestOffset}`);
-                if (resp[0] !== 200 || !resp[1].posts) {
+                const [feedResp, xcomPosts] = await Promise.all([
+                    HttpGetJson(`/feed/${userBlockchain}/${userAddress}?limit=${FEED_PAGE_SIZE + 1}&offset=${requestOffset}`),
+                    mode === "initial" ? loadXcomTimeline() : Promise.resolve([])
+                ]);
+                if (feedResp[0] !== 200 || !feedResp[1].posts) {
                     return;
                 }
-                let posts: any[] = resp[1].posts;
-                // Check if there are more posts (we requested one extra)
+                let posts: any[] = feedResp[1].posts;
                 if (mode !== "refresh") {
                     feedHasMore = posts.length > FEED_PAGE_SIZE;
                     if (feedHasMore) {
@@ -73,25 +89,48 @@ import {ShowDialogModalHTML} from "../components/modalDialog";
                     }
                     feedOffset += posts.length;
                 }
-                // Filter out already loaded posts
                 posts = posts.filter(post => !loadedTxHashes.has(post.txHash));
-                if (posts.length === 0) {
-                    return;
-                }
-                // Track loaded posts and update newest timestamp
                 posts.forEach(post => {
                     loadedTxHashes.add(post.txHash);
                     if (feedNewestTimestamp === null || post.timestamp > feedNewestTimestamp) {
                         feedNewestTimestamp = post.timestamp;
                     }
                 });
+                interface FeedItem {
+                    type: "native" | "xcom";
+                    timestamp: number;
+                    data: any;
+                }
+                let feedItems: FeedItem[] = posts.map(post => ({
+                    type: "native" as const,
+                    timestamp: post.timestamp * 1000,
+                    data: post
+                }));
+                if (mode === "initial" && xcomPosts.length > 0) {
+                    for (const xpost of xcomPosts) {
+                        loadedXcomIds.add(xpost.id);
+                        feedItems.push({
+                            type: "xcom",
+                            timestamp: new Date(xpost.created_at).getTime(),
+                            data: xpost
+                        });
+                    }
+                    feedItems.sort((a, b) => b.timestamp - a.timestamp);
+                }
+                if (feedItems.length === 0) {
+                    return;
+                }
                 const pendingCards: HTMLDivElement[] = [];
-                // Create all cards with placeholder data
-                for (let i = 0; i < posts.length; i++) {
-                    posts[i].author = "Loading...";
-                    posts[i].avatarSrc = "/static/image/avatar.png";
-                    let postDiv = await CreatePostCard(posts[i]);
-                    pendingCards.push(postDiv);
+                for (const item of feedItems) {
+                    if (item.type === "native") {
+                        item.data.author = "Loading...";
+                        item.data.avatarSrc = "/static/image/avatar.png";
+                        let postDiv = await CreatePostCard(item.data);
+                        pendingCards.push(postDiv);
+                    } else {
+                        let postDiv = await CreateXcomPostCard(item.data);
+                        pendingCards.push(postDiv);
+                    }
                 }
                 // Add cards to DOM in correct order
                 if (mode === "refresh") {

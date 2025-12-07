@@ -106,6 +106,7 @@ import {Sleep} from "../util/time";
             xcomApiKey: document.getElementById("xcomApiKey")! as HTMLInputElement,
             xcomApiSecret: document.getElementById("xcomApiSecret")! as HTMLInputElement,
             xcomCrossPostCheckbox: document.getElementById("xcomCrossPostCheckbox")! as HTMLInputElement,
+            xcomFeedAggregationCheckbox: document.getElementById("xcomFeedAggregationCheckbox")! as HTMLInputElement,
             xcomStatusLight: document.getElementById("xcomStatusLight")! as HTMLDivElement,
         }
         let popperInstance: Instance | null = null;
@@ -866,44 +867,77 @@ import {Sleep} from "../util/time";
                 ShowDialogModal(response[1].status || "Failed to toggle TOR hidden service");
             }
         }
-        async function getXcomCrossPost() {
-            let response = await HttpGetJson("/settings/services/xcom/crosspost");
+        let xcomCredentialsValid = false;
+        async function getXcomSettings() {
+            let response = await HttpGetJson("/settings/services/xcom/settings");
             if (response[0] === 200) {
-                DOM.xcomCrossPostCheckbox.checked = response[1].enabled;
-                setXcomCredentialsEnabled(response[1].enabled);
+                DOM.xcomCrossPostCheckbox.checked = response[1].crossPostEnabled;
+                DOM.xcomFeedAggregationCheckbox.checked = response[1].feedAggregationEnabled;
             }
+        }
+        function showXcomCredentialsModal() {
+            ShowDialogModalHTML(
+                "<b>X.com API Credentials Required</b><br><br>" +
+                "To use X.com features, you need to create an X.com Developer account and generate API credentials.<br><br>" +
+                "<b>Steps:</b><br>" +
+                "1. Go to the <a href='https://developer.x.com/en/portal/dashboard' target='_blank'>X Developer Portal</a><br>" +
+                "2. Create a new App or use an existing one<br>" +
+                "3. Generate your API Key, API Secret, Access Token, and Access Token Secret<br>" +
+                "4. Enter the credentials above and click Save<br><br>" +
+                "<a href='https://developer.x.com/en/docs/authentication/oauth-1-0a' target='_blank'>View X.com OAuth Documentation</a>"
+            );
         }
         async function setXcomCrossPost() {
             const enabling = DOM.xcomCrossPostCheckbox.checked;
-            if (enabling) {
-                ShowDialogModalHTML(
-                    "<b>X.com API Credentials Required</b><br><br>" +
-                    "To enable cross-posting, you need to create an X.com Developer account and generate API credentials.<br><br>" +
-                    "<b>Steps:</b><br>" +
-                    "1. Go to the <a href='https://developer.x.com/en/portal/dashboard' target='_blank'>X Developer Portal</a><br>" +
-                    "2. Create a new App or use an existing one<br>" +
-                    "3. Generate your API Key, API Secret, Access Token, and Access Token Secret<br>" +
-                    "4. Enter the credentials below and click Save<br><br>" +
-                    "<a href='https://developer.x.com/en/docs/authentication/oauth-1-0a' target='_blank'>View X.com OAuth Documentation</a>"
-                );
+            if (enabling && !xcomCredentialsValid) {
+                DOM.xcomCrossPostCheckbox.checked = false;
+                showXcomCredentialsModal();
+                return;
             }
             let response = await HttpPostJson("/settings/services/xcom/crosspost", {enabled: enabling}, DOM.csrfToken.value);
             if (response[0] === 200) {
-                setXcomCredentialsEnabled(enabling);
                 ShowSavedToast();
             } else {
                 DOM.xcomCrossPostCheckbox.checked = !enabling;
                 ShowDialogModal(response[1].status || "Failed to update cross-post setting");
             }
         }
-        function setXcomCredentialsEnabled(enabled: boolean) {
-            DOM.xcomApiKey.disabled = !enabled;
-            DOM.xcomApiSecret.disabled = !enabled;
-            DOM.xcomAccessToken.disabled = !enabled;
-            DOM.xcomAccessTokenSecret.disabled = !enabled;
-            DOM.saveXcomCredentialsBtn.disabled = !enabled;
-            DOM.removeXcomCredentialsBtn.disabled = !enabled;
-            DOM.testXcomCredentialsBtn.disabled = !enabled;
+        async function setXcomFeedAggregation() {
+            const enabling = DOM.xcomFeedAggregationCheckbox.checked;
+            if (enabling && !xcomCredentialsValid) {
+                DOM.xcomFeedAggregationCheckbox.checked = false;
+                showXcomCredentialsModal();
+                return;
+            }
+            if (enabling) {
+                DOM.xcomFeedAggregationCheckbox.checked = false;
+                let confirmed = await ShowModalYesNoHTML(
+                    "<b>X.com API - Basic Tier Required</b><br><br>" +
+                    "Feed aggregation requires the X.com API <b>Basic tier</b> ($200/month) or higher. " +
+                    "The Free tier does not support reading timelines.<br><br>" +
+                    "If you have a Basic or higher tier subscription, enabling this feature will fetch your X.com timeline " +
+                    "and display posts alongside your YourPlace feed.<br><br>" +
+                    "Do you have a paid X.com API subscription and want to enable feed aggregation?"
+                );
+                if (confirmed) {
+                    DOM.xcomFeedAggregationCheckbox.checked = true;
+                    let response = await HttpPostJson("/settings/services/xcom/feedaggregation", {enabled: true}, DOM.csrfToken.value);
+                    if (response[0] === 200) {
+                        ShowSavedToast();
+                    } else {
+                        DOM.xcomFeedAggregationCheckbox.checked = false;
+                        ShowDialogModal(response[1].status || "Failed to enable feed aggregation");
+                    }
+                }
+            } else {
+                let response = await HttpPostJson("/settings/services/xcom/feedaggregation", {enabled: false}, DOM.csrfToken.value);
+                if (response[0] === 200) {
+                    ShowSavedToast();
+                } else {
+                    DOM.xcomFeedAggregationCheckbox.checked = true;
+                    ShowDialogModal(response[1].status || "Failed to disable feed aggregation");
+                }
+            }
         }
         async function getXcomCredentials() {
             let response = await HttpGetJson("/settings/services/xcom/credentials");
@@ -918,6 +952,7 @@ import {Sleep} from "../util/time";
                     DOM.xcomAccessToken.value = "";
                     DOM.xcomAccessTokenSecret.value = "";
                 }
+                xcomCredentialsValid = response[1].isValid;
                 updateXcomStatusLight(response[1].isValid);
             }
         }
@@ -1114,6 +1149,7 @@ import {Sleep} from "../util/time";
         DOM.saveAlgoURLBtn!.addEventListener("click", setAlgoURL);
         DOM.algoIndexerRunCheckbox!.addEventListener("change", setAlgoIndexerRunning);
         DOM.xcomCrossPostCheckbox.addEventListener("change", setXcomCrossPost);
+        DOM.xcomFeedAggregationCheckbox.addEventListener("change", setXcomFeedAggregation);
         DOM.saveXcomCredentialsBtn.addEventListener("click", setXcomCredentials);
         DOM.removeXcomCredentialsBtn.addEventListener("click", removeXcomCredentials);
         DOM.testXcomCredentialsBtn.addEventListener("click", testXcomCredentials);
@@ -1166,8 +1202,8 @@ import {Sleep} from "../util/time";
             getNetworkPorts().then();
         });
         DOM.collapseXcom.addEventListener("show.bs.collapse", function() {
-            getXcomCrossPost().then();
             getXcomCredentials().then();
+            getXcomSettings().then();
         });
 
         init().then();
