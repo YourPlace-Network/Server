@@ -27,6 +27,11 @@ export default {
     mode: "production",
     module: {
         rules: [{
+            test: /node_modules\/apg-js/,
+            resolve: {
+                fullySpecified: false,
+            },
+        },{
             test: /node_modules\/@avmkit\/siwa/,
             resolve: {
                 fullySpecified: false,
