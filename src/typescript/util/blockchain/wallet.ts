@@ -27,6 +27,25 @@ import {
     mainnetBase,
     baseGetDescription
 } from "./base";
+import {
+    hasLocalWalletEthereum,
+    localWalletEthereumAuthLogin,
+    localWalletEthereumConnect,
+    localWalletEthereumDisconnect,
+    localWalletEthereumFollowUser,
+    localWalletEthereumReconnect,
+    localWalletEthereumSetAvatar,
+    localWalletEthereumSetBanner,
+    localWalletEthereumSetDescription,
+    localWalletEthereumSetLocation,
+    localWalletEthereumSetName,
+    localWalletEthereumSetVertical,
+    localWalletEthereumSetWebsite,
+    localWalletEthereumSubmitPost,
+    localWalletEthereumSubmitPostAttach,
+    localWalletEthereumTxn,
+    localWalletEthereumUnfollowUser,
+} from "./localWallet";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
@@ -37,6 +56,13 @@ export async function WalletLogin() {
     let wallet = GetWallet();
     let address = GetAddress();
     switch (wallet) {
+        case "localwalletethereum":
+            let localLoginStatus = await localWalletEthereumAuthLogin();
+            if (localLoginStatus !== "success") {
+                LogError("Failed to login with local wallet: " + localLoginStatus);
+                return "";
+            }
+            return localLoginStatus;
         case "pera":
             if (!address) {
                 LogError("No address found for Pera wallet login");
@@ -68,11 +94,13 @@ export async function WalletLogin() {
 export async function DisconnectWallet() {
     let wallet = GetWallet()!;
     switch (wallet) {
-        case "pera":
-            await algoDisconnectWallet();
-            break;
         case "cbwalletbase":
             await baseDisconnectWallet();
+            break;
+        case "localwalletethereum":
+            break;
+        case "pera":
+            await algoDisconnectWallet();
             break;
         case "phantomsolana":
             await solanaDisconnectWallet();
@@ -81,29 +109,15 @@ export async function DisconnectWallet() {
     SetWallet("");
     SetChain("");
     SetAddress("");
+    const localWalletData = localStorage.getItem("yp_local_wallet_ethereum");
     localStorage.clear();
+    if (localWalletData) {
+        localStorage.setItem("yp_local_wallet_ethereum", localWalletData);
+    }
     window.DisconnectWalletCallback();
 }
 export async function ConnectWallet(wallet: string): Promise<string> {
     switch (wallet) {
-        case "pera":
-            LogInfo("Connecting to Pera wallet");
-            let address = await algoConnectWallet("pera");
-            if (!address || address === "") {
-                LogError("Pera wallet returned empty address");
-                SetWallet("");
-                SetChain("");
-                SetAddress("");
-                return "Failed to connect to Pera wallet: Empty address";
-            }
-            if (IsValidAlgoAddress(address)) {
-                SetWallet("pera");
-                SetChain("algorand");
-                SetAddress(address);
-                return "success";
-            }
-            LogError("Failed to connect to Pera wallet: Invalid address");
-            return "Failed to connect to Pera wallet: Invalid address";
         case "cbwalletbase":
             LogInfo("Connecting to Base wallet");
             let addressBase = await baseConnectWallet();
@@ -126,6 +140,45 @@ export async function ConnectWallet(wallet: string): Promise<string> {
             SetChain("base");
             SetAddress(addressBase);
             return "success";
+        case "localwalletethereum":
+            LogInfo("Connecting to local Ethereum wallet");
+            let addressLocal = await localWalletEthereumConnect();
+            if (!addressLocal || addressLocal === "") {
+                LogError("Local wallet returned empty address");
+                SetWallet("");
+                SetChain("");
+                SetAddress("");
+                return "Failed to connect to local wallet: Empty address";
+            }
+            if (!IsValidBaseAddress(addressLocal)) {
+                LogError("Failed to connect to local wallet: Invalid address");
+                SetWallet("");
+                SetChain("");
+                SetAddress("");
+                return "Failed to connect to local wallet: Invalid address";
+            }
+            SetWallet("localwalletethereum");
+            SetChain("base");
+            SetAddress(addressLocal);
+            return "success";
+        case "pera":
+            LogInfo("Connecting to Pera wallet");
+            let address = await algoConnectWallet("pera");
+            if (!address || address === "") {
+                LogError("Pera wallet returned empty address");
+                SetWallet("");
+                SetChain("");
+                SetAddress("");
+                return "Failed to connect to Pera wallet: Empty address";
+            }
+            if (IsValidAlgoAddress(address)) {
+                SetWallet("pera");
+                SetChain("algorand");
+                SetAddress(address);
+                return "success";
+            }
+            LogError("Failed to connect to Pera wallet: Invalid address");
+            return "Failed to connect to Pera wallet: Invalid address";
         case "phantomsolana":
             let addressSolana = await phantomSolanaConnectWallet();
             if (!addressSolana || addressSolana === "") {
@@ -151,15 +204,18 @@ export async function ReconnectWallet() {
         return;
     }
     switch (wallet) {
-        case "pera":
-            algoReconnectSession();
-            break;
         case "cbwalletbase":
             // Only reconnect if we have stored credentials - don't prompt for new connection
             const wagmiStore = localStorage.getItem("wagmi.store");
             if (wagmiStore) {
                 await baseConnectWallet();
             }
+            break;
+        case "localwalletethereum":
+            await localWalletEthereumReconnect();
+            break;
+        case "pera":
+            algoReconnectSession();
             break;
     }
 }
@@ -177,7 +233,7 @@ export function GetAddress() {
     return null;
 }
 export function GetWallet() {
-    const supportedWallets = ["pera", "cbwalletbase", "phantomsolana"];
+    const supportedWallets = ["cbwalletbase", "localwalletethereum", "pera", "phantomsolana"];
     let wallet = localStorage.getItem("walletSelection");
     if (wallet !== null && supportedWallets.includes(wallet)) {
         return wallet;
@@ -303,65 +359,86 @@ export function SetChain(chain: string) {
 }
 export async function WalletSetAvatar(avatarURL: string): Promise<boolean> {
     let walletSelection = GetWallet()!;
-    if (walletSelection == "pera") {
-        await setAlgoAvatar(avatarURL);
-    } else if (walletSelection == "cbwalletbase") {
-        return !!await baseSetAvatar(avatarURL);
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetAvatar(avatarURL);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetAvatar(avatarURL);
+        case "pera":
+            await setAlgoAvatar(avatarURL);
+            return true;
     }
     return false;
 }
 export async function WalletSetBanner(bannerURL: string): Promise<boolean> {
     let walletSelection = GetWallet()!;
-    if (walletSelection == "pera") {
-        //algo stuff
-    } else if (walletSelection == "cbwalletbase") {
-        return !!await baseSetBanner(bannerURL);
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetBanner(bannerURL);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetBanner(bannerURL);
+        case "pera":
+            break;
     }
     return false;
 }
 export async function WalletSetDescription(description: string): Promise<boolean> {
     let walletSelection = GetWallet()!;
-    if (walletSelection == "pera") {
-        //algo stuff
-    } else if (walletSelection == "cbwalletbase") {
-        return !!await baseSetDescription(description);
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetDescription(description);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetDescription(description);
+        case "pera":
+            break;
     }
     return false;
 }
 export async function WalletSetLocation(location: string): Promise<boolean> {
     let walletSelection = GetWallet()!;
-    if (walletSelection == "pera") {
-        //algo stuff
-    } else if (walletSelection == "cbwalletbase") {
-        return !!await baseSetLocation(location);
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetLocation(location);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetLocation(location);
+        case "pera":
+            break;
     }
     return false;
 }
 export async function WalletSetVertical(vertical: string): Promise<boolean> {
     let walletSelection = GetWallet()!;
-    if (walletSelection == "pera") {
-        //algo stuff
-    } else if (walletSelection == "cbwalletbase") {
-        return !!await baseSetVertical(vertical);
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetVertical(vertical);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetVertical(vertical);
+        case "pera":
+            break;
     }
     return false;
 }
 export async function WalletSetWebsite(website: string): Promise<boolean> {
     let walletSelection = GetWallet()!;
-    if (walletSelection == "pera") {
-        //algo stuff
-    } else if (walletSelection == "cbwalletbase") {
-        return !!await baseSetWebsite(website);
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetWebsite(website);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetWebsite(website);
+        case "pera":
+            break;
     }
     return false;
 }
 export async function WalletSetName(name: string): Promise<boolean> {
     let wallet = GetWallet()!;
     switch (wallet) {
-        case "pera":
-            return await algoSetName(name);
         case "cbwalletbase":
             return !!await baseSetName(name);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetName(name);
+        case "pera":
+            return await algoSetName(name);
         default:
             return false;
     }
@@ -378,11 +455,14 @@ export async function WalletSubmitPost(payload: string): Promise<boolean> {
         await ReconnectWallet();
     }
     switch (wallet) {
-        case "pera":
-            await setAlgoPost(payload);
-            return true;
         case "cbwalletbase":
             await baseSubmitPost(payload);
+            return true;
+        case "localwalletethereum":
+            await localWalletEthereumSubmitPost(payload);
+            return true;
+        case "pera":
+            await setAlgoPost(payload);
             return true;
         default:
             LogError("Invalid wallet selection: " + wallet);
@@ -401,11 +481,14 @@ export async function WalletSubmitPostAttach(payload: string, attach: string[][]
         await ReconnectWallet();
     }
     switch (wallet) {
-        case "pera":
-            //await setAlgoPostAttach(payload, attach);
-            return true;
         case "cbwalletbase":
             await baseSubmitPostAttach(payload, attach);
+            return true;
+        case "localwalletethereum":
+            await localWalletEthereumSubmitPostAttach(payload, attach);
+            return true;
+        case "pera":
+            //await setAlgoPostAttach(payload, attach);
             return true;
         default:
             LogError("Invalid wallet selection: " + wallet);
@@ -416,15 +499,23 @@ export async function WalletSendPostNudge(address: string) {
     let wallet = GetWallet()!;
     let nudge = "👋 Your friends sent you this invitation to join https://yourplace.network - Your profile is awaiting!";
     switch (wallet) {
-        case "pera":
-            break;
         case "cbwalletbase":
-            const txnId = await baseTxn(address, nudge);
-            if (!txnId) {
+            const txnIdBase = await baseTxn(address, nudge);
+            if (!txnIdBase) {
                 ShowDialogModal("Failed to send nudge - try again later");
                 break;
             }
-            ShowDialogModalHTMLUnsafe("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnId) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
+            ShowDialogModalHTMLUnsafe("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdBase) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
+            break;
+        case "localwalletethereum":
+            const txnIdLocal = await localWalletEthereumTxn(address, nudge);
+            if (!txnIdLocal) {
+                ShowDialogModal("Failed to send nudge - try again later");
+                break;
+            }
+            ShowDialogModalHTMLUnsafe("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdLocal) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
+            break;
+        case "pera":
             break;
         default:
             LogError("Invalid wallet selection");
@@ -439,13 +530,19 @@ export async function WalletFollowUser(toAddress: string, toBlockchain: string):
         return "";
     }
     switch (wallet) {
-        case "pera":
-            break;
         case "cbwalletbase":
-            let txID = await baseFollowUser(toAddress, toBlockchain);
-            if (txID) {
-                return txID.toString();
+            let txIDBase = await baseFollowUser(toAddress, toBlockchain);
+            if (txIDBase) {
+                return txIDBase.toString();
             }
+            break;
+        case "localwalletethereum":
+            let txIDLocal = await localWalletEthereumFollowUser(toAddress, toBlockchain);
+            if (txIDLocal) {
+                return txIDLocal.toString();
+            }
+            break;
+        case "pera":
             break;
     }
     return "";
@@ -458,13 +555,19 @@ export async function WalletUnfollowUser(toAddress: string, toBlockchain: string
         return "";
     }
     switch (wallet) {
-        case "pera":
-            break;
         case "cbwalletbase":
-            let txID = await baseUnfollowUser(toAddress, toBlockchain);
-            if (txID) {
-                return txID.toString();
+            let txIDBase = await baseUnfollowUser(toAddress, toBlockchain);
+            if (txIDBase) {
+                return txIDBase.toString();
             }
+            break;
+        case "localwalletethereum":
+            let txIDLocal = await localWalletEthereumUnfollowUser(toAddress, toBlockchain);
+            if (txIDLocal) {
+                return txIDLocal.toString();
+            }
+            break;
+        case "pera":
             break;
     }
     return "";
@@ -474,10 +577,12 @@ export async function WalletUnfollowUser(toAddress: string, toBlockchain: string
 export async function WalletIsConnected(): Promise<boolean> {
     let wallet = GetWallet();
     switch (wallet) {
-        case "pera":
-            return !!peraWallet.connector?.connected;
         case "cbwalletbase":
             return false;
+        case "localwalletethereum":
+            return hasLocalWalletEthereum();
+        case "pera":
+            return !!peraWallet.connector?.connected;
     }
     return false;
 }
@@ -500,10 +605,11 @@ export function IsValidAddress(address: string, chain?: string): boolean {
         }
     }
     switch (wallet) {
+        case "cbwalletbase":
+        case "localwalletethereum":
+            return IsValidBaseAddress(address);
         case "pera":
             return IsValidAlgoAddress(address);
-        case "cbwalletbase":
-            return IsValidBaseAddress(address);
     }
     return false;
 }
@@ -514,7 +620,7 @@ export function TruncateAddress(address: string) {
         let middle = "...";
         let end = address.slice(52, 58);
         return first + middle + end;
-    } else if (wallet == "cbwalletbase" || wallet == "eth") {
+    } else if (wallet == "cbwalletbase" || wallet == "eth" || wallet == "localwalletethereum") {
         let first = address.slice(0, 6);
         let middle = "...";
         let end = address.slice(35, 41);

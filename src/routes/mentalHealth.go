@@ -38,6 +38,10 @@ func MentalHealthRoutes(router *gin.Engine, title string, database *db.Database,
 				}
 			}
 		}
+		ogUrl := "https://app.yourplace.network/mentalHealth"
+		if tipHash != "" {
+			ogUrl += "?tip=" + tipHash
+		}
 		c.HTML(http.StatusOK, "src/templates/pages/mentalHealth.tmpl", gin.H{
 			"gatewayMode":           gateway,
 			"isCookieAuthenticated": authenticated,
@@ -45,6 +49,7 @@ func MentalHealthRoutes(router *gin.Engine, title string, database *db.Database,
 			"ogImage":               "https://app.yourplace.network/static/image/yourplace-logo.png",
 			"ogTitle":               ogTitle,
 			"ogType":                "article",
+			"ogUrl":                 ogUrl,
 			"pageName":              "mentalHealth",
 			"tipHash":               tipHash,
 			"title":                 title,
@@ -1094,4 +1099,6 @@ var mentalHealthTips = []string{
 	"Increasing the GDP is not worth decreasing sovereignty or the overall quality of life",
 	"Fraudsters will necessarily come up with a very sympathetic story",
 	"Don't upend society to allow an 90 year old a few more years to live. They've lived their life, and the young need a stable future more than the old need a year or two more in bed hooked up to machines",
+	"Going to college is a gamble. It can either unlock a high paying career, or saddle you with life-long debt. The trick is to bet on a good degree in a growing field of study that has high employment",
+	"Working hard is your best chance at success, but it's not a guarantee",
 }

@@ -4,7 +4,8 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import {DisableDialogModalExit, DisableDialogModalOkBtn, HideDialogModal, ShowDialogModal} from "../components/modalDialog";
 import "../../scss/pages/login.scss";
 import {HideModalLogin, ShowModalLogin} from "../components/modalLogin";
-import {GetAddress, IsValidAddress} from "../util/blockchain/wallet";
+import {GetAddress, IsValidAddress, SetAddress, SetChain, SetWallet, WalletLogin} from "../util/blockchain/wallet";
+import {hasLocalWalletEthereum, localWalletEthereumConnect} from "../util/blockchain/localWallet";
 import {LogError, LogInfo} from "../util/log";
 import {Sleep} from "../util/time";
 
@@ -99,9 +100,34 @@ declare global { // Extend the window interface with public callback objects
             const name = cookie.split("=")[0].trim();
             document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
         });
+        const localWalletData = localStorage.getItem("yp_local_wallet_ethereum");
         localStorage.clear();
         sessionStorage.clear();
+        if (localWalletData) {
+            localStorage.setItem("yp_local_wallet_ethereum", localWalletData);
+        }
         InitTooltips();
-        ShowModalLogin();
+        if (hasLocalWalletEthereum()) {
+            autoLoginLocalWallet();
+        } else {
+            ShowModalLogin();
+        }
+        async function autoLoginLocalWallet() {
+            const address = await localWalletEthereumConnect();
+            if (!address || address === "") {
+                ShowModalLogin();
+                return;
+            }
+            SetWallet("localwalletethereum");
+            SetChain("base");
+            SetAddress(address);
+            const loginResult = await WalletLogin();
+            if (loginResult !== "success") {
+                LogError("Auto-login failed: " + loginResult);
+                ShowModalLogin();
+                return;
+            }
+            window.LoginCallback("success");
+        }
     }
 })();

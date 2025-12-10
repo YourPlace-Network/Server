@@ -11,7 +11,11 @@ declare global { // Extend the window interface with public callback objects
 
     function main() {
         window.DisconnectWalletCallback = function () {
+            const localWalletData = localStorage.getItem("yp_local_wallet_ethereum");
             localStorage.clear();
+            if (localWalletData) {
+                localStorage.setItem("yp_local_wallet_ethereum", localWalletData);
+            }
             window.location.replace("/");
         }
 

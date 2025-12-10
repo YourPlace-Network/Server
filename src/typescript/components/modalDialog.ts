@@ -76,9 +76,11 @@ export function ShowDialogModalWithCallback(message: string, onOk: () => void) {
     document.getElementById("modalDialogContent")!.textContent = message;
     let element = document.getElementById("modalDialog")!;
     let okBtn = element.querySelector(".yp-modal-btn")! as HTMLButtonElement;
+    DisableDialogModalExit();
     let modal = window.bootstrap.Modal.getOrCreateInstance(element);
     const handleOk = () => {
         okBtn.removeEventListener("click", handleOk);
+        EnableDialogModalExit();
         onOk();
     };
     okBtn.addEventListener("click", handleOk);
