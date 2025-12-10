@@ -27,11 +27,6 @@ export default {
     mode: "production",
     module: {
         rules: [{
-            test: /node_modules\/apg-js/,
-            resolve: {
-                fullySpecified: false,
-            },
-        },{
             test: /node_modules\/@avmkit\/siwa/,
             resolve: {
                 fullySpecified: false,
@@ -112,6 +107,8 @@ export default {
             "path": "path-browserify",
         },
         alias: {
+            "apg-js/src/apg-api/api": "apg-js/src/apg-api/api.js",
+            "apg-js/src/apg-lib/node-exports": "apg-js/src/apg-lib/node-exports.js",
             process: "process/browser",
         }
     },
