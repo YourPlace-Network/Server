@@ -1101,4 +1101,5 @@ var mentalHealthTips = []string{
 	"Don't upend society to allow an 90 year old a few more years to live. They've lived their life, and the young need a stable future more than the old need a year or two more in bed hooked up to machines",
 	"Going to college is a gamble. It can either unlock a high paying career, or saddle you with life-long debt. The trick is to bet on a good degree in a growing field of study that has high employment",
 	"Working hard is your best chance at success, but it's not a guarantee",
+	"Men: If you're in a relationship with a woman, then you need to go out during the day and accomplish *something*. It subconsciously satisfies her desire to see her man provide for her. It's something that's wired into our brains after thousands of years of human behavior - the man goes out and hunts for dinner",
 }
