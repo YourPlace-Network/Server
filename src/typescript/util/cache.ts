@@ -2,7 +2,7 @@ interface CacheEntry<T> {
     data: T;
     expiresAt: number;
 }
-const DEFAULT_LIFETIME_MS = 24 * 60 * 60 * 1000; // 24 hours
+const DEFAULT_LIFETIME_MS = 72 * 60 * 60 * 1000; // 72 hours
 export class PersistentCache {
     private readonly prefix: string;
     private readonly lifetimeMs: number;
