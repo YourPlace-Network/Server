@@ -2,6 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalLogin.scss";
 import {ShowDialogModal, ShowDialogModalHTML, ShowDialogModalWithCallback} from "./modalDialog";
 import {ConnectWallet, ReconnectWallet, SetAddress, SetChain, SetWallet, WalletLogin} from "../util/blockchain/wallet";
+import {basePrefetchLoginNonce} from "../util/blockchain/base";
 import {hasLocalWalletEthereum, localWalletEthereumConnect, localWalletEthereumCreate} from "../util/blockchain/localWallet";
 import {IsGatewayMode} from "../util/miscellaneous";
 
@@ -23,6 +24,7 @@ export function HideModalLogin() {
 
     function main() {
         ReconnectWallet().then();
+        basePrefetchLoginNonce().then();
         modal = new window.bootstrap.Modal("#loginModal", {});
         let DOM = {
             noWalletBtn: document.getElementById("noWalletBtn")! as HTMLButtonElement,
@@ -107,7 +109,7 @@ export function HideModalLogin() {
                 }
                 if (window.location.pathname !== "/setup") {
                     let loginResult = await WalletLogin();
-                    if (loginResult === "wallet_not_deployed") {
+                    if (loginResult === "wallet_not_deployed" || loginResult === "popup_blocked") {
                         return;
                     }
                     if (loginResult !== "success") {

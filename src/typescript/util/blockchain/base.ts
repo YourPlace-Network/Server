@@ -47,6 +47,8 @@ export const mainnetBase = {
     universalResolver: "0xf74b949f2105178eEEd4Ef35a131715E967337ab",
     burnAddress: "0x0000000000000000000000000000000000000000",
 }
+let prefetchedNonce: {nonce: string, issuedAt: string, fetchedAt: number} | null = null;
+const NONCE_PREFETCH_VALIDITY_MS = 300000;
 const metadataYourPlace = {
     name: "YourPlace",
     description: "Distributed Social Media",
@@ -111,6 +113,21 @@ async function initBaseWallet() {
 initBaseWallet().then();
 
 // ---------- Core Wallet Functions ---------- //
+export async function basePrefetchLoginNonce(): Promise<void> {
+    try {
+        const response = await HttpGetJson("/login/nonce");
+        if (response[0] === 200) {
+            prefetchedNonce = {
+                nonce: response[1].nonce,
+                issuedAt: response[1].issuedAt,
+                fetchedAt: Date.now(),
+            };
+            LogInfo("Pre-fetched login nonce for Base wallet popup optimization");
+        }
+    } catch (e) {
+        LogError("Failed to pre-fetch login nonce: " + e);
+    }
+}
 export async function baseAuthLogin(): Promise<string> {
     // RET: string - "success" or error message or ""
     if (!baseInit) {
@@ -127,13 +144,22 @@ export async function baseAuthLogin(): Promise<string> {
         LogError("Invalid Base address - baseAuthLogin()");
         return "invalid address";
     }
-    const response = await HttpGetJson("/login/nonce");
-    if (response[0] != 200) {
-        LogError("Failed to get login nonce from server: " + response[1]);
-        return "nonce failed";
+    let nonce: string;
+    let issuedAt: string;
+    if (prefetchedNonce && (Date.now() - prefetchedNonce.fetchedAt) < NONCE_PREFETCH_VALIDITY_MS) {
+        nonce = prefetchedNonce.nonce;
+        issuedAt = prefetchedNonce.issuedAt;
+        prefetchedNonce = null;
+        LogInfo("Using pre-fetched nonce for faster popup");
+    } else {
+        const response = await HttpGetJson("/login/nonce");
+        if (response[0] != 200) {
+            LogError("Failed to get login nonce from server: " + response[1]);
+            return "nonce failed";
+        }
+        nonce = response[1].nonce;
+        issuedAt = response[1].issuedAt;
     }
-    let nonce = response[1].nonce;
-    let issuedAt = response[1].issuedAt;
     const checksumAddress = getAddress(address);
     LogInfo(`Creating SIWE with: domain=${window.location.host}, address=${checksumAddress}, uri=${window.location.origin}, chainId=${mainnetBase.ethChainID}, nonce=${nonce}, issuedAt=${issuedAt}`);
     const siweMsg = new SiweMessage({
@@ -154,8 +180,12 @@ export async function baseAuthLogin(): Promise<string> {
             account: address as `0x${string}`,
             message: siweMessage,
         });
-    } catch(error) {
-        LogError("Failed to sign SIWE message");
+    } catch(error: any) {
+        if (error?.message?.toLowerCase().includes("popup") || error?.message?.toLowerCase().includes("blocked")) {
+            LogError("Popup was blocked by browser - please allow popups for this site");
+            return "popup_blocked";
+        }
+        LogError("Failed to sign SIWE message: " + error?.message);
         return "sign failed";
     }
     let loginPayload = {

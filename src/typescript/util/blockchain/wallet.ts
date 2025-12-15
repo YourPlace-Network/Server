@@ -74,6 +74,10 @@ export async function WalletLogin() {
             if (loginStatus === "wallet_not_deployed") {
                 return "wallet_not_deployed";
             }
+            if (loginStatus === "popup_blocked") {
+                ShowDialogModal("Your browser blocked the wallet popup. Please allow popups for this site and try again.");
+                return "popup_blocked";
+            }
             if (loginStatus !== "success") {
                 LogError("Failed to login to Base wallet: " + loginStatus);
                 return "";
