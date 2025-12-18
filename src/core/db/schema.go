@@ -7,7 +7,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -24,9 +24,7 @@ type Migration struct {
 //  3. Create a corresponding migrateVN function below
 var migrations = []Migration{
 	{Version: 1, Description: "Initial schema - base tables created by createTables()", Up: migrateV1},
-	// Future migrations:
-	// {Version: 2, Description: "Add blockNumber column to onchain_post", Up: migrateV2},
-	// {Version: 3, Description: "Add performance indexes", Up: migrateV3},
+	{Version: 2, Description: "Add comment and reaction tables for social interactions", Up: migrateV2},
 }
 
 // --- Migration Functions --- //
@@ -36,6 +34,21 @@ func migrateV1(db *SQLite) error {
 	// Version 1 is the initial schema.
 	// Tables are created by createTables() using CREATE TABLE IF NOT EXISTS.
 	// This migration is a no-op placeholder for the initial version.
+	return nil
+}
+func migrateV2(db *SQLite) error {
+	// Version 2 adds comment and reaction tables for social interactions
+	tables := []string{
+		"CREATE TABLE IF NOT EXISTS onchain_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', parentType TEXT DEFAULT 'post', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', parentType TEXT DEFAULT 'post', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"CREATE TABLE IF NOT EXISTS onchain_reaction (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', targetTxHash TEXT DEFAULT '', targetType TEXT DEFAULT 'post', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+		"CREATE TABLE IF NOT EXISTS onchain_algorand_reaction (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', targetTxHash TEXT DEFAULT '', targetType TEXT DEFAULT 'post', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+	}
+	for _, createStatement := range tables {
+		if _, err := db.database.Exec(createStatement); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

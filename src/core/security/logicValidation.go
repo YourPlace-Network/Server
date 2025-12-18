@@ -565,6 +565,19 @@ func IsValidPort(port int) bool {
 	}
 	return false
 }
+func IsValidTxHash(payload string, blockchain string) bool {
+	if blockchain == "algorand" {
+		return IsValidAlgoTransaction(payload)
+	}
+	if !strings.HasPrefix(payload, "0x") {
+		return false
+	}
+	if len(payload) != 66 {
+		return false
+	}
+	_, err := hex.DecodeString(payload[2:])
+	return err == nil
+}
 func IsValidYourPlaceVersion(payload string) bool {
 	pattern := `^[0-9]+\.[0-9]+\.[0-9]+$`
 	matched, err := regexp.MatchString(pattern, payload)

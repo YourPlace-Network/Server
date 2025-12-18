@@ -87,7 +87,34 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 				}
 			}
 			break
-		case 'r': // Reply Actions
+		case 'c': // Comment Actions
+			switch actionPostfix {
+			case "": // Plain comment
+				if !handleCommentTransaction(payloadObject, txHash, blockchain, fromAddress, amountInt, timestamp, blockNumber) {
+					break
+				}
+			case "a": // Comment with attachments
+				if !handleCommentTransactionAttachment(payloadObject, txHash, blockchain, fromAddress, amountInt, timestamp, blockNumber) {
+					break
+				}
+			}
+			break
+		case 'r': // Reaction Actions
+			switch actionPostfix {
+			case "l": // Like
+				if !handleLikeTransaction(payloadObject, txHash, blockchain, fromAddress, timestamp) {
+					break
+				}
+			case "dl": // Dislike
+				if !handleDislikeTransaction(payloadObject, txHash, blockchain, fromAddress, timestamp) {
+					break
+				}
+			case "e": // Emoji reaction
+				if !handleEmojiReactionTransaction(payloadObject, txHash, blockchain, fromAddress, timestamp) {
+					break
+				}
+			}
+			break
 		case 'f': // Follow Actions
 			switch actionPostfix {
 			case "": // Follow user (directed to recipient)
@@ -354,5 +381,172 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 	}
 	postTextStr = security.SanitizeNonPrintable(postTextStr)
 	_Database.OnchainPA(txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, postTextStr, parsedAttachments)
+	return true
+}
+
+// --- Comment Transaction Parsing Functions --- //
+func handleCommentTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+	targetTxHash, ok1 := payloadObject["t"]
+	commentText, ok2 := payloadObject["p"]
+	if !ok1 || !ok2 {
+		core.LogDebug("Comment Action: missing required fields t or p")
+		return false
+	}
+	targetTxHashStr, ok1 := targetTxHash.(string)
+	commentTextStr, ok2 := commentText.(string)
+	if !ok1 || !ok2 {
+		core.LogDebug("Comment Action: fields are not strings")
+		return false
+	}
+	if !security.IsValidTxHash(targetTxHashStr, blockchain) {
+		core.LogDebug("Comment Action: invalid target transaction hash")
+		return false
+	}
+	commentTextStr = security.SanitizeNonPrintable(commentTextStr)
+	_Database.OnchainC(txHash, blockchain, fromAddress, targetTxHashStr, "post", amountInt, timestamp, commentTextStr)
+	return true
+}
+func handleCommentTransactionAttachment(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+	targetTxHash, ok1 := payloadObject["t"]
+	commentText, ok2 := payloadObject["p"]
+	attachmentsRaw, ok3 := payloadObject["a"]
+	if !ok1 || !ok2 || !ok3 {
+		core.LogDebug("Comment Attach Action: missing required fields")
+		return false
+	}
+	targetTxHashStr, ok1 := targetTxHash.(string)
+	commentTextStr, ok2 := commentText.(string)
+	attachmentsArray, ok3 := attachmentsRaw.([]interface{})
+	if !ok1 || !ok2 || !ok3 {
+		core.LogDebug("Comment Attach Action: fields are not properly typed")
+		return false
+	}
+	if !security.IsValidTxHash(targetTxHashStr, blockchain) {
+		core.LogDebug("Comment Attach Action: invalid target transaction hash")
+		return false
+	}
+	parsedAttachments := []db.Attachment{}
+	for _, attachment := range attachmentsArray {
+		attachmentArray, ok := attachment.([]interface{})
+		if !ok {
+			core.LogDebug("Comment Attach Action: attachment is not array")
+			return false
+		}
+		if len(attachmentArray) != 4 {
+			core.LogDebug("Comment Attach Action: attachment array length is not 4")
+			return false
+		}
+		parsedURL, okURL := attachmentArray[0].(string)
+		parsedMimeType, okMimeType := attachmentArray[1].(string)
+		sizeFloat, okSize := attachmentArray[2].(float64)
+		fileName, okFileName := attachmentArray[3].(string)
+		if !okURL || !okMimeType || !okSize || !okFileName {
+			core.LogDebug("Comment Attach Action: attachment values are not properly typed")
+			return false
+		}
+		if !security.IsValidIndexedFilename(fileName) {
+			core.LogDebug("Comment Attach Action: invalid filename")
+			return false
+		}
+		if !security.IsValidURL(parsedURL) && !security.IsValidCID(parsedURL) {
+			core.LogDebug("Comment Attach Action: invalid URL or CID")
+			return false
+		}
+		if sizeFloat < 0 {
+			core.LogDebug("Comment Attach Action: negative file size")
+			return false
+		}
+		sizeUint := uint64(sizeFloat)
+		parsedAttachment := db.Attachment{
+			FileURL:  parsedURL,
+			MimeType: parsedMimeType,
+			FileSize: sizeUint,
+			FileName: fileName,
+		}
+		parsedAttachments = append(parsedAttachments, parsedAttachment)
+	}
+	commentTextStr = security.SanitizeNonPrintable(commentTextStr)
+	_Database.OnchainCA(txHash, blockchain, fromAddress, targetTxHashStr, "post", amountInt, timestamp, commentTextStr, parsedAttachments)
+	return true
+}
+
+// --- Reaction Transaction Parsing Functions --- //
+func handleLikeTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+	targetTxHash, ok1 := payloadObject["t"]
+	if !ok1 {
+		core.LogDebug("Like Action: missing target transaction hash")
+		return false
+	}
+	targetTxHashStr, ok := targetTxHash.(string)
+	if !ok {
+		core.LogDebug("Like Action: target is not a string")
+		return false
+	}
+	if !security.IsValidTxHash(targetTxHashStr, blockchain) {
+		core.LogDebug("Like Action: invalid target transaction hash")
+		return false
+	}
+	targetType := "post"
+	if targetTypeRaw, ok := payloadObject["y"]; ok {
+		if tt, ok := targetTypeRaw.(string); ok && (tt == "post" || tt == "comment") {
+			targetType = tt
+		}
+	}
+	_Database.OnchainR(txHash, blockchain, fromAddress, targetTxHashStr, targetType, "like", timestamp)
+	return true
+}
+func handleDislikeTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+	targetTxHash, ok1 := payloadObject["t"]
+	if !ok1 {
+		core.LogDebug("Dislike Action: missing target transaction hash")
+		return false
+	}
+	targetTxHashStr, ok := targetTxHash.(string)
+	if !ok {
+		core.LogDebug("Dislike Action: target is not a string")
+		return false
+	}
+	if !security.IsValidTxHash(targetTxHashStr, blockchain) {
+		core.LogDebug("Dislike Action: invalid target transaction hash")
+		return false
+	}
+	targetType := "post"
+	if targetTypeRaw, ok := payloadObject["y"]; ok {
+		if tt, ok := targetTypeRaw.(string); ok && (tt == "post" || tt == "comment") {
+			targetType = tt
+		}
+	}
+	_Database.OnchainR(txHash, blockchain, fromAddress, targetTxHashStr, targetType, "dislike", timestamp)
+	return true
+}
+func handleEmojiReactionTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+	targetTxHash, ok1 := payloadObject["t"]
+	emoji, ok2 := payloadObject["e"]
+	if !ok1 || !ok2 {
+		core.LogDebug("Emoji Reaction Action: missing required fields")
+		return false
+	}
+	targetTxHashStr, ok1 := targetTxHash.(string)
+	emojiStr, ok2 := emoji.(string)
+	if !ok1 || !ok2 {
+		core.LogDebug("Emoji Reaction Action: fields are not strings")
+		return false
+	}
+	if !security.IsValidTxHash(targetTxHashStr, blockchain) {
+		core.LogDebug("Emoji Reaction Action: invalid target transaction hash")
+		return false
+	}
+	if len(emojiStr) == 0 || len(emojiStr) > 32 {
+		core.LogDebug("Emoji Reaction Action: invalid emoji length")
+		return false
+	}
+	emojiStr = security.SanitizeNonPrintable(emojiStr)
+	targetType := "post"
+	if targetTypeRaw, ok := payloadObject["y"]; ok {
+		if tt, ok := targetTypeRaw.(string); ok && (tt == "post" || tt == "comment") {
+			targetType = tt
+		}
+	}
+	_Database.OnchainR(txHash, blockchain, fromAddress, targetTxHashStr, targetType, emojiStr, timestamp)
 	return true
 }

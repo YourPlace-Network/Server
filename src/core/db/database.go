@@ -552,6 +552,122 @@ func (db *Database) OnchainAlgorandDeleteExpired(blockchain string, cutoffTimest
 	}
 }
 
+// --- Comment Functions (Base) --- //
+func (db *Database) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainC(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	}
+}
+func (db *Database) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data, attachments)
+	}
+}
+func (db *Database) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetComments(parentTxHash, blockchain, limit, offset)
+	}
+	return nil
+}
+func (db *Database) GetCommentCount(targetTxHash string, blockchain string) int64 {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetCommentCount(targetTxHash, blockchain)
+	}
+	return 0
+}
+
+// --- Comment Functions (Algorand) --- //
+func (db *Database) OnchainAlgorandC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandC(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	}
+}
+func (db *Database) OnchainAlgorandCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandCA(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data, attachments)
+	}
+}
+func (db *Database) GetAlgorandComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetAlgorandComments(parentTxHash, blockchain, limit, offset)
+	}
+	return nil
+}
+func (db *Database) GetAlgorandCommentCount(targetTxHash string, blockchain string) int64 {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetAlgorandCommentCount(targetTxHash, blockchain)
+	}
+	return 0
+}
+
+// --- Reaction Functions (Base) --- //
+func (db *Database) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainR(txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
+	}
+}
+func (db *Database) GetReactionCounts(targetTxHash string, blockchain string) map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetReactionCounts(targetTxHash, blockchain)
+	}
+	return nil
+}
+func (db *Database) GetUserReaction(targetTxHash string, blockchain string, fromAddress string) string {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetUserReaction(targetTxHash, blockchain, fromAddress)
+	}
+	return ""
+}
+
+// --- Reaction Functions (Algorand) --- //
+func (db *Database) OnchainAlgorandR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
+	switch db.Engine {
+	case "sqlite":
+		db.sqlite.OnchainAlgorandR(txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
+	}
+}
+func (db *Database) GetAlgorandReactionCounts(targetTxHash string, blockchain string) map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetAlgorandReactionCounts(targetTxHash, blockchain)
+	}
+	return nil
+}
+func (db *Database) GetAlgorandUserReaction(targetTxHash string, blockchain string, fromAddress string) string {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetAlgorandUserReaction(targetTxHash, blockchain, fromAddress)
+	}
+	return ""
+}
+
+// --- Post Get Functions --- //
+func (db *Database) GetPost(txHash string, blockchain string) map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetPost(txHash, blockchain)
+	}
+	return nil
+}
+func (db *Database) GetAlgorandPost(txHash string, blockchain string) map[string]interface{} {
+	switch db.Engine {
+	case "sqlite":
+		return db.sqlite.GetAlgorandPost(txHash, blockchain)
+	}
+	return nil
+}
+
 // --- Search Functions --- //
 func (db *Database) SearchGetPosts(query string) []map[string]interface{} {
 	var posts []map[string]interface{}

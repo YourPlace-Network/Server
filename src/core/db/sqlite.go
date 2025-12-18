@@ -255,6 +255,10 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"onchain_algorand_post":   "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
 		"onchain_algorand_meta":   "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', vertical TEXT DEFAULT '', server TEXT DEFAULT '', blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_algorand_follow": "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"onchain_comment":          "CREATE TABLE IF NOT EXISTS onchain_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', parentType TEXT DEFAULT 'post', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"onchain_algorand_comment": "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', parentType TEXT DEFAULT 'post', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"onchain_reaction":          "CREATE TABLE IF NOT EXISTS onchain_reaction (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', targetTxHash TEXT DEFAULT '', targetType TEXT DEFAULT 'post', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+		"onchain_algorand_reaction": "CREATE TABLE IF NOT EXISTS onchain_algorand_reaction (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', targetTxHash TEXT DEFAULT '', targetType TEXT DEFAULT 'post', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 	}
 	for _, createStatement := range tables {
 		err := db.execWithRetry(ctx, createStatement, 3)
@@ -2491,6 +2495,426 @@ func (db *SQLite) OnchainAlgorandDeleteExpired(blockchain string, cutoffTimestam
 	} else if rows, _ := result.RowsAffected(); rows > 0 {
 		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired Algorand metadata entries from " + blockchain)
 	}
+}
+
+// --- Comment Functions (Base) --- //
+func (db *SQLite) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
+	query := "INSERT INTO onchain_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	if err != nil {
+		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	query := "INSERT INTO onchain_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	if err != nil {
+		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		core.LogDebug("Could not count the comment in the database: " + err.Error())
+		return
+	}
+	if rowsAffected == 0 {
+		core.LogDebug("Duplicate comment detected, aborting entry")
+		return
+	}
+	for _, attachment := range attachments {
+		fileUUID := uuid.New().String()
+		db.FileAdd(fileUUID, "", attachment.MimeType, attachment.FileName, int64(attachment.FileSize))
+		db.sqlite_AddFileURL(fileUUID, attachment.FileURL, "indexed")
+		db.sqlite_LinkFileTxnHash(fileUUID, txHash, blockchain)
+	}
+}
+func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
+	var comments []map[string]interface{}
+	query := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.parentType, c.timestamp, c.data,
+		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc,
+		(SELECT COUNT(*) FROM onchain_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'like') as likeCount,
+		(SELECT COUNT(*) FROM onchain_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'dislike') as dislikeCount,
+		(SELECT COUNT(*) FROM onchain_comment c2 WHERE c2.parentTxHash = c.txHash AND c2.blockchain = c.blockchain) as replyCount
+		FROM onchain_comment c
+		LEFT JOIN onchain_meta m ON c.fromAddress = m.address AND c.blockchain = m.blockchain
+		WHERE c.parentTxHash = ? AND c.blockchain = ?
+		ORDER BY likeCount DESC, c.timestamp DESC
+		LIMIT ? OFFSET ?`
+	rows, err := db.runParamSQLSelect(query, parentTxHash, blockchain, limit, offset)
+	if err != nil {
+		core.LogDebug("Could not get comments: " + err.Error())
+		return comments
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var txHash, bc, fromAddress, pTxHash, parentType, data, author, avatarSrc string
+		var timestamp, likeCount, dislikeCount, replyCount int64
+		err := rows.Scan(&txHash, &bc, &fromAddress, &pTxHash, &parentType, &timestamp, &data, &author, &avatarSrc, &likeCount, &dislikeCount, &replyCount)
+		if err != nil {
+			core.LogDebug("Could not scan comment row: " + err.Error())
+			continue
+		}
+		comment := map[string]interface{}{
+			"txHash":       txHash,
+			"blockchain":   bc,
+			"address":      fromAddress,
+			"parentTxHash": pTxHash,
+			"parentType":   parentType,
+			"timestamp":    timestamp,
+			"payload":      data,
+			"author":       author,
+			"avatarSrc":    avatarSrc,
+			"likeCount":    likeCount,
+			"dislikeCount": dislikeCount,
+			"replyCount":   replyCount,
+		}
+		comments = append(comments, comment)
+	}
+	return comments
+}
+func (db *SQLite) GetCommentCount(targetTxHash string, blockchain string) int64 {
+	query := "SELECT COUNT(*) FROM onchain_comment WHERE parentTxHash = ? AND blockchain = ?"
+	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
+	if err != nil {
+		return 0
+	}
+	defer rows.Close()
+	var count int64
+	if rows.Next() {
+		rows.Scan(&count)
+	}
+	return count
+}
+
+// --- Comment Functions (Algorand) --- //
+func (db *SQLite) OnchainAlgorandC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
+	query := "INSERT INTO onchain_algorand_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand comment in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainAlgorandCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	query := "INSERT INTO onchain_algorand_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand comment in the database: " + err.Error())
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		core.LogDebug("Could not count the Algorand comment in the database: " + err.Error())
+		return
+	}
+	if rowsAffected == 0 {
+		core.LogDebug("Duplicate Algorand comment detected, aborting entry")
+		return
+	}
+	for _, attachment := range attachments {
+		fileUUID := uuid.New().String()
+		db.FileAdd(fileUUID, "", attachment.MimeType, attachment.FileName, int64(attachment.FileSize))
+		db.sqlite_AddFileURL(fileUUID, attachment.FileURL, "indexed")
+		db.sqlite_LinkFileTxnHash(fileUUID, txHash, blockchain)
+	}
+}
+func (db *SQLite) GetAlgorandComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
+	var comments []map[string]interface{}
+	query := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.parentType, c.timestamp, c.data,
+		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc,
+		(SELECT COUNT(*) FROM onchain_algorand_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'like') as likeCount,
+		(SELECT COUNT(*) FROM onchain_algorand_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'dislike') as dislikeCount,
+		(SELECT COUNT(*) FROM onchain_algorand_comment c2 WHERE c2.parentTxHash = c.txHash AND c2.blockchain = c.blockchain) as replyCount
+		FROM onchain_algorand_comment c
+		LEFT JOIN onchain_algorand_meta m ON c.fromAddress = m.address AND c.blockchain = m.blockchain
+		WHERE c.parentTxHash = ? AND c.blockchain = ?
+		ORDER BY likeCount DESC, c.timestamp DESC
+		LIMIT ? OFFSET ?`
+	rows, err := db.runParamSQLSelect(query, parentTxHash, blockchain, limit, offset)
+	if err != nil {
+		core.LogDebug("Could not get Algorand comments: " + err.Error())
+		return comments
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var txHash, bc, fromAddress, pTxHash, parentType, data, author, avatarSrc string
+		var timestamp, likeCount, dislikeCount, replyCount int64
+		err := rows.Scan(&txHash, &bc, &fromAddress, &pTxHash, &parentType, &timestamp, &data, &author, &avatarSrc, &likeCount, &dislikeCount, &replyCount)
+		if err != nil {
+			core.LogDebug("Could not scan Algorand comment row: " + err.Error())
+			continue
+		}
+		comment := map[string]interface{}{
+			"txHash":       txHash,
+			"blockchain":   bc,
+			"address":      fromAddress,
+			"parentTxHash": pTxHash,
+			"parentType":   parentType,
+			"timestamp":    timestamp,
+			"payload":      data,
+			"author":       author,
+			"avatarSrc":    avatarSrc,
+			"likeCount":    likeCount,
+			"dislikeCount": dislikeCount,
+			"replyCount":   replyCount,
+		}
+		comments = append(comments, comment)
+	}
+	return comments
+}
+func (db *SQLite) GetAlgorandCommentCount(targetTxHash string, blockchain string) int64 {
+	query := "SELECT COUNT(*) FROM onchain_algorand_comment WHERE parentTxHash = ? AND blockchain = ?"
+	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
+	if err != nil {
+		return 0
+	}
+	defer rows.Close()
+	var count int64
+	if rows.Next() {
+		rows.Scan(&count)
+	}
+	return count
+}
+
+// --- Reaction Functions (Base) --- //
+func (db *SQLite) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
+	query := "INSERT INTO onchain_reaction (txHash, blockchain, fromAddress, targetTxHash, targetType, reactionType, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the reaction in the database: " + err.Error())
+	}
+}
+func (db *SQLite) GetReactionCounts(targetTxHash string, blockchain string) map[string]interface{} {
+	result := map[string]interface{}{
+		"likes":    int64(0),
+		"dislikes": int64(0),
+		"emoji":    map[string]int64{},
+	}
+	query := `SELECT reactionType, COUNT(*) as count FROM (
+		SELECT fromAddress, reactionType, MAX(timestamp) as maxTs
+		FROM onchain_reaction
+		WHERE targetTxHash = ? AND blockchain = ?
+		GROUP BY fromAddress
+	) GROUP BY reactionType`
+	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
+	if err != nil {
+		core.LogDebug("Could not get reaction counts: " + err.Error())
+		return result
+	}
+	defer rows.Close()
+	emojiCounts := map[string]int64{}
+	for rows.Next() {
+		var reactionType string
+		var count int64
+		if err := rows.Scan(&reactionType, &count); err != nil {
+			continue
+		}
+		switch reactionType {
+		case "like":
+			result["likes"] = count
+		case "dislike":
+			result["dislikes"] = count
+		default:
+			emojiCounts[reactionType] = count
+		}
+	}
+	result["emoji"] = emojiCounts
+	return result
+}
+func (db *SQLite) GetUserReaction(targetTxHash string, blockchain string, fromAddress string) string {
+	query := `SELECT reactionType FROM onchain_reaction
+		WHERE targetTxHash = ? AND blockchain = ? AND fromAddress = ?
+		ORDER BY timestamp DESC LIMIT 1`
+	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, fromAddress)
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
+	var reactionType string
+	if rows.Next() {
+		rows.Scan(&reactionType)
+	}
+	return reactionType
+}
+
+// --- Reaction Functions (Algorand) --- //
+func (db *SQLite) OnchainAlgorandR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
+	query := "INSERT INTO onchain_algorand_reaction (txHash, blockchain, fromAddress, targetTxHash, targetType, reactionType, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the Algorand reaction in the database: " + err.Error())
+	}
+}
+func (db *SQLite) GetAlgorandReactionCounts(targetTxHash string, blockchain string) map[string]interface{} {
+	result := map[string]interface{}{
+		"likes":    int64(0),
+		"dislikes": int64(0),
+		"emoji":    map[string]int64{},
+	}
+	query := `SELECT reactionType, COUNT(*) as count FROM (
+		SELECT fromAddress, reactionType, MAX(timestamp) as maxTs
+		FROM onchain_algorand_reaction
+		WHERE targetTxHash = ? AND blockchain = ?
+		GROUP BY fromAddress
+	) GROUP BY reactionType`
+	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
+	if err != nil {
+		core.LogDebug("Could not get Algorand reaction counts: " + err.Error())
+		return result
+	}
+	defer rows.Close()
+	emojiCounts := map[string]int64{}
+	for rows.Next() {
+		var reactionType string
+		var count int64
+		if err := rows.Scan(&reactionType, &count); err != nil {
+			continue
+		}
+		switch reactionType {
+		case "like":
+			result["likes"] = count
+		case "dislike":
+			result["dislikes"] = count
+		default:
+			emojiCounts[reactionType] = count
+		}
+	}
+	result["emoji"] = emojiCounts
+	return result
+}
+func (db *SQLite) GetAlgorandUserReaction(targetTxHash string, blockchain string, fromAddress string) string {
+	query := `SELECT reactionType FROM onchain_algorand_reaction
+		WHERE targetTxHash = ? AND blockchain = ? AND fromAddress = ?
+		ORDER BY timestamp DESC LIMIT 1`
+	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, fromAddress)
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
+	var reactionType string
+	if rows.Next() {
+		rows.Scan(&reactionType)
+	}
+	return reactionType
+}
+
+// --- Post Get Functions --- //
+func (db *SQLite) GetPost(txHash string, blockchain string) map[string]interface{} {
+	var post map[string]interface{}
+	query := `SELECT p.txHash, p.blockchain, p.fromAddress, p.parentTxHash, p.timestamp, p.data,
+		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc
+		FROM onchain_post p
+		LEFT JOIN onchain_meta m ON p.fromAddress = m.address AND p.blockchain = m.blockchain
+		WHERE p.txHash = ? AND p.blockchain = ?`
+	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
+	if err != nil {
+		core.LogDebug("Could not get post: " + err.Error())
+		return post
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var pTxHash, bc, fromAddress, parentTxHash, data, author, avatarSrc string
+		var timestamp int64
+		err := rows.Scan(&pTxHash, &bc, &fromAddress, &parentTxHash, &timestamp, &data, &author, &avatarSrc)
+		if err != nil {
+			core.LogDebug("Could not scan post row: " + err.Error())
+			return post
+		}
+		post = map[string]interface{}{
+			"txHash":       pTxHash,
+			"blockchain":   bc,
+			"address":      fromAddress,
+			"parentTxHash": parentTxHash,
+			"timestamp":    timestamp,
+			"payload":      data,
+			"author":       author,
+			"avatarSrc":    avatarSrc,
+		}
+		attachments := db.GetPostAttachments(txHash, blockchain)
+		if len(attachments) > 0 {
+			post["attachments"] = attachments
+		}
+	}
+	return post
+}
+func (db *SQLite) GetAlgorandPost(txHash string, blockchain string) map[string]interface{} {
+	var post map[string]interface{}
+	query := `SELECT p.txHash, p.blockchain, p.fromAddress, p.parentTxHash, p.timestamp, p.data,
+		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc
+		FROM onchain_algorand_post p
+		LEFT JOIN onchain_algorand_meta m ON p.fromAddress = m.address AND p.blockchain = m.blockchain
+		WHERE p.txHash = ? AND p.blockchain = ?`
+	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
+	if err != nil {
+		core.LogDebug("Could not get Algorand post: " + err.Error())
+		return post
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var pTxHash, bc, fromAddress, parentTxHash, data, author, avatarSrc string
+		var timestamp int64
+		err := rows.Scan(&pTxHash, &bc, &fromAddress, &parentTxHash, &timestamp, &data, &author, &avatarSrc)
+		if err != nil {
+			core.LogDebug("Could not scan Algorand post row: " + err.Error())
+			return post
+		}
+		post = map[string]interface{}{
+			"txHash":       pTxHash,
+			"blockchain":   bc,
+			"address":      fromAddress,
+			"parentTxHash": parentTxHash,
+			"timestamp":    timestamp,
+			"payload":      data,
+			"author":       author,
+			"avatarSrc":    avatarSrc,
+		}
+		attachments := db.GetAlgorandPostAttachments(txHash, blockchain)
+		if len(attachments) > 0 {
+			post["attachments"] = attachments
+		}
+	}
+	return post
+}
+func (db *SQLite) GetPostAttachments(txHash string, blockchain string) [][]interface{} {
+	var attachments [][]interface{}
+	query := `SELECT f.fileURL, f.mimeType, f.size, f.fileName
+		FROM files f
+		JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID
+		WHERE fth.txHash = ? AND fth.blockchain = ?`
+	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
+	if err != nil {
+		return attachments
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var fileURL, mimeType, fileName string
+		var size int64
+		if err := rows.Scan(&fileURL, &mimeType, &size, &fileName); err != nil {
+			continue
+		}
+		attachments = append(attachments, []interface{}{fileURL, mimeType, size, fileName})
+	}
+	return attachments
+}
+func (db *SQLite) GetAlgorandPostAttachments(txHash string, blockchain string) [][]interface{} {
+	var attachments [][]interface{}
+	query := `SELECT f.fileURL, f.mimeType, f.size, f.fileName
+		FROM files f
+		JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID
+		WHERE fth.txHash = ? AND fth.blockchain = ?`
+	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
+	if err != nil {
+		return attachments
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var fileURL, mimeType, fileName string
+		var size int64
+		if err := rows.Scan(&fileURL, &mimeType, &size, &fileName); err != nil {
+			continue
+		}
+		attachments = append(attachments, []interface{}{fileURL, mimeType, size, fileName})
+	}
+	return attachments
 }
 
 // --- Followers Feed --- //

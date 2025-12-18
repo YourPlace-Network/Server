@@ -14,11 +14,12 @@ Actions without 🚢 are documented but not yet implemented or shipped to users
 
 ### Actions Prefixes
 Actions are the 1 to 5 long character code between the `/` and `:` in the structure of the message. The first character is the "prefix" and the remaining characters are the "postfix". This established an action category (prefix) and specific action tag (postfix) for every API payload.
-- p = post
-- r = reaction
+- b = block
+- c = comment
 - f = follow
 - m = metadata
-- b = block
+- p = post
+- r = reaction
 - s = settings
 
 ### Payload Tags
@@ -42,10 +43,14 @@ Payload tags are special tags that the user can type themselves that exist in th
 - `yp/1/pe:{"txh":"txnHash","p":"payload"}` - Edit a post (to burn address)
 - `yp/1/par:{"txh":"txnHash"}` - Archive a post (to burn address)
 
+### Comment
+- `yp/1/c:{"txh":"txnHash","p":"payload"}` - Comment on a post (to original poster) 🚢
+- `yp/1/ca:{"txh":"txnHash","p":"payload","a":[["ipfs://CID","mime/type",size,"filename"]]}` - Comment with attachment(s) (to original poster) 🚢
+
 ### Reaction
-- `yp/1/rl:{"txh":"txnHash"}` - Like a post (to original poster)
-- `yp/1/rdl:{"txh":"txnHash"}` - Dislike a post (to original poster)
-- `yp/1/re:{"txh":"txnHash"}` - React with emoji (to original poster)
+- `yp/1/rl:{"txh":"txnHash","t":"post|comment"}` - Like a post or comment (to original poster) 🚢
+- `yp/1/rdl:{"txh":"txnHash","t":"post|comment"}` - Dislike a post or comment (to original poster) 🚢
+- `yp/1/re:{"txh":"txnHash","t":"post|comment","e":"emoji"}` - React with emoji (to original poster) 🚢
 
 ### Following
 - `yp/1/f:{"a":"address", "b":"blockchain"}` - Follow an address at a blockchain (to followee address) 🚢

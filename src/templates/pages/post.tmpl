@@ -1,22 +1,28 @@
 {{template "header" .}}
 <body class="body">
-    <div class="container-fluid vh-100">
-        <div class="row" id="row1">
-            <div class="col-sm-2"></div>
-            <div class="col-sm-8"></div>
-        </div>
-
-        <div class="row" id="row2">
-            <div class="col-sm-2"></div>
-            <div class="col-sm-8">
-                {{template "addPost" .}}
+{{template "htmlMenu" .}}
+{{template "modalDialog" .}}
+{{template "modalMediaViewer" .}}
+    <div class="container-fluid" id="topContainer">
+        <div class="row">
+            <div class="col-lg-2"></div>
+            <div class="col-lg-8" id="centerColumn">
+                <div id="postPageContainer">
+                    <div id="postContainer"></div>
+                    <div id="commentsSection">
+                        <h5 id="commentsHeader">Comments</h5>
+                        <div id="commentsContainer"></div>
+                        <div id="loadMoreComments" class="text-center" style="display: none;">
+                            <button class="btn btn-outline-secondary" id="loadMoreCommentsBtn">Load More</button>
+                        </div>
+                    </div>
+                </div>
             </div>
+            <div class="col-lg-2"></div>
         </div>
     </div>
-
-    {{with asset "runtime.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
-    {{with asset "vendors.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
-    {{with asset "common.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
-    <script src="{{asset "post.js"}}" type="application/javascript"></script>
+    <input type="hidden" id="postBlockchain" value="{{.blockchain}}">
+    <input type="hidden" id="postTxHash" value="{{.txHash}}">
+{{template "footer" .}}
 </body>
 </html>

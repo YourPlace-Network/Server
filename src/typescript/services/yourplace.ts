@@ -74,4 +74,41 @@ export let YP = {
         }
         return `yp/1/fu:${JSON.stringify(payload)}`
     },
+    comment: function(parentTxHash: string, text: string): string {
+        const payload = {
+            t: parentTxHash,
+            p: text
+        }
+        return `yp/1/c:${JSON.stringify(payload)}`
+    },
+    commentAttach: function(parentTxHash: string, text: string, attach: string[][]): string {
+        const payload = {
+            t: parentTxHash,
+            p: text,
+            a: attach
+        }
+        return `yp/1/ca:${JSON.stringify(payload)}`
+    },
+    dislike: function(targetTxHash: string, targetType: string): string {
+        const payload = {
+            t: targetTxHash,
+            y: targetType
+        }
+        return `yp/1/rdl:${JSON.stringify(payload)}`
+    },
+    emojiReact: function(targetTxHash: string, targetType: string, emoji: string): string {
+        const payload = {
+            t: targetTxHash,
+            y: targetType,
+            e: emoji
+        }
+        return `yp/1/re:${JSON.stringify(payload)}`
+    },
+    like: function(targetTxHash: string, targetType: string): string {
+        const payload = {
+            t: targetTxHash,
+            y: targetType
+        }
+        return `yp/1/rl:${JSON.stringify(payload)}`
+    },
 }
