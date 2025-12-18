@@ -718,6 +718,142 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					_AlgoDatabase.OnchainAlgorandMD(blockchain, fromAddr, descriptionStr, timestamp)
 				}
 			}
+		case 'c': // Comment Actions
+			switch actionPostfix {
+			case "":
+				parentTxHashRaw, ok1 := payloadObject["txh"]
+				commentText, ok2 := payloadObject["p"]
+				if !ok1 || !ok2 {
+					return
+				}
+				parentTxHashStr, ok3 := parentTxHashRaw.(string)
+				commentTextStr, ok4 := commentText.(string)
+				if !ok3 || !ok4 {
+					return
+				}
+				if !security.IsValidAlgoTransaction(parentTxHashStr) {
+					return
+				}
+				commentTextStr = security.SanitizeNonPrintable(commentTextStr)
+				_AlgoDatabase.OnchainAlgorandC(txHash, blockchain, fromAddr, parentTxHashStr, "post", amount, timestamp, commentTextStr)
+			case "a":
+				parentTxHashRaw, ok1 := payloadObject["txh"]
+				commentText, ok2 := payloadObject["p"]
+				attachmentsRaw, ok3 := payloadObject["a"]
+				if !ok1 || !ok2 || !ok3 {
+					return
+				}
+				parentTxHashStr, ok4 := parentTxHashRaw.(string)
+				commentTextStr, ok5 := commentText.(string)
+				attachmentsArray, ok6 := attachmentsRaw.([]interface{})
+				if !ok4 || !ok5 || !ok6 {
+					return
+				}
+				if !security.IsValidAlgoTransaction(parentTxHashStr) {
+					return
+				}
+				parsedAttachments := []db.Attachment{}
+				for _, attachment := range attachmentsArray {
+					attachmentArray, ok := attachment.([]interface{})
+					if !ok || len(attachmentArray) != 4 {
+						return
+					}
+					parsedURL, okURL := attachmentArray[0].(string)
+					parsedMimeType, okMimeType := attachmentArray[1].(string)
+					sizeFloat, okSize := attachmentArray[2].(float64)
+					fileName, okFileName := attachmentArray[3].(string)
+					if !okURL || !okMimeType || !okSize || !okFileName {
+						return
+					}
+					if !security.IsValidIndexedFilename(fileName) {
+						return
+					}
+					if !security.IsValidURL(parsedURL) && !security.IsValidCID(parsedURL) {
+						return
+					}
+					if sizeFloat < 0 {
+						return
+					}
+					sizeUint := uint64(sizeFloat)
+					parsedAttachment := db.Attachment{
+						FileURL:  parsedURL,
+						MimeType: parsedMimeType,
+						FileSize: sizeUint,
+						FileName: fileName,
+					}
+					parsedAttachments = append(parsedAttachments, parsedAttachment)
+				}
+				commentTextStr = security.SanitizeNonPrintable(commentTextStr)
+				_AlgoDatabase.OnchainAlgorandCA(txHash, blockchain, fromAddr, parentTxHashStr, "post", amount, timestamp, commentTextStr, parsedAttachments)
+			}
+		case 'r': // Reaction Actions
+			switch actionPostfix {
+			case "l": // Like
+				targetTxHashRaw, ok1 := payloadObject["txh"]
+				targetTypeRaw, ok2 := payloadObject["t"]
+				if !ok1 {
+					return
+				}
+				targetTxHashStr, ok3 := targetTxHashRaw.(string)
+				if !ok3 {
+					return
+				}
+				if !security.IsValidAlgoTransaction(targetTxHashStr) {
+					return
+				}
+				targetType := "post"
+				if ok2 {
+					if tt, ok := targetTypeRaw.(string); ok && (tt == "post" || tt == "comment") {
+						targetType = tt
+					}
+				}
+				_AlgoDatabase.OnchainAlgorandR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, "like", timestamp)
+			case "dl": // Dislike
+				targetTxHashRaw, ok1 := payloadObject["txh"]
+				targetTypeRaw, ok2 := payloadObject["t"]
+				if !ok1 {
+					return
+				}
+				targetTxHashStr, ok3 := targetTxHashRaw.(string)
+				if !ok3 {
+					return
+				}
+				if !security.IsValidAlgoTransaction(targetTxHashStr) {
+					return
+				}
+				targetType := "post"
+				if ok2 {
+					if tt, ok := targetTypeRaw.(string); ok && (tt == "post" || tt == "comment") {
+						targetType = tt
+					}
+				}
+				_AlgoDatabase.OnchainAlgorandR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, "dislike", timestamp)
+			case "e": // Emoji reaction
+				targetTxHashRaw, ok1 := payloadObject["txh"]
+				targetTypeRaw, ok2 := payloadObject["t"]
+				emojiRaw, ok3 := payloadObject["e"]
+				if !ok1 || !ok3 {
+					return
+				}
+				targetTxHashStr, ok4 := targetTxHashRaw.(string)
+				emojiStr, ok5 := emojiRaw.(string)
+				if !ok4 || !ok5 {
+					return
+				}
+				if !security.IsValidAlgoTransaction(targetTxHashStr) {
+					return
+				}
+				if len(emojiStr) == 0 || len(emojiStr) > 32 {
+					return
+				}
+				targetType := "post"
+				if ok2 {
+					if tt, ok := targetTypeRaw.(string); ok && (tt == "post" || tt == "comment") {
+						targetType = tt
+					}
+				}
+				_AlgoDatabase.OnchainAlgorandR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, emojiStr, timestamp)
+			}
 		}
 	}
 }
