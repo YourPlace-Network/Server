@@ -1,7 +1,7 @@
 import { HttpGetJson } from "../util/network";
-import { SanitizeXSS } from "../util/security";
+import { XSSSanitizeValue } from "../util/security";
 
-const POST_URL_REGEX = /\/post\/(base|algorand)\/0x[a-fA-F0-9]+/g;
+const POST_URL_REGEX = /\/post\/(base|algorand)\/[a-zA-Z0-9]+/g;
 export function DetectPostUrl(text: string): string | null {
     const match = text.match(POST_URL_REGEX);
     if (match && match.length > 0) {
@@ -53,7 +53,7 @@ function renderPreviewCard(post: any, postUrl: string): HTMLDivElement {
     const textDiv = document.createElement("div");
     textDiv.classList.add("previewText");
     const truncatedText = truncateText(post.payload, 200);
-    textDiv.innerHTML = SanitizeXSS(truncatedText);
+    textDiv.innerHTML = XSSSanitizeValue(truncatedText);
     card.appendChild(textDiv);
     if (post.attachments && post.attachments.length > 0) {
         const mediaDiv = document.createElement("div");

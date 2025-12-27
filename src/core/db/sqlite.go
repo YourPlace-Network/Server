@@ -2522,10 +2522,47 @@ func (db *SQLite) OnchainCA(txHash string, blockchain string, fromAddr string, p
 		return
 	}
 	for _, attachment := range attachments {
+		fileURL := attachment.FileURL
 		fileUUID := uuid.New().String()
-		db.FileAdd(fileUUID, "", attachment.MimeType, attachment.FileName, int64(attachment.FileSize))
-		db.sqlite_AddFileURL(fileUUID, attachment.FileURL, "indexed")
-		db.sqlite_LinkFileTxnHash(fileUUID, txHash, blockchain)
+		cid := ""
+		if strings.HasPrefix(fileURL, "ipfs://") {
+			cid = strings.TrimPrefix(fileURL, "ipfs://")
+		}
+		mimeType := attachment.MimeType
+		size := attachment.FileSize
+		fileName := attachment.FileName
+		var existingFileUUID string
+		if fileURL != "" || cid != "" {
+			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
+			if err != nil {
+				core.LogDebug("Could not check for existing file: " + err.Error())
+				continue
+			}
+			if rows.Next() {
+				err = rows.Scan(&existingFileUUID)
+				if err != nil {
+					core.LogDebug("Could not scan existing file UUID: " + err.Error())
+					rows.Close()
+					continue
+				}
+			}
+			rows.Close()
+		}
+		if existingFileUUID != "" {
+			fileUUID = existingFileUUID
+		} else {
+			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain")
+			if err != nil {
+				core.LogDebug("Could not insert file record: " + err.Error())
+				continue
+			}
+		}
+		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?) ON CONFLICT (fileUUID, txHash, blockchain) DO NOTHING"
+		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
+		if err != nil {
+			core.LogDebug("Could not link file to transaction: " + err.Error())
+		}
 	}
 }
 func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
@@ -2611,10 +2648,47 @@ func (db *SQLite) OnchainAlgorandCA(txHash string, blockchain string, fromAddr s
 		return
 	}
 	for _, attachment := range attachments {
+		fileURL := attachment.FileURL
 		fileUUID := uuid.New().String()
-		db.FileAdd(fileUUID, "", attachment.MimeType, attachment.FileName, int64(attachment.FileSize))
-		db.sqlite_AddFileURL(fileUUID, attachment.FileURL, "indexed")
-		db.sqlite_LinkFileTxnHash(fileUUID, txHash, blockchain)
+		cid := ""
+		if strings.HasPrefix(fileURL, "ipfs://") {
+			cid = strings.TrimPrefix(fileURL, "ipfs://")
+		}
+		mimeType := attachment.MimeType
+		size := attachment.FileSize
+		fileName := attachment.FileName
+		var existingFileUUID string
+		if fileURL != "" || cid != "" {
+			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
+			if err != nil {
+				core.LogDebug("Could not check for existing file: " + err.Error())
+				continue
+			}
+			if rows.Next() {
+				err = rows.Scan(&existingFileUUID)
+				if err != nil {
+					core.LogDebug("Could not scan existing file UUID: " + err.Error())
+					rows.Close()
+					continue
+				}
+			}
+			rows.Close()
+		}
+		if existingFileUUID != "" {
+			fileUUID = existingFileUUID
+		} else {
+			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain_algorand")
+			if err != nil {
+				core.LogDebug("Could not insert file record: " + err.Error())
+				continue
+			}
+		}
+		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?) ON CONFLICT (fileUUID, txHash, blockchain) DO NOTHING"
+		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
+		if err != nil {
+			core.LogDebug("Could not link file to Algorand transaction: " + err.Error())
+		}
 	}
 }
 func (db *SQLite) GetAlgorandComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
