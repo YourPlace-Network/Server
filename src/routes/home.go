@@ -4,8 +4,9 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool, database *db.Database, cryptoSeed []byte, gateway bool) {

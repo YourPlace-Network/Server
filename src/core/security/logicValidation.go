@@ -245,7 +245,7 @@ func IsValidAlgoTransaction(payload string) bool {
 	return RegexMatch("[a-zA-Z\\d+/]+={0,2}", payload)
 }
 func IsValidBlockchain(payload string) bool {
-	validBlockchains := []string{"algorand", "base", "ethereum"}
+	validBlockchains := []string{"algorand", "base"}
 	for _, validBlockchain := range validBlockchains {
 		if strings.EqualFold(validBlockchain, strings.ToLower(payload)) {
 			return true

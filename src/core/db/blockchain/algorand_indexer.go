@@ -77,7 +77,7 @@ func (sbt *AlgoSequentialBlockTracker) MarkBlockProcessed(blockNumber int64, dir
 			delete(sbt.processedBlocks, sbt.nextExpectedBlock)
 			sbt.nextExpectedBlock++
 			if sbt.nextExpectedBlock%algoSaveInterval == 0 {
-				sbt.database.AlgoIndexerUpdateHeadBlock(sbt.uuid, uint64(sbt.nextExpectedBlock))
+				sbt.database.IndexerUpdateHeadBlock(sbt.uuid, uint64(sbt.nextExpectedBlock))
 			}
 		}
 	} else {
@@ -85,7 +85,7 @@ func (sbt *AlgoSequentialBlockTracker) MarkBlockProcessed(blockNumber int64, dir
 			delete(sbt.processedBlocks, sbt.nextExpectedBlock)
 			sbt.nextExpectedBlock--
 			if sbt.nextExpectedBlock%algoSaveInterval == 0 {
-				sbt.database.AlgoIndexerUpdateTailBlock(sbt.uuid, uint64(sbt.nextExpectedBlock))
+				sbt.database.IndexerUpdateTailBlock(sbt.uuid, uint64(sbt.nextExpectedBlock))
 			}
 		}
 	}
@@ -138,8 +138,8 @@ func AlgorandIndexerFetchData(database *db.Database, blockchain *Blockchain) boo
 func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.Int, database *db.Database) {
 	core.LogDebug("[Algo] --- IndexerAlgorandFrontFill()")
 	direction := "forward"
-	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "running")
-	headBlock := _AlgoDatabase.AlgoIndexerGetHeadBlock(uuid)
+	_AlgoDatabase.IndexerUpdateJobStatus(uuid, "running")
+	headBlock := _AlgoDatabase.IndexerGetHeadBlock(uuid)
 	if headBlock <= 0 {
 		core.LogWarn("[Algo] IndexerAlgorandFrontFill(): Head block is <= 0 - aborting")
 		return
@@ -160,7 +160,7 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt)
 	if blockCount.Int64() <= 0 {
 		core.LogDebug("[Algo] Block count is negative or zero - likely up to date")
-		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "complete")
+		_AlgoDatabase.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	core.LogDebug("[Algo] Number of Blocks: " + blockCount.String())
@@ -223,23 +223,23 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 	select {
 	case err := <-errorChan:
 		core.LogError("[Algo] Worker thread failed: " + err.Error())
-		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "failed")
+		_AlgoDatabase.IndexerUpdateJobStatus(uuid, "failed")
 		return
 	case <-done:
 		break
 	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
-	_AlgoDatabase.AlgoIndexerUpdateHeadBlock(uuid, uint64(finalBlockIndex))
-	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "complete")
+	_AlgoDatabase.IndexerUpdateHeadBlock(uuid, uint64(finalBlockIndex))
+	_AlgoDatabase.IndexerUpdateJobStatus(uuid, "complete")
 }
 func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.Int, database *db.Database) {
 	core.LogDebug("[Algo] --- IndexerAlgorandBackFill() ---")
 	direction := "backward"
-	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "running")
-	databaseTailBlock := big.NewInt(int64(_AlgoDatabase.AlgoIndexerGetTailBlock(uuid)))
+	_AlgoDatabase.IndexerUpdateJobStatus(uuid, "running")
+	databaseTailBlock := big.NewInt(int64(_AlgoDatabase.IndexerGetTailBlock(uuid)))
 	if databaseTailBlock.Cmp(big.NewInt(0)) == 0 {
 		core.LogDebug("[Algo] Database Tail Block is 0 - setting to Head Block")
-		headBlockInt := _AlgoDatabase.AlgoIndexerGetHeadBlock(uuid)
+		headBlockInt := _AlgoDatabase.IndexerGetHeadBlock(uuid)
 		databaseTailBlock = big.NewInt(int64(headBlockInt))
 		core.LogDebug("[Algo] Database Tail Block: " + databaseTailBlock.String())
 	}
@@ -247,7 +247,7 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	targetEarliestBlock := AlgoEarliestBlock
 	if targetLatestBlock.Cmp(targetEarliestBlock) == 0 {
 		core.LogDebug("[Algo] Target latest block is equal to target earliest block - completing")
-		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "complete")
+		_AlgoDatabase.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	if targetLatestBlock.Int64() == 0 {
@@ -328,25 +328,25 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	select {
 	case err := <-errorChan:
 		core.LogError("[Algo] Worker thread failed: " + err.Error())
-		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "failed")
+		_AlgoDatabase.IndexerUpdateJobStatus(uuid, "failed")
 		return
 	case <-done:
 		break
 	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
-	_AlgoDatabase.AlgoIndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
-	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "complete")
+	_AlgoDatabase.IndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
+	_AlgoDatabase.IndexerUpdateJobStatus(uuid, "complete")
 }
 func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.Int, database *db.Database) {
 	core.LogDebug("[Algo] --- IndexerAlgorandFullFill()")
 	direction := "backward"
-	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "running")
+	_AlgoDatabase.IndexerUpdateJobStatus(uuid, "running")
 	targetLatestBlock := algoLatestBlock
 	core.LogDebug("[Algo] Target Latest Block: " + targetLatestBlock.String())
 	targetEarliestBlock := AlgoGetEarliestBlock()
 	core.LogDebug("[Algo] Target Earliest Block: " + targetEarliestBlock.String())
 	targetEarliestBlockBigInt := targetEarliestBlock
-	_AlgoDatabase.AlgoIndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
+	_AlgoDatabase.IndexerUpdateHeadBlock(uuid, targetLatestBlock.Uint64())
 	algoThrottle, _ := strconv.Atoi(_AlgoDatabase.SettingsGetValue("algoThrottle"))
 	if algoThrottle == 0 {
 		algoThrottle, _ = strconv.Atoi(DefaultBlockchainNodes["algorand"][1])
@@ -420,14 +420,14 @@ func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	select {
 	case err := <-errorChan:
 		core.LogError("[Algo] Worker thread failed: " + err.Error())
-		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "failed")
+		_AlgoDatabase.IndexerUpdateJobStatus(uuid, "failed")
 		return
 	case <-done:
 		break
 	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
-	_AlgoDatabase.AlgoIndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
-	_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "complete")
+	_AlgoDatabase.IndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
+	_AlgoDatabase.IndexerUpdateJobStatus(uuid, "complete")
 }
 
 // --- Algorand Helper Functions --- //
@@ -455,11 +455,11 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 		core.LogDebug("[Algo] Indexer skipped: Algorand indexer disabled")
 		return "", "", nil, 0, 0, nil
 	}
-	uuid := _AlgoDatabase.AlgoIndexerGetJobUUID(chainName)
+	uuid := _AlgoDatabase.IndexerGetJobUUID(chainName)
 	if uuid == "" {
 		uuid = algoCreateIndexerJob(chainName)
 	}
-	databaseStatus := _AlgoDatabase.AlgoIndexerGetJobStatus(uuid)
+	databaseStatus := _AlgoDatabase.IndexerGetJobStatus(uuid)
 	if databaseStatus == "running" {
 		return "", "", nil, 0, 0, nil
 	}
@@ -473,11 +473,11 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 		return "", "", nil, 0, 0, nil
 	}
 	chainEarliestBlock := AlgoGetEarliestBlock()
-	databaseHeadBlock := _AlgoDatabase.AlgoIndexerGetHeadBlock(uuid)
-	databaseTailBlock := _AlgoDatabase.AlgoIndexerGetTailBlock(uuid)
+	databaseHeadBlock := _AlgoDatabase.IndexerGetHeadBlock(uuid)
+	databaseTailBlock := _AlgoDatabase.IndexerGetTailBlock(uuid)
 	if databaseTailBlock < chainEarliestBlock.Uint64() && databaseTailBlock != 0 {
 		core.LogDebug("[Algo] Database tail block is too far back - resetting to EarliestBlock")
-		_AlgoDatabase.AlgoIndexerUpdateTailBlock(uuid, chainEarliestBlock.Uint64())
+		_AlgoDatabase.IndexerUpdateTailBlock(uuid, chainEarliestBlock.Uint64())
 		databaseTailBlock = chainEarliestBlock.Uint64()
 	}
 	core.LogDebug("[Algo] --- BaseIndexerFetchData(): Fetching posts for " + chainName + " ---")
@@ -538,7 +538,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					return
 				}
 				postTextStr = security.SanitizeNonPrintable(postTextStr)
-				_AlgoDatabase.OnchainAlgorandP(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, postTextStr)
+				_AlgoDatabase.OnchainP(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, postTextStr)
 			case "a":
 				postText, ok1 := payloadObject["p"]
 				attachmentsRaw, ok2 := payloadObject["a"]
@@ -582,7 +582,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					parsedAttachments = append(parsedAttachments, parsedAttachment)
 				}
 				postTextStr = security.SanitizeNonPrintable(postTextStr)
-				_AlgoDatabase.OnchainAlgorandPA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, postTextStr, parsedAttachments)
+				_AlgoDatabase.OnchainPA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, postTextStr, parsedAttachments)
 			}
 		case 'f': // Follow Actions
 			switch actionPostfix {
@@ -606,7 +606,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				if fromAddr == addressStr && blockchain == blockchainStr {
 					return
 				}
-				_AlgoDatabase.OnchainAlgorandF(txHash, blockchain, fromAddr, blockchain, addressStr, blockchainStr, timestamp)
+				_AlgoDatabase.OnchainF(txHash, blockchain, fromAddr, blockchain, addressStr, blockchainStr, timestamp)
 			case "u":
 				blockchainPayload, ok1 := payloadObject["b"]
 				addressPayload, ok2 := payloadObject["a"]
@@ -627,7 +627,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				if fromAddr == addressStr && blockchain == blockchainStr {
 					return
 				}
-				_AlgoDatabase.OnchainAlgorandFU(txHash, blockchain, fromAddr, blockchain, addressStr, blockchainStr, timestamp)
+				_AlgoDatabase.OnchainFU(txHash, blockchain, fromAddr, blockchain, addressStr, blockchainStr, timestamp)
 			}
 		case 'm': // Metadata Actions
 			switch actionPostfix {
@@ -641,7 +641,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					return
 				}
 				nameStr = security.SanitizeNonPrintable(nameStr)
-				_AlgoDatabase.OnchainAlgorandMN(blockchain, fromAddr, nameStr, timestamp)
+				_AlgoDatabase.OnchainMN(blockchain, fromAddr, nameStr, timestamp)
 			case "a":
 				avatar, ok1 := payloadObject["a"]
 				if !ok1 {
@@ -653,7 +653,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				}
 				avatarStr = security.SanitizeNonPrintable(avatarStr)
 				if security.IsValidURL(avatarStr) || security.IsValidCID(avatarStr) {
-					_AlgoDatabase.OnchainAlgorandMA(blockchain, fromAddr, avatarStr, timestamp)
+					_AlgoDatabase.OnchainMA(blockchain, fromAddr, avatarStr, timestamp)
 				}
 			case "b":
 				banner, ok1 := payloadObject["b"]
@@ -666,7 +666,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				}
 				bannerStr = security.SanitizeNonPrintable(bannerStr)
 				if security.IsValidURL(bannerStr) || security.IsValidCID(bannerStr) {
-					_AlgoDatabase.OnchainAlgorandMB(blockchain, fromAddr, bannerStr, timestamp)
+					_AlgoDatabase.OnchainMB(blockchain, fromAddr, bannerStr, timestamp)
 				}
 			case "v":
 				vertical, ok1 := payloadObject["v"]
@@ -678,7 +678,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					return
 				}
 				if security.IsValidVertical(verticalStr) {
-					_AlgoDatabase.OnchainAlgorandMV(blockchain, fromAddr, verticalStr, timestamp)
+					_AlgoDatabase.OnchainMV(blockchain, fromAddr, verticalStr, timestamp)
 				}
 			case "l":
 				location, ok1 := payloadObject["l"]
@@ -690,7 +690,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					return
 				}
 				locationStr = security.SanitizeNonPrintable(locationStr)
-				_AlgoDatabase.OnchainAlgorandML(blockchain, fromAddr, locationStr, timestamp)
+				_AlgoDatabase.OnchainML(blockchain, fromAddr, locationStr, timestamp)
 			case "w":
 				website, ok1 := payloadObject["w"]
 				if !ok1 {
@@ -702,7 +702,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				}
 				websiteStr = security.SanitizeNonPrintable(websiteStr)
 				if security.IsValidURL(websiteStr) && len(websiteStr) > 0 {
-					_AlgoDatabase.OnchainAlgorandMW(blockchain, fromAddr, websiteStr, timestamp)
+					_AlgoDatabase.OnchainMW(blockchain, fromAddr, websiteStr, timestamp)
 				}
 			case "d":
 				description, ok1 := payloadObject["d"]
@@ -715,7 +715,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				}
 				descriptionStr = security.SanitizeNonPrintable(descriptionStr)
 				if len(descriptionStr) > 0 {
-					_AlgoDatabase.OnchainAlgorandMD(blockchain, fromAddr, descriptionStr, timestamp)
+					_AlgoDatabase.OnchainMD(blockchain, fromAddr, descriptionStr, timestamp)
 				}
 			}
 		case 'c': // Comment Actions
@@ -735,7 +735,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					return
 				}
 				commentTextStr = security.SanitizeNonPrintable(commentTextStr)
-				_AlgoDatabase.OnchainAlgorandC(txHash, blockchain, fromAddr, parentTxHashStr, "post", amount, timestamp, commentTextStr)
+				_AlgoDatabase.OnchainC(txHash, blockchain, fromAddr, parentTxHashStr, "post", amount, timestamp, commentTextStr)
 			case "a":
 				parentTxHashRaw, ok1 := payloadObject["txh"]
 				commentText, ok2 := payloadObject["p"]
@@ -784,7 +784,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					parsedAttachments = append(parsedAttachments, parsedAttachment)
 				}
 				commentTextStr = security.SanitizeNonPrintable(commentTextStr)
-				_AlgoDatabase.OnchainAlgorandCA(txHash, blockchain, fromAddr, parentTxHashStr, "post", amount, timestamp, commentTextStr, parsedAttachments)
+				_AlgoDatabase.OnchainCA(txHash, blockchain, fromAddr, parentTxHashStr, "post", amount, timestamp, commentTextStr, parsedAttachments)
 			}
 		case 'r': // Reaction Actions
 			switch actionPostfix {
@@ -807,7 +807,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 						targetType = tt
 					}
 				}
-				_AlgoDatabase.OnchainAlgorandR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, "like", timestamp)
+				_AlgoDatabase.OnchainR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, "like", timestamp)
 			case "dl": // Dislike
 				targetTxHashRaw, ok1 := payloadObject["txh"]
 				targetTypeRaw, ok2 := payloadObject["t"]
@@ -827,7 +827,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 						targetType = tt
 					}
 				}
-				_AlgoDatabase.OnchainAlgorandR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, "dislike", timestamp)
+				_AlgoDatabase.OnchainR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, "dislike", timestamp)
 			case "e": // Emoji reaction
 				targetTxHashRaw, ok1 := payloadObject["txh"]
 				targetTypeRaw, ok2 := payloadObject["t"]
@@ -852,14 +852,14 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 						targetType = tt
 					}
 				}
-				_AlgoDatabase.OnchainAlgorandR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, emojiStr, timestamp)
+				_AlgoDatabase.OnchainR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, emojiStr, timestamp)
 			}
 		}
 	}
 }
 func algoCreateIndexerJob(blockchain string) string {
 	uuid := security.UUID()
-	_AlgoDatabase.AlgoIndexerCreateJob(uuid, blockchain)
+	_AlgoDatabase.IndexerCreateJob(uuid, blockchain)
 	return uuid
 }
 func algoIndexerPrintProgress(targetEarliestBlock *big.Int, targetLatestBlock *big.Int, blockIndex *big.Int, batchSize *big.Int, direction string, requestTracker *RequestTracker) {
@@ -922,7 +922,7 @@ func algoStartThrottleController(uuid string, targetThrottleValue int, rateLimit
 			if actualRPS < 0.1 {
 				continue
 			}
-			database.AlgoIndexerUpdateJobSpeed(uuid, uint64(actualRPS+0.5))
+			database.IndexerUpdateJobSpeed(uuid, uint64(actualRPS+0.5))
 			ratio := actualRPS / targetRPS
 			if ratio < (1.0-tolerance) || ratio > (1.0+tolerance) {
 				algoThrottleControlMutex.Lock()
@@ -1068,7 +1068,7 @@ func algoBreakPoint(uuid string) bool {
 	select {
 	case <-algoIndexerCancel:
 		core.LogDebug("[Algo] Indexer cancelled in break point")
-		_AlgoDatabase.AlgoIndexerUpdateJobStatus(uuid, "failed")
+		_AlgoDatabase.IndexerUpdateJobStatus(uuid, "failed")
 		return true
 	default:
 		return false
@@ -1080,8 +1080,8 @@ func AlgoGetEarliestBlock() big.Int {
 	return *AlgoEarliestBlock
 }
 func AlgoIndexerRestartJobs(__database *db.Database, blockchain string) {
-	jobUUID := __database.AlgoIndexerGetJobUUID(blockchain)
-	__database.AlgoIndexerUpdateJobStatus(jobUUID, "failed")
+	jobUUID := __database.IndexerGetJobUUID(blockchain)
+	__database.IndexerUpdateJobStatus(jobUUID, "failed")
 }
 func AlgoIndexerStop() {
 	AlgoIndexerMutex.Lock()
@@ -1196,14 +1196,14 @@ func AlgoIndexerCatchUpAll(database *db.Database) (bool, string) {
 					return
 				}
 				core.LogInfo(fmt.Sprintf("[Algo] Updating indexer job with head_block: %d, tail_block: %d", uint64(headBlock), uint64(tailBlock)))
-				jobUUID := database.AlgoIndexerGetJobUUID("algorand")
+				jobUUID := database.IndexerGetJobUUID("algorand")
 				if jobUUID == "" {
 					core.LogError("[Algo] Could not find indexer job UUID for blockchain: algorand")
 					database.MetaUpdateValue(metaKey, "")
 					return
 				}
-				database.AlgoIndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
-				database.AlgoIndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
+				database.IndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
+				database.IndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
 				host.DeleteAll(snapshotDir)
 				core.LogInfo("[Algo] Snapshot import complete")
 				return

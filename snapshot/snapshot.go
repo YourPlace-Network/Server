@@ -50,7 +50,7 @@ func main() {
 		core.LogError("Could not connect to database")
 		os.Exit(1)
 	}
-	database.SetDefaults()
+	database.SetDefaultSettings()
 	// Base URL and throttle must be set as environment variables BASE_RPC_URL and BASE_RPC_THROTTLE
 	requiredVar := []string{"BASE_RPC_URL", "S3_ENDPOINT", "S3_BUCKET_NAME", "BASE_RPC_THROTTLE"}
 	for _, v := range requiredVar {
@@ -109,9 +109,9 @@ func exportAlgorandSnapshot(database *db.Database, _blockchain *blockchain.Block
 	algoSnapshotDir := filepath.Join(snapshotDir, "algorand")
 	host.DeleteAll(algoSnapshotDir)
 	host.CreateFolder(algoSnapshotDir)
-	uuid := database.AlgoIndexerGetJobUUID("algorand")
-	headBlock := database.AlgoIndexerGetHeadBlock(uuid)
-	tailBlock := database.AlgoIndexerGetTailBlock(uuid)
+	uuid := database.IndexerGetJobUUID("algorand")
+	headBlock := database.IndexerGetHeadBlock(uuid)
+	tailBlock := database.IndexerGetTailBlock(uuid)
 	err := database.ExportSnapshots(algoSnapshotDir, "algorand", headBlock, tailBlock)
 	if err != nil {
 		core.LogError("[Algo] Error exporting snapshots: " + err.Error())
@@ -143,12 +143,12 @@ func exportBaseSnapshot(database *db.Database, _blockchain *blockchain.Blockchai
 	runtime.GC()
 }
 func getAlgorandIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain) float64 {
-	uuid := database.AlgoIndexerGetJobUUID("algorand")
+	uuid := database.IndexerGetJobUUID("algorand")
 	if uuid == "" {
 		return 0.0
 	}
-	headBlock := database.AlgoIndexerGetHeadBlock(uuid)
-	tailBlock := database.AlgoIndexerGetTailBlock(uuid)
+	headBlock := database.IndexerGetHeadBlock(uuid)
+	tailBlock := database.IndexerGetTailBlock(uuid)
 	if headBlock == 0 || tailBlock == 0 {
 		return 0.0
 	}

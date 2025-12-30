@@ -1,7 +1,7 @@
 import { HttpGetJson } from "../util/network";
 import { CreatePostControlsBar } from "./postControls";
 import { ShowAddCommentUI } from "./addComment";
-import { SanitizeXSS } from "../util/security";
+import { XSSSanitizeTextUrl } from "../util/security";
 
 export interface Comment {
     txHash: string;
@@ -82,7 +82,7 @@ function createCommentElement(comment: Comment, depth: number, blockchain: strin
     commentDiv.appendChild(headerDiv);
     const contentDiv = document.createElement("div");
     contentDiv.classList.add("commentContent");
-    contentDiv.innerHTML = SanitizeXSS(comment.payload);
+    contentDiv.innerHTML = XSSSanitizeTextUrl(comment.payload);
     commentDiv.appendChild(contentDiv);
     const controlsBar = CreatePostControlsBar({
         txHash: comment.txHash,

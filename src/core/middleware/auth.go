@@ -31,8 +31,9 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 }
 
 // Prefix match on path, exact match on method
-var prefixGetExclusions = []string{"/static/", "/login", "/logout", "/profile/", "/posts"} // This exclusion should rarely be used, as it will exclude all GET requests to that path
-var prefixPostExclusions = []string{"/login"}                                              // This exclusion should rarely be used, as it will exclude all POST requests to that path
+var prefixGetExclusions = []string{ // Auth exclude all GET requests to these paths (public read-only APIs)
+						"/static/", "/login", "/logout", "/profile/", "/posts/", "/post/", "/comments/", "/reactions/"}
+var prefixPostExclusions = []string{"/login"} // Exclude all POST requests to these paths (public, non-auth, stateful APIs)
 
 func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {

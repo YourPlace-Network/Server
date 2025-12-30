@@ -219,45 +219,46 @@ func (db *SQLite) withTransaction(fn func(*sql.Tx) error) error {
 	}
 	return nil
 }
-
-// createTables creates all database tables using CREATE TABLE IF NOT EXISTS.
-// These table definitions should always reflect the LATEST schema version.
-//
-// When modifying the database schema:
-//  1. Update the CREATE TABLE statement(s) below to the new structure
-//  2. Increment SchemaVersion in schema.go
-//  3. Add a migration function in schema.go to ALTER existing tables
-//
-// This ensures:
-//   - Fresh installations get the latest schema directly (no migrations needed)
-//   - Existing databases are upgraded via migrations in schema.go
 func (db *SQLite) createTables(ctx context.Context) error {
+	/* createTables creates all database tables using CREATE TABLE IF NOT EXISTS.
+	// These table definitions should always reflect the LATEST schema version.
+	//
+	// When modifying the database schema:
+	//  1. Update the CREATE TABLE statement(s) below to the new structure
+	//  2. Increment SchemaVersion in schema.go
+	//  3. Add a migration function in schema.go to ALTER existing tables
+	//
+	// This ensures:
+	//   - Fresh installations get the latest schema directly (no migrations needed)
+	//   - Existing databases are upgraded via migrations in schema.go
+	*/
 	// Tables schema map - keep at LATEST schema version
 	tables := map[string]string{
 		"meta":          "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
 		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
 		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT, blockchain TEXT, PRIMARY KEY (fileUUID, txHash, blockchain))",
-		"indexer_jobs":  "CREATE TABLE IF NOT EXISTS indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
 		"auth_nonce":    "CREATE TABLE IF NOT EXISTS auth_nonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
 		"auth_expired":  "CREATE TABLE IF NOT EXISTS auth_expired (uuid TEXT PRIMARY KEY, status TEXT)",
 		"login_nonce":   "CREATE TABLE IF NOT EXISTS login_nonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
-		"onchain_post":  "CREATE TABLE IF NOT EXISTS onchain_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_meta": "CREATE TABLE IF NOT EXISTS onchain_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', vertical TEXT DEFAULT '', server TEXT DEFAULT '', " +
-			"blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
-		"onchain_block":  "CREATE TABLE IF NOT EXISTS onchain_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_follow": "CREATE TABLE IF NOT EXISTS onchain_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"csrf_tokens":    "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
-		"notifications":  "CREATE TABLE IF NOT EXISTS notifications (uid TEXT PRIMARY KEY, message TEXT, timestamp INTEGER DEFAULT 0)",
-		"wallets":        "CREATE TABLE IF NOT EXISTS wallets (publicKey TEXT, blockchain TEXT, address TEXT, encryptedPrivateKey TEXT, isDefault INTEGER DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
+		"csrf_tokens":   "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
+		"notifications": "CREATE TABLE IF NOT EXISTS notifications (uid TEXT PRIMARY KEY, message TEXT, timestamp INTEGER DEFAULT 0)",
+		"wallets":       "CREATE TABLE IF NOT EXISTS wallets (publicKey TEXT, blockchain TEXT, address TEXT, encryptedPrivateKey TEXT, isDefault INTEGER DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
+		// Base-specific tables
+		"base_indexer_jobs":     "CREATE TABLE IF NOT EXISTS base_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
+		"onchain_base_post":     "CREATE TABLE IF NOT EXISTS onchain_base_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', vertical TEXT DEFAULT '', server TEXT DEFAULT '', blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_base_block":    "CREATE TABLE IF NOT EXISTS onchain_base_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"onchain_base_follow":   "CREATE TABLE IF NOT EXISTS onchain_base_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"onchain_base_comment":  "CREATE TABLE IF NOT EXISTS onchain_base_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', parentType TEXT DEFAULT 'post', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"onchain_base_reaction": "CREATE TABLE IF NOT EXISTS onchain_base_reaction (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', targetTxHash TEXT DEFAULT '', targetType TEXT DEFAULT 'post', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 		// Algorand-specific tables
-		"algo_indexer_jobs":       "CREATE TABLE IF NOT EXISTS algo_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
-		"onchain_algorand_post":   "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_algorand_meta":   "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', vertical TEXT DEFAULT '', server TEXT DEFAULT '', blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
-		"onchain_algorand_follow": "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_comment":          "CREATE TABLE IF NOT EXISTS onchain_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', parentType TEXT DEFAULT 'post', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_algorand_comment": "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', parentType TEXT DEFAULT 'post', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_reaction":          "CREATE TABLE IF NOT EXISTS onchain_reaction (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', targetTxHash TEXT DEFAULT '', targetType TEXT DEFAULT 'post', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+		"algorand_indexer_jobs":     "CREATE TABLE IF NOT EXISTS algorand_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
+		"onchain_algorand_post":     "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', vertical TEXT DEFAULT '', server TEXT DEFAULT '', blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_algorand_block":    "CREATE TABLE IF NOT EXISTS onchain_algorand_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"onchain_algorand_follow":   "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"onchain_algorand_comment":  "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', parentType TEXT DEFAULT 'post', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
 		"onchain_algorand_reaction": "CREATE TABLE IF NOT EXISTS onchain_algorand_reaction (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', targetTxHash TEXT DEFAULT '', targetType TEXT DEFAULT 'post', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 	}
 	for _, createStatement := range tables {
@@ -317,13 +318,17 @@ func (db *SQLite) ExportSnapshot(exportPath string) error {
 	core.LogDebug("Exporting SQLite Snapshot to: " + exportPath)
 	// Tables to export
 	tables := []string{
-		"onchain_post",
-		"onchain_meta",
-		"onchain_block",
-		"onchain_follow",
-		"indexer_jobs",
 		"file_txn_hash",
 		"files",
+	}
+	for _, _blockchain := range core.ValidNetworks {
+		tables = append(tables, "onchain_"+strings.ToLower(_blockchain)+"_post")
+		tables = append(tables, "onchain_"+strings.ToLower(_blockchain)+"_meta")
+		tables = append(tables, "onchain_"+strings.ToLower(_blockchain)+"_follow")
+		tables = append(tables, "onchain_"+strings.ToLower(_blockchain)+"_comment")
+		tables = append(tables, "onchain_"+strings.ToLower(_blockchain)+"_reaction")
+		tables = append(tables, "onchain_"+strings.ToLower(_blockchain)+"_block")
+		tables = append(tables, strings.ToLower(_blockchain)+"_indexer_jobs")
 	}
 	// Create buffer to hold the serialized data
 	var buffer bytes.Buffer
@@ -672,7 +677,7 @@ func (db *SQLite) ImportSnapshotNoMetadata(importPath string) error {
 		}
 		var insertSQL string
 		noQuoteTableName := strings.Trim(tableName, `"`)
-		if noQuoteTableName == "indexer_jobs" {
+		if strings.HasSuffix(noQuoteTableName, "_indexer_jobs") {
 			insertSQL = fmt.Sprintf("INSERT OR REPLACE INTO %s (%s) VALUES (%s)", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
 		} else {
 			insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
@@ -959,7 +964,7 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 		}
 		var insertSQL string
 		noQuoteTableName := strings.Trim(tableName, `"`)
-		if noQuoteTableName == "indexer_jobs" {
+		if strings.HasSuffix(noQuoteTableName, "_indexer_jobs") {
 			insertSQL = fmt.Sprintf("INSERT OR REPLACE INTO %s (%s) VALUES (%s)", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
 		} else {
 			insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", tableName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
@@ -1216,7 +1221,8 @@ func (db *SQLite) SettingsDeleteValue(key string) error {
 
 // --- Profile --- //
 func (db *SQLite) ProfileGetName(address string, blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT name FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
+	query := fmt.Sprintf("SELECT name FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile name from database: " + err.Error())
 		return ""
@@ -1233,7 +1239,8 @@ func (db *SQLite) ProfileGetName(address string, blockchain string) string {
 	return ""
 }
 func (db *SQLite) ProfileGetAvatar(address string, blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT avatar FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
+	query := fmt.Sprintf("SELECT avatar FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("could not get profile avatar from database: " + err.Error())
 		return ""
@@ -1251,7 +1258,8 @@ func (db *SQLite) ProfileGetAvatar(address string, blockchain string) string {
 	return ""
 }
 func (db *SQLite) ProfileGetBanner(address string, blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT banner FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
+	query := fmt.Sprintf("SELECT banner FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile banner from database: " + err.Error())
 		return ""
@@ -1269,7 +1277,8 @@ func (db *SQLite) ProfileGetBanner(address string, blockchain string) string {
 	return ""
 }
 func (db *SQLite) ProfileGetDescription(address string, blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT description FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
+	query := fmt.Sprintf("SELECT description FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile description from database: " + err.Error())
 		return ""
@@ -1287,7 +1296,8 @@ func (db *SQLite) ProfileGetDescription(address string, blockchain string) strin
 	return ""
 }
 func (db *SQLite) ProfileGetLocation(address string, blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT location FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
+	query := fmt.Sprintf("SELECT location FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile location from database: " + err.Error())
 		return ""
@@ -1305,7 +1315,8 @@ func (db *SQLite) ProfileGetLocation(address string, blockchain string) string {
 	return ""
 }
 func (db *SQLite) ProfileGetWebsite(address string, blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT website FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
+	query := fmt.Sprintf("SELECT website FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile website from database: " + err.Error())
 		return ""
@@ -1323,7 +1334,8 @@ func (db *SQLite) ProfileGetWebsite(address string, blockchain string) string {
 	return ""
 }
 func (db *SQLite) ProfileGetVertical(address string, blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT vertical FROM onchain_meta WHERE address = LOWER(?) AND blockchain = ?", address, blockchain)
+	query := fmt.Sprintf("SELECT vertical FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile vertical from database: " + err.Error())
 		return ""
@@ -1344,7 +1356,8 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 	var metaAge int64 = 0
 	var postAge int64 = 0
 	var joinedDate int64 = 0
-	rowsmeta, err := db.runParamSQLSelect("SELECT COALESCE(MIN(CASE WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN verticalTimestamp > 0 THEN verticalTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp ELSE 0 END), 0) AS min_timestamp FROM onchain_meta WHERE blockchain = ? AND address = LOWER(?)", blockchain, address)
+	query := fmt.Sprintf("SELECT COALESCE(MIN(CASE WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN verticalTimestamp > 0 THEN verticalTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp ELSE 0 END), 0) AS min_timestamp FROM onchain_%s_meta WHERE blockchain = ? AND address = LOWER(?)", blockchain)
+	rowsmeta, err := db.runParamSQLSelect(query, blockchain, address)
 	if err == nil {
 		if rowsmeta != nil {
 			defer rowsmeta.Close()
@@ -1360,7 +1373,8 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 		core.LogDebug("Could not parse database rows for profile joined date: " + err.Error())
 		return nil
 	}
-	rowsposts, err := db.runParamSQLSelect("SELECT timestamp FROM onchain_post WHERE fromAddress = LOWER(?) AND blockchain = ?", address, blockchain)
+	query2 := fmt.Sprintf("SELECT timestamp FROM onchain_%s_post WHERE fromAddress = LOWER(?) AND blockchain = ?", blockchain)
+	rowsposts, err := db.runParamSQLSelect(query2, address, blockchain)
 	if err == nil {
 		if rowsposts != nil {
 			defer rowsposts.Close()
@@ -1392,7 +1406,8 @@ func (db *SQLite) ProfileGetJoinedDate(address string, blockchain string) *int64
 }
 func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[string]interface{} {
 	var posts []map[string]interface{}
-	rowsPosts, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_post WHERE fromAddress = LOWER (?) AND blockchain = ? AND data IS NOT NULL ORDER BY timestamp DESC", address, blockchain)
+	query := fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_%s_post WHERE fromAddress = LOWER (?) AND blockchain = ? AND data IS NOT NULL ORDER BY timestamp DESC", blockchain)
+	rowsPosts, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get user posts from database: " + err.Error())
 		return nil
@@ -1449,7 +1464,8 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 }
 func (db *SQLite) ProfileGetFollowerCount(address string, blockchain string) *int64 {
 	var postCount int64 = 0
-	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE followeeAddress = ? AND followeeBlockchain = ?", address, blockchain)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_follow WHERE followeeAddress = ? AND followeeBlockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get follower count from database: " + err.Error())
 		return nil
@@ -1466,7 +1482,8 @@ func (db *SQLite) ProfileGetFollowerCount(address string, blockchain string) *in
 }
 func (db *SQLite) ProfileGetFollowingCount(address string, blockchain string) *int64 {
 	var postCount int64 = 0
-	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE followerAddress = ? AND followerBlockchain = ?", address, blockchain)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_follow WHERE followerAddress = ? AND followerBlockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get following count from database: " + err.Error())
 		return nil
@@ -1482,7 +1499,8 @@ func (db *SQLite) ProfileGetFollowingCount(address string, blockchain string) *i
 	return &postCount
 }
 func (db *SQLite) ProfileIsFollower(followeeAddress string, followeeBlockchain string, followerAddress string, followerBlockchain string) bool {
-	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM onchain_follow WHERE followeeAddress = ? AND followeeBlockchain = ? AND followerAddress = ? AND followerBlockchain = ?", followeeAddress, followeeBlockchain, followerAddress, followerBlockchain)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_follow WHERE followeeAddress = ? AND followeeBlockchain = ? AND followerAddress = ? AND followerBlockchain = ?", followeeBlockchain)
+	rows, err := db.runParamSQLSelect(query, followeeAddress, followeeBlockchain, followerAddress, followerBlockchain)
 	if err != nil {
 		core.LogDebug("Could not get follower status from database: " + err.Error())
 		return false
@@ -1505,56 +1523,60 @@ func (db *SQLite) ProfileIsFollower(followeeAddress string, followeeBlockchain s
 // --- Search --- //
 func (db *SQLite) SearchGetPosts(query string) []map[string]interface{} {
 	var posts []map[string]interface{}
-	search := "%" + query + "%"
-	rows, err := db.runParamSQLSelect("SELECT txHash, COALESCE(parentTxHash, '') as parentHash, timestamp, data, fromAddress, blockchain FROM onchain_post WHERE LOWER (data) LIKE LOWER (?)", search)
-	if err != nil {
-		core.LogDebug("Could not get searched posts from database: " + err.Error())
-		return nil
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var timestamp uint64
-		var txHash, parentHash, payload, blockchain, address string
-		var attachments [][]interface{}
-		err := rows.Scan(&txHash, &parentHash, &timestamp, &payload, &address, &blockchain)
+	for _, _blockchain := range core.ValidNetworks {
+		selectionQueryFmt := "SELECT txHash, COALESCE(parentTxHash, '') as parentHash, timestamp, data, fromAddress, blockchain FROM onchain_%s_post WHERE LOWER (data) LIKE LOWER (?)"
+		selectionQuery := fmt.Sprintf(selectionQueryFmt, _blockchain)
+		search := "%" + query + "%"
+		rows, err := db.runParamSQLSelect(selectionQuery, search)
 		if err != nil {
-			core.LogDebug("Could not scan database rows: " + err.Error())
+			core.LogDebug("Could not get searched posts from database: " + err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
-		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
-		if err != nil {
-			core.LogDebug("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
-		}
-		if rowsAttachments != nil {
-			defer rowsAttachments.Close()
-			for rowsAttachments.Next() {
-				var mimeType string
-				var size uint64
-				var fileURL string
-				var fileName string
-				err := rowsAttachments.Scan(&mimeType, &size, &fileURL, &fileName)
-				if err != nil {
-					core.LogDebug("Could parse rows for post attachment: " + err.Error())
-					break // bail rowsAttachments for loop
-				}
-				attachment := []interface{}{fileURL, mimeType, size, fileName}
-				attachments = append(attachments, attachment)
+		defer rows.Close()
+		for rows.Next() {
+			var timestamp uint64
+			var txHash, parentHash, payload, blockchain, address string
+			var attachments [][]interface{}
+			err := rows.Scan(&txHash, &parentHash, &timestamp, &payload, &address, &blockchain)
+			if err != nil {
+				core.LogDebug("Could not scan database rows: " + err.Error())
+				return nil
 			}
+			sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
+			rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
+			if err != nil {
+				core.LogDebug("Could not get attachments for post: " + err.Error()) // No bail because we can still return the text of the post
+			}
+			if rowsAttachments != nil {
+				defer rowsAttachments.Close()
+				for rowsAttachments.Next() {
+					var mimeType string
+					var size uint64
+					var fileURL string
+					var fileName string
+					err := rowsAttachments.Scan(&mimeType, &size, &fileURL, &fileName)
+					if err != nil {
+						core.LogDebug("Could parse rows for post attachment: " + err.Error())
+						break // bail rowsAttachments for loop
+					}
+					attachment := []interface{}{fileURL, mimeType, size, fileName}
+					attachments = append(attachments, attachment)
+				}
+			}
+			post := map[string]interface{}{
+				"resultType": "post",
+				"blockchain": blockchain,
+				"address":    address,
+				"txHash":     txHash,
+				"timestamp":  timestamp,
+				"payload":    payload,
+				"parentHash": parentHash,
+			}
+			if attachments != nil {
+				post["attachments"] = attachments
+			}
+			posts = append(posts, post)
 		}
-		post := map[string]interface{}{
-			"resultType": "post",
-			"blockchain": blockchain,
-			"address":    address,
-			"txHash":     txHash,
-			"timestamp":  timestamp,
-			"payload":    payload,
-			"parentHash": parentHash,
-		}
-		if attachments != nil {
-			post["attachments"] = attachments
-		}
-		posts = append(posts, post)
 	}
 	return posts
 }
@@ -1562,115 +1584,114 @@ func (db *SQLite) SearchGetProfiles(query string) []map[string]interface{} {
 	var profiles []map[string]interface{}
 	search := "%" + query + "%"
 	searchPrefix := query + "%"
-	sqlQuery := `SELECT address, blockchain FROM onchain_meta
-		WHERE address LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ?`
-	rows, err := db.runParamSQLSelect(sqlQuery, search, search, searchPrefix, searchPrefix+".eth", searchPrefix+".base.eth")
-	if err != nil {
-		core.LogDebug("Could not get searched profiles from database: " + err.Error())
-		return nil
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var address, blockchain string
-		err = rows.Scan(&address, &blockchain)
-		profile := map[string]interface{}{
-			"resultType": "profile",
-			"address":    address,
-			"blockchain": blockchain,
-		}
+	for _, _blockchain := range core.ValidNetworks {
+		sqlQueryFmt := "SELECT address, blockchain FROM onchain_%s_meta WHERE address LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ?"
+		sqlQuery := fmt.Sprintf(sqlQueryFmt, _blockchain)
+		rows, err := db.runParamSQLSelect(sqlQuery, search, search, searchPrefix, searchPrefix+".eth", searchPrefix+".base.eth", searchPrefix+".algo")
 		if err != nil {
-			core.LogDebug("Could not parse posts from database rows")
+			core.LogDebug("Could not get searched profiles from database: " + err.Error())
 			return nil
 		}
-		profiles = append(profiles, profile)
+		defer rows.Close()
+		for rows.Next() {
+			var address, blockchain string
+			err = rows.Scan(&address, &blockchain)
+			profile := map[string]interface{}{
+				"resultType": "profile",
+				"address":    address,
+				"blockchain": blockchain,
+			}
+			if err != nil {
+				core.LogDebug("Could not parse posts from database rows")
+				return nil
+			}
+			profiles = append(profiles, profile)
+		}
 	}
 	return profiles
 }
 func (db *SQLite) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
-	sqlQuery := `SELECT address, blockchain FROM (
-		SELECT address, blockchain FROM onchain_meta
-		UNION
-		SELECT followeeAddress, followeeBlockchain FROM onchain_follow
-	) ORDER BY RANDOM() LIMIT ?`
-	rows, err := db.runParamSQLSelect(sqlQuery, limit)
-	if err != nil {
-		core.LogDebug("Could not get random profiles from database: " + err.Error())
-		return nil
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var address, blockchain string
-		err = rows.Scan(&address, &blockchain)
+	for _, _blockchain := range core.ValidNetworks {
+		sqlQueryFmt := "SELECT address, blockchain FROM (SELECT address, blockchain FROM onchain_%s_meta UNION SELECT followeeAddress, followeeBlockchain FROM onchain_%s_follow) ORDER BY RANDOM() LIMIT ?"
+		sqlQuery := fmt.Sprintf(sqlQueryFmt, _blockchain, _blockchain)
+		rows, err := db.runParamSQLSelect(sqlQuery, limit)
 		if err != nil {
-			core.LogDebug("Could not parse random profiles from database rows: " + err.Error())
+			core.LogDebug("Could not get random profiles from database: " + err.Error())
 			return nil
 		}
-		profile := map[string]interface{}{
-			"address":    address,
-			"blockchain": blockchain,
+		defer rows.Close()
+		for rows.Next() {
+			var address, blockchain string
+			err = rows.Scan(&address, &blockchain)
+			if err != nil {
+				core.LogDebug("Could not parse random profiles from database rows: " + err.Error())
+				return nil
+			}
+			profile := map[string]interface{}{
+				"address":    address,
+				"blockchain": blockchain,
+			}
+			profiles = append(profiles, profile)
 		}
-		profiles = append(profiles, profile)
 	}
 	return profiles
 }
 func (db *SQLite) DiscoverGetTopByFollowers(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
-	sqlQuery := `SELECT followeeAddress, followeeBlockchain, COUNT(*) as follower_count
-		FROM onchain_follow
-		GROUP BY followeeAddress, followeeBlockchain
-		ORDER BY follower_count DESC
-		LIMIT ?`
-	rows, err := db.runParamSQLSelect(sqlQuery, limit)
-	if err != nil {
-		core.LogDebug("Could not get top profiles by followers from database: " + err.Error())
-		return nil
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var address, blockchain string
-		var followerCount int
-		err = rows.Scan(&address, &blockchain, &followerCount)
+	for _, _blockchain := range core.ValidNetworks {
+		sqlQueryFmt := "SELECT followeeAddress, followeeBlockchain, COUNT(*) as follower_count FROM onchain_%s_follow GROUP BY followeeAddress, followeeBlockchain ORDER BY follower_count DESC LIMIT ?"
+		sqlQuery := fmt.Sprintf(sqlQueryFmt, _blockchain)
+		rows, err := db.runParamSQLSelect(sqlQuery, limit)
 		if err != nil {
-			core.LogDebug("Could not parse top follower profiles from database rows: " + err.Error())
+			core.LogDebug("Could not get top profiles by followers from database: " + err.Error())
 			return nil
 		}
-		profile := map[string]interface{}{
-			"address":       address,
-			"blockchain":    blockchain,
-			"followerCount": followerCount,
+		defer rows.Close()
+		for rows.Next() {
+			var address, blockchain string
+			var followerCount int
+			err = rows.Scan(&address, &blockchain, &followerCount)
+			if err != nil {
+				core.LogDebug("Could not parse top follower profiles from database rows: " + err.Error())
+				return nil
+			}
+			profile := map[string]interface{}{
+				"address":       address,
+				"blockchain":    blockchain,
+				"followerCount": followerCount,
+			}
+			profiles = append(profiles, profile)
 		}
-		profiles = append(profiles, profile)
 	}
 	return profiles
 }
 func (db *SQLite) DiscoverGetTopByPosts(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
-	sqlQuery := `SELECT fromAddress, blockchain, COUNT(*) as post_count
-		FROM onchain_post
-		GROUP BY fromAddress, blockchain
-		ORDER BY post_count DESC
-		LIMIT ?`
-	rows, err := db.runParamSQLSelect(sqlQuery, limit)
-	if err != nil {
-		core.LogDebug("Could not get top profiles by posts from database: " + err.Error())
-		return nil
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var address, blockchain string
-		var postCount int
-		err = rows.Scan(&address, &blockchain, &postCount)
+	for _, _blockchain := range core.ValidNetworks {
+		sqlQueryFmt := "SELECT fromAddress, blockchain, COUNT(*) as post_count FROM onchain_%s_post GROUP BY fromAddress, blockchain ORDER BY post_count DESC LIMIT ?"
+		sqlQuery := fmt.Sprintf(sqlQueryFmt, _blockchain)
+		rows, err := db.runParamSQLSelect(sqlQuery, limit)
 		if err != nil {
-			core.LogDebug("Could not parse top post profiles from database rows: " + err.Error())
+			core.LogDebug("Could not get top profiles by posts from database: " + err.Error())
 			return nil
 		}
-		profile := map[string]interface{}{
-			"address":    address,
-			"blockchain": blockchain,
-			"postCount":  postCount,
+		defer rows.Close()
+		for rows.Next() {
+			var address, blockchain string
+			var postCount int
+			err = rows.Scan(&address, &blockchain, &postCount)
+			if err != nil {
+				core.LogDebug("Could not parse top post profiles from database rows: " + err.Error())
+				return nil
+			}
+			profile := map[string]interface{}{
+				"address":    address,
+				"blockchain": blockchain,
+				"postCount":  postCount,
+			}
+			profiles = append(profiles, profile)
 		}
-		profiles = append(profiles, profile)
 	}
 	return profiles
 }
@@ -1846,7 +1867,8 @@ func (db *SQLite) GetFileHashFromUUID(uuid string) string {
 func (db *SQLite) IndexerCreateJob(uuid string, blockchain string) {
 	core.LogDebug("IndexerCreateJob(): " + uuid + " - " + blockchain)
 	timestamp := core.GetTimestamp()
-	query := "INSERT INTO indexer_jobs (uuid, blockchain, headBlock, status, tailBlock, timestamp, rps) VALUES (?, ?, 0, 'pending', 0, ?, 0) ON CONFLICT (uuid) DO UPDATE SET status = excluded.status, tailBlock = excluded.tailBlock, timestamp = excluded.timestamp"
+	queryFmt := "INSERT INTO %s_indexer_jobs (uuid, blockchain, headBlock, status, tailBlock, timestamp, rps) VALUES (?, ?, 0, 'pending', 0, ?, 0) ON CONFLICT (uuid) DO UPDATE SET status = excluded.status, tailBlock = excluded.tailBlock, timestamp = excluded.timestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	core.LogDebug("IndexerCreateJob(): " + query)
 	_, err := db.runParamSQLUpdate(query, uuid, blockchain, timestamp)
 	if err != nil {
@@ -1854,7 +1876,9 @@ func (db *SQLite) IndexerCreateJob(uuid string, blockchain string) {
 	}
 }
 func (db *SQLite) IndexerGetJobUUID(blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT uuid FROM indexer_jobs WHERE blockchain = ?", blockchain)
+	queryFmt := "SELECT uuid FROM %s_indexer_jobs WHERE blockchain = ?"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	rows, err := db.runParamSQLSelect(query, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get the indexer job UUID from the database: " + err.Error())
 		return ""
@@ -1872,150 +1896,264 @@ func (db *SQLite) IndexerGetJobUUID(blockchain string) string {
 	return ""
 }
 func (db *SQLite) IndexerGetJobStatus(uuid string) string {
-	rows, err := db.runParamSQLSelect("SELECT status FROM indexer_jobs WHERE uuid = ?", uuid)
-	if err != nil {
-		core.LogDebug("Could not get the indexer job status from the database: " + err.Error())
-		return ""
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var value string
-		err = rows.Scan(&value)
+	for _, blockchain := range core.ValidNetworks {
+		queryFmt := "SELECT status FROM %s_indexer_jobs WHERE uuid = ?"
+		query := fmt.Sprintf(queryFmt, blockchain)
+		rows, err := db.runParamSQLSelect(query, uuid)
 		if err != nil {
-			core.LogDebug("Could not get the rows for the indexer job status from the database: " + err.Error())
-			return ""
+			continue
 		}
-		return value
+		defer rows.Close()
+		for rows.Next() {
+			var value string
+			err = rows.Scan(&value)
+			if err != nil {
+				continue
+			}
+			return value
+		}
 	}
 	return ""
 }
 func (db *SQLite) IndexerGetHeadBlock(uuid string) uint64 {
-	rows, err := db.runParamSQLSelect("SELECT headBlock FROM indexer_jobs WHERE uuid = ?", uuid)
-	if err != nil {
-		core.LogDebug("Could not get the indexer head block from the database: " + err.Error())
-		return 0
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var value uint64
-		err = rows.Scan(&value)
+	for _, blockchain := range core.ValidNetworks {
+		queryFmt := "SELECT headBlock FROM %s_indexer_jobs WHERE uuid = ?"
+		query := fmt.Sprintf(queryFmt, blockchain)
+		rows, err := db.runParamSQLSelect(query, uuid)
 		if err != nil {
-			core.LogDebug("Could not get the rows for the indexer head block from the database: " + err.Error())
-			return 0
+			continue
 		}
-		return value
+		defer rows.Close()
+		for rows.Next() {
+			var value uint64
+			err = rows.Scan(&value)
+			if err != nil {
+				continue
+			}
+			return value
+		}
 	}
 	return 0
 }
 func (db *SQLite) IndexerGetTailBlock(uuid string) uint64 {
-	rows, err := db.runParamSQLSelect("SELECT tailBlock FROM indexer_jobs WHERE uuid = ?", uuid)
-	if err != nil {
-		core.LogDebug("Could not get the indexer tail block from the database: " + err.Error())
-		return 0
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var value uint64
-		err = rows.Scan(&value)
+	for _, blockchain := range core.ValidNetworks {
+		queryFmt := "SELECT tailBlock FROM %s_indexer_jobs WHERE uuid = ?"
+		query := fmt.Sprintf(queryFmt, blockchain)
+		rows, err := db.runParamSQLSelect(query, uuid)
 		if err != nil {
-			core.LogDebug("Could not get the rows for the indexer tail block from the database: " + err.Error())
-			return 0
+			continue
 		}
-		return value
+		defer rows.Close()
+		for rows.Next() {
+			var value uint64
+			err = rows.Scan(&value)
+			if err != nil {
+				continue
+			}
+			return value
+		}
 	}
 	return 0
 }
 func (db *SQLite) IndexerGetRunningJobsUUIDs() []string {
-	rows, err := db.getRows("SELECT uuid FROM indexer_jobs WHERE status = 'running'")
-	if err != nil {
-		core.LogDebug("Could not find the running indexer job UUIDs from the database: " + err.Error())
-		return []string{}
-	}
-	defer rows.Close()
 	var uuids []string
-	for rows.Next() {
-		var value string
-		err = rows.Scan(&value)
+	for _, blockchain := range core.ValidNetworks {
+		queryFmt := "SELECT uuid FROM %s_indexer_jobs WHERE status = 'running'"
+		query := fmt.Sprintf(queryFmt, blockchain)
+		rows, err := db.getRows(query)
 		if err != nil {
-			core.LogDebug("Could not find the rows for the running indexer job UUIDs from the database: " + err.Error())
-			return []string{}
+			continue
 		}
-		uuids = append(uuids, value)
+		defer rows.Close()
+		for rows.Next() {
+			var value string
+			err = rows.Scan(&value)
+			if err != nil {
+				continue
+			}
+			uuids = append(uuids, value)
+		}
 	}
 	return uuids
 }
 func (db *SQLite) IndexerUpdateJobStatus(uuid string, status string) {
 	timestamp := core.GetTimestamp()
-	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET status = ?, timestamp = ? WHERE uuid = ?", status, timestamp, uuid)
-	db.runSQL("PRAGMA wal_checkpoint(FULL)")
-	if err != nil {
-		core.LogDebug("Could not update the indexer job status in the database: " + err.Error())
+	for _, blockchain := range core.ValidNetworks {
+		queryFmt := "UPDATE %s_indexer_jobs SET status = ?, timestamp = ? WHERE uuid = ?"
+		query := fmt.Sprintf(queryFmt, blockchain)
+		_, err := db.runParamSQLUpdate(query, status, timestamp, uuid)
+		db.runSQL("PRAGMA wal_checkpoint(FULL)")
+		if err != nil {
+			core.LogDebug("Could not update the indexer job status in the database: " + err.Error())
+		}
 	}
 }
 func (db *SQLite) IndexerUpdateHeadBlock(uuid string, headBlock uint64) {
-	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET headBlock = ?, timestamp = ? WHERE uuid = ?", headBlock, core.GetTimestamp(), uuid)
-	if err != nil {
-		core.LogDebug("Could not update the indexer head block in the database: " + err.Error())
+	for _, blockchain := range core.ValidNetworks {
+		queryFmt := "UPDATE %s_indexer_jobs SET headBlock = ?, timestamp = ? WHERE uuid = ?"
+		query := fmt.Sprintf(queryFmt, blockchain)
+		_, err := db.runParamSQLUpdate(query, headBlock, core.GetTimestamp(), uuid)
+		if err != nil {
+			core.LogDebug("Could not update the indexer head block in the database: " + err.Error())
+		}
 	}
 }
 func (db *SQLite) IndexerUpdateTailBlock(uuid string, tailBlock uint64) {
-	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET tailBlock = ?, timestamp = ? WHERE uuid = ?", tailBlock, core.GetTimestamp(), uuid)
-	if err != nil {
-		core.LogDebug("Could not update the indexer tail block in the database: " + err.Error())
+	for _, blockchain := range core.ValidNetworks {
+		queryFmt := "UPDATE %s_indexer_jobs SET tailBlock = ?, timestamp = ? WHERE uuid = ?"
+		query := fmt.Sprintf(queryFmt, blockchain)
+		_, err := db.runParamSQLUpdate(query, tailBlock, core.GetTimestamp(), uuid)
+		if err != nil {
+			core.LogDebug("Could not update the indexer tail block in the database: " + err.Error())
+		}
 	}
 }
 func (db *SQLite) IndexerUpdateJobSpeed(uuid string, speed uint64) {
-	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET rps = ? WHERE uuid = ?", speed, uuid)
-	if err != nil {
-		// Silently skip SQLITE_BUSY errors since RPS is non-critical and will be updated again soon
-		if strings.Contains(err.Error(), "SQLITE_BUSY") || strings.Contains(err.Error(), "database is locked") {
-			return
+	for _, blockchain := range core.ValidNetworks {
+		queryFmt := "UPDATE %s_indexer_jobs SET rps = ? WHERE uuid = ?"
+		query := fmt.Sprintf(queryFmt, blockchain)
+		_, err := db.runParamSQLUpdate(query, speed, uuid)
+		if err != nil {
+			// Silently skip SQLITE_BUSY errors since RPS is non-critical and will be updated again soon
+			if strings.Contains(err.Error(), "SQLITE_BUSY") || strings.Contains(err.Error(), "database is locked") {
+				return
+			}
+			core.LogDebug("Could not update the indexer job speed in the database: " + err.Error())
 		}
-		core.LogDebug("Could not update the indexer job speed in the database: " + err.Error())
 	}
 }
 func (db *SQLite) IndexerAddPost(txHash string, blockchain string, fromAddress string, toAddress string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
-	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	queryFmt := "INSERT INTO onchain_%s_post (txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddress, toAddress, parentTxHash, amount, timestamp, data, blockNumber)
 	if err != nil {
 		core.LogDebug("Could not add a post from the indexer into the database: " + err.Error())
 	}
 }
 func (db *SQLite) IndexerResetJobs(blockchain string) {
-	_, err := db.runParamSQLUpdate("UPDATE indexer_jobs SET status = 'pending', headBlock = 0, tailBlock = 0, timestamp = ? WHERE blockchain = ?", core.GetTimestamp(), blockchain)
+	queryFmt := "UPDATE %s_indexer_jobs SET status = 'pending', headBlock = 0, tailBlock = 0, timestamp = ? WHERE blockchain = ?"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	_, err := db.runParamSQLUpdate(query, core.GetTimestamp(), blockchain)
 	if err != nil {
 		core.LogDebug("Could not reset the indexer in the database: " + err.Error())
 	}
 	// Wipe onchain data for this blockchain - indexer will refill it
-	_, err = db.runParamSQLUpdate("DELETE FROM onchain_post WHERE blockchain = ?", blockchain)
+	queryFmt = "DELETE FROM onchain_%s_post WHERE blockchain = ?"
+	query = fmt.Sprintf(queryFmt, blockchain)
+	_, err = db.runParamSQLUpdate(query, blockchain)
 	if err != nil {
-		core.LogDebug("Could not clear onchain_post for " + blockchain + ": " + err.Error())
+		core.LogDebug("Could not clear onchain_" + blockchain + "_post for " + blockchain + ": " + err.Error())
 	}
-	_, err = db.runParamSQLUpdate("DELETE FROM onchain_meta WHERE blockchain = ?", blockchain)
+	queryFmt = "DELETE FROM onchain_%s_meta WHERE blockchain = ?"
+	query = fmt.Sprintf(queryFmt, blockchain)
+	_, err = db.runParamSQLUpdate(query, blockchain)
 	if err != nil {
-		core.LogDebug("Could not clear onchain_meta for " + blockchain + ": " + err.Error())
+		core.LogDebug("Could not clear onchain_" + blockchain + "_meta for " + blockchain + ": " + err.Error())
 	}
-	_, err = db.runParamSQLUpdate("DELETE FROM onchain_follow WHERE followerBlockchain = ? OR followeeBlockchain = ?", blockchain, blockchain)
+	queryFmt = "DELETE FROM onchain_%s_follow WHERE followerBlockchain = ? OR followeeBlockchain = ?"
+	query = fmt.Sprintf(queryFmt, blockchain)
+	_, err = db.runParamSQLUpdate(query, blockchain, blockchain)
 	if err != nil {
-		core.LogDebug("Could not clear onchain_follow for " + blockchain + ": " + err.Error())
+		core.LogDebug("Could not clear onchain_" + blockchain + "_follow for " + blockchain + ": " + err.Error())
 	}
-	_, err = db.runParamSQLUpdate("DELETE FROM onchain_block WHERE blockerBlockchain = ? OR blockeeBlockchain = ?", blockchain, blockchain)
+	queryFmt = "DELETE FROM onchain_%s_block WHERE blockerBlockchain = ? OR blockeeBlockchain = ?"
+	query = fmt.Sprintf(queryFmt, blockchain)
+	_, err = db.runParamSQLUpdate(query, blockchain, blockchain)
 	if err != nil {
-		core.LogDebug("Could not clear onchain_block for " + blockchain + ": " + err.Error())
+		core.LogDebug("Could not clear onchain_" + blockchain + "_block for " + blockchain + ": " + err.Error())
 	}
 	core.LogDebug("Cleared all onchain data for " + blockchain)
 }
 
 // --- Onchain Tokenized --- //
+func (db *SQLite) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
+	queryFmt := "INSERT INTO onchain_%s_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	if err != nil {
+		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	queryFmt := "INSERT INTO onchain_%s_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	if err != nil {
+		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		core.LogDebug("Could not count the comment in the database: " + err.Error())
+		return
+	}
+	if rowsAffected == 0 {
+		core.LogDebug("Duplicate comment detected, aborting entry")
+		return
+	}
+	for _, attachment := range attachments {
+		fileURL := attachment.FileURL
+		fileUUID := uuid.New().String()
+		cid := ""
+		if strings.HasPrefix(fileURL, "ipfs://") {
+			cid = strings.TrimPrefix(fileURL, "ipfs://")
+		}
+		mimeType := attachment.MimeType
+		size := attachment.FileSize
+		fileName := attachment.FileName
+		var existingFileUUID string
+		if fileURL != "" || cid != "" {
+			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
+			if err != nil {
+				core.LogDebug("Could not check for existing file: " + err.Error())
+				continue
+			}
+			if rows.Next() {
+				err = rows.Scan(&existingFileUUID)
+				if err != nil {
+					core.LogDebug("Could not scan existing file UUID: " + err.Error())
+					rows.Close()
+					continue
+				}
+			}
+			rows.Close()
+		}
+		if existingFileUUID != "" {
+			fileUUID = existingFileUUID
+		} else {
+			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain")
+			if err != nil {
+				core.LogDebug("Could not insert file record: " + err.Error())
+				continue
+			}
+		}
+		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?) ON CONFLICT (fileUUID, txHash, blockchain) DO NOTHING"
+		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
+		if err != nil {
+			core.LogDebug("Could not link file to transaction: " + err.Error())
+		}
+	}
+}
+func (db *SQLite) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
+	queryFmt := "INSERT INTO onchain_%s_reaction (txHash, blockchain, fromAddress, targetTxHash, targetType, reactionType, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the reaction in the database: " + err.Error())
+	}
+}
 func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
-	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	queryFmt := "INSERT INTO onchain_%s_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the post in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
-	query := "INSERT INTO onchain_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	queryFmt := "INSERT INTO onchain_%s_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the post in the database: " + err.Error())
@@ -2075,56 +2213,64 @@ func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, p
 	}
 }
 func (db *SQLite) OnchainMN(blockchain string, address string, name string, timestamp uint64) {
-	query := "INSERT INTO onchain_meta (blockchain, address, name, nameTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET name = excluded.name, nameTimestamp = excluded.nameTimestamp WHERE excluded.nameTimestamp > nameTimestamp"
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, name, nameTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET name = excluded.name, nameTimestamp = excluded.nameTimestamp WHERE excluded.nameTimestamp > nameTimestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, blockchain, address, name, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainMA(blockchain string, address string, avatar string, timestamp uint64) {
-	query := "INSERT INTO onchain_meta (blockchain, address, avatar, avatarTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET avatar = excluded.avatar, avatarTimestamp = excluded.avatarTimestamp WHERE excluded.avatarTimestamp > avatarTimestamp"
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, avatar, avatarTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET avatar = excluded.avatar, avatarTimestamp = excluded.avatarTimestamp WHERE excluded.avatarTimestamp > avatarTimestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, blockchain, address, avatar, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainMB(blockchain string, address string, banner string, timestamp uint64) {
-	query := "INSERT INTO onchain_meta (blockchain, address, banner, bannerTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET banner = excluded.banner, bannerTimestamp = excluded.bannerTimestamp WHERE excluded.bannerTimestamp > bannerTimestamp"
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, banner, bannerTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET banner = excluded.banner, bannerTimestamp = excluded.bannerTimestamp WHERE excluded.bannerTimestamp > bannerTimestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, blockchain, address, banner, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainMV(blockchain string, address string, vertical string, timestamp uint64) {
-	query := "INSERT INTO onchain_meta (blockchain, address, vertical, verticalTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET vertical = excluded.vertical, verticalTimestamp = excluded.verticalTimestamp WHERE excluded.verticalTimestamp > verticalTimestamp"
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, vertical, verticalTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET vertical = excluded.vertical, verticalTimestamp = excluded.verticalTimestamp WHERE excluded.verticalTimestamp > verticalTimestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, blockchain, address, vertical, int64(timestamp))
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainML(blockchain string, address string, location string, timestamp uint64) {
-	query := "INSERT INTO onchain_meta (blockchain, address, location, locationTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET location = excluded.location, locationTimestamp = excluded.locationTimestamp WHERE excluded.locationTimestamp > locationTimestamp"
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, location, locationTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET location = excluded.location, locationTimestamp = excluded.locationTimestamp WHERE excluded.locationTimestamp > locationTimestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, blockchain, address, location, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainMW(blockchain string, address string, website string, timestamp uint64) {
-	query := "INSERT INTO onchain_meta (blockchain, address, website, websiteTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET website = excluded.website, websiteTimestamp = excluded.websiteTimestamp WHERE excluded.websiteTimestamp > websiteTimestamp"
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, website, websiteTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET website = excluded.website, websiteTimestamp = excluded.websiteTimestamp WHERE excluded.websiteTimestamp > websiteTimestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, blockchain, address, website, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainMD(blockchain string, address string, description string, timestamp uint64) {
-	query := "INSERT INTO onchain_meta (blockchain, address, description, descriptionTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET description = excluded.description, descriptionTimestamp = excluded.descriptionTimestamp WHERE excluded.descriptionTimestamp > descriptionTimestamp"
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, description, descriptionTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET description = excluded.description, descriptionTimestamp = excluded.descriptionTimestamp WHERE excluded.descriptionTimestamp > descriptionTimestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, blockchain, address, description, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainF(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
-	followQuery := "SELECT 1 FROM onchain_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
+	followQueryFmt := "SELECT 1 FROM onchain_%s_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
+	followQuery := fmt.Sprintf(followQueryFmt, blockchain)
 	rows, err := db.runParamSQLSelect(followQuery, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
 	if err != nil {
 		core.LogDebug("Could not check if the follow already exists in the database: " + err.Error())
@@ -2136,7 +2282,8 @@ func (db *SQLite) OnchainF(txHash string, blockchain string, followerAddress str
 		// Don't add a new follower database entry if the follower relationship already exists (prevent follower count fraud)
 		return
 	}
-	query := "INSERT INTO onchain_follow (txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	queryFmt := "INSERT INTO onchain_%s_follow (txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err = db.runParamSQLUpdate(query, txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the follow in the database: " + err.Error())
@@ -2144,7 +2291,8 @@ func (db *SQLite) OnchainF(txHash string, blockchain string, followerAddress str
 }
 func (db *SQLite) OnchainFU(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
 	// Check if the follow relationship exists before attempting to remove it
-	followQuery := "SELECT 1 FROM onchain_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
+	followQueryFmt := "SELECT 1 FROM onchain_%s_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
+	followQuery := fmt.Sprintf(followQueryFmt, blockchain)
 	rows, err := db.runParamSQLSelect(followQuery, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
 	if err != nil {
 		core.LogDebug("Could not check if the follow exists in the database: " + err.Error())
@@ -2158,28 +2306,32 @@ func (db *SQLite) OnchainFU(txHash string, blockchain string, followerAddress st
 		return
 	}
 	// Remove the follow relationship from the database
-	query := "DELETE FROM onchain_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ?"
+	queryFmt := "DELETE FROM onchain_%s_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ?"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err = db.runParamSQLUpdate(query, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
 	if err != nil {
 		core.LogDebug("Could not remove the follow relationship from the database: " + err.Error())
 	}
 }
 func (db *SQLite) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64) {
-	query := "DELETE FROM onchain_post WHERE blockchain = ? AND timestamp < ?"
+	queryFmt := "DELETE FROM onchain_%s_post WHERE blockchain = ? AND timestamp < ?"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	result, err := db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
 	if err != nil {
 		core.LogDebug("Could not delete expired posts: " + err.Error())
 	} else if rows, _ := result.RowsAffected(); rows > 0 {
 		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired posts from " + blockchain)
 	}
-	query = "DELETE FROM onchain_follow WHERE followerBlockchain = ? AND timestamp < ?"
+	queryFmt = "DELETE FROM onchain_%s_follow WHERE followerBlockchain = ? AND timestamp < ?"
+	query = fmt.Sprintf(queryFmt, blockchain)
 	result, err = db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
 	if err != nil {
 		core.LogDebug("Could not delete expired follows: " + err.Error())
 	} else if rows, _ := result.RowsAffected(); rows > 0 {
 		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired follows from " + blockchain)
 	}
-	query = "DELETE FROM onchain_meta WHERE blockchain = ? AND blockchainTimestamp < ? AND blockchainTimestamp > 0"
+	queryFmt = "DELETE FROM onchain_%s_meta WHERE blockchain = ? AND blockchainTimestamp < ? AND blockchainTimestamp > 0"
+	query = fmt.Sprintf(queryFmt, blockchain)
 	result, err = db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
 	if err != nil {
 		core.LogDebug("Could not delete expired metadata: " + err.Error())
@@ -2188,395 +2340,20 @@ func (db *SQLite) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64
 	}
 }
 
-// --- Algorand Indexer Functions --- //
-func (db *SQLite) AlgoIndexerCreateJob(uuid string, blockchain string) {
-	core.LogDebug("AlgoIndexerCreateJob(): " + uuid + " - " + blockchain)
-	timestamp := core.GetTimestamp()
-	query := "INSERT INTO algo_indexer_jobs (uuid, blockchain, headBlock, status, tailBlock, timestamp, rps) VALUES (?, ?, 0, 'pending', 0, ?, 0) ON CONFLICT (uuid) DO UPDATE SET status = excluded.status, tailBlock = excluded.tailBlock, timestamp = excluded.timestamp"
-	_, err := db.runParamSQLUpdate(query, uuid, blockchain, timestamp)
-	if err != nil {
-		core.LogDebug("Could not create Algorand indexer job in the database: " + err.Error())
-	}
-}
-func (db *SQLite) AlgoIndexerGetJobUUID(blockchain string) string {
-	rows, err := db.runParamSQLSelect("SELECT uuid FROM algo_indexer_jobs WHERE blockchain = ?", blockchain)
-	if err != nil {
-		core.LogDebug("Could not get the Algorand indexer job UUID from the database: " + err.Error())
-		return ""
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var value string
-		err = rows.Scan(&value)
-		if err != nil {
-			core.LogDebug("Could not get the rows for the Algorand indexer job UUID from the database: " + err.Error())
-			return ""
-		}
-		return value
-	}
-	return ""
-}
-func (db *SQLite) AlgoIndexerGetJobStatus(uuid string) string {
-	rows, err := db.runParamSQLSelect("SELECT status FROM algo_indexer_jobs WHERE uuid = ?", uuid)
-	if err != nil {
-		core.LogDebug("Could not get the Algorand indexer job status from the database: " + err.Error())
-		return ""
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var value string
-		err = rows.Scan(&value)
-		if err != nil {
-			core.LogDebug("Could not get the rows for the Algorand indexer job status from the database: " + err.Error())
-			return ""
-		}
-		return value
-	}
-	return ""
-}
-func (db *SQLite) AlgoIndexerGetHeadBlock(uuid string) uint64 {
-	rows, err := db.runParamSQLSelect("SELECT headBlock FROM algo_indexer_jobs WHERE uuid = ?", uuid)
-	if err != nil {
-		core.LogDebug("Could not get the Algorand indexer head block from the database: " + err.Error())
-		return 0
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var value uint64
-		err = rows.Scan(&value)
-		if err != nil {
-			core.LogDebug("Could not get the rows for the Algorand indexer head block from the database: " + err.Error())
-			return 0
-		}
-		return value
-	}
-	return 0
-}
-func (db *SQLite) AlgoIndexerGetTailBlock(uuid string) uint64 {
-	rows, err := db.runParamSQLSelect("SELECT tailBlock FROM algo_indexer_jobs WHERE uuid = ?", uuid)
-	if err != nil {
-		core.LogDebug("Could not get the Algorand indexer tail block from the database: " + err.Error())
-		return 0
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var value uint64
-		err = rows.Scan(&value)
-		if err != nil {
-			core.LogDebug("Could not get the rows for the Algorand indexer tail block from the database: " + err.Error())
-			return 0
-		}
-		return value
-	}
-	return 0
-}
-func (db *SQLite) AlgoIndexerUpdateJobStatus(uuid string, status string) {
-	timestamp := core.GetTimestamp()
-	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET status = ?, timestamp = ? WHERE uuid = ?", status, timestamp, uuid)
-	db.runSQL("PRAGMA wal_checkpoint(FULL)")
-	if err != nil {
-		core.LogDebug("Could not update the Algorand indexer job status in the database: " + err.Error())
-	}
-}
-func (db *SQLite) AlgoIndexerUpdateHeadBlock(uuid string, headBlock uint64) {
-	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET headBlock = ?, timestamp = ? WHERE uuid = ?", headBlock, core.GetTimestamp(), uuid)
-	if err != nil {
-		core.LogDebug("Could not update the Algorand indexer head block in the database: " + err.Error())
-	}
-}
-func (db *SQLite) AlgoIndexerUpdateTailBlock(uuid string, tailBlock uint64) {
-	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET tailBlock = ?, timestamp = ? WHERE uuid = ?", tailBlock, core.GetTimestamp(), uuid)
-	if err != nil {
-		core.LogDebug("Could not update the Algorand indexer tail block in the database: " + err.Error())
-	}
-}
-func (db *SQLite) AlgoIndexerUpdateJobSpeed(uuid string, speed uint64) {
-	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET rps = ? WHERE uuid = ?", speed, uuid)
-	if err != nil {
-		if strings.Contains(err.Error(), "SQLITE_BUSY") || strings.Contains(err.Error(), "database is locked") {
-			return
-		}
-		core.LogDebug("Could not update the Algorand indexer job speed in the database: " + err.Error())
-	}
-}
-func (db *SQLite) AlgoIndexerResetJobs(blockchain string) {
-	_, err := db.runParamSQLUpdate("UPDATE algo_indexer_jobs SET status = 'pending', headBlock = 0, tailBlock = 0, timestamp = ? WHERE blockchain = ?", core.GetTimestamp(), blockchain)
-	if err != nil {
-		core.LogDebug("Could not reset the Algorand indexer in the database: " + err.Error())
-	}
-	_, err = db.runParamSQLUpdate("DELETE FROM onchain_algorand_post WHERE blockchain = ?", blockchain)
-	if err != nil {
-		core.LogDebug("Could not clear onchain_algorand_post for " + blockchain + ": " + err.Error())
-	}
-	_, err = db.runParamSQLUpdate("DELETE FROM onchain_algorand_meta WHERE blockchain = ?", blockchain)
-	if err != nil {
-		core.LogDebug("Could not clear onchain_algorand_meta for " + blockchain + ": " + err.Error())
-	}
-	_, err = db.runParamSQLUpdate("DELETE FROM onchain_algorand_follow WHERE followerBlockchain = ? OR followeeBlockchain = ?", blockchain, blockchain)
-	if err != nil {
-		core.LogDebug("Could not clear onchain_algorand_follow for " + blockchain + ": " + err.Error())
-	}
-	core.LogDebug("Cleared all Algorand onchain data for " + blockchain)
-}
-
-// --- Algorand Onchain Tokenized --- //
-func (db *SQLite) OnchainAlgorandP(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
-	query := "INSERT INTO onchain_algorand_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand post in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandPA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
-	query := "INSERT INTO onchain_algorand_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand post in the database: " + err.Error())
-		return
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		core.LogDebug("Could not count the Algorand post in the database: " + err.Error())
-		return
-	}
-	if rowsAffected == 0 {
-		core.LogDebug("Duplicate Algorand post detected, aborting entry")
-		return
-	}
-	for _, attachment := range attachments {
-		fileURL := attachment.FileURL
-		fileUUID := uuid.New().String()
-		cid := ""
-		if strings.HasPrefix(fileURL, "ipfs://") {
-			cid = strings.TrimPrefix(fileURL, "ipfs://")
-		}
-		mimeType := attachment.MimeType
-		size := attachment.FileSize
-		fileName := attachment.FileName
-		var existingFileUUID string
-		if fileURL != "" || cid != "" {
-			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
-			if err != nil {
-				core.LogDebug("Could not check for existing file: " + err.Error())
-				continue
-			}
-			if rows.Next() {
-				err = rows.Scan(&existingFileUUID)
-				if err != nil {
-					core.LogDebug("Could not scan existing file UUID: " + err.Error())
-					rows.Close()
-					continue
-				}
-			}
-			rows.Close()
-		}
-		if existingFileUUID != "" {
-			fileUUID = existingFileUUID
-		} else {
-			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain_algorand")
-			if err != nil {
-				core.LogDebug("Could not insert file record: " + err.Error())
-				continue
-			}
-		}
-		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?) ON CONFLICT (fileUUID, txHash, blockchain) DO NOTHING"
-		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
-		if err != nil {
-			core.LogDebug("Could not link file to Algorand transaction: " + err.Error())
-		}
-	}
-}
-func (db *SQLite) OnchainAlgorandMN(blockchain string, address string, name string, timestamp uint64) {
-	query := "INSERT INTO onchain_algorand_meta (blockchain, address, name, nameTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET name = excluded.name, nameTimestamp = excluded.nameTimestamp WHERE excluded.nameTimestamp > nameTimestamp"
-	_, err := db.runParamSQLUpdate(query, blockchain, address, name, timestamp)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandMA(blockchain string, address string, avatar string, timestamp uint64) {
-	query := "INSERT INTO onchain_algorand_meta (blockchain, address, avatar, avatarTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET avatar = excluded.avatar, avatarTimestamp = excluded.avatarTimestamp WHERE excluded.avatarTimestamp > avatarTimestamp"
-	_, err := db.runParamSQLUpdate(query, blockchain, address, avatar, timestamp)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandMB(blockchain string, address string, banner string, timestamp uint64) {
-	query := "INSERT INTO onchain_algorand_meta (blockchain, address, banner, bannerTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET banner = excluded.banner, bannerTimestamp = excluded.bannerTimestamp WHERE excluded.bannerTimestamp > bannerTimestamp"
-	_, err := db.runParamSQLUpdate(query, blockchain, address, banner, timestamp)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandMV(blockchain string, address string, vertical string, timestamp uint64) {
-	query := "INSERT INTO onchain_algorand_meta (blockchain, address, vertical, verticalTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET vertical = excluded.vertical, verticalTimestamp = excluded.verticalTimestamp WHERE excluded.verticalTimestamp > verticalTimestamp"
-	_, err := db.runParamSQLUpdate(query, blockchain, address, vertical, int64(timestamp))
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandML(blockchain string, address string, location string, timestamp uint64) {
-	query := "INSERT INTO onchain_algorand_meta (blockchain, address, location, locationTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET location = excluded.location, locationTimestamp = excluded.locationTimestamp WHERE excluded.locationTimestamp > locationTimestamp"
-	_, err := db.runParamSQLUpdate(query, blockchain, address, location, timestamp)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandMW(blockchain string, address string, website string, timestamp uint64) {
-	query := "INSERT INTO onchain_algorand_meta (blockchain, address, website, websiteTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET website = excluded.website, websiteTimestamp = excluded.websiteTimestamp WHERE excluded.websiteTimestamp > websiteTimestamp"
-	_, err := db.runParamSQLUpdate(query, blockchain, address, website, timestamp)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandMD(blockchain string, address string, description string, timestamp uint64) {
-	query := "INSERT INTO onchain_algorand_meta (blockchain, address, description, descriptionTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET description = excluded.description, descriptionTimestamp = excluded.descriptionTimestamp WHERE excluded.descriptionTimestamp > descriptionTimestamp"
-	_, err := db.runParamSQLUpdate(query, blockchain, address, description, timestamp)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand meta in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandF(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
-	followQuery := "SELECT 1 FROM onchain_algorand_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
-	rows, err := db.runParamSQLSelect(followQuery, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
-	if err != nil {
-		core.LogDebug("Could not check if the Algorand follow already exists in the database: " + err.Error())
-		return
-	}
-	followExists := rows.Next()
-	rows.Close()
-	if followExists {
-		return
-	}
-	query := "INSERT INTO onchain_algorand_follow (txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err = db.runParamSQLUpdate(query, txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand follow in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandFU(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
-	followQuery := "SELECT 1 FROM onchain_algorand_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ? LIMIT 1"
-	rows, err := db.runParamSQLSelect(followQuery, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
-	if err != nil {
-		core.LogDebug("Could not check if the Algorand follow exists in the database: " + err.Error())
-		return
-	}
-	followExists := rows.Next()
-	rows.Close()
-	if !followExists {
-		core.LogDebug("Algorand unfollow transaction dropped: follow relationship does not exist")
-		return
-	}
-	query := "DELETE FROM onchain_algorand_follow WHERE followerAddress = ? AND followerBlockchain = ? AND followeeAddress = ? AND followeeBlockchain = ?"
-	_, err = db.runParamSQLUpdate(query, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain)
-	if err != nil {
-		core.LogDebug("Could not remove the Algorand follow relationship from the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandDeleteExpired(blockchain string, cutoffTimestamp uint64) {
-	query := "DELETE FROM onchain_algorand_post WHERE blockchain = ? AND timestamp < ?"
-	result, err := db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
-	if err != nil {
-		core.LogDebug("Could not delete expired Algorand posts: " + err.Error())
-	} else if rows, _ := result.RowsAffected(); rows > 0 {
-		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired Algorand posts from " + blockchain)
-	}
-	query = "DELETE FROM onchain_algorand_follow WHERE followerBlockchain = ? AND timestamp < ?"
-	result, err = db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
-	if err != nil {
-		core.LogDebug("Could not delete expired Algorand follows: " + err.Error())
-	} else if rows, _ := result.RowsAffected(); rows > 0 {
-		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired Algorand follows from " + blockchain)
-	}
-	query = "DELETE FROM onchain_algorand_meta WHERE blockchain = ? AND blockchainTimestamp < ? AND blockchainTimestamp > 0"
-	result, err = db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
-	if err != nil {
-		core.LogDebug("Could not delete expired Algorand metadata: " + err.Error())
-	} else if rows, _ := result.RowsAffected(); rows > 0 {
-		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired Algorand metadata entries from " + blockchain)
-	}
-}
-
-// --- Comment Functions (Base) --- //
-func (db *SQLite) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
-	query := "INSERT INTO onchain_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
-	if err != nil {
-		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
-	query := "INSERT INTO onchain_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
-	if err != nil {
-		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
-		return
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		core.LogDebug("Could not count the comment in the database: " + err.Error())
-		return
-	}
-	if rowsAffected == 0 {
-		core.LogDebug("Duplicate comment detected, aborting entry")
-		return
-	}
-	for _, attachment := range attachments {
-		fileURL := attachment.FileURL
-		fileUUID := uuid.New().String()
-		cid := ""
-		if strings.HasPrefix(fileURL, "ipfs://") {
-			cid = strings.TrimPrefix(fileURL, "ipfs://")
-		}
-		mimeType := attachment.MimeType
-		size := attachment.FileSize
-		fileName := attachment.FileName
-		var existingFileUUID string
-		if fileURL != "" || cid != "" {
-			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
-			if err != nil {
-				core.LogDebug("Could not check for existing file: " + err.Error())
-				continue
-			}
-			if rows.Next() {
-				err = rows.Scan(&existingFileUUID)
-				if err != nil {
-					core.LogDebug("Could not scan existing file UUID: " + err.Error())
-					rows.Close()
-					continue
-				}
-			}
-			rows.Close()
-		}
-		if existingFileUUID != "" {
-			fileUUID = existingFileUUID
-		} else {
-			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain")
-			if err != nil {
-				core.LogDebug("Could not insert file record: " + err.Error())
-				continue
-			}
-		}
-		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?) ON CONFLICT (fileUUID, txHash, blockchain) DO NOTHING"
-		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
-		if err != nil {
-			core.LogDebug("Could not link file to transaction: " + err.Error())
-		}
-	}
-}
+// --- Comment Functions --- //
 func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
 	var comments []map[string]interface{}
-	query := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.parentType, c.timestamp, c.data,
+	queryFmt := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.parentType, c.timestamp, c.data,
 		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc,
-		(SELECT COUNT(*) FROM onchain_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'like') as likeCount,
-		(SELECT COUNT(*) FROM onchain_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'dislike') as dislikeCount,
-		(SELECT COUNT(*) FROM onchain_comment c2 WHERE c2.parentTxHash = c.txHash AND c2.blockchain = c.blockchain) as replyCount
-		FROM onchain_comment c
-		LEFT JOIN onchain_meta m ON c.fromAddress = m.address AND c.blockchain = m.blockchain
+		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'like') as likeCount,
+		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'dislike') as dislikeCount,
+		(SELECT COUNT(*) FROM onchain_%s_comment c2 WHERE c2.parentTxHash = c.txHash AND c2.blockchain = c.blockchain) as replyCount
+		FROM onchain_%s_comment c
+		LEFT JOIN onchain_%s_meta m ON c.fromAddress = m.address AND c.blockchain = m.blockchain
 		WHERE c.parentTxHash = ? AND c.blockchain = ?
 		ORDER BY likeCount DESC, c.timestamp DESC
 		LIMIT ? OFFSET ?`
+	query := fmt.Sprintf(queryFmt, blockchain, blockchain, blockchain, blockchain, blockchain)
 	rows, err := db.runParamSQLSelect(query, parentTxHash, blockchain, limit, offset)
 	if err != nil {
 		core.LogDebug("Could not get comments: " + err.Error())
@@ -2610,7 +2387,8 @@ func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int,
 	return comments
 }
 func (db *SQLite) GetCommentCount(targetTxHash string, blockchain string) int64 {
-	query := "SELECT COUNT(*) FROM onchain_comment WHERE parentTxHash = ? AND blockchain = ?"
+	queryFmt := "SELECT COUNT(*) FROM onchain_%s_comment WHERE parentTxHash = ? AND blockchain = ?"
+	query := fmt.Sprintf(queryFmt, blockchain)
 	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
 	if err != nil {
 		return 0
@@ -2623,152 +2401,20 @@ func (db *SQLite) GetCommentCount(targetTxHash string, blockchain string) int64 
 	return count
 }
 
-// --- Comment Functions (Algorand) --- //
-func (db *SQLite) OnchainAlgorandC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
-	query := "INSERT INTO onchain_algorand_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand comment in the database: " + err.Error())
-	}
-}
-func (db *SQLite) OnchainAlgorandCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
-	query := "INSERT INTO onchain_algorand_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand comment in the database: " + err.Error())
-		return
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		core.LogDebug("Could not count the Algorand comment in the database: " + err.Error())
-		return
-	}
-	if rowsAffected == 0 {
-		core.LogDebug("Duplicate Algorand comment detected, aborting entry")
-		return
-	}
-	for _, attachment := range attachments {
-		fileURL := attachment.FileURL
-		fileUUID := uuid.New().String()
-		cid := ""
-		if strings.HasPrefix(fileURL, "ipfs://") {
-			cid = strings.TrimPrefix(fileURL, "ipfs://")
-		}
-		mimeType := attachment.MimeType
-		size := attachment.FileSize
-		fileName := attachment.FileName
-		var existingFileUUID string
-		if fileURL != "" || cid != "" {
-			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
-			if err != nil {
-				core.LogDebug("Could not check for existing file: " + err.Error())
-				continue
-			}
-			if rows.Next() {
-				err = rows.Scan(&existingFileUUID)
-				if err != nil {
-					core.LogDebug("Could not scan existing file UUID: " + err.Error())
-					rows.Close()
-					continue
-				}
-			}
-			rows.Close()
-		}
-		if existingFileUUID != "" {
-			fileUUID = existingFileUUID
-		} else {
-			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain_algorand")
-			if err != nil {
-				core.LogDebug("Could not insert file record: " + err.Error())
-				continue
-			}
-		}
-		fileTxnQuery := "INSERT INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?) ON CONFLICT (fileUUID, txHash, blockchain) DO NOTHING"
-		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
-		if err != nil {
-			core.LogDebug("Could not link file to Algorand transaction: " + err.Error())
-		}
-	}
-}
-func (db *SQLite) GetAlgorandComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
-	var comments []map[string]interface{}
-	query := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.parentType, c.timestamp, c.data,
-		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc,
-		(SELECT COUNT(*) FROM onchain_algorand_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'like') as likeCount,
-		(SELECT COUNT(*) FROM onchain_algorand_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'dislike') as dislikeCount,
-		(SELECT COUNT(*) FROM onchain_algorand_comment c2 WHERE c2.parentTxHash = c.txHash AND c2.blockchain = c.blockchain) as replyCount
-		FROM onchain_algorand_comment c
-		LEFT JOIN onchain_algorand_meta m ON c.fromAddress = m.address AND c.blockchain = m.blockchain
-		WHERE c.parentTxHash = ? AND c.blockchain = ?
-		ORDER BY likeCount DESC, c.timestamp DESC
-		LIMIT ? OFFSET ?`
-	rows, err := db.runParamSQLSelect(query, parentTxHash, blockchain, limit, offset)
-	if err != nil {
-		core.LogDebug("Could not get Algorand comments: " + err.Error())
-		return comments
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var txHash, bc, fromAddress, pTxHash, parentType, data, author, avatarSrc string
-		var timestamp, likeCount, dislikeCount, replyCount int64
-		err := rows.Scan(&txHash, &bc, &fromAddress, &pTxHash, &parentType, &timestamp, &data, &author, &avatarSrc, &likeCount, &dislikeCount, &replyCount)
-		if err != nil {
-			core.LogDebug("Could not scan Algorand comment row: " + err.Error())
-			continue
-		}
-		comment := map[string]interface{}{
-			"txHash":       txHash,
-			"blockchain":   bc,
-			"address":      fromAddress,
-			"parentTxHash": pTxHash,
-			"parentType":   parentType,
-			"timestamp":    timestamp,
-			"payload":      data,
-			"author":       author,
-			"avatarSrc":    avatarSrc,
-			"likeCount":    likeCount,
-			"dislikeCount": dislikeCount,
-			"replyCount":   replyCount,
-		}
-		comments = append(comments, comment)
-	}
-	return comments
-}
-func (db *SQLite) GetAlgorandCommentCount(targetTxHash string, blockchain string) int64 {
-	query := "SELECT COUNT(*) FROM onchain_algorand_comment WHERE parentTxHash = ? AND blockchain = ?"
-	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
-	if err != nil {
-		return 0
-	}
-	defer rows.Close()
-	var count int64
-	if rows.Next() {
-		rows.Scan(&count)
-	}
-	return count
-}
-
-// --- Reaction Functions (Base) --- //
-func (db *SQLite) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
-	query := "INSERT INTO onchain_reaction (txHash, blockchain, fromAddress, targetTxHash, targetType, reactionType, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
-	if err != nil {
-		core.LogDebug("Could not tokenize the reaction in the database: " + err.Error())
-	}
-}
+// --- Reaction Functions --- //
 func (db *SQLite) GetReactionCounts(targetTxHash string, blockchain string) map[string]interface{} {
 	result := map[string]interface{}{
 		"likes":    int64(0),
 		"dislikes": int64(0),
 		"emoji":    map[string]int64{},
 	}
-	query := `SELECT reactionType, COUNT(*) as count FROM (
+	queryFmt := `SELECT reactionType, COUNT(*) as count FROM (
 		SELECT fromAddress, reactionType, MAX(timestamp) as maxTs
-		FROM onchain_reaction
+		FROM onchain_%s_reaction
 		WHERE targetTxHash = ? AND blockchain = ?
 		GROUP BY fromAddress
 	) GROUP BY reactionType`
+	query := fmt.Sprintf(queryFmt, blockchain)
 	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get reaction counts: " + err.Error())
@@ -2795,70 +2441,10 @@ func (db *SQLite) GetReactionCounts(targetTxHash string, blockchain string) map[
 	return result
 }
 func (db *SQLite) GetUserReaction(targetTxHash string, blockchain string, fromAddress string) string {
-	query := `SELECT reactionType FROM onchain_reaction
+	queryFmt := `SELECT reactionType FROM onchain_%s_reaction
 		WHERE targetTxHash = ? AND blockchain = ? AND fromAddress = ?
 		ORDER BY timestamp DESC LIMIT 1`
-	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, fromAddress)
-	if err != nil {
-		return ""
-	}
-	defer rows.Close()
-	var reactionType string
-	if rows.Next() {
-		rows.Scan(&reactionType)
-	}
-	return reactionType
-}
-
-// --- Reaction Functions (Algorand) --- //
-func (db *SQLite) OnchainAlgorandR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
-	query := "INSERT INTO onchain_algorand_reaction (txHash, blockchain, fromAddress, targetTxHash, targetType, reactionType, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
-	if err != nil {
-		core.LogDebug("Could not tokenize the Algorand reaction in the database: " + err.Error())
-	}
-}
-func (db *SQLite) GetAlgorandReactionCounts(targetTxHash string, blockchain string) map[string]interface{} {
-	result := map[string]interface{}{
-		"likes":    int64(0),
-		"dislikes": int64(0),
-		"emoji":    map[string]int64{},
-	}
-	query := `SELECT reactionType, COUNT(*) as count FROM (
-		SELECT fromAddress, reactionType, MAX(timestamp) as maxTs
-		FROM onchain_algorand_reaction
-		WHERE targetTxHash = ? AND blockchain = ?
-		GROUP BY fromAddress
-	) GROUP BY reactionType`
-	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
-	if err != nil {
-		core.LogDebug("Could not get Algorand reaction counts: " + err.Error())
-		return result
-	}
-	defer rows.Close()
-	emojiCounts := map[string]int64{}
-	for rows.Next() {
-		var reactionType string
-		var count int64
-		if err := rows.Scan(&reactionType, &count); err != nil {
-			continue
-		}
-		switch reactionType {
-		case "like":
-			result["likes"] = count
-		case "dislike":
-			result["dislikes"] = count
-		default:
-			emojiCounts[reactionType] = count
-		}
-	}
-	result["emoji"] = emojiCounts
-	return result
-}
-func (db *SQLite) GetAlgorandUserReaction(targetTxHash string, blockchain string, fromAddress string) string {
-	query := `SELECT reactionType FROM onchain_algorand_reaction
-		WHERE targetTxHash = ? AND blockchain = ? AND fromAddress = ?
-		ORDER BY timestamp DESC LIMIT 1`
+	query := fmt.Sprintf(queryFmt, blockchain)
 	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, fromAddress)
 	if err != nil {
 		return ""
@@ -2874,11 +2460,12 @@ func (db *SQLite) GetAlgorandUserReaction(targetTxHash string, blockchain string
 // --- Post Get Functions --- //
 func (db *SQLite) GetPost(txHash string, blockchain string) map[string]interface{} {
 	var post map[string]interface{}
-	query := `SELECT p.txHash, p.blockchain, p.fromAddress, p.parentTxHash, p.timestamp, p.data,
+	queryFmt := `SELECT p.txHash, p.blockchain, p.fromAddress, p.parentTxHash, p.timestamp, p.data,
 		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc
-		FROM onchain_post p
-		LEFT JOIN onchain_meta m ON p.fromAddress = m.address AND p.blockchain = m.blockchain
+		FROM onchain_%s_post p
+		LEFT JOIN onchain_%s_meta m ON p.fromAddress = m.address AND p.blockchain = m.blockchain
 		WHERE p.txHash = ? AND p.blockchain = ?`
+	query := fmt.Sprintf(queryFmt, blockchain, blockchain)
 	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get post: " + err.Error())
@@ -2910,66 +2497,7 @@ func (db *SQLite) GetPost(txHash string, blockchain string) map[string]interface
 	}
 	return post
 }
-func (db *SQLite) GetAlgorandPost(txHash string, blockchain string) map[string]interface{} {
-	var post map[string]interface{}
-	query := `SELECT p.txHash, p.blockchain, p.fromAddress, p.parentTxHash, p.timestamp, p.data,
-		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc
-		FROM onchain_algorand_post p
-		LEFT JOIN onchain_algorand_meta m ON p.fromAddress = m.address AND p.blockchain = m.blockchain
-		WHERE p.txHash = ? AND p.blockchain = ?`
-	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
-	if err != nil {
-		core.LogDebug("Could not get Algorand post: " + err.Error())
-		return post
-	}
-	defer rows.Close()
-	if rows.Next() {
-		var pTxHash, bc, fromAddress, parentTxHash, data, author, avatarSrc string
-		var timestamp int64
-		err := rows.Scan(&pTxHash, &bc, &fromAddress, &parentTxHash, &timestamp, &data, &author, &avatarSrc)
-		if err != nil {
-			core.LogDebug("Could not scan Algorand post row: " + err.Error())
-			return post
-		}
-		post = map[string]interface{}{
-			"txHash":       pTxHash,
-			"blockchain":   bc,
-			"address":      fromAddress,
-			"parentTxHash": parentTxHash,
-			"timestamp":    timestamp,
-			"payload":      data,
-			"author":       author,
-			"avatarSrc":    avatarSrc,
-		}
-		attachments := db.GetAlgorandPostAttachments(txHash, blockchain)
-		if len(attachments) > 0 {
-			post["attachments"] = attachments
-		}
-	}
-	return post
-}
 func (db *SQLite) GetPostAttachments(txHash string, blockchain string) [][]interface{} {
-	var attachments [][]interface{}
-	query := `SELECT f.fileURL, f.mimeType, f.size, f.fileName
-		FROM files f
-		JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID
-		WHERE fth.txHash = ? AND fth.blockchain = ?`
-	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
-	if err != nil {
-		return attachments
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var fileURL, mimeType, fileName string
-		var size int64
-		if err := rows.Scan(&fileURL, &mimeType, &size, &fileName); err != nil {
-			continue
-		}
-		attachments = append(attachments, []interface{}{fileURL, mimeType, size, fileName})
-	}
-	return attachments
-}
-func (db *SQLite) GetAlgorandPostAttachments(txHash string, blockchain string) [][]interface{} {
 	var attachments [][]interface{}
 	query := `SELECT f.fileURL, f.mimeType, f.size, f.fileName
 		FROM files f
@@ -2994,20 +2522,19 @@ func (db *SQLite) GetAlgorandPostAttachments(txHash string, blockchain string) [
 // --- Followers Feed --- //
 func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int, offset int) []map[string]interface{} {
 	var posts []map[string]interface{}
-	query := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, p.blockchain
-			  FROM onchain_post p
-			  INNER JOIN onchain_follow f ON p.fromAddress = f.followeeAddress AND p.blockchain = f.followeeBlockchain
+	queryFmt := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, p.blockchain
+			  FROM onchain_%s_post p
+			  INNER JOIN onchain_%s_follow f ON p.fromAddress = f.followeeAddress AND p.blockchain = f.followeeBlockchain
 			  WHERE f.followerAddress = LOWER(?) AND f.followerBlockchain = ? AND p.data IS NOT NULL
 			  ORDER BY p.timestamp DESC
 			  LIMIT ? OFFSET ?`
-
+	query := fmt.Sprintf(queryFmt, followerBlockchain, followerBlockchain)
 	rows, err := db.runParamSQLSelect(query, followerAddress, followerBlockchain, limit, offset)
 	if err != nil {
 		core.LogDebug("Could not get followers feed from database: " + err.Error())
 		return nil
 	}
 	defer rows.Close()
-
 	for rows.Next() {
 		var timestamp uint64
 		var txHash, parentTxHash, payload, blockchain, address string
@@ -3017,7 +2544,6 @@ func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain st
 			core.LogDebug("Could not scan database rows for followers feed: " + err.Error())
 			return nil
 		}
-
 		// Get attachments for this post
 		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
 		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
@@ -3039,7 +2565,6 @@ func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain st
 			}
 			rowsAttachments.Close()
 		}
-
 		post := map[string]interface{}{
 			"resultType": "post",
 			"txHash":     txHash,
@@ -3089,7 +2614,7 @@ func (db *SQLite) NotificationGetActive() []map[string]string {
 	return notifications
 }
 
-// --- Snapshot Service Functions --- //
+// --- Snapshot Functions --- //
 func (db *SQLite) exportSnapshots(exportDir string, blockchain string, headBlock uint64, tailBlock uint64) error { // Exports a compressed snapshot file with all data
 	if db.database == nil {
 		return core.LogDebugReturn("Database connection not initialized")
@@ -3097,15 +2622,19 @@ func (db *SQLite) exportSnapshots(exportDir string, blockchain string, headBlock
 	currentTime := core.GetTimestamp()
 	exportPath := filepath.Join(exportDir, blockchain+"-snapshot-complete.db.gz")
 	metadataPath := filepath.Join(exportDir, blockchain+"-snapshot-complete.json")
-	core.LogDebug("Exporting SQLite Snapshot (all data) to: " + exportPath)
+	core.LogDebug("Exporting SQLite Snapshot (all blockchain data) to: " + exportPath)
 	tables := []string{
-		"onchain_post",
-		"onchain_meta",
-		"onchain_block",
-		"onchain_follow",
-		"indexer_jobs",
 		"file_txn_hash",
 		"files",
+	}
+	for _, _blockchain := range core.ValidNetworks {
+		tables = append(tables, "onchain_"+_blockchain+"_post")
+		tables = append(tables, "onchain_"+_blockchain+"_comment")
+		tables = append(tables, "onchain_"+_blockchain+"_reaction")
+		tables = append(tables, "onchain_"+_blockchain+"_meta")
+		tables = append(tables, "onchain_"+_blockchain+"_block")
+		tables = append(tables, "onchain_"+_blockchain+"_follow")
+		tables = append(tables, _blockchain+"_indexer_jobs")
 	}
 	var buffer bytes.Buffer
 	metaData := map[string]interface{}{

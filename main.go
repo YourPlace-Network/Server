@@ -92,6 +92,7 @@ func main() {
 	shortcut = *shortcutPtr
 
 	// --- Environment Variables --- //
+	host.SetEnvVar("YourPlaceGateway", strconv.FormatBool(gateway))
 	host.SetEnvVar("YourPlaceProtocol", protocol)
 	host.SetEnvVar("YourPlacePort", strconv.Itoa(port))
 	domainTemp := os.Getenv("YOURPLACE_ORIGIN") // Get origin domain from environment variable (example: app.yourplace.network)
@@ -153,11 +154,16 @@ func main() {
 	// --- Database --- //
 	core.LogDebug("Initializing database")
 	database := new(db.Database)
-	database.Init(filepath.Join(host.GetDataDir(), "yourplace.sqlite.db"), "sqlite")
+	engine := "sqlite"
+	mysqlDSN := host.GetEnvVar("YOURPLACE_MYSQL_DSN") // Get MySQL DSN from environment variable
+	if mysqlDSN != "" {
+		engine = "mysql"
+	}
+	database.Init(filepath.Join(host.GetDataDir(), "yourplace.sqlite.db"), engine)
 	if !database.Ping() {
 		core.LogFatal("Could not connect to database")
 	}
-	database.SetDefaults()                    // Sets default database entries if not existing
+	database.SetDefaultSettings()             // Sets default database entries if not existing
 	installed := routes.IsInstalled(database) // checking if the server is installed
 	if gateway && !installed {
 		core.LogInfo("Gateway mode detected - initializing with default values")
@@ -165,7 +171,7 @@ func main() {
 		if !host.DoesExist(uploadDir) {
 			host.CreateFolder(uploadDir)
 		}
-		database.SetGatewayDefaults(uploadDir)
+		database.SetGatewayDefaultSettings(uploadDir)
 		installed = routes.IsInstalled(database) // Re-check installation status
 	}
 	if installed {
@@ -404,7 +410,9 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 		routes.SetupRoutes(router, database, title, favicon, port)
 	} else {
 		routes.ProfileRoutes(router, title, database, _blockchain, gateway)
-		routes.PostRoutes(router, database)
+		routes.PostRoutes(router, database, title)
+		routes.CommentRoutes(router, database)
+		routes.ReactionRoutes(router, database)
 		routes.FeedRoutes(router, database)
 		routes.FilesRoutes(router, database, ipfs, port, gateway)
 		routes.MentalHealthRoutes(router, title, database, cryptoSeed, gateway)

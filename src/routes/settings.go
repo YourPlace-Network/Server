@@ -212,8 +212,8 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		})
 	})
 	router.GET("/settings/algorand/indexer/status", func(c *gin.Context) {
-		algoUUID := database.AlgoIndexerGetJobUUID("algorand")
-		algoIndexerStatus := database.AlgoIndexerGetJobStatus(algoUUID)
+		algoUUID := database.IndexerGetJobUUID("algorand")
+		algoIndexerStatus := database.IndexerGetJobStatus(algoUUID)
 		indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
 		indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
 		isOnBattery := host.IsOnBattery()
@@ -460,9 +460,9 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.GET("/settings/algorand/indexerProgress", func(c *gin.Context) {
 		earliestBlock := _blockchain.GetEarliestBlock("algorand")
-		jobUUID := database.AlgoIndexerGetJobUUID("algorand")
-		tailBlock := database.AlgoIndexerGetTailBlock(jobUUID)
-		headBlock := database.AlgoIndexerGetHeadBlock(jobUUID)
+		jobUUID := database.IndexerGetJobUUID("algorand")
+		tailBlock := database.IndexerGetTailBlock(jobUUID)
+		headBlock := database.IndexerGetHeadBlock(jobUUID)
 		latestBlock, err := _blockchain.GetLatestBlock("algorand")
 		if err != nil || latestBlock == big.NewInt(0) {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Algorand latest block"})
@@ -529,7 +529,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		if payload.IndexerReset {
 			blockchain.AlgoIndexerStop()
-			database.AlgoIndexerResetJobs("algorand")
+			database.IndexerResetJobs("algorand")
 			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 		}
 	})

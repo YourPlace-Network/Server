@@ -182,6 +182,12 @@ func (algo *Algorand) RawVerifyTransaction(pubkey ed25519.PublicKey, transaction
 	return false
 }
 
+// ----- Profile ----- //
+func (algo *Algorand) ProfileGetName(address string) string {
+
+	return ""
+}
+
 // ----- Getters ----- //
 func (algo *Algorand) GetAlgodURL() *url.URL {
 	return algo.algodHost
