@@ -22,6 +22,7 @@ declare global {
             menuAvatar: document.getElementById("menuAvatar")! as HTMLImageElement,
             menuAvatarLink: document.getElementById("menuAvatarLink")! as HTMLAnchorElement,
             menuSettingsLink: document.getElementById("menuSettingsLink")! as HTMLAnchorElement,
+            menuDownloadLink: document.getElementById("menuDownloadLink")! as HTMLAnchorElement,
             menuPlacesLink: document.getElementById("menuPlacesLink")! as HTMLAnchorElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated") as HTMLInputElement | null,
             gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement | null,
@@ -106,9 +107,11 @@ declare global {
             //e.preventDefault();
             //e.stopPropagation();
             if (DOM.gatewayMode?.value === "true" && !isLocalhost()) {
+                DOM.menuDownloadLink.style.display = "block";
                 DOM.menuSettingsLink.style.display = "none";
                 DOM.menuPlacesLink.href = `${window.location.protocol}//${window.location.host}/`;
             } else {
+                DOM.menuDownloadLink.style.display = "none";
                 DOM.menuSettingsLink.style.display = "block";
                 DOM.menuPlacesLink.href = "/";
             }

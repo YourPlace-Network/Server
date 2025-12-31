@@ -19,10 +19,9 @@ RUN VERSION=$(grep -oE '^\s*version\s*=\s*"[^"]*"' main.go | grep -oE '"[^"]*"' 
 
 FROM public.ecr.aws/ubuntu/ubuntu:24.04
 
-RUN apt-get update && apt-get install -y \
-    ca-certificates tzdata \
-    curl \
-    libpcap0.8 \
+RUN apt-get update  \
+    && apt-get install -y \
+      ca-certificates tzdata curl libpcap0.8 mariadb-client \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

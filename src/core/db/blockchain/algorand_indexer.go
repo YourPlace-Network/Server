@@ -448,7 +448,6 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 	globalIndexerRunning := _AlgoDatabase.SettingsGetValue("indexerRunning")
 	algoIndexerRunning := _AlgoDatabase.SettingsGetValue("algoIndexerRunning")
 	if globalIndexerRunning != "true" {
-		core.LogDebug("[Algo] Indexer skipped: global indexer not running")
 		return "", "", nil, 0, 0, nil
 	}
 	if algoIndexerRunning == "false" {
