@@ -96,14 +96,22 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		})
 	})
 	router.GET("/settings/base/throttle", func(c *gin.Context) {
-		throttle := database.SettingsGetValue("baseThrottle")
-		throttleInt, err := strconv.Atoi(throttle)
-		if err != nil {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "failed"})
-			return
+		baseURL := database.SettingsGetValue("baseURL")
+		isDefault := baseURL == "" || baseURL == blockchain.DefaultBlockchainNodes["base"][0]
+		var throttleInt int
+		if isDefault {
+			throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["base"][1])
+		} else {
+			throttle := database.SettingsGetValue("baseThrottle")
+			var err error
+			throttleInt, err = strconv.Atoi(throttle)
+			if err != nil {
+				throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["base"][1])
+			}
 		}
 		c.SecureJSON(http.StatusOK, gin.H{
-			"throttle": throttleInt,
+			"throttle":  throttleInt,
+			"isDefault": isDefault,
 		})
 	})
 	router.GET("/settings/post/history", func(c *gin.Context) {
@@ -279,6 +287,24 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"debug": debug,
 		})
 	})
+	router.GET("/settings/server/runtime", func(c *gin.Context) {
+		envVars := make(map[string]string)
+		flags := make(map[string]interface{})
+		envMySQLDSN := os.Getenv("YOURPLACE_MYSQL_DSN")
+		if envMySQLDSN != "" {
+			envVars["YOURPLACE_MYSQL_DSN"] = security.MaskDSN(envMySQLDSN)
+		}
+		envOrigin := os.Getenv("YOURPLACE_ORIGIN")
+		if envOrigin != "" {
+			envVars["YOURPLACE_ORIGIN"] = envOrigin
+		}
+		flags["debug"] = debug
+		flags["gateway"] = gateway
+		c.SecureJSON(http.StatusOK, gin.H{
+			"envVars": envVars,
+			"flags":   flags,
+		})
+	})
 	router.GET("/settings/server/version", func(c *gin.Context) {
 		version := host.GetServerVersion()
 		helperVersion, err := host.HelperCall("version")
@@ -349,7 +375,8 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		if payload.BaseURL == "default" {
 			database.SettingsUpdateValue("baseURL", blockchain.DefaultBlockchainNodes["base"][0])
-			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultBaseURL": blockchain.DefaultBlockchainNodes["base"][0]})
+			database.SettingsUpdateValue("baseThrottle", blockchain.DefaultBlockchainNodes["base"][1])
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultBaseURL": blockchain.DefaultBlockchainNodes["base"][0], "defaultBaseThrottle": blockchain.DefaultBlockchainNodes["base"][1]})
 			return
 		}
 		if !security.IsValidURL(payload.BaseURL) {
@@ -402,6 +429,11 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"baseFullNode": payload.BaseFullNode})
 	})
 	router.POST("/settings/base/throttle", func(c *gin.Context) {
+		baseURL := database.SettingsGetValue("baseURL")
+		if baseURL == "" || baseURL == blockchain.DefaultBlockchainNodes["base"][0] {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Cannot change throttle when using default RPC"})
+			return
+		}
 		type Payload struct {
 			Throttle int `json:"throttle" required:"true"`
 		}
@@ -449,13 +481,22 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 	})
 	router.GET("/settings/algorand/throttle", func(c *gin.Context) {
-		throttle := database.SettingsGetValue("algoThrottle")
-		throttleInt, err := strconv.Atoi(throttle)
-		if err != nil {
-			throttleInt = 5 // Default Algorand throttle
+		algoURL := database.SettingsGetValue("algoURL")
+		isDefault := algoURL == "" || algoURL == blockchain.DefaultBlockchainNodes["algorand"][0]
+		var throttleInt int
+		if isDefault {
+			throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["algorand"][1])
+		} else {
+			throttle := database.SettingsGetValue("algoThrottle")
+			var err error
+			throttleInt, err = strconv.Atoi(throttle)
+			if err != nil {
+				throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["algorand"][1])
+			}
 		}
 		c.SecureJSON(http.StatusOK, gin.H{
-			"throttle": throttleInt,
+			"throttle":  throttleInt,
+			"isDefault": isDefault,
 		})
 	})
 	router.GET("/settings/algorand/indexerProgress", func(c *gin.Context) {
@@ -500,6 +541,11 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/algorand/throttle", func(c *gin.Context) {
+		algoURL := database.SettingsGetValue("algoURL")
+		if algoURL == "" || algoURL == blockchain.DefaultBlockchainNodes["algorand"][0] {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Cannot change throttle when using default RPC"})
+			return
+		}
 		type Payload struct {
 			Throttle int `json:"throttle" required:"true"`
 		}

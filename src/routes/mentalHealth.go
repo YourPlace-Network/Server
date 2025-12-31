@@ -1103,4 +1103,12 @@ var mentalHealthTips = []string{
 	"Working hard is your best chance at success, but it's not a guarantee",
 	"Men: If you're in a relationship with a woman, then you need to go out during the day and accomplish *something*. It subconsciously satisfies her desire to see her man provide for her. It's something that's wired into our brains after thousands of years of human behavior - the man goes out and hunts for dinner",
 	"Honor is a stronger force than manipulation",
+	"Never let someone in bad faith dictate a conversation or engage what they're saying. There's no reason to",
+	"Nothing gives you a clearer look into someone than how they misinterpret things. Every misinterpretation is a confession",
+	"The person doing the fraud, will usually try to frame the person who reported the fraud, as some kind of perpetrator. They'll try to put words in the reporters mouth. As a reporter, this means you're very close to the truth",
+	"You can't use logic on someone who doesn't care about logic",
+	"On the internet, if you see some race, religion, or group acting a fool, then there will be racist, bigots and other extremists in the comments. That should be expected. Trying to centrally block these commenters only erodes free speech and makes the commenters search for a new outlet, which could be far worse than a few mean posts",
+	"A lawful arrest with chain of custody for the accused, is not a kidnapping",
+	"There is a considerable amount of people who don't actually care about \"due process.\" They only really care to use that process to protect their own, and to punish their enemies. Never let these people get real power",
+	"A lot of karens will create bureaucracy to avoid accountability. They want to hide behind rules and regulations so they can avoid being personally responsible for their actions",
 }

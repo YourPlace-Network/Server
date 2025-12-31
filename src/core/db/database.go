@@ -27,7 +27,7 @@ func (db *Database) Init(path string, engine string) {
 	if !slices.Contains(validEngines, engine) {
 		core.LogFatal("Invalid DB engine selected")
 	}
-	core.LogInfo("Initializing database with engine: " + engine + " at path: " + path)
+	core.LogInfo("Initializing database with engine: " + engine)
 	switch engine {
 	case "sqlite":
 		db.sqlite.Init(path)

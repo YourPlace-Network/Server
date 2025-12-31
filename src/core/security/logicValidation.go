@@ -340,26 +340,12 @@ func IsERC6492Signature(signature string) bool {
 }
 func IsContractDeployed(address string, database *db.Database) bool {
 	baseRPC := database.SettingsGetValue("baseURL")
-	if strings.HasPrefix(baseRPC, "/") {
-		domain := os.Getenv("YourPlaceDomain")
-		port := os.Getenv("YourPlacePort")
-		gateway := os.Getenv("YourPlaceGateway") == "true"
-		if domain == "" {
-			domain = "localhost"
-		}
-		if port == "" {
-			port = "42424"
-		}
-		protocol := "http"
-		if gateway {
-			protocol = "https"
-		}
-		if gateway && port == "443" {
-			baseRPC = protocol + "://" + domain + baseRPC
-		} else {
-			baseRPC = protocol + "://" + domain + ":" + port + baseRPC
-		}
+	core.LogDebug("IsContractDeployed: baseURL from settings = " + baseRPC)
+	if baseRPC == "" || strings.HasPrefix(baseRPC, "/") {
+		baseRPC = "https://mainnet.base.org"
+		core.LogDebug("IsContractDeployed: using public fallback RPC")
 	}
+	core.LogDebug("IsContractDeployed: dialing RPC at " + baseRPC)
 	client, err := ethclient.Dial(baseRPC)
 	if err != nil {
 		core.LogDebug("Failed to connect to Base RPC for contract check: " + err.Error())
@@ -421,25 +407,9 @@ func IsValidEthSignature(payload string, signature string, address string) bool 
 }
 func ValidateERC1271Signature(message string, signature string, address string, database *db.Database) bool {
 	baseRPC := database.SettingsGetValue("baseURL")
-	if strings.HasPrefix(baseRPC, "/") {
-		domain := os.Getenv("YourPlaceDomain")
-		port := os.Getenv("YourPlacePort")
-		gateway := os.Getenv("YourPlaceGateway") == "true"
-		if domain == "" {
-			domain = "localhost"
-		}
-		if port == "" {
-			port = "42424"
-		}
-		protocol := "http"
-		if gateway {
-			protocol = "https"
-		}
-		if gateway && port == "443" {
-			baseRPC = protocol + "://" + domain + baseRPC
-		} else {
-			baseRPC = protocol + "://" + domain + ":" + port + baseRPC
-		}
+	if baseRPC == "" || strings.HasPrefix(baseRPC, "/") {
+		baseRPC = "https://mainnet.base.org"
+		core.LogDebug("ValidateERC1271Signature: using public fallback RPC")
 	}
 	const ERC1271_MAGIC_VALUE = "1626ba7e"
 	client, err := ethclient.Dial(baseRPC)

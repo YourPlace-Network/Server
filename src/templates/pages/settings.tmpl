@@ -228,11 +228,17 @@
                                                         </div>
 
                                                         <hr /><!-- ----------------------------------- -->
-                                                        <label for="algoIndexerProgress" class="form-label" id="algoIndexerProgressLabel">Indexer Progress:</label>
+                                                        <div class="indexerProgressHeader">
+                                                            <label for="algoIndexerProgress" class="form-label" id="algoIndexerProgressLabel">Indexer Progress:</label>
+                                                            <span id="algoIndexerCachedPercent" class="indexerPercent">0%</span>
+                                                        </div>
                                                         <div class="progress" id="algoIndexerProgressDiv">
                                                             <div id="algoIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
-                                                            <div id="algoIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="algoIndexerCachedPercent">0%</span></div>
+                                                            <div id="algoIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"></div>
                                                             <div id="algoIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        </div>
+                                                        <div class="indexerStats" id="algoIndexerStats">
+                                                            <span id="algoIndexerBlocksIndexed">0</span> / <span id="algoIndexerBlocksTotal">0</span> blocks
                                                         </div>
 
                                                         <div id="algoIndexerBtns" class="indexerBtns">
@@ -312,11 +318,17 @@
                                                         </div>
 
                                                         <hr /><!-- ----------------------------------- -->
-                                                        <label for="baseIndexerProgress" class="form-label" id="baseIndexerProgressLabel">Indexer Progress:</label>
+                                                        <div class="indexerProgressHeader">
+                                                            <label for="baseIndexerProgress" class="form-label" id="baseIndexerProgressLabel">Indexer Progress:</label>
+                                                            <span id="baseIndexerCachedPercent" class="indexerPercent">0%</span>
+                                                        </div>
                                                         <div class="progress" id="baseIndexerProgressDiv">
                                                             <div id="baseIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
-                                                            <div id="baseIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="baseIndexerCachedPercent">0%</span></div>
+                                                            <div id="baseIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"></div>
                                                             <div id="baseIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        </div>
+                                                        <div class="indexerStats" id="baseIndexerStats">
+                                                            <span id="baseIndexerBlocksIndexed">0</span> / <span id="baseIndexerBlocksTotal">0</span> blocks
                                                         </div>
 
                                                         <div id="baseIndexerBtns" class="indexerBtns">
@@ -535,6 +547,21 @@
                                             <div id="helperVersionDiv">
                                                 <span id="helperVersionLabel">Helper Version:</span>
                                                 <span id="helperVersionText">?</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <hr>
+
+                                    <div class="row" id="runtimeInfoRow">
+                                        <div class="col">
+                                            <div id="runtimeFlagsDiv">
+                                                <span id="runtimeFlagsLabel"><b>Command Line Flags:</b></span>
+                                                <span id="runtimeFlagsText"></span>
+                                            </div>
+                                            <div id="runtimeEnvVarsDiv">
+                                                <span id="runtimeEnvVarsLabel"><b>Environment Variables:</b></span>
+                                                <div id="runtimeEnvVarsText"></div>
                                             </div>
                                         </div>
                                     </div>

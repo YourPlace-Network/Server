@@ -22,7 +22,23 @@ func (db *MySQL) Init(dsn string) {
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	db.dsn = dsn
-	database, err := sql.Open("mysql", dsn+"?parseTime=true&multiStatements=true")
+	baseDSN := dsn
+	if slashIdx := strings.LastIndex(dsn, "/"); slashIdx != -1 {
+		baseDSN = dsn[:slashIdx+1]
+	} else {
+		baseDSN = dsn + "/"
+	}
+	initDB, err := sql.Open("mysql", baseDSN+"?charset=utf8mb4&parseTime=true&multiStatements=true")
+	if err != nil || initDB == nil {
+		core.LogFatal("Could not open MySQL db: " + err.Error())
+		return
+	}
+	_, err = initDB.ExecContext(startupCtx, "CREATE DATABASE IF NOT EXISTS `yourplace`")
+	if err != nil {
+		core.LogDebug("Could not create database: " + err.Error())
+	}
+	initDB.Close()
+	database, err := sql.Open("mysql", baseDSN+"yourplace?charset=utf8mb4&parseTime=true&multiStatements=true")
 	if err != nil || database == nil {
 		core.LogFatal("Could not open MySQL db: " + err.Error())
 		return
@@ -91,7 +107,7 @@ func (db *MySQL) runParamSQLUpdate(query string, params ...interface{}) (sql.Res
 	defer statement.Close()
 	result, err := statement.ExecContext(ctx, params...)
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return nil, core.LogDebugReturn("Query timed out after 15s: " + err.Error())
 		}
 		return nil, core.LogDebugReturn("Could not run MySQL query: " + query + " - " + err.Error())
@@ -148,16 +164,16 @@ func (db *MySQL) withTransaction(fn func(*sql.Tx) error) error {
 }
 func (db *MySQL) createTables(ctx context.Context) error {
 	tables := map[string]string{
-		"meta":          "CREATE TABLE IF NOT EXISTS meta (`key` VARCHAR(255) PRIMARY KEY, value TEXT)",
-		"settings":      "CREATE TABLE IF NOT EXISTS settings (`key` VARCHAR(255) PRIMARY KEY, value TEXT)",
-		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID VARCHAR(255) PRIMARY KEY, fileHash VARCHAR(255), mimeType VARCHAR(255), fileName VARCHAR(255), size BIGINT, addedDate BIGINT, cid VARCHAR(255), fileURL TEXT, source VARCHAR(255))",
-		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID VARCHAR(255), txHash VARCHAR(255), blockchain VARCHAR(255), PRIMARY KEY (fileUUID, txHash, blockchain))",
-		"auth_nonce":    "CREATE TABLE IF NOT EXISTS auth_nonce (nonce VARCHAR(255) PRIMARY KEY, status VARCHAR(255), timestamp BIGINT)",
 		"auth_expired":  "CREATE TABLE IF NOT EXISTS auth_expired (uuid VARCHAR(255) PRIMARY KEY, status VARCHAR(255))",
-		"login_nonce":   "CREATE TABLE IF NOT EXISTS login_nonce (nonce VARCHAR(255) PRIMARY KEY, domain VARCHAR(255), expiration BIGINT, nonceHash VARCHAR(255))",
+		"auth_nonce":    "CREATE TABLE IF NOT EXISTS auth_nonce (nonce VARCHAR(255) PRIMARY KEY, status VARCHAR(255), timestamp BIGINT)",
 		"csrf_tokens":   "CREATE TABLE IF NOT EXISTS csrf_tokens (token VARCHAR(255) PRIMARY KEY, expiration BIGINT)",
+		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID VARCHAR(255), txHash VARCHAR(255), blockchain VARCHAR(255), PRIMARY KEY (fileUUID, txHash, blockchain))",
+		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID VARCHAR(255) PRIMARY KEY, fileHash VARCHAR(255), mimeType VARCHAR(255), fileName VARCHAR(255), size BIGINT, addedDate BIGINT, cid VARCHAR(255), fileURL TEXT, source VARCHAR(255))",
+		"login_nonce":   "CREATE TABLE IF NOT EXISTS login_nonce (nonce VARCHAR(512) PRIMARY KEY, domain VARCHAR(255), expiration BIGINT, nonceHash VARCHAR(255))",
+		"meta":          "CREATE TABLE IF NOT EXISTS meta (`key` VARCHAR(255) PRIMARY KEY, value BLOB)",
 		"notifications": "CREATE TABLE IF NOT EXISTS notifications (uid VARCHAR(255) PRIMARY KEY, message TEXT, timestamp BIGINT DEFAULT 0)",
-		"wallets":       "CREATE TABLE IF NOT EXISTS wallets (publicKey VARCHAR(255), blockchain VARCHAR(255), address VARCHAR(255), encryptedPrivateKey TEXT, isDefault TINYINT DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
+		"settings":      "CREATE TABLE IF NOT EXISTS settings (`key` VARCHAR(255) PRIMARY KEY, value BLOB)",
+		"wallets":       "CREATE TABLE IF NOT EXISTS wallets (publicKey VARCHAR(255), blockchain VARCHAR(255), address VARCHAR(255), encryptedPrivateKey BLOB, isDefault TINYINT DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
 		// Base-specific tables
 		"base_indexer_jobs":     "CREATE TABLE IF NOT EXISTS base_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, blockchain VARCHAR(255), headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
 		"onchain_base_post":     "CREATE TABLE IF NOT EXISTS onchain_base_post (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
@@ -190,13 +206,13 @@ func (db *MySQL) getSchemaVersion() int {
 	}
 	defer rows.Close()
 	if rows.Next() {
-		var versionStr string
-		err = rows.Scan(&versionStr)
+		var versionBytes []byte
+		err = rows.Scan(&versionBytes)
 		if err != nil {
 			return 0
 		}
 		var version int
-		_, err = fmt.Sscanf(versionStr, "%d", &version)
+		_, err = fmt.Sscanf(string(versionBytes), "%d", &version)
 		if err != nil {
 			return 0
 		}
@@ -263,12 +279,12 @@ func (db *MySQL) MetaGetValue(key string) string {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var value string
+		var value []byte
 		err = rows.Scan(&value)
 		if err != nil {
 			return ""
 		}
-		return value
+		return string(value)
 	}
 	return ""
 }
@@ -294,12 +310,12 @@ func (db *MySQL) SettingsGetValue(key string) string {
 			}
 			defer rows.Close()
 			for rows.Next() {
-				var value string
+				var value []byte
 				err = rows.Scan(&value)
 				if err != nil {
 					return ""
 				}
-				return value
+				return string(value)
 			}
 		}
 	}
@@ -1515,12 +1531,18 @@ func (db *MySQL) GetReactionCounts(targetTxHash string, blockchain string) map[s
 		"emoji":    map[string]int64{},
 	}
 	queryFmt := `SELECT reactionType, COUNT(*) as count FROM (
-		SELECT fromAddress, reactionType, MAX(timestamp) as maxTs
-		FROM onchain_%s_reaction
-		WHERE targetTxHash = ? AND blockchain = ?
-		GROUP BY fromAddress
+		SELECT r1.fromAddress, r1.reactionType
+		FROM onchain_%s_reaction r1
+		WHERE r1.targetTxHash = ? AND r1.blockchain = ?
+		AND r1.timestamp = (
+			SELECT MAX(r2.timestamp)
+			FROM onchain_%s_reaction r2
+			WHERE r2.targetTxHash = r1.targetTxHash
+			AND r2.blockchain = r1.blockchain
+			AND r2.fromAddress = r1.fromAddress
+		)
 	) t GROUP BY reactionType`
-	query := fmt.Sprintf(queryFmt, blockchain)
+	query := fmt.Sprintf(queryFmt, blockchain, blockchain)
 	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get reaction counts: " + err.Error())
@@ -1794,12 +1816,12 @@ func (db *MySQL) WalletGetPrivateKey(publicKey string, blockchain string) (strin
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var encPrivKey string
+		var encPrivKey []byte
 		err = rows.Scan(&encPrivKey)
 		if err != nil {
 			return "", core.LogDebugReturn("Could not scan private key row: " + err.Error())
 		}
-		return encPrivKey, nil
+		return string(encPrivKey), nil
 	}
 	return "", core.LogDebugReturn("Wallet not found")
 }

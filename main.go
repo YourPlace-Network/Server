@@ -401,9 +401,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	routes.NotFoundRoutes(router, title, gateway)
 	routes.HomeRoutes(router, title, favicon, installed, database, cryptoSeed, gateway)
 	routes.FAQRoutes(router, title, database, cryptoSeed, gateway)
-	if gateway {
-		routes.RPCRoutes(router, database)
-	}
+	routes.RPCRoutes(router, database)
 	routes.SettingsRoutes(router, title, database, _blockchain, cryptoSeed, gateway, ipfs, debug)
 	routes.LoginRoutes(router, title, database, cryptoSeed, domain, port, installed, gateway)
 	if !installed {

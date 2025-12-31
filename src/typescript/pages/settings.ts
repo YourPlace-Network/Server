@@ -23,10 +23,12 @@ import {Sleep} from "../util/time";
             baseFullNodeDataDirectoryDiv: document.getElementById("baseFullNodeDataDirectoryDiv")! as HTMLDivElement,
             baseFullNodeCheckbox: document.getElementById("baseFullNodeCheckbox")! as HTMLInputElement,
             baseSaveDataDirectoryBtn: document.getElementById("baseSaveDataDirectoryBtn")! as HTMLButtonElement,
-            baseIndexerProgressUncachedTail: document.getElementById("baseIndexerProgressUncachedTail")! as HTMLDivElement,
+            baseIndexerBlocksIndexed: document.getElementById("baseIndexerBlocksIndexed")! as HTMLSpanElement,
+            baseIndexerBlocksTotal: document.getElementById("baseIndexerBlocksTotal")! as HTMLSpanElement,
             baseIndexerCachedPercent: document.getElementById("baseIndexerCachedPercent")! as HTMLSpanElement,
             baseIndexerProgressCached: document.getElementById("baseIndexerProgressCached")! as HTMLDivElement,
             baseIndexerProgressUncachedHead: document.getElementById("baseIndexerProgressUncachedHead")! as HTMLDivElement,
+            baseIndexerProgressUncachedTail: document.getElementById("baseIndexerProgressUncachedTail")! as HTMLDivElement,
             baseThrottle: document.getElementById("baseThrottle")! as HTMLInputElement,
             baseThrottleTooltip: document.getElementById("baseThrottleTooltip")! as HTMLElement,
             baseThrottleNumber: document.getElementById("baseThrottleNumber")! as HTMLDivElement,
@@ -70,6 +72,8 @@ import {Sleep} from "../util/time";
             serverLogsViewBtn: document.getElementById("serverLogsViewBtn")! as HTMLButtonElement,
             helperLogsViewBtn: document.getElementById("helperLogsViewBtn")! as HTMLButtonElement,
             logsView: document.getElementById("logsView")! as HTMLDivElement,
+            runtimeEnvVarsText: document.getElementById("runtimeEnvVarsText")! as HTMLDivElement,
+            runtimeFlagsText: document.getElementById("runtimeFlagsText")! as HTMLSpanElement,
             torHiddenServiceCheck: document.getElementById("torHiddenServiceCheck")! as HTMLInputElement,
             collapseContent: document.getElementById("collapseContent")! as HTMLDivElement,
             collapseBlockchain: document.getElementById("collapseBlockchain")! as HTMLDivElement,
@@ -81,10 +85,12 @@ import {Sleep} from "../util/time";
             algoThrottle: document.getElementById("algoThrottle")! as HTMLInputElement,
             algoThrottleTooltip: document.getElementById("algoThrottleTooltip")! as HTMLElement,
             algoThrottleNumber: document.getElementById("algoThrottleNumber")! as HTMLDivElement,
-            algoIndexerProgressUncachedTail: document.getElementById("algoIndexerProgressUncachedTail")! as HTMLDivElement,
+            algoIndexerBlocksIndexed: document.getElementById("algoIndexerBlocksIndexed")! as HTMLSpanElement,
+            algoIndexerBlocksTotal: document.getElementById("algoIndexerBlocksTotal")! as HTMLSpanElement,
             algoIndexerCachedPercent: document.getElementById("algoIndexerCachedPercent")! as HTMLSpanElement,
             algoIndexerProgressCached: document.getElementById("algoIndexerProgressCached")! as HTMLDivElement,
             algoIndexerProgressUncachedHead: document.getElementById("algoIndexerProgressUncachedHead")! as HTMLDivElement,
+            algoIndexerProgressUncachedTail: document.getElementById("algoIndexerProgressUncachedTail")! as HTMLDivElement,
             algoIndexerResetBtn: document.getElementById("algoIndexerResetBtn")! as HTMLButtonElement,
             algoIndexerCatchUpBtn: document.getElementById("algoIndexerCatchUpBtn")! as HTMLButtonElement,
             algoCatchUpFullBtn: document.getElementById("algoCatchUpFullBtn")! as HTMLButtonElement,
@@ -117,8 +123,10 @@ import {Sleep} from "../util/time";
             testXcomScrapeCredentialsBtn: document.getElementById("testXcomScrapeCredentialsBtn")! as HTMLButtonElement,
             xcomScrapeStatusLight: document.getElementById("xcomScrapeStatusLight")! as HTMLDivElement,
         }
-        let popperInstance: Instance | null = null;
+        const DEFAULT_ALGO_THROTTLE = "60";
+        const DEFAULT_BASE_THROTTLE = "5";
         let algoPopperInstance: Instance | null = null;
+        let popperInstance: Instance | null = null;
 
         async function init() {
             InitTooltips();
@@ -184,18 +192,20 @@ import {Sleep} from "../util/time";
                 DOM.baseIndexerProgressUncachedTail.setAttribute("aria-valuenow", tailPercentage.toString());
                 DOM.baseIndexerProgressCached.style.width = cachedPercentage + "%";
                 DOM.baseIndexerProgressCached.setAttribute("aria-valuenow", cachedPercentage.toString());
-                DOM.baseIndexerCachedPercent.textContent = cachedPercentage.toString() + "%";
-                if (cachedPercentage === 100) {
-                    DOM.baseIndexerCachedPercent.classList.remove("progress-bar-animated");
-                    DOM.baseIndexerProgressCached.classList.remove("progress-bar-striped");
-                    DOM.baseIndexerProgressCached.classList.add("bg-success");
-                } else {
-                    DOM.baseIndexerCachedPercent.classList.add("progress-bar-animated");
-                    DOM.baseIndexerProgressCached.classList.add("progress-bar-striped");
-                    DOM.baseIndexerProgressCached.classList.remove("bg-success");
-                }
                 DOM.baseIndexerProgressUncachedHead.style.width = latestPercentage + "%";
                 DOM.baseIndexerProgressUncachedHead.setAttribute("aria-valuenow", latestPercentage.toString());
+                DOM.baseIndexerCachedPercent.textContent = cachedPercentage.toString() + "%";
+                DOM.baseIndexerBlocksIndexed.textContent = tailToHeadRange.toLocaleString();
+                DOM.baseIndexerBlocksTotal.textContent = totalRange.toLocaleString();
+                if (cachedPercentage === 100) {
+                    DOM.baseIndexerProgressCached.classList.remove("progress-bar-striped", "progress-bar-animated");
+                    DOM.baseIndexerProgressCached.classList.add("bg-success");
+                    DOM.baseIndexerCachedPercent.classList.add("indexerComplete");
+                } else {
+                    DOM.baseIndexerProgressCached.classList.add("progress-bar-striped", "progress-bar-animated");
+                    DOM.baseIndexerProgressCached.classList.remove("bg-success");
+                    DOM.baseIndexerCachedPercent.classList.remove("indexerComplete");
+                }
             } else {
                 console.error("Failed to get Base indexer progress");
             }
@@ -206,8 +216,11 @@ import {Sleep} from "../util/time";
                 const cleanThrottle = DOMPurify.sanitize(response[1].throttle);
                 DOM.baseThrottle.value = cleanThrottle;
                 DOM.baseThrottleNumber.textContent = cleanThrottle;
+                DOM.baseThrottle.disabled = response[1].isDefault;
             } else {
-                DOM.baseThrottleNumber.textContent = "Error ⚠️";
+                DOM.baseThrottle.value = DEFAULT_BASE_THROTTLE;
+                DOM.baseThrottleNumber.textContent = DEFAULT_BASE_THROTTLE;
+                DOM.baseThrottle.disabled = true;
             }
         }
         // Algorand Getters
@@ -223,8 +236,11 @@ import {Sleep} from "../util/time";
                 const cleanThrottle = DOMPurify.sanitize(response[1].throttle);
                 DOM.algoThrottle.value = cleanThrottle;
                 DOM.algoThrottleNumber.textContent = cleanThrottle;
+                DOM.algoThrottle.disabled = response[1].isDefault;
             } else {
-                DOM.algoThrottleNumber.textContent = "Error ⚠️";
+                DOM.algoThrottle.value = DEFAULT_ALGO_THROTTLE;
+                DOM.algoThrottleNumber.textContent = DEFAULT_ALGO_THROTTLE;
+                DOM.algoThrottle.disabled = true;
             }
         }
         async function getAlgoIndexerProgress() {
@@ -245,6 +261,7 @@ import {Sleep} from "../util/time";
                     return;
                 }
                 const earliestToTailRange = tailBlock - earliestBlock;
+                const tailToHeadRange = headBlock - tailBlock;
                 const headToLatestRange = latestBlock - headBlock;
                 const tailPercentage = Math.max(0, Math.min(100, Math.round((earliestToTailRange / totalRange) * 100)));
                 const latestPercentage = Math.max(0, Math.min(100, Math.round((headToLatestRange / totalRange) * 100)));
@@ -253,18 +270,20 @@ import {Sleep} from "../util/time";
                 DOM.algoIndexerProgressUncachedTail.setAttribute("aria-valuenow", tailPercentage.toString());
                 DOM.algoIndexerProgressCached.style.width = cachedPercentage + "%";
                 DOM.algoIndexerProgressCached.setAttribute("aria-valuenow", cachedPercentage.toString());
-                DOM.algoIndexerCachedPercent.textContent = cachedPercentage.toString() + "%";
-                if (cachedPercentage === 100) {
-                    DOM.algoIndexerCachedPercent.classList.remove("progress-bar-animated");
-                    DOM.algoIndexerProgressCached.classList.remove("progress-bar-striped");
-                    DOM.algoIndexerProgressCached.classList.add("bg-success");
-                } else {
-                    DOM.algoIndexerCachedPercent.classList.add("progress-bar-animated");
-                    DOM.algoIndexerProgressCached.classList.add("progress-bar-striped");
-                    DOM.algoIndexerProgressCached.classList.remove("bg-success");
-                }
                 DOM.algoIndexerProgressUncachedHead.style.width = latestPercentage + "%";
                 DOM.algoIndexerProgressUncachedHead.setAttribute("aria-valuenow", latestPercentage.toString());
+                DOM.algoIndexerCachedPercent.textContent = cachedPercentage.toString() + "%";
+                DOM.algoIndexerBlocksIndexed.textContent = tailToHeadRange.toLocaleString();
+                DOM.algoIndexerBlocksTotal.textContent = totalRange.toLocaleString();
+                if (cachedPercentage === 100) {
+                    DOM.algoIndexerProgressCached.classList.remove("progress-bar-striped", "progress-bar-animated");
+                    DOM.algoIndexerProgressCached.classList.add("bg-success");
+                    DOM.algoIndexerCachedPercent.classList.add("indexerComplete");
+                } else {
+                    DOM.algoIndexerProgressCached.classList.add("progress-bar-striped", "progress-bar-animated");
+                    DOM.algoIndexerProgressCached.classList.remove("bg-success");
+                    DOM.algoIndexerCachedPercent.classList.remove("indexerComplete");
+                }
             } else {
                 console.error("Failed to get Algorand indexer progress");
             }
@@ -506,6 +525,26 @@ import {Sleep} from "../util/time";
                 ShowDialogModal("Failed to get server logs");
             }
         }
+        async function getServerRuntime() {
+            let response = await HttpGetJson("/settings/server/runtime");
+            if (response[0] === 200) {
+                let flags: string[] = [];
+                if (response[1].flags) {
+                    if (response[1].flags.debug) flags.push("-d (debug)");
+                    if (response[1].flags.gateway) flags.push("-g (gateway)");
+                }
+                DOM.runtimeFlagsText.textContent = flags.length > 0 ? flags.join(", ") : "None";
+                let envVarsHTML: string[] = [];
+                if (response[1].envVars && Object.keys(response[1].envVars).length > 0) {
+                    for (const [key, value] of Object.entries(response[1].envVars)) {
+                        envVarsHTML.push(`<div><code>${DOMPurify.sanitize(key)}</code>: ${DOMPurify.sanitize(value as string)}</div>`);
+                    }
+                    DOM.runtimeEnvVarsText.innerHTML = envVarsHTML.join("");
+                } else {
+                    DOM.runtimeEnvVarsText.textContent = "None";
+                }
+            }
+        }
 
         /* State Changing Settings Functions */
         async function setBaseDataDirectory() {
@@ -544,6 +583,7 @@ import {Sleep} from "../util/time";
             if (response[0] === 200) {
                 LogInfo("Base URL Saved");
                 ShowSavedToast();
+                await getBaseThrottle();
             } else {
                 DOM.baseURL.value = DOMPurify.sanitize(response[1].status);
             }
@@ -578,11 +618,11 @@ import {Sleep} from "../util/time";
             let response = await HttpPostJson("/settings/base/url", data, DOM.csrfToken.value);
             if (response[0] === 200) {
                 DOM.baseURL.value = response[1].defaultBaseURL;
+                DOM.baseThrottle.value = response[1].defaultBaseThrottle;
+                DOM.baseThrottleNumber.textContent = response[1].defaultBaseThrottle;
+                DOM.baseThrottle.disabled = true;
                 ShowSavedToast();
             }
-            // Set the throttle back to 25 RPS
-            DOM.baseThrottle.value = "25";
-            await setBaseThrottle();
         }
         async function setDefaultBaseDataDirectory() {
             const data = {
@@ -643,6 +683,7 @@ import {Sleep} from "../util/time";
             if (response[0] === 200) {
                 LogInfo("Algorand URL Saved");
                 ShowSavedToast();
+                await getAlgoThrottle();
             } else {
                 DOM.algoURL.value = DOMPurify.sanitize(response[1].status);
             }
@@ -665,10 +706,11 @@ import {Sleep} from "../util/time";
             let response = await HttpPostJson("/settings/algorand/url", data, DOM.csrfToken.value);
             if (response[0] === 200) {
                 DOM.algoURL.value = response[1].defaultAlgoURL;
+                DOM.algoThrottle.value = response[1].defaultAlgoThrottle;
+                DOM.algoThrottleNumber.textContent = response[1].defaultAlgoThrottle;
+                DOM.algoThrottle.disabled = true;
                 ShowSavedToast();
             }
-            DOM.algoThrottle.value = response[1].defaultAlgoThrottle;
-            await setAlgoThrottle();
         }
         async function setAlgoIndexerReset() {
             const confirmed = await ShowModalYesNoHTML("⚠️ Are you sure you want to reset the Algorand indexer? ⚠️<br><br>This will delete cached Algorand YourPlace data and re-index everything<br><br>It will take a long time and download a lot of data<br><br>Your personal data, posts, and profile <u>will not</u> be deleted");
@@ -1375,6 +1417,7 @@ import {Sleep} from "../util/time";
         });
         DOM.collapseServerInfo.addEventListener("show.bs.collapse", function() {
             getDebugMode().then();
+            getServerRuntime().then();
             getServerVersion().then();
         });
         DOM.collapseNetworking.addEventListener("show.bs.collapse", function() {

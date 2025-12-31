@@ -452,7 +452,6 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 		return "", "", nil, 0, 0, nil
 	}
 	if algoIndexerRunning == "false" {
-		core.LogDebug("[Algo] Indexer skipped: Algorand indexer disabled")
 		return "", "", nil, 0, 0, nil
 	}
 	uuid := _AlgoDatabase.IndexerGetJobUUID(chainName)

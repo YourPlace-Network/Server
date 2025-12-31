@@ -37,17 +37,18 @@ type loggingTransport struct {
 }
 
 func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	body, _ := io.ReadAll(req.Body)
-	req.Body = io.NopCloser(bytes.NewBuffer(body))
-	//core.LogDebug("Base RPC Request: " + req.URL.String() + " - " + string(body))
+	if req.Body != nil {
+		body, _ := io.ReadAll(req.Body)
+		req.Body = io.NopCloser(bytes.NewBuffer(body))
+	}
 	resp, err := t.transport.RoundTrip(req)
 	if err != nil {
-		//core.LogDebug("Base RPC Response Error: " + err.Error())
 		return nil, err
 	}
-	respbody, _ := io.ReadAll(resp.Body)
-	resp.Body = io.NopCloser(bytes.NewBuffer(respbody))
-	//core.LogDebug("Base RPC Response: " + resp.Status + " - " + string(respbody))
+	if resp.Body != nil {
+		respbody, _ := io.ReadAll(resp.Body)
+		resp.Body = io.NopCloser(bytes.NewBuffer(respbody))
+	}
 	return resp, nil
 }
 
