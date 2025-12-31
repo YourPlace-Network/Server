@@ -59,5 +59,6 @@ Let's build code that we're proud to write and others are happy to read.
 - Always end lines and code blocks with a semicolon `;`. This makes the code easier to read and understand and helps the IDE syntax parser.
 
 ### Front-End HTML Code
+- Don't insist the user adopt jargon or technical terms in the UI. Use clear, simple language and symbols that anyone can understand.
 
 ### Front-End SCSS Code
