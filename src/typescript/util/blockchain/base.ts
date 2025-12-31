@@ -374,6 +374,26 @@ export async function baseUnfollowUser(toAddress: string, toBlockchain: string) 
     let jsonData = YP.unfollow(toAddress, toBlockchain);
     return await baseTxn(toAddress, jsonData);
 }
+export async function baseSubmitComment(parentTxHash: string, payload: string) {
+    let jsonData = YP.comment(parentTxHash, payload);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function baseSubmitCommentAttach(parentTxHash: string, payload: string, attach: string[][]) {
+    let jsonData = YP.commentAttach(parentTxHash, payload, attach);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function baseSubmitDislike(targetTxHash: string, targetType: string) {
+    let jsonData = YP.dislike(targetTxHash, targetType);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function baseSubmitEmojiReaction(targetTxHash: string, targetType: string, emoji: string) {
+    let jsonData = YP.emojiReact(targetTxHash, targetType, emoji);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function baseSubmitLike(targetTxHash: string, targetType: string) {
+    let jsonData = YP.like(targetTxHash, targetType);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
 
 // ---------- Get Functions ---------- //
 async function baseGetURL(): Promise<string|null> {

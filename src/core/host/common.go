@@ -32,6 +32,15 @@ func IsDebugMode() bool {
 	}
 	return false
 }
+func IsGatewayMode() bool {
+	if GetEnvVar("YourPlaceGateway") == "true" {
+		return true
+	}
+	if GetEnvVar("YourPlaceGateway") == "false" {
+		return false
+	}
+	return false
+}
 func SetDebugMode(status bool) {
 	if status {
 		if !IsDebugMode() {

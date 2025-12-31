@@ -1,14 +1,17 @@
 package db
 
+// This file cannot create blockchain-specific types or packages or functions, to prevent upstream application code from becoming blockchain-dependent. This is the public database "API" wrapper to the rest of the application. Having a "blockchain" parameter to allow selection of the chain via database query logic is fine.
+
 import (
 	"YourPlace/src/core"
-	"database/sql"
 	"fmt"
+	"os"
 	"slices"
 	"time"
 )
 
 type Database struct {
+	mysql  MySQL
 	sqlite SQLite
 	Engine string
 }
@@ -20,11 +23,21 @@ type Attachment struct { //we can move this as long as it isn't defined in a pac
 }
 
 func (db *Database) Init(path string, engine string) {
-	validEngines := []string{"sqlite"}
+	validEngines := []string{"sqlite", "mysql"}
 	if !slices.Contains(validEngines, engine) {
 		core.LogFatal("Invalid DB engine selected")
 	}
-	db.sqlite.Init(path)
+	core.LogInfo("Initializing database with engine: " + engine)
+	switch engine {
+	case "sqlite":
+		db.sqlite.Init(path)
+	case "mysql":
+		dsn := os.Getenv("YOURPLACE_MYSQL_DSN")
+		if dsn == "" {
+			core.LogFatal("MYSQL DSN not set in environment variable YOURPLACE_MYSQL_DSN")
+		}
+		db.mysql.Init(dsn)
+	}
 	db.Engine = engine
 	// Wait for DB to be ready
 	for i := 0; i < 5; i++ {
@@ -37,69 +50,48 @@ func (db *Database) Init(path string, engine string) {
 		}
 	}
 }
-func (db *Database) SetDefaults() {
-	defaults := map[string]string{
+func (db *Database) SetDefaultSettings() {
+	// Pre-fills some safe default settings if they do not already exist
+	settingsDefaults := map[string]string{
 		"historyDays":      "90",
 		"indexerOnBattery": "false",
 		"indexerRunning":   "true",
 		"badbitsEnabled":   "true",
 	}
-	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
-		for key, defaultValue := range defaults {
-			var value string
-			err := tx.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
-			if err == sql.ErrNoRows || len(value) == 0 { // If the setting already exists, skip
-				_, err = tx.Exec("INSERT INTO settings (key, value) VALUES (?, ?)", key, defaultValue)
-				if err != nil {
-					return core.LogErrorReturn(fmt.Sprintf("Failed to insert default %s: %w", key, err))
-				}
-			}
+	for key, defaultValue := range settingsDefaults {
+		existingValue := db.SettingsGetValue(key)
+		if existingValue == "" {
+			db.SettingsUpdateValue(key, defaultValue)
 		}
-		return nil
-	})
-	if err != nil {
-		core.LogError("Failed to set defaults: " + err.Error())
 	}
 }
-func (db *Database) SetGatewayDefaults(uploadDirectory string) {
+func (db *Database) SetGatewayDefaultSettings(uploadDirectory string) {
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	metaDefaults := map[string]string{
 		"accountAddress": "0x0000000000000000000000000000000000000000",
-		"accountNetwork": "Base",
+		"accountNetwork": "base",
 		"installedDate":  timestamp,
 	}
 	settingsDefaults := map[string]string{
 		"uploadDirectory": uploadDirectory,
 	}
-	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
-		for key, defaultValue := range metaDefaults {
-			var value string
-			err := tx.QueryRow("SELECT value FROM meta WHERE key = ?", key).Scan(&value)
-			if err == sql.ErrNoRows || len(value) == 0 {
-				_, err = tx.Exec("INSERT INTO meta (key, value) VALUES (?, ?)", key, defaultValue)
-				if err != nil {
-					return core.LogErrorReturn(fmt.Sprintf("Failed to insert meta default %s: %w", key, err))
-				}
-			}
+	for key, defaultValue := range metaDefaults {
+		existingValue := db.MetaGetValue(key)
+		if existingValue == "" {
+			db.MetaUpdateValue(key, defaultValue)
 		}
-		for key, defaultValue := range settingsDefaults {
-			var value string
-			err := tx.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
-			if err == sql.ErrNoRows || len(value) == 0 {
-				_, err = tx.Exec("INSERT INTO settings (key, value) VALUES (?, ?)", key, defaultValue)
-				if err != nil {
-					return core.LogErrorReturn(fmt.Sprintf("Failed to insert settings default %s: %w", key, err))
-				}
-			}
+	}
+	for key, defaultValue := range settingsDefaults {
+		existingValue := db.SettingsGetValue(key)
+		if existingValue == "" {
+			db.SettingsUpdateValue(key, defaultValue)
 		}
-		return nil
-	})
-	if err != nil {
-		core.LogError("Failed to set gateway defaults: " + err.Error())
 	}
 }
 func (db *Database) ExportSnapshot(exportPath string) error {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.ExportSnapshot(exportPath)
 	case "sqlite":
 		return db.sqlite.ExportSnapshot(exportPath)
 	default:
@@ -108,6 +100,8 @@ func (db *Database) ExportSnapshot(exportPath string) error {
 }
 func (db *Database) ImportSnapshot(importPath string) error {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.ImportSnapshot(importPath)
 	case "sqlite":
 		return db.sqlite.ImportSnapshot(importPath)
 	default:
@@ -116,6 +110,8 @@ func (db *Database) ImportSnapshot(importPath string) error {
 }
 func (db *Database) ImportSnapshotNoMetadata(importPath string) error {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.ImportSnapshotNoMetadata(importPath)
 	case "sqlite":
 		return db.sqlite.ImportSnapshotNoMetadata(importPath)
 	default:
@@ -126,12 +122,16 @@ func (db *Database) ImportSnapshotNoMetadata(importPath string) error {
 // --- Metadata & Settings Functions --- //
 func (db *Database) MetaUpdateValue(key string, value string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.MetaUpdateValue(key, value)
 	case "sqlite":
 		db.sqlite.MetaUpdateValue(key, value)
 	}
 }
 func (db *Database) MetaGetValue(key string) string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.MetaGetValue(key)
 	case "sqlite":
 		return db.sqlite.MetaGetValue(key)
 	}
@@ -139,6 +139,8 @@ func (db *Database) MetaGetValue(key string) string {
 }
 func (db *Database) SettingsGetValue(key string) string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.SettingsGetValue(key)
 	case "sqlite":
 		return db.sqlite.SettingsGetValue(key)
 	}
@@ -146,12 +148,16 @@ func (db *Database) SettingsGetValue(key string) string {
 }
 func (db *Database) SettingsUpdateValue(key string, value string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.SettingsUpdateValue(key, value)
 	case "sqlite":
 		db.sqlite.SettingsUpdateValue(key, value)
 	}
 }
 func (db *Database) SettingsDeleteValue(key string) error {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.SettingsDeleteValue(key)
 	case "sqlite":
 		return db.sqlite.SettingsDeleteValue(key)
 	}
@@ -159,15 +165,28 @@ func (db *Database) SettingsDeleteValue(key string) error {
 }
 func (db *Database) Ping() bool {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.Ping()
 	case "sqlite":
 		return db.sqlite.Ping()
 	}
 	return false
 }
+func (db *Database) Close() error {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.Close()
+	case "sqlite":
+		return db.sqlite.Close()
+	}
+	return nil
+}
 
 // --- Auth Functions --- //
 func (db *Database) AuthGetNonceStatus(nonce string) string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.AuthGetNonceStatus(nonce)
 	case "sqlite":
 		return db.sqlite.AuthGetNonceStatus(nonce)
 	}
@@ -175,24 +194,32 @@ func (db *Database) AuthGetNonceStatus(nonce string) string {
 }
 func (db *Database) AuthUpdateNonce(nonce string, status string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.AuthUpdateNonce(nonce, status)
 	case "sqlite":
 		db.sqlite.AuthUpdateNonce(nonce, status)
 	}
 }
 func (db *Database) AuthDeleteNonce(nonce string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.AuthDeleteNonce(nonce)
 	case "sqlite":
 		db.sqlite.AuthDeleteNonce(nonce)
 	}
 }
 func (db *Database) AuthExpireCookie(uuid string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.AuthExpireCookie(uuid)
 	case "sqlite":
 		db.sqlite.AuthExpireCookie(uuid)
 	}
 }
 func (db *Database) AuthGetCookieStatus(uuid string) string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.AuthGetCookieStatus(uuid)
 	case "sqlite":
 		return db.sqlite.AuthGetCookieStatus(uuid)
 	}
@@ -200,12 +227,16 @@ func (db *Database) AuthGetCookieStatus(uuid string) string {
 }
 func (db *Database) AuthUpdateLoginNonce(nonce string, domain string, expiration uint64, nonceHash string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.AuthUpdateLoginNonce(nonce, domain, expiration, nonceHash)
 	case "sqlite":
 		db.sqlite.AuthUpdateLoginNonce(nonce, domain, expiration, nonceHash)
 	}
 }
 func (db *Database) AuthGetLoginNonceByHash(nonceHash string) string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.AuthGetLoginNonceByHash(nonceHash)
 	case "sqlite":
 		return db.sqlite.AuthGetLoginNonceByHash(nonceHash)
 	}
@@ -213,18 +244,24 @@ func (db *Database) AuthGetLoginNonceByHash(nonceHash string) string {
 }
 func (db *Database) AuthDeleteLoginNonce(nonce string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.AuthDeleteLoginNonce(nonce)
 	case "sqlite":
 		db.sqlite.AuthDeleteLoginNonce(nonce)
 	}
 }
 func (db *Database) AuthExpireLoginNonce() {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.AuthExpireLoginNonce()
 	case "sqlite":
 		db.sqlite.AuthExpireLoginNonce()
 	}
 }
 func (db *Database) AuthGetServerOwnerAddress() string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.AuthGetServerOwnerAddress()
 	case "sqlite":
 		return db.sqlite.AuthGetServerOwnerAddress()
 	}
@@ -232,6 +269,8 @@ func (db *Database) AuthGetServerOwnerAddress() string {
 }
 func (db *Database) AuthGetServerOwnerNetwork() string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.AuthGetServerOwnerNetwork()
 	case "sqlite":
 		return db.sqlite.AuthGetServerOwnerNetwork()
 	}
@@ -241,18 +280,24 @@ func (db *Database) AuthGetServerOwnerNetwork() string {
 // --- Files Functions --- //
 func (db *Database) FileAdd(fileUUID string, fileHash string, mimeType string, fileName string, size int64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.FileAdd(fileUUID, fileHash, mimeType, fileName, size)
 	case "sqlite":
 		db.sqlite.FileAdd(fileUUID, fileHash, mimeType, fileName, size)
 	}
 }
 func (db *Database) IPFSAdd(fileUUID string, cid string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.IPFSAdd(fileUUID, cid)
 	case "sqlite":
 		db.sqlite.IPFSAdd(fileUUID, cid)
 	}
 }
 func (db *Database) GetFileHashFromUUID(fileUUID string) string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.GetFileHashFromUUID(fileUUID)
 	case "sqlite":
 		return db.sqlite.GetFileHashFromUUID(fileUUID)
 	}
@@ -262,12 +307,16 @@ func (db *Database) GetFileHashFromUUID(fileUUID string) string {
 // --- Indexer Functions --- //
 func (db *Database) IndexerCreateJob(uuid string, blockchain string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.IndexerCreateJob(uuid, blockchain)
 	case "sqlite":
 		db.sqlite.IndexerCreateJob(uuid, blockchain)
 	}
 }
 func (db *Database) IndexerGetJobUUID(blockchain string) string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.IndexerGetJobUUID(blockchain)
 	case "sqlite":
 		return db.sqlite.IndexerGetJobUUID(blockchain)
 	}
@@ -275,6 +324,8 @@ func (db *Database) IndexerGetJobUUID(blockchain string) string {
 }
 func (db *Database) IndexerGetJobStatus(uuid string) string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.IndexerGetJobStatus(uuid)
 	case "sqlite":
 		return db.sqlite.IndexerGetJobStatus(uuid)
 	}
@@ -282,6 +333,8 @@ func (db *Database) IndexerGetJobStatus(uuid string) string {
 }
 func (db *Database) IndexerGetHeadBlock(uuid string) uint64 {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.IndexerGetHeadBlock(uuid)
 	case "sqlite":
 		return db.sqlite.IndexerGetHeadBlock(uuid)
 	}
@@ -289,6 +342,8 @@ func (db *Database) IndexerGetHeadBlock(uuid string) uint64 {
 }
 func (db *Database) IndexerGetTailBlock(uuid string) uint64 {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.IndexerGetTailBlock(uuid)
 	case "sqlite":
 		return db.sqlite.IndexerGetTailBlock(uuid)
 	}
@@ -296,6 +351,8 @@ func (db *Database) IndexerGetTailBlock(uuid string) uint64 {
 }
 func (db *Database) IndexerGetRunningJobsUUIDs() []string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.IndexerGetRunningJobsUUIDs()
 	case "sqlite":
 		return db.sqlite.IndexerGetRunningJobsUUIDs()
 	}
@@ -303,36 +360,48 @@ func (db *Database) IndexerGetRunningJobsUUIDs() []string {
 }
 func (db *Database) IndexerUpdateJobStatus(uuid string, status string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.IndexerUpdateJobStatus(uuid, status)
 	case "sqlite":
 		db.sqlite.IndexerUpdateJobStatus(uuid, status)
 	}
 }
 func (db *Database) IndexerUpdateHeadBlock(uuid string, headBlock uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.IndexerUpdateHeadBlock(uuid, headBlock)
 	case "sqlite":
 		db.sqlite.IndexerUpdateHeadBlock(uuid, headBlock)
 	}
 }
 func (db *Database) IndexerUpdateTailBlock(uuid string, tailBlock uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.IndexerUpdateTailBlock(uuid, tailBlock)
 	case "sqlite":
 		db.sqlite.IndexerUpdateTailBlock(uuid, tailBlock)
 	}
 }
 func (db *Database) IndexerUpdateJobSpeed(uuid string, rps uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.IndexerUpdateJobSpeed(uuid, rps)
 	case "sqlite":
 		db.sqlite.IndexerUpdateJobSpeed(uuid, rps)
 	}
 }
 func (db *Database) IndexerAddPost(txHash string, blockchain string, fromAddr string, toAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.IndexerAddPost(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
 	case "sqlite":
 		db.sqlite.IndexerAddPost(txHash, blockchain, fromAddr, toAddr, parentTxHash, amount, timestamp, data, blockNumber)
 	}
 }
 func (db *Database) IndexerResetJobs(blockchain string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.IndexerResetJobs(blockchain)
 	case "sqlite":
 		db.sqlite.IndexerResetJobs(blockchain)
 	}
@@ -341,221 +410,119 @@ func (db *Database) IndexerResetJobs(blockchain string) {
 // --- Indexer Functions to Tokenize Onchain Posts --- //
 func (db *Database) OnchainP(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainP(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	case "sqlite":
 		db.sqlite.OnchainP(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	}
 }
 func (db *Database) OnchainPA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainPA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data, attachments)
 	case "sqlite":
 		db.sqlite.OnchainPA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data, attachments)
 	}
 }
 func (db *Database) OnchainMN(blockchain string, address string, name string, timestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMN(blockchain, address, name, timestamp)
 	case "sqlite":
 		db.sqlite.OnchainMN(blockchain, address, name, timestamp)
 	}
 }
 func (db *Database) OnchainMA(blockchain string, address string, avatar string, timestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMA(blockchain, address, avatar, timestamp)
 	case "sqlite":
 		db.sqlite.OnchainMA(blockchain, address, avatar, timestamp)
 	}
 }
-func (db *Database) OnchainMB(blockchain string, address string, avatar string, timestamp uint64) {
+func (db *Database) OnchainMB(blockchain string, address string, banner string, timestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMB(blockchain, address, banner, timestamp)
 	case "sqlite":
-		db.sqlite.OnchainMB(blockchain, address, avatar, timestamp)
+		db.sqlite.OnchainMB(blockchain, address, banner, timestamp)
 	}
 }
 func (db *Database) OnchainMV(blockchain string, address string, vertical string, timestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMV(blockchain, address, vertical, timestamp)
 	case "sqlite":
 		db.sqlite.OnchainMV(blockchain, address, vertical, timestamp)
 	}
 }
 func (db *Database) OnchainML(blockchain string, address string, location string, timestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainML(blockchain, address, location, timestamp)
 	case "sqlite":
 		db.sqlite.OnchainML(blockchain, address, location, timestamp)
 	}
 }
 func (db *Database) OnchainMW(blockchain string, address string, website string, timestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMW(blockchain, address, website, timestamp)
 	case "sqlite":
 		db.sqlite.OnchainMW(blockchain, address, website, timestamp)
 	}
 }
 func (db *Database) OnchainMD(blockchain string, address string, description string, timestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMD(blockchain, address, description, timestamp)
 	case "sqlite":
 		db.sqlite.OnchainMD(blockchain, address, description, timestamp)
 	}
 }
 func (db *Database) OnchainF(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainF(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	case "sqlite":
 		db.sqlite.OnchainF(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	}
 }
 func (db *Database) OnchainFU(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainFU(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	case "sqlite":
 		db.sqlite.OnchainFU(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	}
 }
 func (db *Database) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainDeleteExpired(blockchain, cutoffTimestamp)
 	case "sqlite":
 		db.sqlite.OnchainDeleteExpired(blockchain, cutoffTimestamp)
 	}
 }
 
-// --- Algorand Indexer Functions --- //
-func (db *Database) AlgoIndexerCreateJob(uuid string, blockchain string) {
+// --- Post Functions --- //
+func (db *Database) GetPost(txHash string, blockchain string) map[string]interface{} {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.GetPost(txHash, blockchain)
 	case "sqlite":
-		db.sqlite.AlgoIndexerCreateJob(uuid, blockchain)
+		return db.sqlite.GetPost(txHash, blockchain)
 	}
-}
-func (db *Database) AlgoIndexerGetJobUUID(blockchain string) string {
-	switch db.Engine {
-	case "sqlite":
-		return db.sqlite.AlgoIndexerGetJobUUID(blockchain)
-	}
-	return ""
-}
-func (db *Database) AlgoIndexerGetJobStatus(uuid string) string {
-	switch db.Engine {
-	case "sqlite":
-		return db.sqlite.AlgoIndexerGetJobStatus(uuid)
-	}
-	return ""
-}
-func (db *Database) AlgoIndexerGetHeadBlock(uuid string) uint64 {
-	switch db.Engine {
-	case "sqlite":
-		return db.sqlite.AlgoIndexerGetHeadBlock(uuid)
-	}
-	return 0
-}
-func (db *Database) AlgoIndexerGetTailBlock(uuid string) uint64 {
-	switch db.Engine {
-	case "sqlite":
-		return db.sqlite.AlgoIndexerGetTailBlock(uuid)
-	}
-	return 0
-}
-func (db *Database) AlgoIndexerUpdateJobStatus(uuid string, status string) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.AlgoIndexerUpdateJobStatus(uuid, status)
-	}
-}
-func (db *Database) AlgoIndexerUpdateHeadBlock(uuid string, headBlock uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.AlgoIndexerUpdateHeadBlock(uuid, headBlock)
-	}
-}
-func (db *Database) AlgoIndexerUpdateTailBlock(uuid string, tailBlock uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.AlgoIndexerUpdateTailBlock(uuid, tailBlock)
-	}
-}
-func (db *Database) AlgoIndexerUpdateJobSpeed(uuid string, rps uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.AlgoIndexerUpdateJobSpeed(uuid, rps)
-	}
-}
-func (db *Database) AlgoIndexerResetJobs(blockchain string) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.AlgoIndexerResetJobs(blockchain)
-	}
-}
-
-// --- Algorand Onchain Tokenized Functions --- //
-func (db *Database) OnchainAlgorandP(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandP(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
-	}
-}
-func (db *Database) OnchainAlgorandPA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandPA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data, attachments)
-	}
-}
-func (db *Database) OnchainAlgorandMN(blockchain string, address string, name string, timestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandMN(blockchain, address, name, timestamp)
-	}
-}
-func (db *Database) OnchainAlgorandMA(blockchain string, address string, avatar string, timestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandMA(blockchain, address, avatar, timestamp)
-	}
-}
-func (db *Database) OnchainAlgorandMB(blockchain string, address string, avatar string, timestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandMB(blockchain, address, avatar, timestamp)
-	}
-}
-func (db *Database) OnchainAlgorandMV(blockchain string, address string, vertical string, timestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandMV(blockchain, address, vertical, timestamp)
-	}
-}
-func (db *Database) OnchainAlgorandML(blockchain string, address string, location string, timestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandML(blockchain, address, location, timestamp)
-	}
-}
-func (db *Database) OnchainAlgorandMW(blockchain string, address string, website string, timestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandMW(blockchain, address, website, timestamp)
-	}
-}
-func (db *Database) OnchainAlgorandMD(blockchain string, address string, description string, timestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandMD(blockchain, address, description, timestamp)
-	}
-}
-func (db *Database) OnchainAlgorandF(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandF(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
-	}
-}
-func (db *Database) OnchainAlgorandFU(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandFU(txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
-	}
-}
-func (db *Database) OnchainAlgorandDeleteExpired(blockchain string, cutoffTimestamp uint64) {
-	switch db.Engine {
-	case "sqlite":
-		db.sqlite.OnchainAlgorandDeleteExpired(blockchain, cutoffTimestamp)
-	}
+	return nil
 }
 
 // --- Search Functions --- //
 func (db *Database) SearchGetPosts(query string) []map[string]interface{} {
 	var posts []map[string]interface{}
 	switch db.Engine {
+	case "mysql":
+		posts = db.mysql.SearchGetPosts(query)
+		return posts
 	case "sqlite":
 		posts = db.sqlite.SearchGetPosts(query)
 		return posts
@@ -565,6 +532,9 @@ func (db *Database) SearchGetPosts(query string) []map[string]interface{} {
 func (db *Database) SearchGetProfiles(query string) []map[string]interface{} {
 	var profiles []map[string]interface{}
 	switch db.Engine {
+	case "mysql":
+		profiles = db.mysql.SearchGetProfiles(query)
+		return profiles
 	case "sqlite":
 		profiles = db.sqlite.SearchGetProfiles(query)
 		return profiles
@@ -573,6 +543,8 @@ func (db *Database) SearchGetProfiles(query string) []map[string]interface{} {
 }
 func (db *Database) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.DiscoverGetRandomProfiles(limit)
 	case "sqlite":
 		return db.sqlite.DiscoverGetRandomProfiles(limit)
 	}
@@ -580,6 +552,8 @@ func (db *Database) DiscoverGetRandomProfiles(limit int) []map[string]interface{
 }
 func (db *Database) DiscoverGetTopByFollowers(limit int) []map[string]interface{} {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.DiscoverGetTopByFollowers(limit)
 	case "sqlite":
 		return db.sqlite.DiscoverGetTopByFollowers(limit)
 	}
@@ -587,6 +561,8 @@ func (db *Database) DiscoverGetTopByFollowers(limit int) []map[string]interface{
 }
 func (db *Database) DiscoverGetTopByPosts(limit int) []map[string]interface{} {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.DiscoverGetTopByPosts(limit)
 	case "sqlite":
 		return db.sqlite.DiscoverGetTopByPosts(limit)
 	}
@@ -597,6 +573,8 @@ func (db *Database) DiscoverGetTopByPosts(limit int) []map[string]interface{} {
 func (db *Database) ProfileGetName(address string, blockchain string) string {
 	var name string
 	switch db.Engine {
+	case "mysql":
+		name = db.mysql.ProfileGetName(address, blockchain)
 	case "sqlite":
 		name = db.sqlite.ProfileGetName(address, blockchain)
 	}
@@ -605,6 +583,9 @@ func (db *Database) ProfileGetName(address string, blockchain string) string {
 func (db *Database) ProfileGetPosts(address string, blockchain string) []map[string]interface{} {
 	var posts []map[string]interface{}
 	switch db.Engine {
+	case "mysql":
+		posts = db.mysql.ProfileGetPosts(address, blockchain)
+		return posts
 	case "sqlite":
 		posts = db.sqlite.ProfileGetPosts(address, blockchain)
 		return posts
@@ -614,6 +595,8 @@ func (db *Database) ProfileGetPosts(address string, blockchain string) []map[str
 func (db *Database) ProfileGetAvatar(address string, blockchain string) string {
 	var avatar string
 	switch db.Engine {
+	case "mysql":
+		avatar = db.mysql.ProfileGetAvatar(address, blockchain)
 	case "sqlite":
 		avatar = db.sqlite.ProfileGetAvatar(address, blockchain)
 	}
@@ -622,6 +605,8 @@ func (db *Database) ProfileGetAvatar(address string, blockchain string) string {
 func (db *Database) ProfileGetBanner(address string, blockchain string) string {
 	var banner string
 	switch db.Engine {
+	case "mysql":
+		banner = db.mysql.ProfileGetBanner(address, blockchain)
 	case "sqlite":
 		banner = db.sqlite.ProfileGetBanner(address, blockchain)
 	}
@@ -630,6 +615,8 @@ func (db *Database) ProfileGetBanner(address string, blockchain string) string {
 func (db *Database) ProfileGetDescription(address string, blockchain string) string {
 	var description string
 	switch db.Engine {
+	case "mysql":
+		description = db.mysql.ProfileGetDescription(address, blockchain)
 	case "sqlite":
 		description = db.sqlite.ProfileGetDescription(address, blockchain)
 	}
@@ -638,6 +625,8 @@ func (db *Database) ProfileGetDescription(address string, blockchain string) str
 func (db *Database) ProfileGetLocation(address string, blockchain string) string {
 	var location string
 	switch db.Engine {
+	case "mysql":
+		location = db.mysql.ProfileGetLocation(address, blockchain)
 	case "sqlite":
 		location = db.sqlite.ProfileGetLocation(address, blockchain)
 	}
@@ -646,6 +635,8 @@ func (db *Database) ProfileGetLocation(address string, blockchain string) string
 func (db *Database) ProfileGetWebsite(address string, blockchain string) string {
 	var website string
 	switch db.Engine {
+	case "mysql":
+		website = db.mysql.ProfileGetWebsite(address, blockchain)
 	case "sqlite":
 		website = db.sqlite.ProfileGetWebsite(address, blockchain)
 	}
@@ -654,6 +645,8 @@ func (db *Database) ProfileGetWebsite(address string, blockchain string) string 
 func (db *Database) ProfileGetVertical(address string, blockchain string) string {
 	var vertical string
 	switch db.Engine {
+	case "mysql":
+		vertical = db.mysql.ProfileGetVertical(address, blockchain)
 	case "sqlite":
 		vertical = db.sqlite.ProfileGetVertical(address, blockchain)
 	}
@@ -662,6 +655,8 @@ func (db *Database) ProfileGetVertical(address string, blockchain string) string
 func (db *Database) ProfileGetJoinedDate(address string, blockchain string) *int64 {
 	var joineddate *int64
 	switch db.Engine {
+	case "mysql":
+		joineddate = db.mysql.ProfileGetJoinedDate(address, blockchain)
 	case "sqlite":
 		joineddate = db.sqlite.ProfileGetJoinedDate(address, blockchain)
 	}
@@ -670,6 +665,8 @@ func (db *Database) ProfileGetJoinedDate(address string, blockchain string) *int
 func (db *Database) ProfileGetFollowerCount(address string, blockchain string) *int64 {
 	var followerCount *int64
 	switch db.Engine {
+	case "mysql":
+		followerCount = db.mysql.ProfileGetFollowerCount(address, blockchain)
 	case "sqlite":
 		followerCount = db.sqlite.ProfileGetFollowerCount(address, blockchain)
 	}
@@ -678,20 +675,26 @@ func (db *Database) ProfileGetFollowerCount(address string, blockchain string) *
 func (db *Database) ProfileGetFollowingCount(address string, blockchain string) *int64 {
 	var followingCount *int64
 	switch db.Engine {
+	case "mysql":
+		followingCount = db.mysql.ProfileGetFollowingCount(address, blockchain)
 	case "sqlite":
 		followingCount = db.sqlite.ProfileGetFollowingCount(address, blockchain)
 	}
 	return followingCount
 }
-func (db *Database) ProfileIsFollower(address string, blockchain string, followerAddress string, followerBlockchain string) bool {
+func (db *Database) ProfileIsFollower(followeeAddress string, followeeBlockchain string, followerAddress string, followerBlockchain string) bool {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileIsFollower(followeeAddress, followeeBlockchain, followerAddress, followerBlockchain)
 	case "sqlite":
-		return db.sqlite.ProfileIsFollower(address, blockchain, followerAddress, followerBlockchain)
+		return db.sqlite.ProfileIsFollower(followeeAddress, followeeBlockchain, followerAddress, followerBlockchain)
 	}
 	return false
 }
 func (db *Database) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int, offset int) []map[string]interface{} {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.GetFollowersFeed(followerAddress, followerBlockchain, limit, offset)
 	case "sqlite":
 		return db.sqlite.GetFollowersFeed(followerAddress, followerBlockchain, limit, offset)
 	}
@@ -701,18 +704,24 @@ func (db *Database) GetFollowersFeed(followerAddress string, followerBlockchain 
 // --- Notifications --- //
 func (db *Database) NotificationInsert(uid string, message string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.NotificationInsert(uid, message)
 	case "sqlite":
 		db.sqlite.NotificationInsert(uid, message)
 	}
 }
 func (db *Database) NotificationDismiss(uid string) {
 	switch db.Engine {
+	case "mysql":
+		db.mysql.NotificationDismiss(uid)
 	case "sqlite":
 		db.sqlite.NotificationDismiss(uid)
 	}
 }
 func (db *Database) NotificationGetActive() []map[string]string {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.NotificationGetActive()
 	case "sqlite":
 		return db.sqlite.NotificationGetActive()
 	}
@@ -726,25 +735,17 @@ func (db *Database) SnapshotSetDefaults() {
 		"indexerOnBattery": "true",
 		"indexerRunning":   "true",
 	}
-	err := db.sqlite.withTransaction(func(tx *sql.Tx) error {
-		for key, defaultValue := range defaults {
-			var value string
-			err := tx.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
-			if err == sql.ErrNoRows || len(value) == 0 { // If the setting already exists, skip
-				_, err = tx.Exec("INSERT INTO settings (key, value) VALUES (?, ?)", key, defaultValue)
-				if err != nil {
-					return core.LogErrorReturn(fmt.Sprintf("Failed to insert default %s: %w", key, err))
-				}
-			}
+	for key, defaultValue := range defaults {
+		existingValue := db.SettingsGetValue(key)
+		if existingValue == "" {
+			db.SettingsUpdateValue(key, defaultValue)
 		}
-		return nil
-	})
-	if err != nil {
-		core.LogError("Failed to set defaults: " + err.Error())
 	}
 }
 func (db *Database) ExportSnapshots(exportPath string, blockchain string, headBlock uint64, tailBlock uint64) error {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.exportSnapshots(exportPath, blockchain, headBlock, tailBlock)
 	case "sqlite":
 		return db.sqlite.exportSnapshots(exportPath, blockchain, headBlock, tailBlock)
 	default:
@@ -755,6 +756,8 @@ func (db *Database) ExportSnapshots(exportPath string, blockchain string, headBl
 // --- Wallet Functions --- //
 func (db *Database) WalletStore(publicKey string, blockchain string, address string, encryptedPrivateKey string, isDefault bool) error {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.WalletStore(publicKey, blockchain, address, encryptedPrivateKey, isDefault)
 	case "sqlite":
 		return db.sqlite.WalletStore(publicKey, blockchain, address, encryptedPrivateKey, isDefault)
 	}
@@ -762,6 +765,8 @@ func (db *Database) WalletStore(publicKey string, blockchain string, address str
 }
 func (db *Database) WalletGet(publicKey string, blockchain string) (map[string]interface{}, error) {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.WalletGet(publicKey, blockchain)
 	case "sqlite":
 		return db.sqlite.WalletGet(publicKey, blockchain)
 	}
@@ -769,6 +774,8 @@ func (db *Database) WalletGet(publicKey string, blockchain string) (map[string]i
 }
 func (db *Database) WalletGetDefault(blockchain string) (map[string]interface{}, error) {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.WalletGetDefault(blockchain)
 	case "sqlite":
 		return db.sqlite.WalletGetDefault(blockchain)
 	}
@@ -776,6 +783,8 @@ func (db *Database) WalletGetDefault(blockchain string) (map[string]interface{},
 }
 func (db *Database) WalletGetPrivateKey(publicKey string, blockchain string) (string, error) {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.WalletGetPrivateKey(publicKey, blockchain)
 	case "sqlite":
 		return db.sqlite.WalletGetPrivateKey(publicKey, blockchain)
 	}
@@ -783,6 +792,8 @@ func (db *Database) WalletGetPrivateKey(publicKey string, blockchain string) (st
 }
 func (db *Database) WalletSetDefault(publicKey string, blockchain string) error {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.WalletSetDefault(publicKey, blockchain)
 	case "sqlite":
 		return db.sqlite.WalletSetDefault(publicKey, blockchain)
 	}
@@ -790,8 +801,74 @@ func (db *Database) WalletSetDefault(publicKey string, blockchain string) error 
 }
 func (db *Database) WalletGetAll() ([]map[string]interface{}, error) {
 	switch db.Engine {
+	case "mysql":
+		return db.mysql.WalletGetAll()
 	case "sqlite":
 		return db.sqlite.WalletGetAll()
 	}
 	return nil, core.LogErrorReturn("Invalid DB engine selected")
+}
+
+// --- Comment Functions --- //
+func (db *Database) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainC(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	case "sqlite":
+		db.sqlite.OnchainC(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	}
+}
+func (db *Database) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data, attachments)
+	case "sqlite":
+		db.sqlite.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data, attachments)
+	}
+}
+func (db *Database) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.GetComments(parentTxHash, blockchain, limit, offset)
+	case "sqlite":
+		return db.sqlite.GetComments(parentTxHash, blockchain, limit, offset)
+	}
+	return nil
+}
+func (db *Database) GetCommentCount(targetTxHash string, blockchain string) int64 {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.GetCommentCount(targetTxHash, blockchain)
+	case "sqlite":
+		return db.sqlite.GetCommentCount(targetTxHash, blockchain)
+	}
+	return 0
+}
+
+// --- Reaction Functions --- //
+func (db *Database) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainR(txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
+	case "sqlite":
+		db.sqlite.OnchainR(txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
+	}
+}
+func (db *Database) GetReactionCounts(targetTxHash string, blockchain string) map[string]interface{} {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.GetReactionCounts(targetTxHash, blockchain)
+	case "sqlite":
+		return db.sqlite.GetReactionCounts(targetTxHash, blockchain)
+	}
+	return nil
+}
+func (db *Database) GetUserReaction(targetTxHash string, blockchain string, fromAddress string) string {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.GetUserReaction(targetTxHash, blockchain, fromAddress)
+	case "sqlite":
+		return db.sqlite.GetUserReaction(targetTxHash, blockchain, fromAddress)
+	}
+	return ""
 }

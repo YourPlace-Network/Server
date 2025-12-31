@@ -84,6 +84,8 @@ export default {
                     sourceMap: false,
                     sassOptions: {
                         outputStyle: "compressed",
+                        quietDeps: true,
+                        silenceDeprecations: ["color-functions", "global-builtin", "import"],
                     }
                 }
             }]
@@ -113,6 +115,9 @@ export default {
         }
     },
     plugins: [
+        new webpack.IgnorePlugin({
+            resourceRegExp: /^@react-native-async-storage\/async-storage$/,
+        }),
         new webpack.ProvidePlugin({
             Buffer: ["buffer", "Buffer"],
         }),

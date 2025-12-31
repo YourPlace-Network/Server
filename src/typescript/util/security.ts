@@ -5,7 +5,7 @@ import DOMPurify from "dompurify";
 
 
 export function IsValidBlockchain(chain: string): boolean {
-    const validChains = ["algorand", "base", "ethereum", "solana"];
+    const validChains = ["algorand", "base"];
     return validChains.includes(chain);
 }
 export function IsValidAlgoAddress(address: string): boolean {

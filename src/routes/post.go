@@ -2,12 +2,15 @@ package routes
 
 import (
 	"YourPlace/src/core/db"
+	"YourPlace/src/core/host"
+	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-func PostRoutes(router *gin.Engine, database *db.Database) {
+func PostRoutes(router *gin.Engine, database *db.Database, title string) {
 	router.GET("/posts/:blockchain/:address", func(c *gin.Context) {
 		blockchain := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchain) {
@@ -21,5 +24,60 @@ func PostRoutes(router *gin.Engine, database *db.Database) {
 		}
 		posts := database.ProfileGetPosts(address, blockchain)
 		c.SecureJSON(http.StatusOK, gin.H{"posts": posts})
+	})
+	router.GET("/post/:blockchain/:txHash", func(c *gin.Context) {
+		blockchain := c.Param("blockchain")
+		txHash := c.Param("txHash")
+		if !security.IsValidBlockchain(blockchain) {
+			c.Redirect(http.StatusNotFound, "/404")
+			return
+		}
+		if !security.IsValidTxHash(txHash, blockchain) {
+			c.Redirect(http.StatusNotFound, "/404")
+			return
+		}
+		authenticated := false
+		cryptoSeed := []byte(database.SettingsGetValue("cryptoSeed"))
+		authCookie, err := c.Request.Cookie("yp_auth")
+		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
+			authenticated = true
+		}
+		pageTitle := "Post | " + title
+		gateway := host.IsGatewayMode()
+		token := middleware.GetCSRFToken(c)
+		c.HTML(http.StatusOK, "src/templates/pages/post.tmpl", gin.H{
+			"title":                 pageTitle,
+			"pageName":              "post",
+			"csrfToken":             token,
+			"gatewayMode":           gateway,
+			"isCookieAuthenticated": authenticated,
+			"blockchain":            blockchain,
+			"txHash":                txHash,
+		})
+	})
+	router.GET("/post/data/:blockchain/:txHash", func(c *gin.Context) {
+		blockchain := c.Param("blockchain")
+		txHash := c.Param("txHash")
+		if !security.IsValidBlockchain(blockchain) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid blockchain"})
+			return
+		}
+		if !security.IsValidTxHash(txHash, blockchain) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction hash"})
+			return
+		}
+		var post map[string]interface{}
+		var reactions map[string]interface{}
+		var commentCount int64
+		post = database.GetPost(txHash, blockchain)
+		reactions = database.GetReactionCounts(txHash, blockchain)
+		commentCount = database.GetCommentCount(txHash, blockchain)
+		if post == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
+			return
+		}
+		post["reactions"] = reactions
+		post["commentCount"] = commentCount
+		c.SecureJSON(http.StatusOK, gin.H{"post": post})
 	})
 }

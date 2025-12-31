@@ -252,6 +252,26 @@ export async function localWalletEthereumSubmitPostAttach(payload: string, attac
     const jsonData = YP.postAttach(payload, attach);
     return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
 }
+export async function localWalletEthereumSubmitComment(parentTxHash: string, payload: string): Promise<string | undefined> {
+    const jsonData = YP.comment(parentTxHash, payload);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function localWalletEthereumSubmitCommentAttach(parentTxHash: string, payload: string, attach: string[][]): Promise<string | undefined> {
+    const jsonData = YP.commentAttach(parentTxHash, payload, attach);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function localWalletEthereumSubmitDislike(targetTxHash: string, targetType: string): Promise<string | undefined> {
+    const jsonData = YP.dislike(targetTxHash, targetType);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function localWalletEthereumSubmitEmojiReaction(targetTxHash: string, targetType: string, emoji: string): Promise<string | undefined> {
+    const jsonData = YP.emojiReact(targetTxHash, targetType, emoji);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function localWalletEthereumSubmitLike(targetTxHash: string, targetType: string): Promise<string | undefined> {
+    const jsonData = YP.like(targetTxHash, targetType);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
 export async function localWalletEthereumUnfollowUser(toAddress: string, toBlockchain: string): Promise<string | undefined> {
     const jsonData = YP.unfollow(toAddress, toBlockchain);
     return await localWalletEthereumTxn(toAddress, jsonData);

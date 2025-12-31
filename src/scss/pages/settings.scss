@@ -36,11 +36,11 @@ i.bi {
   padding-right: .6em;
 }
 #ollamaCheckDiv {
-  float: left;
+  display: inline-block;
   padding-top: 1.5em;
 }
 #ollamaModelDiv {
-  float: left;
+  display: inline-block;
   padding-left: 2em;
   padding-top: 1.5em;
 }
@@ -162,11 +162,30 @@ i.bi {
 }
 #baseIndexerProgressDiv,
 #algoIndexerProgressDiv {
-  margin-bottom: 2em;
+  margin-bottom: 0.5em;
 }
 #baseIndexerProgressCached,
 #algoIndexerProgressCached {
   background-color: global.$quaternary;
+}
+.indexerComplete {
+  color: global.$success;
+  font-weight: bold;
+}
+.indexerPercent {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+.indexerProgressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5em;
+}
+.indexerStats {
+  color: global.$secondary;
+  font-size: 0.85em;
+  margin-bottom: 1.5em;
 }
 #baseThrottleNumber,
 #algoThrottleNumber {

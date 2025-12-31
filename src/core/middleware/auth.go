@@ -16,23 +16,31 @@ import (
 
 // List of path/method pairs that do not require authentication. Everything else requires a yp_auth cookie created from /login
 var excludedTuplesAuth = [][]string{ // exact match on path and method
-	{"/", "GET"},
-	{"/setup", "GET"}, {"/setup/installed", "GET"}, {"/setup", "POST"},
-	{"/discover", "GET"},
-	{"/favicon.ico", "GET"},
-	{"/ping", "GET"},
-	{"/mentalHealth", "GET"}, {"/mentalHealth/tips", "GET"},
-	{"/faq", "GET"},
-	{"/notification", "GET"},
-	{"/robots.txt", "GET"},
-	{"/settings/base", "GET"}, {"/settings/ipfs/port", "GET"}, {"/settings/base/url", "GET"}, {"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"}, {"/settings/services/algorand", "GET"},
-	{"/s", "GET"},
-	{"/404", "GET"},
+	{"/", "GET"},                                                       // Home page
+	{"/setup", "GET"}, {"/setup/installed", "GET"}, {"/setup", "POST"}, // Setup pages
+	{"/discover", "GET"},                                    // Discover API
+	{"/favicon.ico", "GET"},                                 // Favicon
+	{"/ping", "GET"},                                        // Health check endpoint
+	{"/mentalHealth", "GET"}, {"/mentalHealth/tips", "GET"}, // Mental health resources
+	{"/faq", "GET"},                                                                              // FAQ page
+	{"/notification", "GET"},                                                                     // Notification page
+	{"/robots.txt", "GET"},                                                                       // Robots direction
+	{"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"}, // Database snapshot endpoints
+	{"/settings/ipfs/port", "GET"},                           // IPFS settings
+	{"/settings/base", "GET"}, {"/settings/base/url", "GET"}, // Base settings
+	{"/settings/services/algorand", "GET"}, // Algorand settings
+	{"/s", "GET"},                          // Search endpoint
+	{"/404", "GET"},                        // 404 not-found page
 }
 
 // Prefix match on path, exact match on method
-var prefixGetExclusions = []string{"/static/", "/login", "/logout", "/profile/", "/posts"} // This exclusion should rarely be used, as it will exclude all GET requests to that path
-var prefixPostExclusions = []string{"/login"}                                              // This exclusion should rarely be used, as it will exclude all POST requests to that path
+var prefixGetExclusions = []string{ // Auth exclude all GET requests to these paths (public read-only APIs)
+	"/static/", "/login", "/logout", // Necessary for login page and static assets
+	"/profile/", "/posts/", "/post/", "/comments/", "/reactions/", // Public content browsing
+}
+var prefixPostExclusions = []string{ // Exclude all POST requests to these paths (public, non-auth, stateful APIs)
+	"/login", // Login endpoints
+}
 
 func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -91,6 +91,15 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **key** - TEXT
   * **value** - TEXT
   * **timestamp** - INTEGER (Unix timestamp)
+* **onchain_comment** - Comments on posts (Base/Ethereum)
+  * **txHash** - TEXT (Primary Key)
+  * **blockchain** - TEXT (Primary Key)
+  * **fromAddress** - TEXT
+  * **parentTxHash** - TEXT
+  * **parentType** - TEXT (post or comment)
+  * **amount** - REAL
+  * **timestamp** - INTEGER (Unix timestamp)
+  * **data** - TEXT
 * **onchain_follow** - Following and unfollowing of profiles
   * **txHash** - TEXT (Primary Key)
   * **blockchain** - TEXT (Primary Key)
@@ -98,4 +107,31 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **followerBlockchain** - TEXT
   * **followeeAddress** - TEXT
   * **followeeBlockchain** - TEXT
+  * **timestamp** - INTEGER (Unix timestamp)
+* **onchain_reaction** - Reactions on posts and comments (Base/Ethereum)
+  * **txHash** - TEXT (Primary Key)
+  * **blockchain** - TEXT (Primary Key)
+  * **fromAddress** - TEXT
+  * **targetTxHash** - TEXT
+  * **targetType** - TEXT (post or comment)
+  * **reactionType** - TEXT (like, dislike, or emoji character)
+  * **timestamp** - INTEGER (Unix timestamp)
+
+## Algorand-Specific Onchain Tables
+* **onchain_algorand_comment** - Comments on posts (Algorand)
+  * **txHash** - TEXT (Primary Key)
+  * **blockchain** - TEXT (Primary Key)
+  * **fromAddress** - TEXT
+  * **parentTxHash** - TEXT
+  * **parentType** - TEXT (post or comment)
+  * **amount** - REAL
+  * **timestamp** - INTEGER (Unix timestamp)
+  * **data** - TEXT
+* **onchain_algorand_reaction** - Reactions on posts and comments (Algorand)
+  * **txHash** - TEXT (Primary Key)
+  * **blockchain** - TEXT (Primary Key)
+  * **fromAddress** - TEXT
+  * **targetTxHash** - TEXT
+  * **targetType** - TEXT (post or comment)
+  * **reactionType** - TEXT (like, dislike, or emoji character)
   * **timestamp** - INTEGER (Unix timestamp)

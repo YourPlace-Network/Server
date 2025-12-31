@@ -1,6 +1,10 @@
 import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
+import {ShowAddCommentUI} from "../components/addComment";
+import {CreatePostControlsBar, FetchReactionCounts, FetchUserReaction} from "../components/postControls";
+import {ProcessPostContentForPreviews} from "../components/postPreviewCard";
+import {GetAddress} from "./blockchain/wallet";
 import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar} from "./blockchain/wallet";
 import {IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL, getIpfsAvatarUrl} from "./ipfs";
@@ -294,7 +298,47 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
         }
         postDiv.appendChild(attachmentDiv);
     }
+    const addCommentContainer = document.createElement("div");
+    addCommentContainer.classList.add("addCommentContainer");
+    const controlsBar = CreatePostControlsBar({
+        txHash: postData.txHash,
+        blockchain: postData.blockchain,
+        targetType: 'post',
+        initialLikes: postData.likes || 0,
+        initialDislikes: postData.dislikes || 0,
+        initialComments: postData.commentCount || 0,
+        userReaction: postData.userReaction || null,
+        onCommentClick: () => {
+            if (addCommentContainer.children.length > 0) {
+                addCommentContainer.innerHTML = "";
+                addCommentContainer.classList.remove("expanded");
+            } else {
+                const commentUI = ShowAddCommentUI(postData.txHash, postData.blockchain, () => {
+                    addCommentContainer.classList.remove("expanded");
+                });
+                addCommentContainer.appendChild(commentUI);
+                addCommentContainer.classList.add("expanded");
+            }
+        },
+        onRepostClick: () => {
+            const postUrl = `/post/${postData.blockchain}/${postData.txHash}`;
+            const addPostTextarea = document.getElementById("addPostTextarea") as HTMLTextAreaElement;
+            if (addPostTextarea) {
+                addPostTextarea.value = postUrl;
+                addPostTextarea.focus();
+            } else if (typeof window.tinymce !== 'undefined') {
+                const editor = window.tinymce.get("tinyMceEditor");
+                if (editor) {
+                    editor.setContent(postUrl);
+                    editor.focus();
+                }
+            }
+        }
+    });
+    reactionDiv.appendChild(controlsBar);
     postDiv.appendChild(reactionDiv);
+    postDiv.appendChild(addCommentContainer);
+    fetchAndUpdatePostControls(controlsBar, postData.blockchain, postData.txHash);
     // Embed Rich Media
     // Extract attachment URLs for deduplication
     const attachmentUrls = new Set<string>();
@@ -358,6 +402,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
             }
         }
     });
+    ProcessPostContentForPreviews(postTextDiv);
     return postDiv;
 }
 export async function CreateXcomPostCard(postData: any): Promise<HTMLDivElement> {
@@ -781,4 +826,38 @@ async function grid4Attachments(attachments: HTMLElement[]): Promise<HTMLDivElem
     container.appendChild(row1);
     container.appendChild(row2);
     return container;
+}
+async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchain: string, txHash: string): Promise<void> {
+    try {
+        const counts = await FetchReactionCounts(blockchain, txHash);
+        if (counts) {
+            const address = GetAddress();
+            let userReaction: string | null = null;
+            if (address) {
+                userReaction = await FetchUserReaction(blockchain, txHash, address);
+            }
+            const likeControl = controlsBar.querySelector(".postControlItem.like");
+            const dislikeControl = controlsBar.querySelector(".postControlItem.dislike");
+            if (likeControl) {
+                const countSpan = likeControl.querySelector(".count");
+                if (countSpan) {
+                    countSpan.textContent = counts.likes > 0 ? counts.likes.toString() : "";
+                }
+                if (userReaction === "like") {
+                    likeControl.classList.add("active");
+                }
+            }
+            if (dislikeControl) {
+                const countSpan = dislikeControl.querySelector(".count");
+                if (countSpan) {
+                    countSpan.textContent = counts.dislikes > 0 ? counts.dislikes.toString() : "";
+                }
+                if (userReaction === "dislike") {
+                    dislikeControl.classList.add("active");
+                }
+            }
+        }
+    } catch (e) {
+        LogError("Failed to fetch post controls data: " + e);
+    }
 }

@@ -245,7 +245,7 @@ func IsValidAlgoTransaction(payload string) bool {
 	return RegexMatch("[a-zA-Z\\d+/]+={0,2}", payload)
 }
 func IsValidBlockchain(payload string) bool {
-	validBlockchains := []string{"algorand", "base", "ethereum"}
+	validBlockchains := []string{"algorand", "base"}
 	for _, validBlockchain := range validBlockchains {
 		if strings.EqualFold(validBlockchain, strings.ToLower(payload)) {
 			return true
@@ -340,26 +340,12 @@ func IsERC6492Signature(signature string) bool {
 }
 func IsContractDeployed(address string, database *db.Database) bool {
 	baseRPC := database.SettingsGetValue("baseURL")
-	if strings.HasPrefix(baseRPC, "/") {
-		domain := os.Getenv("YourPlaceDomain")
-		port := os.Getenv("YourPlacePort")
-		gateway := os.Getenv("YourPlaceGateway") == "true"
-		if domain == "" {
-			domain = "localhost"
-		}
-		if port == "" {
-			port = "42424"
-		}
-		protocol := "http"
-		if gateway {
-			protocol = "https"
-		}
-		if gateway && port == "443" {
-			baseRPC = protocol + "://" + domain + baseRPC
-		} else {
-			baseRPC = protocol + "://" + domain + ":" + port + baseRPC
-		}
+	core.LogDebug("IsContractDeployed: baseURL from settings = " + baseRPC)
+	if baseRPC == "" || strings.HasPrefix(baseRPC, "/") {
+		baseRPC = "https://mainnet.base.org"
+		core.LogDebug("IsContractDeployed: using public fallback RPC")
 	}
+	core.LogDebug("IsContractDeployed: dialing RPC at " + baseRPC)
 	client, err := ethclient.Dial(baseRPC)
 	if err != nil {
 		core.LogDebug("Failed to connect to Base RPC for contract check: " + err.Error())
@@ -421,25 +407,9 @@ func IsValidEthSignature(payload string, signature string, address string) bool 
 }
 func ValidateERC1271Signature(message string, signature string, address string, database *db.Database) bool {
 	baseRPC := database.SettingsGetValue("baseURL")
-	if strings.HasPrefix(baseRPC, "/") {
-		domain := os.Getenv("YourPlaceDomain")
-		port := os.Getenv("YourPlacePort")
-		gateway := os.Getenv("YourPlaceGateway") == "true"
-		if domain == "" {
-			domain = "localhost"
-		}
-		if port == "" {
-			port = "42424"
-		}
-		protocol := "http"
-		if gateway {
-			protocol = "https"
-		}
-		if gateway && port == "443" {
-			baseRPC = protocol + "://" + domain + baseRPC
-		} else {
-			baseRPC = protocol + "://" + domain + ":" + port + baseRPC
-		}
+	if baseRPC == "" || strings.HasPrefix(baseRPC, "/") {
+		baseRPC = "https://mainnet.base.org"
+		core.LogDebug("ValidateERC1271Signature: using public fallback RPC")
 	}
 	const ERC1271_MAGIC_VALUE = "1626ba7e"
 	client, err := ethclient.Dial(baseRPC)
@@ -564,6 +534,19 @@ func IsValidPort(port int) bool {
 		return true
 	}
 	return false
+}
+func IsValidTxHash(payload string, blockchain string) bool {
+	if blockchain == "algorand" {
+		return IsValidAlgoTransaction(payload)
+	}
+	if !strings.HasPrefix(payload, "0x") {
+		return false
+	}
+	if len(payload) != 66 {
+		return false
+	}
+	_, err := hex.DecodeString(payload[2:])
+	return err == nil
 }
 func IsValidYourPlaceVersion(payload string) bool {
 	pattern := `^[0-9]+\.[0-9]+\.[0-9]+$`

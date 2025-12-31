@@ -11,8 +11,8 @@ import {
     baseConnectWallet,
     baseDisconnectWallet,
     baseFollowUser,
-    baseUnfollowUser,
     baseGetAvatar,
+    baseGetDescription,
     baseGetName,
     baseSetAvatar,
     baseSetBanner,
@@ -21,11 +21,16 @@ import {
     baseSetName,
     baseSetVertical,
     baseSetWebsite,
+    baseSubmitComment,
+    baseSubmitCommentAttach,
+    baseSubmitDislike,
+    baseSubmitEmojiReaction,
+    baseSubmitLike,
     baseSubmitPost,
     baseSubmitPostAttach,
     baseTxn,
+    baseUnfollowUser,
     mainnetBase,
-    baseGetDescription
 } from "./base";
 import {
     hasLocalWalletEthereum,
@@ -41,6 +46,11 @@ import {
     localWalletEthereumSetName,
     localWalletEthereumSetVertical,
     localWalletEthereumSetWebsite,
+    localWalletEthereumSubmitComment,
+    localWalletEthereumSubmitCommentAttach,
+    localWalletEthereumSubmitDislike,
+    localWalletEthereumSubmitEmojiReaction,
+    localWalletEthereumSubmitLike,
     localWalletEthereumSubmitPost,
     localWalletEthereumSubmitPostAttach,
     localWalletEthereumTxn,
@@ -493,6 +503,131 @@ export async function WalletSubmitPostAttach(payload: string, attach: string[][]
             return true;
         case "pera":
             //await setAlgoPostAttach(payload, attach);
+            return true;
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return false;
+    }
+}
+export async function WalletSubmitComment(parentTxHash: string, payload: string): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot submit comment");
+        return false;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
+    switch (wallet) {
+        case "cbwalletbase":
+            await baseSubmitComment(parentTxHash, payload);
+            return true;
+        case "localwalletethereum":
+            await localWalletEthereumSubmitComment(parentTxHash, payload);
+            return true;
+        case "pera":
+            return true;
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return false;
+    }
+}
+export async function WalletSubmitCommentAttach(parentTxHash: string, payload: string, attach: string[][]): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot submit comment with attachments");
+        return false;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
+    switch (wallet) {
+        case "cbwalletbase":
+            await baseSubmitCommentAttach(parentTxHash, payload, attach);
+            return true;
+        case "localwalletethereum":
+            await localWalletEthereumSubmitCommentAttach(parentTxHash, payload, attach);
+            return true;
+        case "pera":
+            return true;
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return false;
+    }
+}
+export async function WalletSubmitLike(targetTxHash: string, targetType: string): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot submit like");
+        return false;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
+    switch (wallet) {
+        case "cbwalletbase":
+            await baseSubmitLike(targetTxHash, targetType);
+            return true;
+        case "localwalletethereum":
+            await localWalletEthereumSubmitLike(targetTxHash, targetType);
+            return true;
+        case "pera":
+            return true;
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return false;
+    }
+}
+export async function WalletSubmitDislike(targetTxHash: string, targetType: string): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot submit dislike");
+        return false;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
+    switch (wallet) {
+        case "cbwalletbase":
+            await baseSubmitDislike(targetTxHash, targetType);
+            return true;
+        case "localwalletethereum":
+            await localWalletEthereumSubmitDislike(targetTxHash, targetType);
+            return true;
+        case "pera":
+            return true;
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return false;
+    }
+}
+export async function WalletSubmitEmojiReaction(targetTxHash: string, targetType: string, emoji: string): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot submit emoji reaction");
+        return false;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
+    switch (wallet) {
+        case "cbwalletbase":
+            await baseSubmitEmojiReaction(targetTxHash, targetType, emoji);
+            return true;
+        case "localwalletethereum":
+            await localWalletEthereumSubmitEmojiReaction(targetTxHash, targetType, emoji);
+            return true;
+        case "pera":
             return true;
         default:
             LogError("Invalid wallet selection: " + wallet);
