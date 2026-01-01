@@ -1111,4 +1111,5 @@ var mentalHealthTips = []string{
 	"A lawful arrest with chain of custody for the accused, is not a kidnapping",
 	"There is a considerable amount of people who don't actually care about \"due process.\" They only really care to use that process to protect their own, and to punish their enemies. Never let these people get real power",
 	"A lot of karens will create bureaucracy to avoid accountability. They want to hide behind rules and regulations so they can avoid being personally responsible for their actions",
+	"The loudest one in the room, is the most insecure one",
 }

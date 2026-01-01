@@ -33,6 +33,7 @@ func (db *Database) Init(path string, engine string) {
 		db.sqlite.Init(path)
 	case "mysql":
 		dsn := os.Getenv("YOURPLACE_MYSQL_DSN")
+		core.LogDebug("MySQL DSN: " + dsn)
 		if dsn == "" {
 			core.LogFatal("MYSQL DSN not set in environment variable YOURPLACE_MYSQL_DSN")
 		}

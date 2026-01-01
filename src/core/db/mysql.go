@@ -19,16 +19,11 @@ type MySQL struct {
 }
 
 func (db *MySQL) Init(dsn string) {
+	// DSN == <db-username>:<URL-encoded-password>@tcp(<db-url>:<db-port>)/<db-name>
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	db.dsn = dsn
-	baseDSN := dsn
-	if slashIdx := strings.LastIndex(dsn, "/"); slashIdx != -1 {
-		baseDSN = dsn[:slashIdx+1]
-	} else {
-		baseDSN = dsn + "/"
-	}
-	initDB, err := sql.Open("mysql", baseDSN+"?charset=utf8mb4&parseTime=true&multiStatements=true")
+	initDB, err := sql.Open("mysql", dsn+"?charset=utf8mb4&parseTime=true&multiStatements=true")
 	if err != nil || initDB == nil {
 		core.LogFatal("Could not open MySQL db: " + err.Error())
 		return
@@ -38,7 +33,7 @@ func (db *MySQL) Init(dsn string) {
 		core.LogDebug("Could not create database: " + err.Error())
 	}
 	initDB.Close()
-	database, err := sql.Open("mysql", baseDSN+"yourplace?charset=utf8mb4&parseTime=true&multiStatements=true")
+	database, err := sql.Open("mysql", dsn+"yourplace?charset=utf8mb4&parseTime=true&multiStatements=true")
 	if err != nil || database == nil {
 		core.LogFatal("Could not open MySQL db: " + err.Error())
 		return
