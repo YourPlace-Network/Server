@@ -1,6 +1,15 @@
 @use "sass:map";
 @use "../global.scss";
 
+#alphaImg {
+  width: 300px;
+  height: 70px;
+  transform: rotate(-30deg);
+  z-index: 150;
+  position: absolute;
+  opacity: 50%;
+  right: calc(50% + 50px);
+}
 #logoDiv {
   width: 100%;
   display: inline-block;
