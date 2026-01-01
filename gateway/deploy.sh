@@ -72,7 +72,8 @@ MYSQL_DSN_ENV=""
 if SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id yourplace/database/gateway --region AWS_REGION_PLACEHOLDER --query SecretString --output text 2>/dev/null); then
   YOURPLACE_MYSQL_DSN=$(echo "$SECRET_JSON" | jq -r '.dsn')
   if [ -n "$YOURPLACE_MYSQL_DSN" ] && [ "$YOURPLACE_MYSQL_DSN" != "null" ]; then
-    MYSQL_DSN_ENV="-e YOURPLACE_MYSQL_DSN=$YOURPLACE_MYSQL_DSN"
+    export YOURPLACE_MYSQL_DSN
+    MYSQL_DSN_ENV="-e YOURPLACE_MYSQL_DSN"
     echo 'Database credentials retrieved successfully'
   fi
 else
