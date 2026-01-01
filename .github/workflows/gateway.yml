@@ -1,9 +1,9 @@
 name: Gateway
 
 on:
-  push:
-    branches: [ chad ]
   workflow_dispatch:
+#  push:
+#    branches: [ chad ]
 
 env:
   AWS_REGION: us-east-1
