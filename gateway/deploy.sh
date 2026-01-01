@@ -75,9 +75,8 @@ if SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id yourplace/datab
   DB_HOST=$(echo "$SECRET_JSON" | jq -r '.host')
   DB_PORT=$(echo "$SECRET_JSON" | jq -r '.port')
   DB_NAME=$(echo "$SECRET_JSON" | jq -r '.dbname')
-  DB_PASS_ENCODED=$(printf '%s' "$DB_PASS" | jq -sRr @uri)
   if [ -n "$DB_USER" ] && [ "$DB_USER" != "null" ]; then
-    export YOURPLACE_MYSQL_DSN="${DB_USER}:${DB_PASS_ENCODED}@tcp(${DB_HOST}:${DB_PORT})/${DB_NAME}"
+    export YOURPLACE_MYSQL_DSN="${DB_USER}:${DB_PASS}@tcp(${DB_HOST}:${DB_PORT})/${DB_NAME}"
     MYSQL_DSN_ENV="-e YOURPLACE_MYSQL_DSN"
     echo 'Database credentials retrieved successfully'
   fi
