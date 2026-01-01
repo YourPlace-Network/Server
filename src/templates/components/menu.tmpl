@@ -1,17 +1,20 @@
 {{define "htmlMenu"}}<div class="offcanvas offcanvas-end" tabindex="-1" id="htmlMenuOffcanvas" data-bs-scroll="false" aria-labelledby="htmlMenuOffcanvas" data-bs-backdrop="true" data-bs-keyboard="true">
         <div class="offcanvas-header d-flex align-items-center" id="menuOffcanvasHeader">
             <a href="/p/" class="grow cursorPointer" id="menuAvatarLink">
-                <img src="/static/image/avatar.png" id="menuAvatar" alt="avatar" crossorigin="anonymous" referrerpolicy="no-referrer">
+                <img src="/static/image/yourplace-logo.svg" id="menuAvatar" alt="avatar" crossorigin="anonymous" referrerpolicy="no-referrer">
             </a>
             <span class="grow cursorPointer">
                 <button class="btn btn-primary" id="menuLoginBtn">Login</button>
             </span>
         </div>
         <div class="offcanvas-body flex" id="menuBody">
+            <a href="https://yourplace.network/" class="menuItemA">
+                <div id="menuHome" class="menuItemDiv grow cursorPointer">🏠 Home</div>
+            </a>
             <a href="/" class="menuItemA" id="menuPlacesLink">
                 <div id="menuBrowse" class="menuItemDiv grow cursorPointer">🔍 Search</div>
             </a>
-            <a href="https://yourplace.network/download" class="menuItemA" id="menuDownloadLink" target="_blank">
+            <a href="https://yourplace.network/download/" class="menuItemA" id="menuDownloadLink">
                 <div id="menuDownload" class="menuItemDiv grow cursorPointer">💾 Download</div>
             </a>
             <a href="/settings" class="menuItemA" id="menuSettingsLink">
@@ -26,7 +29,7 @@
             <a href="https://github.com/YourPlace-Network/Server/issues/new?template=bug_report.md" class="menuItemA" target="_blank">
                 <div id="menuBug" class="menuItemDiv grow cursorPointer">🪲 Report Bug</div>
             </a>
-            <a href="https://yourplace.network/about/" class="menuItemA" target="_blank">
+            <a href="https://yourplace.network/about/" class="menuItemA">
                 <div id="menuabout" class="menuItemDiv grow cursorPointer">ℹ️ About</div>
             </a>
         </div>
