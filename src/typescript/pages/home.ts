@@ -118,9 +118,11 @@ import {CreateXcomPostCard} from "../util/domFactory";
                     }
                     feedItems.sort((a, b) => b.timestamp - a.timestamp);
                 }
-                if (feedItems.length === 0) {
+                if (feedItems.length === 0 && mode === "initial") {
+                    DOM.followersFeedSection.style.display = "none";
                     return;
                 }
+                DOM.followersFeedSection.style.display = "block";
                 const pendingCards: HTMLDivElement[] = [];
                 for (const item of feedItems) {
                     if (item.type === "native") {
@@ -268,7 +270,9 @@ import {CreateXcomPostCard} from "../util/domFactory";
             DOM.discoverSection.style.display = "none";
             let query = DOM.searchInput.value;
             if (query.length <= 0) {
-                DOM.followersFeedSection.style.display = "block";
+                if (DOM.followersFeedDiv.children.length > 0) {
+                    DOM.followersFeedSection.style.display = "block";
+                }
                 DOM.discoverSection.style.display = "block";
                 return;
             }
@@ -451,7 +455,9 @@ import {CreateXcomPostCard} from "../util/domFactory";
             DOM.searchClearBtn.style.display = "none";
             DOM.resultsDiv.replaceChildren();
             DOM.resultsDiv.style.display = "none";
-            DOM.followersFeedSection.style.display = "block";
+            if (DOM.followersFeedDiv.children.length > 0) {
+                DOM.followersFeedSection.style.display = "block";
+            }
             DOM.discoverSection.style.display = "block";
         });
         DOM.feedTopBtn.addEventListener("click", () => {
@@ -468,7 +474,7 @@ import {CreateXcomPostCard} from "../util/domFactory";
         /* --- Initialize page variables and start loading --- */
         DOM.searchInput.value = "";
         DOM.resultsDiv.style.display = "none";
-        DOM.followersFeedSection.style.display = "block";
+        DOM.followersFeedSection.style.display = "none";
         DOM.discoverSection.style.display = "block";
         ShowNotifications().then(); // Load notifications in background - don't block page loading
         loadFollowersFeed("initial").then();

@@ -310,8 +310,8 @@ declare global { // Extend the window interface with public objects
             // First try ENS lookup (same as original renderProfileName)
             let name = await WalletGetName(blockchain, address);
             if (name === null || name.length === 0) {
-                // Fall back to cached database name
-                name = cachedName && cachedName.length > 0 ? cachedName : truncateAddress(address);
+                // Fall back to cached database name or "Anonymous" (never show truncated address)
+                name = cachedName && cachedName.length > 0 ? cachedName : "Anonymous";
             }
             if (DOM.profileName.textContent === name) {
                 return; // No change, skip DOM updates
