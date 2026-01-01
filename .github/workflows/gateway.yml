@@ -1,6 +1,8 @@
 name: Gateway
 
 on:
+  push:
+    branches: [ chad ]
   workflow_dispatch:
 
 env:
