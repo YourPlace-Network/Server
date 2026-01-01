@@ -19,7 +19,7 @@ type MySQL struct {
 }
 
 func (db *MySQL) Init(dsn string) {
-	// DSN == <db-username>:<URL-encoded-password>@tcp(<db-url>:<db-port>)/<db-name>
+	// DSN == <db-username>:<URL-encoded-password>@tcp(<db-host>:<db-port>)/<db-name>
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	db.dsn = dsn
