@@ -23,7 +23,9 @@ func (db *MySQL) Init(dsn string) {
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	db.dsn = dsn
-	initDB, err := sql.Open("mysql", dsn+"?charset=utf8mb4&parseTime=true&multiStatements=true")
+	core.LogDebug("MySQL DSN: " + dsn)
+	dsnArgs := dsn + "?charset=utf8mb4&parseTime=true&multiStatements=true"
+	initDB, err := sql.Open("mysql", dsnArgs)
 	if err != nil || initDB == nil {
 		core.LogFatal("Could not open MySQL db: " + err.Error())
 		return
@@ -33,7 +35,7 @@ func (db *MySQL) Init(dsn string) {
 		core.LogDebug("Could not create database: " + err.Error())
 	}
 	initDB.Close()
-	database, err := sql.Open("mysql", dsn+"yourplace?charset=utf8mb4&parseTime=true&multiStatements=true")
+	database, err := sql.Open("mysql", dsnArgs)
 	if err != nil || database == nil {
 		core.LogFatal("Could not open MySQL db: " + err.Error())
 		return

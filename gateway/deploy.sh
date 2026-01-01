@@ -70,13 +70,9 @@ chmod 600 /opt/YourPlace/cert.key
 echo '=== Fetching database credentials from Secrets Manager ==='
 MYSQL_DSN_ENV=""
 if SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id yourplace/database/gateway --region AWS_REGION_PLACEHOLDER --query SecretString --output text 2>/dev/null); then
-  DB_USER=$(echo "$SECRET_JSON" | jq -r '.username')
-  DB_PASS=$(echo "$SECRET_JSON" | jq -r '.password')
-  DB_HOST=$(echo "$SECRET_JSON" | jq -r '.host')
-  DB_PORT=$(echo "$SECRET_JSON" | jq -r '.port')
-  DB_NAME=$(echo "$SECRET_JSON" | jq -r '.dbname')
-  if [ -n "$DB_USER" ] && [ "$DB_USER" != "null" ]; then
-    export YOURPLACE_MYSQL_DSN="${DB_USER}:${DB_PASS}@tcp(${DB_HOST}:${DB_PORT})/${DB_NAME}"
+  YOURPLACE_MYSQL_DSN=$(echo "$SECRET_JSON" | jq -r '"\(.username):\(.password)@tcp(\(.host):\(.port))/\(.dbname)"')
+  if [ -n "$YOURPLACE_MYSQL_DSN" ] && [ "$YOURPLACE_MYSQL_DSN" != "null:null@tcp(null:null)/null" ]; then
+    export YOURPLACE_MYSQL_DSN
     MYSQL_DSN_ENV="-e YOURPLACE_MYSQL_DSN"
     echo 'Database credentials retrieved successfully'
   fi
