@@ -61,24 +61,18 @@ func InitBaseRPCProxy(targetURL string, rateLimit int) *BaseRPCProxy {
 	return baseRPCProxy
 }
 
-func GetBaseRPCProxy() *BaseRPCProxy {
-	return baseRPCProxy
-}
-
 func (p *BaseRPCProxy) UpdateTargetURL(url string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.targetURL = url
 	core.LogInfo("Base RPC Proxy target URL updated: " + url)
 }
-
 func (p *BaseRPCProxy) UpdateRateLimit(rateLimit int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.rateLimit = rateLimit
 	core.LogInfo("Base RPC Proxy rate limit updated: " + strconv.Itoa(rateLimit))
 }
-
 func (p *BaseRPCProxy) processQueue() {
 	for req := range p.requestQueue {
 		p.mu.RLock()
@@ -91,7 +85,6 @@ func (p *BaseRPCProxy) processQueue() {
 		req.response <- resp
 	}
 }
-
 func (p *BaseRPCProxy) forwardRequest(body []byte) *proxyResponse {
 	p.mu.RLock()
 	targetURL := p.targetURL
@@ -104,8 +97,6 @@ func (p *BaseRPCProxy) forwardRequest(body []byte) *proxyResponse {
 			err:        nil,
 		}
 	}
-	core.LogDebug("RPC proxy forwarding to: " + targetURL)
-	core.LogDebug("RPC proxy request body: " + string(body))
 	req, err := http.NewRequest("POST", targetURL, bytes.NewReader(body))
 	if err != nil {
 		core.LogDebug("RPC proxy: failed to create request: " + err.Error())
@@ -135,8 +126,6 @@ func (p *BaseRPCProxy) forwardRequest(body []byte) *proxyResponse {
 			err:        err,
 		}
 	}
-	core.LogDebug("RPC proxy response status: " + strconv.Itoa(resp.StatusCode))
-	core.LogDebug("RPC proxy response body: " + string(respBody))
 	return &proxyResponse{
 		statusCode: resp.StatusCode,
 		body:       respBody,
@@ -144,7 +133,6 @@ func (p *BaseRPCProxy) forwardRequest(body []byte) *proxyResponse {
 		err:        nil,
 	}
 }
-
 func (p *BaseRPCProxy) ProxyRequest(body []byte) (int, []byte, error) {
 	req := &proxyRequest{
 		body:     body,
@@ -158,7 +146,6 @@ func (p *BaseRPCProxy) ProxyRequest(body []byte) (int, []byte, error) {
 		return http.StatusServiceUnavailable, []byte(`{"error": "Request queue timeout"}`), nil
 	}
 }
-
 func (p *BaseRPCProxy) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -170,12 +157,10 @@ func (p *BaseRPCProxy) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-	core.LogDebug("RPC proxy request: " + string(body))
 	statusCode, respBody, err := p.ProxyRequest(body)
 	if err != nil {
 		core.LogError("RPC proxy error: " + err.Error())
 	}
-	core.LogDebug("RPC proxy response [" + strconv.Itoa(statusCode) + "]: " + string(respBody))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	w.Write(respBody)

@@ -90,7 +90,6 @@ jobs:
         BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
         BASE_RPC_THROTTLE: ${{ vars.BASE_RPC_THROTTLE }}
         YOURPLACE_ORIGIN: ${{ vars.YOURPLACE_ORIGIN }}
-        YOURPLACE_MYSQL_DSN: ${{ secrets.YOURPLACE_MYSQL_DSN }}
       run: |
         chmod +x gateway/deploy.sh
         ./gateway/deploy.sh

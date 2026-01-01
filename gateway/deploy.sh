@@ -67,6 +67,17 @@ echo 'CERT_PEM_BASE64_PLACEHOLDER' | base64 -d > /opt/YourPlace/cert.pem
 echo 'CERT_KEY_BASE64_PLACEHOLDER' | base64 -d > /opt/YourPlace/cert.key
 chmod 644 /opt/YourPlace/cert.pem
 chmod 600 /opt/YourPlace/cert.key
+echo '=== Fetching database credentials from Secrets Manager ==='
+MYSQL_DSN_ENV=""
+if SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id yourplace/database/gateway --region AWS_REGION_PLACEHOLDER --query SecretString --output text 2>/dev/null); then
+  YOURPLACE_MYSQL_DSN=$(echo "$SECRET_JSON" | jq -r '.dsn')
+  if [ -n "$YOURPLACE_MYSQL_DSN" ] && [ "$YOURPLACE_MYSQL_DSN" != "null" ]; then
+    MYSQL_DSN_ENV="-e YOURPLACE_MYSQL_DSN=$YOURPLACE_MYSQL_DSN"
+    echo 'Database credentials retrieved successfully'
+  fi
+else
+  echo 'No database secret found, using SQLite'
+fi
 echo '=== Logging into ECR ==='
 aws ecr get-login-password --region AWS_REGION_PLACEHOLDER | docker login --username AWS --password-stdin ECR_REGISTRY_PLACEHOLDER
 echo '=== Pulling latest image ==='
@@ -75,7 +86,7 @@ echo '=== Stopping existing container ==='
 docker stop yourplace-gateway 2>/dev/null || echo 'No existing container'
 docker rm yourplace-gateway 2>/dev/null || echo 'No existing container'
 echo '=== Starting new container ==='
-docker run -d --name yourplace-gateway --restart unless-stopped --log-driver awslogs --log-opt awslogs-region=AWS_REGION_PLACEHOLDER --log-opt awslogs-group=/ec2/yourplace-gateway -p 443:443 -v /opt/YourPlace:/opt/YourPlace -e YOURPLACE_ORIGIN='YOURPLACE_ORIGIN_PLACEHOLDER' -e BASE_RPC_URL='BASE_RPC_URL_PLACEHOLDER' -e BASE_RPC_THROTTLE='BASE_RPC_THROTTLE_PLACEHOLDER' ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
+docker run -d --name yourplace-gateway --restart unless-stopped --log-driver awslogs --log-opt awslogs-region=AWS_REGION_PLACEHOLDER --log-opt awslogs-group=/ec2/yourplace-gateway -p 443:443 -v /opt/YourPlace:/opt/YourPlace -e YOURPLACE_ORIGIN='YOURPLACE_ORIGIN_PLACEHOLDER' -e BASE_RPC_URL='BASE_RPC_URL_PLACEHOLDER' -e BASE_RPC_THROTTLE='BASE_RPC_THROTTLE_PLACEHOLDER' $MYSQL_DSN_ENV ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
 echo '=== Verifying container started ==='
 docker ps | grep yourplace-gateway
 echo '=== Waiting for server to be ready (max 5 minutes) ==='
