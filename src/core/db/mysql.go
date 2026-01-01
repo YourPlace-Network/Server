@@ -23,7 +23,6 @@ func (db *MySQL) Init(dsn string) {
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	db.dsn = dsn
-	core.LogDebug("MySQL DSN: " + dsn)
 	dsnArgs := dsn + "?charset=utf8mb4&parseTime=true&multiStatements=true"
 	initDB, err := sql.Open("mysql", dsnArgs)
 	if err != nil || initDB == nil {

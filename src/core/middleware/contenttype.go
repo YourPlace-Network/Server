@@ -2,11 +2,12 @@ package middleware
 
 import (
 	"bytes"
-	"github.com/gin-gonic/gin"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 func ContentTypeMiddleware() gin.HandlerFunc {
@@ -18,6 +19,8 @@ func ContentTypeMiddleware() gin.HandlerFunc {
 			c.Header("Content-Type", "font/woff")
 		} else if strings.HasSuffix(path, ".woff2") { // Ensure font content type for WOFF2 font files
 			c.Header("Content-Type", "font/woff2")
+		} else if strings.HasPrefix(path, "/static/css/") && strings.HasSuffix(path, ".css") {
+			c.Header("Content-Type", "text/css; charset=utf-8")
 		}
 		// Create a response writer that captures the response
 		writer := &responseWriter{body: bytes.NewBuffer(nil), ResponseWriter: c.Writer}
