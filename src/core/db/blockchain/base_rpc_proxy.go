@@ -18,12 +18,10 @@ type BaseRPCProxy struct {
 	mu           sync.RWMutex
 	client       *http.Client
 }
-
 type proxyRequest struct {
 	body     []byte
 	response chan *proxyResponse
 }
-
 type proxyResponse struct {
 	statusCode int
 	body       []byte
@@ -45,7 +43,7 @@ func InitBaseRPCProxy(targetURL string, rateLimit int) *BaseRPCProxy {
 		if targetURL == "" || strings.HasPrefix(targetURL, "/") {
 			targetURL = DefaultPublicBaseRPC
 			rateLimit = DefaultPublicBaseRPCRateLimit
-			core.LogInfo("Base RPC Proxy using public fallback: " + DefaultPublicBaseRPC)
+			core.LogDebug("Base RPC Proxy using public fallback: " + DefaultPublicBaseRPC)
 		}
 		baseRPCProxy = &BaseRPCProxy{
 			targetURL:    targetURL,
@@ -56,7 +54,7 @@ func InitBaseRPCProxy(targetURL string, rateLimit int) *BaseRPCProxy {
 			},
 		}
 		go baseRPCProxy.processQueue()
-		core.LogInfo("Base RPC Proxy initialized with rate limit: " + strconv.Itoa(rateLimit) + " requests/second")
+		core.LogDebug("Base RPC Proxy initialized with rate limit: " + strconv.Itoa(rateLimit) + " requests/second")
 	})
 	return baseRPCProxy
 }
@@ -65,13 +63,12 @@ func (p *BaseRPCProxy) UpdateTargetURL(url string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.targetURL = url
-	core.LogInfo("Base RPC Proxy target URL updated: " + url)
 }
 func (p *BaseRPCProxy) UpdateRateLimit(rateLimit int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.rateLimit = rateLimit
-	core.LogInfo("Base RPC Proxy rate limit updated: " + strconv.Itoa(rateLimit))
+	core.LogDebug("Base RPC Proxy rate limit updated: " + strconv.Itoa(rateLimit))
 }
 func (p *BaseRPCProxy) processQueue() {
 	for req := range p.requestQueue {
@@ -159,7 +156,7 @@ func (p *BaseRPCProxy) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	statusCode, respBody, err := p.ProxyRequest(body)
 	if err != nil {
-		core.LogError("RPC proxy error: " + err.Error())
+		core.LogDebug("RPC proxy error: " + err.Error())
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)

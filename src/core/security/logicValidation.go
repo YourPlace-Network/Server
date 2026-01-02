@@ -190,9 +190,17 @@ func IsValidCryptoHex(payload string) bool {
 	return true
 }
 func IsValidURL(payload string) bool {
-	//if !strings.HasPrefix(strings.ToLower(payload), "https://") { return false }
-	_, err := url.Parse(payload)
+	if strings.HasPrefix(payload, "ipfs://") {
+		return IsValidCID(payload)
+	}
+	parsed, err := url.Parse(payload)
 	if err != nil {
+		return false
+	}
+	if parsed.Scheme != "https" {
+		return false
+	}
+	if parsed.Host == "" {
 		return false
 	}
 	return true

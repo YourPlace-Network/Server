@@ -372,6 +372,9 @@ export function SetChain(chain: string) {
     }
 }
 export async function WalletSetAvatar(avatarURL: string): Promise<boolean> {
+    if (!IsValidURL(avatarURL)) {
+        return false;
+    }
     let walletSelection = GetWallet()!;
     switch (walletSelection) {
         case "cbwalletbase":
@@ -385,6 +388,9 @@ export async function WalletSetAvatar(avatarURL: string): Promise<boolean> {
     return false;
 }
 export async function WalletSetBanner(bannerURL: string): Promise<boolean> {
+    if (!IsValidURL(bannerURL)) {
+        return false;
+    }
     let walletSelection = GetWallet()!;
     switch (walletSelection) {
         case "cbwalletbase":

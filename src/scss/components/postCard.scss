@@ -325,12 +325,12 @@ ul.ellipsesMenu {
   }
 }
 .addCommentContainer {
-  max-height: 0;
   overflow: hidden;
   transition: max-height 0.3s ease-out;
-  margin-left: 2.5em;
+  margin-left: 4.3em;
+  width: 100%;
   &.expanded {
-    max-height: 500px;
+    width: 100%;
   }
 }
 .addCommentUIContainer {

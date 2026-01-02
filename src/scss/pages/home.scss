@@ -38,6 +38,18 @@
   padding-right: 45px;
   width: 100%;
   border-radius: 1em;
+  background-color: map.get(global.$colors, "tertiary");
+  color: map.get(global.$colors, "text");
+  border: 1px solid map.get(global.$colors, "primary");
+}
+#searchInput::placeholder {
+  color: map.get(global.$colors, "text");
+  opacity: 0.6;
+}
+#searchInput:focus {
+  outline: none;
+  border-color: map.get(global.$colors, "quaternary");
+  box-shadow: 0 0 8px rgba(58, 127, 209, 0.5);
 }
 .searchClearBtn {
   position: absolute;

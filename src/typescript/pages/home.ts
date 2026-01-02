@@ -318,6 +318,17 @@ import {CreateXcomPostCard} from "../util/domFactory";
             if (ensAddress && ensAddress !== "") {
                 results.unshift({resultType: "profile", blockchain: "base", address: ensAddress});
             }
+            const seenProfiles = new Set<string>();
+            results = results.filter(result => {
+                if (result.resultType === "profile") {
+                    const key = result.blockchain + result.address;
+                    if (seenProfiles.has(key)) {
+                        return false;
+                    }
+                    seenProfiles.add(key);
+                }
+                return true;
+            });
             if (results.length === 0) {
                 let noResultsDiv = document.createElement("div");
                 noResultsDiv.className = "no-results-dropdown";
