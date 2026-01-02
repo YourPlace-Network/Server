@@ -1,6 +1,7 @@
 import { HttpGetJson } from "../util/network";
 import { CreatePostControlsBar } from "./postControls";
 import { ShowAddCommentUI } from "./addComment";
+import { CIDToSubdomainURL } from "../util/ipfs";
 import { XSSSanitizeTextUrl } from "../util/security";
 
 export interface Comment {
@@ -66,7 +67,11 @@ function createCommentElement(comment: Comment, depth: number, blockchain: strin
     }
     const avatarImg = document.createElement("img");
     avatarImg.classList.add("commentAvatar");
-    avatarImg.src = comment.avatarSrc || "/static/image/avatar.png";
+    let avatarSrc = comment.avatarSrc || "/static/image/avatar.png";
+    if (avatarSrc.startsWith("ipfs://")) {
+        avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.png";
+    }
+    avatarImg.src = avatarSrc;
     avatarImg.alt = "avatar";
     avatarImg.crossOrigin = "anonymous";
     avatarImg.referrerPolicy = "no-referrer";
