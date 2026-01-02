@@ -33,8 +33,8 @@ const (
 	entryPointV06Address = "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789"
 	handleOpsSelector    = "1fad948c"
 	executeBatchSelector = "34fcd5be"
-	reportInterval       = 5000
-	saveInterval         = 100
+	reportInterval       = 10000
+	saveInterval         = 1000
 	throttleOffset       = 4
 	batchSizeLimit       = 25
 	workerCount          = 10
