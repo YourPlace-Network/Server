@@ -1,5 +1,6 @@
 @use "sass:map";
 @use "../global";
+@use "../tinymce";
 
 .postCardAuthorLink {
     color: map.get(global.$colors, "text");
@@ -325,12 +326,17 @@ ul.ellipsesMenu {
   }
 }
 .addCommentContainer {
-  overflow: hidden;
-  transition: max-height 0.3s ease-out;
   margin-left: 4.3em;
   width: 100%;
+  transform-origin: top;
+  transform: scaleY(0);
+  height: 0;
+  opacity: 0;
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out, height 0.15s ease-out;
   &.expanded {
-    width: 100%;
+    transform: scaleY(1);
+    height: auto;
+    opacity: 1;
   }
 }
 .addCommentUIContainer {
@@ -456,6 +462,69 @@ ul.ellipsesMenu {
 #commentsHeader {
   margin-bottom: 1em;
 }
+.addCommentUIContainer {
+  padding: 0 1em 1em 0.5em;
+}
+.commentThreadPreview {
+  margin-top: 0.5em;
+  padding-left: 0.5em;
+  border-left: 2px solid map-get(global.$colors, "secondary");
+}
+.previewCommentItem {
+  padding: 0.25em 0;
+  border-bottom: 1px solid rgba(map-get(global.$colors, "secondary"), 0.3);
+  &:last-child {
+    border-bottom: none;
+  }
+}
+.previewCommentHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  margin-bottom: 0.15em;
+}
+.previewCommentAvatar {
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 0.2em;
+  object-fit: cover;
+}
+.previewCommentAuthor {
+  font-size: 0.85em;
+  font-weight: 500;
+}
+.previewCommentDate {
+  font-size: 0.7em;
+  opacity: 0.6;
+  margin-left: auto;
+}
+.previewCommentContentWrapper {
+  padding-left: 1.8em;
+}
+.previewCommentContent {
+  font-size: 0.9em;
+  line-height: 1.3;
+  &.collapsed {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+.previewExpandBtn {
+  font-size: 0.75em;
+  color: map-get(global.$colors, "quaternary");
+  cursor: pointer;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+.previewControlsBar {
+  margin-left: 1.8em;
+  padding: 0.15em 0;
+  gap: 1em;
+  font-size: 0.85em;
+}
 @media(max-width: 600px) {
   .postControlsBar {
     margin-left: 0;
@@ -463,6 +532,9 @@ ul.ellipsesMenu {
   }
   .commentThread {
     margin-left: 0;
+  }
+  .commentThreadPreview {
+    padding-left: 0.25em;
   }
   .emojiGrid {
     grid-template-columns: repeat(6, 1fr);

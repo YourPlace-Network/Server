@@ -1,5 +1,6 @@
 @use "sass:map";
 @use "../global.scss";
+@use "../tinymce.scss";
 
 #addPostModal .modal-body {
   position: relative;
@@ -161,48 +162,6 @@
   margin-bottom: 0;
 }
 
-/* TinyMCE Styling */
-.tox-edit-area::before {
-  border: none !important;
-}
-.tox-tinymce {
-  border: 1px solid map.get(global.$colors, "primary") !important;
-}
-.tox-statusbar__branding,
-.tox-dialog-wrap__backdrop {
-  display: none !important;
-}
-.tox-toolbar,
-.tox-toolbar__primary,
-.tox-toolbar__overflow,
-.tox-menubar,
-.tox-editor-header,
-.tox-statusbar,
-.tox-dialog__header,
-.tox-dialog__footer,
-.tox-dialog__body {
-  background-color: map.get(global.$colors, "tertiary") !important;
-}
-.tox-collection__group {
-  background-color: white !important;
-}
-.tox-statusbar__path-item,
-.tox-dialog__title,
-.tox-dialog__body-nav-item--active,
-.tox-dialog__body-nav-item,
-label.tox-label {
-  color: map.get(global.$colors, "text") !important;
-}
-.tox-statusbar__resize-handle svg,
-.tox-button--icon .tox-icon svg {
-  fill: map.get(global.$colors, "text") !important;
-}
-.tox-collection__item--active:not(.tox-collection__item--state-disabled),
-.tox-dialog__footer-end .tox-button {
-  border: none !important;
-  background-color: map.get(global.$colors, "quaternary") !important;
-  color: map.get(global.$colors, "text") !important;
-}
 @media(max-width: 704px) {
   #addPostButton {
     border: 2px solid map.get(global.$colors, "tertiary");

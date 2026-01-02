@@ -309,13 +309,18 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
         initialComments: postData.commentCount || 0,
         userReaction: postData.userReaction || null,
         onCommentClick: () => {
+            const commentBtn = controlsBar.querySelector(".comment") as HTMLElement;
+            const commentIcon = commentBtn?.querySelector("i") as HTMLElement | null;
             if (addCommentContainer.children.length > 0) {
                 addCommentContainer.innerHTML = "";
                 addCommentContainer.classList.remove("expanded");
+                if (commentIcon) {
+                    commentIcon.style.color = "";
+                }
             } else {
                 const commentUI = ShowAddCommentUI(postData.txHash, postData.blockchain, () => {
                     addCommentContainer.classList.remove("expanded");
-                });
+                }, commentBtn);
                 addCommentContainer.appendChild(commentUI);
                 addCommentContainer.classList.add("expanded");
             }

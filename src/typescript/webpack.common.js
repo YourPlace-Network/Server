@@ -2,6 +2,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import webpack from "webpack";
 import CopyPlugin from "copy-webpack-plugin";
+import MiniCssExtractPlugin from "mini-css-extract-plugin";
 import { WebpackManifestPlugin } from "webpack-manifest-plugin";
 
 // Get __dirname equivalent in ESM
@@ -23,6 +24,7 @@ export default {
         settings: "./pages/settings.ts",
         setup: "./pages/setup.ts",
         test: "./pages/test.ts",
+        tinymce: "../scss/tinymce.scss",
     },
     mode: "production",
     module: {
@@ -61,9 +63,24 @@ export default {
             include: path.resolve(__dirname, "../../node_modules/flatpickr"),
             use: ["style-loader", "css-loader"],
         },{
+            test: /tinymce\.scss$/,
+            include: path.resolve(__dirname, "../scss"),
+            use: [{
+                loader: MiniCssExtractPlugin.loader
+            },{
+                loader: "css-loader",
+                options: { sourceMap: false }
+            },{
+                loader: "postcss-loader",
+                options: { postcssOptions: { plugins: [["autoprefixer", {}]] } }
+            },{
+                loader: "sass-loader",
+                options: { sourceMap: false, sassOptions: { outputStyle: "compressed", quietDeps: true, silenceDeprecations: ["color-functions", "global-builtin", "import"] } }
+            }]
+        },{
             test: /\.(sass|scss|css)$/,
             include: path.resolve(__dirname, "../scss"),
-            exclude: /node_modules/,
+            exclude: [/node_modules/, /tinymce\.scss$/],
             use: [{
                 loader: "style-loader"  // Adds CSS to the DOM by injecting a `<style>` tag
             },{
@@ -129,6 +146,9 @@ export default {
                 from: path.resolve(__dirname, "../../node_modules/tinymce"),
                 to: path.resolve(__dirname, "../www/tinymce"),
             }],
+        }),
+        new MiniCssExtractPlugin({
+            filename: "../css/[name].css",
         }),
         new WebpackManifestPlugin({
             fileName: "../manifest.json",

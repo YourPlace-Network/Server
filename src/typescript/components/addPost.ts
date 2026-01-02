@@ -86,7 +86,7 @@ export async function preloadTinyMCE() {
                 await tinymce.default.init({
                     selector: "#addPostText",
                     plugins: "code table lists emoticons",
-                    toolbar: "styles | forecolor backcolor emoticons | bullist numlist | code",
+                    toolbar: "emoticons forecolor backcolor | bold italic underline strikethrough | bullist numlist",
                     toolbar_mode: "sliding",
                     menubar: false,
                     statusbar: true,
@@ -97,6 +97,7 @@ export async function preloadTinyMCE() {
                     license_key: "gpl",
                     paste_data_images: true,
                     automatic_uploads: true,
+                    content_css: "/static/css/tinymce.css",
                     content_style: "img, video { max-width: 100%; height: auto; }",
                     images_upload_handler: async (blobInfo: any) => {
                         console.log("[addPost] images_upload_handler called", blobInfo);

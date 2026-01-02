@@ -1,0 +1,109 @@
+@use "sass:map";
+@use "./global.scss" as global;
+
+body {
+  background-color: map.get(global.$colors, "tertiary");
+  color: map.get(global.$colors, "text");
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 8px;
+}
+a {
+  color: map.get(global.$colors, "link");
+}
+.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
+  color: map.get(global.$colors, "text");
+  opacity: 0.6;
+}
+.tox {
+  background: map.get(global.$colors, "tertiary");
+}
+.tox .tox-tbtn {
+  background-color: map.get(global.$colors, "secondary") !important;
+  color: map.get(global.$colors, "text") !important;
+}
+.tox .tox-tbtn svg,
+.tox .tox-tbtn .tox-icon svg,
+.tox .tox-tbtn__icon-wrap svg,
+.tox .tox-split-button svg,
+.tox .tox-split-button__chevron svg {
+  fill: map.get(global.$colors, "text") !important;
+}
+.tox .tox-tbtn:hover {
+  background-color: map.get(global.$colors, "primary") !important;
+}
+.tox .tox-tbtn--enabled,
+.tox .tox-tbtn--enabled:hover {
+  background-color: map.get(global.$colors, "quaternary") !important;
+}
+.tox .tox-split-button {
+  background-color: map.get(global.$colors, "secondary") !important;
+}
+.tox .tox-split-button:hover {
+  background-color: map.get(global.$colors, "primary") !important;
+}
+.tox .tox-menu,
+.tox .tox-collection,
+.tox .tox-collection__group {
+  background-color: map.get(global.$colors, "secondary") !important;
+  border-color: map.get(global.$colors, "primary") !important;
+}
+.tox .tox-collection__item {
+  background-color: map.get(global.$colors, "secondary") !important;
+  color: map.get(global.$colors, "text") !important;
+}
+.tox .tox-collection__item-label,
+.tox .tox-collection__item-accessory {
+  color: map.get(global.$colors, "text") !important;
+}
+.tox .tox-collection__item:hover,
+.tox .tox-collection__item--enabled,
+.tox .tox-collection__item--active {
+  background-color: map.get(global.$colors, "primary") !important;
+  color: map.get(global.$colors, "text") !important;
+}
+.tox .tox-collection__item-checkmark svg,
+.tox .tox-collection__item-icon svg {
+  fill: map.get(global.$colors, "text") !important;
+}
+.tox .tox-swatches__picker-btn svg {
+  fill: map.get(global.$colors, "text") !important;
+}
+.tox-edit-area::before {
+  border: none !important;
+}
+.tox-tinymce {
+  border: 1px solid map.get(global.$colors, "primary") !important;
+}
+.tox-statusbar__branding,
+.tox-dialog-wrap__backdrop {
+  display: none !important;
+}
+.tox-toolbar,
+.tox-toolbar__primary,
+.tox-toolbar__overflow,
+.tox-menubar,
+.tox-editor-header,
+.tox-statusbar,
+.tox-dialog__header,
+.tox-dialog__footer,
+.tox-dialog__body {
+  background-color: map.get(global.$colors, "tertiary") !important;
+}
+.tox-statusbar__path-item,
+.tox-dialog__title,
+.tox-dialog__body-nav-item--active,
+.tox-dialog__body-nav-item,
+label.tox-label {
+  color: map.get(global.$colors, "text") !important;
+}
+.tox-statusbar__resize-handle svg,
+.tox-button--icon .tox-icon svg {
+  fill: map.get(global.$colors, "text") !important;
+}
+.tox-dialog__footer-end .tox-button {
+  border: none !important;
+  background-color: map.get(global.$colors, "quaternary") !important;
+  color: map.get(global.$colors, "text") !important;
+}

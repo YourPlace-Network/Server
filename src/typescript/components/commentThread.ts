@@ -126,11 +126,16 @@ function toggleReplies(commentDiv: HTMLElement, txHash: string, blockchain: stri
 }
 function toggleAddCommentUI(commentDiv: HTMLElement, parentTxHash: string, blockchain: string): void {
     const container = commentDiv.querySelector(".addCommentContainer");
+    const commentBtn = commentDiv.querySelector(".postControlItem.comment") as HTMLElement;
+    const commentIcon = commentBtn?.querySelector("i") as HTMLElement | null;
     if (!container) return;
     const isExpanded = container.classList.contains("expanded");
     if (isExpanded) {
         container.classList.remove("expanded");
         container.innerHTML = "";
+        if (commentIcon) {
+            commentIcon.style.color = "";
+        }
     } else {
         container.classList.add("expanded");
         const addCommentUI = ShowAddCommentUI(parentTxHash, blockchain, () => {
@@ -142,7 +147,7 @@ function toggleAddCommentUI(commentDiv: HTMLElement, parentTxHash: string, block
                 const depth = parseInt(commentDiv.dataset.depth || "0");
                 loadComments(repliesDiv as HTMLElement, parentTxHash, blockchain, depth + 1);
             }
-        });
+        }, commentBtn);
         container.appendChild(addCommentUI);
     }
 }
