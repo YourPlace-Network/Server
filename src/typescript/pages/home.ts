@@ -504,7 +504,7 @@ import {CreateXcomPostCard} from "../util/domFactory";
                 ShowDialogModalHTML(
                     `<h5>Welcome to YourPlace</h5>
                     <p>This page is just for viewing content. To unlock every YourPlace feature, download it here:</p><br>
-                    <p><a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer"><button class="btn btn-primary" id="downloadBtn">💾 Download</button></a></p><br>
+                    <p class="text-center"><a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer"><button class="btn btn-primary" id="downloadBtn">💾 Download</button></a></p><br>
                     <p>You may dismiss this message and continue using the application.</p>`,
                 );
                 localStorage.setItem(dismissedKey, "true");

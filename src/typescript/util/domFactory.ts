@@ -300,6 +300,21 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     }
     const addCommentContainer = document.createElement("div");
     addCommentContainer.classList.add("addCommentContainer");
+    const closeCommentSection = () => {
+        if (addCommentContainer.classList.contains("expanded")) {
+            addCommentContainer.classList.remove("expanded");
+            addCommentContainer.innerHTML = "";
+            const commentIcon = postDiv.querySelector(".postControlItem.comment i") as HTMLElement | null;
+            if (commentIcon) {
+                commentIcon.style.color = "";
+            }
+        }
+    };
+    document.addEventListener("click", (e: MouseEvent) => {
+        if (addCommentContainer.classList.contains("expanded") && !postDiv.contains(e.target as Node)) {
+            closeCommentSection();
+        }
+    });
     const controlsBar = CreatePostControlsBar({
         txHash: postData.txHash,
         blockchain: postData.blockchain,

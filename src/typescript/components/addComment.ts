@@ -237,9 +237,19 @@ function destroyEditor(editorId: string): void {
 }
 async function loadThreadPreview(container: HTMLElement, parentTxHash: string, blockchain: string): Promise<void> {
     try {
-        const response = await HttpGetJson(`/comments/${blockchain}/${parentTxHash}?limit=3&offset=0`);
-        if (response[0] !== 200 || !response[1]?.comments) return;
-        const comments = response[1].comments as CommentPreview[];
+        const [commentsRes, countRes] = await Promise.all([
+            HttpGetJson(`/comments/${blockchain}/${parentTxHash}?limit=3&offset=0`),
+            HttpGetJson(`/comments/${blockchain}/${parentTxHash}/count`)
+        ]);
+        const count = countRes[0] === 200 && countRes[1]?.count ? countRes[1].count : 0;
+        if (count > 0) {
+            const countLabel = document.createElement("div");
+            countLabel.classList.add("threadPreviewCount");
+            countLabel.textContent = `${count} comment${count === 1 ? "" : "s"}`;
+            container.appendChild(countLabel);
+        }
+        if (commentsRes[0] !== 200 || !commentsRes[1]?.comments) return;
+        const comments = commentsRes[1].comments as CommentPreview[];
         for (const comment of comments) {
             const el = createPreviewCommentElement(comment, blockchain);
             container.appendChild(el);
