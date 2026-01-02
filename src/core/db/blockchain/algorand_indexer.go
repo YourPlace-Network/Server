@@ -27,7 +27,7 @@ import (
 
 const (
 	algoReportInterval = 10000
-	algoSaveInterval   = 1000
+	algoSaveInterval   = 200
 	algoThrottleOffset = 2
 	algoBatchSizeLimit = 10
 	algoWorkerCount    = 5

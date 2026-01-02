@@ -34,7 +34,7 @@ const (
 	handleOpsSelector    = "1fad948c"
 	executeBatchSelector = "34fcd5be"
 	reportInterval       = 10000
-	saveInterval         = 1000
+	saveInterval         = 200
 	throttleOffset       = 4
 	batchSizeLimit       = 25
 	workerCount          = 10
