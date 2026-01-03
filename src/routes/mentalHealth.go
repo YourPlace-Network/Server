@@ -1113,4 +1113,5 @@ var mentalHealthTips = []string{
 	"A lot of karens will create bureaucracy to avoid accountability. They want to hide behind rules and regulations so they can avoid being personally responsible for their actions",
 	"The loudest one in the room, is the most insecure one",
 	"People can and will walk out of your life with no reason and there's nothing you can do about that",
+	"It's easier and quieter to kill journalism with activism, than with authoritarianism",
 }
