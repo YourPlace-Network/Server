@@ -498,7 +498,7 @@ import {CreateXcomPostCard} from "../util/domFactory";
         }, 60000); // Auto-refresh feed every 60 seconds to fetch new posts
         if (IsGatewayMode()) {
             // Show gateway mode download prompt
-            const dismissedKey = "gatewayDownloadDismissed";
+            /*const dismissedKey = "gatewayDownloadDismissed";
             const dismissed = localStorage.getItem(dismissedKey);
             if (!dismissed) {
                 ShowDialogModalHTML(
@@ -508,7 +508,7 @@ import {CreateXcomPostCard} from "../util/domFactory";
                     <p>You may dismiss this message and continue using the application.</p>`,
                 );
                 localStorage.setItem(dismissedKey, "true");
-            }
+            }*/
         }
     }
 })();
