@@ -202,7 +202,8 @@ export async function localWalletEthereumTxn(dest: string, payload: string): Pro
         LogError("localWalletEthereumTxn failed: " + error);
         if (error?.code === "INSUFFICIENT_FUNDS") {
             const address = wallet.address;
-            const fundUrl = `https://www.coinbase.com/onramp/buy?addresses={"${address}":["base"]}&appId=yourplace`;
+            const addressesParam = encodeURIComponent(JSON.stringify({[address]: ["base"]}));
+            const fundUrl = `https://www.coinbase.com/onramp/buy?addresses=${addressesParam}&appId=yourplace`;
             ShowDialogModalHTMLUnsafe(
                 `Your wallet doesn't have enough ETH to pay for transaction fees on the Base network.<br><br>` +
                 `<a href="${fundUrl}" target="_blank" rel="noopener noreferrer">Click here to add funds via Coinbase</a>`
