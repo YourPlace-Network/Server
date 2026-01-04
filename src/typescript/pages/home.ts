@@ -1,5 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/pages/home.scss";
+import "../../scss/components/scrollTop.scss";
 import "../components/addPost";
 import {preloadTinyMCE} from "../components/addPost";
 import "../components/menu";
@@ -33,7 +34,9 @@ import {CreateXcomPostCard} from "../util/domFactory";
             discoverFollowersLabel: document.getElementById("discoverFollowersLabel")! as HTMLHeadingElement,
             discoverPostsRow: document.getElementById("discoverPostsRow")! as HTMLDivElement,
             discoverPostsLabel: document.getElementById("discoverPostsLabel")! as HTMLHeadingElement,
+            scrollTop: document.getElementById("scrollTop")! as HTMLDivElement,
         }
+        let feedScrolledToTop = true;
         const FEED_PAGE_SIZE = 25;
         let feedOffset = 0;
         let feedLoading = false;
@@ -480,6 +483,18 @@ import {CreateXcomPostCard} from "../util/domFactory";
             if (scrollTop + clientHeight >= scrollHeight - 100) {
                 loadFollowersFeed("more").then();
             }
+            // Track if feed is scrolled to top for scrollTop button behavior
+            feedScrolledToTop = scrollTop === 0;
+        });
+        DOM.scrollTop.addEventListener("click", () => {
+            if (!feedScrolledToTop && DOM.followersFeedSection.style.display !== "none") {
+                DOM.followersFeedDiv.scrollTo({ top: 0, behavior: "smooth" });
+            } else {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+        });
+        window.addEventListener("scroll", () => {
+            DOM.scrollTop.style.display = window.scrollY >= 400 ? "block" : "none";
         });
 
         /* --- Initialize page variables and start loading --- */

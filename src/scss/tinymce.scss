@@ -1,6 +1,25 @@
 @use "sass:map";
 @use "./global.scss" as global;
 
+html {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: map.get(global.$colors, "tertiary");
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: map.get(global.$colors, "primary");
+    border-radius: 4px;
+    &:hover {
+      background: map.get(global.$colors, "quaternary");
+    }
+  }
+  scrollbar-width: thin;
+  scrollbar-color: map.get(global.$colors, "primary") map.get(global.$colors, "tertiary");
+}
 body {
   background-color: map.get(global.$colors, "tertiary");
   color: map.get(global.$colors, "text");
@@ -106,4 +125,25 @@ label.tox-label {
   border: none !important;
   background-color: map.get(global.$colors, "quaternary") !important;
   color: map.get(global.$colors, "text") !important;
+}
+.tox-edit-area__iframe,
+.tox .tox-sidebar-wrap,
+.tox-menu {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: map.get(global.$colors, "tertiary");
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: map.get(global.$colors, "primary");
+    border-radius: 4px;
+    &:hover {
+      background: map.get(global.$colors, "quaternary");
+    }
+  }
+  scrollbar-width: thin;
+  scrollbar-color: map.get(global.$colors, "primary") map.get(global.$colors, "tertiary");
 }

@@ -180,6 +180,5 @@
 .feedScrollWindow {
   max-height: 600px;
   overflow-y: auto;
-  border: 1px solid map.get(global.$colors, "border");
-  border-radius: 8px;
+  @include global.dark-scrollbar;
 }

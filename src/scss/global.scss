@@ -184,3 +184,22 @@ footer {
 .carousel-indicators [data-bs-target] {
   font-size: 0;
 }
+@mixin dark-scrollbar {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: map-get($colors, "tertiary");
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: map-get($colors, "primary");
+    border-radius: 4px;
+    &:hover {
+      background: map-get($colors, "quaternary");
+    }
+  }
+  scrollbar-width: thin;
+  scrollbar-color: map-get($colors, "primary") map-get($colors, "tertiary");
+}

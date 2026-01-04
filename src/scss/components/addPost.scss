@@ -39,6 +39,7 @@
   gap: 1em;
   max-height: 15.5em;
   overflow: auto;
+  @include global.dark-scrollbar;
 }
 .attachmentUploadGridItem {
   display: flex;
