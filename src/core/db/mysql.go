@@ -1542,18 +1542,17 @@ func (db *MySQL) GetReactionCounts(targetTxHash string, blockchain string) map[s
 		"emoji":    map[string]int64{},
 	}
 	queryFmt := `SELECT reactionType, COUNT(*) as count FROM (
-		SELECT r1.fromAddress, r1.reactionType
-		FROM onchain_%s_reaction r1
-		WHERE r1.targetTxHash = ? AND r1.blockchain = ?
-		AND r1.timestamp = (
-			SELECT MAX(r2.timestamp)
-			FROM onchain_%s_reaction r2
-			WHERE r2.targetTxHash = r1.targetTxHash
-			AND r2.blockchain = r1.blockchain
-			AND r2.fromAddress = r1.fromAddress
-		)
-	) t GROUP BY reactionType`
-	query := fmt.Sprintf(queryFmt, blockchain, blockchain)
+		SELECT fromAddress, reactionType,
+			ROW_NUMBER() OVER (
+				PARTITION BY fromAddress,
+					CASE WHEN reactionType IN ('like', 'dislike') THEN 'vote' ELSE 'emoji' END
+				ORDER BY timestamp DESC
+			) as rn
+		FROM onchain_%s_reaction
+		WHERE targetTxHash = ? AND blockchain = ?
+	) t WHERE rn = 1
+	GROUP BY reactionType`
+	query := fmt.Sprintf(queryFmt, blockchain)
 	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get reaction counts: " + err.Error())
@@ -1597,8 +1596,15 @@ func (db *MySQL) GetUserReaction(targetTxHash string, blockchain string, fromAdd
 }
 func (db *MySQL) GetUserReactions(targetTxHash string, blockchain string, fromAddress string) map[string]string {
 	result := map[string]string{"likeDislike": "", "emoji": ""}
-	queryFmt := `SELECT reactionType FROM onchain_%s_reaction
-		WHERE targetTxHash = ? AND blockchain = ? AND fromAddress = ?`
+	queryFmt := `SELECT reactionType FROM (
+		SELECT reactionType,
+			ROW_NUMBER() OVER (
+				PARTITION BY CASE WHEN reactionType IN ('like', 'dislike') THEN 'vote' ELSE 'emoji' END
+				ORDER BY timestamp DESC
+			) as rn
+		FROM onchain_%s_reaction
+		WHERE targetTxHash = ? AND blockchain = ? AND fromAddress = ?
+	) t WHERE rn = 1`
 	query := fmt.Sprintf(queryFmt, blockchain)
 	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, fromAddress)
 	if err != nil {
