@@ -9,7 +9,9 @@ export interface PostControlsOptions {
     initialLikes?: number;
     initialDislikes?: number;
     initialComments?: number;
+    initialEmojiCount?: number;
     userReaction?: string | null;
+    userEmojiReaction?: string | null;
     onCommentClick?: () => void;
     onRepostClick?: () => void;
 }
@@ -61,10 +63,13 @@ export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElem
     if (options.userReaction === "dislike") {
         dislikeControl.classList.add("active");
     }
-    const reactControl = createControlItem("bi-emoji-smile", 0, "React", (e) => {
+    const reactControl = createControlItem("bi-emoji-smile", options.initialEmojiCount || 0, "React", (e) => {
         showReactionsPopup(e.currentTarget as HTMLElement, options.txHash, options.blockchain, options.targetType);
     });
     reactControl.classList.add("react");
+    if (options.userEmojiReaction) {
+        reactControl.classList.add("active");
+    }
     const repostControl = createControlItem("bi-arrow-repeat", 0, "Repost", () => {
         if (options.onRepostClick) {
             options.onRepostClick();
@@ -208,6 +213,13 @@ async function loadExistingReactions(container: HTMLElement, txHash: string, blo
                 }
                 await WalletSubmitEmojiReaction(txHash, targetType, emoji);
                 chip.classList.add("selected");
+                const controlsBar = document.querySelector(`.postControlsBar[data-txhash="${txHash}"][data-blockchain="${blockchain}"]`);
+                if (controlsBar) {
+                    const reactControl = controlsBar.querySelector(".react");
+                    if (reactControl) {
+                        reactControl.classList.add("active");
+                    }
+                }
             });
             container.appendChild(chip);
         }
@@ -233,6 +245,13 @@ function showEmojiPicker(popup: HTMLElement, txHash: string, blockchain: string,
                 return;
             }
             await WalletSubmitEmojiReaction(txHash, targetType, emoji);
+            const controlsBar = document.querySelector(`.postControlsBar[data-txhash="${txHash}"][data-blockchain="${blockchain}"]`);
+            if (controlsBar) {
+                const reactControl = controlsBar.querySelector(".react");
+                if (reactControl) {
+                    reactControl.classList.add("active");
+                }
+            }
             if (activeReactionsPopup) {
                 activeReactionsPopup.remove();
                 activeReactionsPopup = null;

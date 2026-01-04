@@ -267,6 +267,9 @@ ul.ellipsesMenu {
   &.dislike.active {
     color: #dc3545;
   }
+  &.react.active {
+    color: #ffc107;
+  }
   .count {
     font-size: 0.85em;
   }

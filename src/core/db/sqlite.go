@@ -2138,6 +2138,11 @@ func (db *SQLite) OnchainCA(txHash string, blockchain string, fromAddr string, p
 	}
 }
 func (db *SQLite) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
+	if reactionType != "like" && reactionType != "dislike" {
+		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND blockchain = ? AND reactionType NOT IN ('like', 'dislike')"
+		deleteQuery := fmt.Sprintf(deleteQueryFmt, blockchain)
+		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash, blockchain)
+	}
 	queryFmt := "INSERT INTO onchain_%s_reaction (txHash, blockchain, fromAddress, targetTxHash, targetType, reactionType, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
