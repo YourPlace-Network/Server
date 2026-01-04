@@ -3,7 +3,7 @@ import {InitTooltips} from "../util/bootstrap";
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import {DisableDialogModalExit, DisableDialogModalOkBtn, HideDialogModal, ShowDialogModal} from "../components/modalDialog";
 import "../../scss/pages/login.scss";
-import {HideModalLogin, ShowModalLogin} from "../components/modalLogin";
+import {ConfigureModalLoginForLocalWallet, HideModalLogin, ShowModalLogin} from "../components/modalLogin";
 import {GetAddress, IsValidAddress, SetAddress, SetChain, SetWallet, WalletLogin} from "../util/blockchain/wallet";
 import {hasLocalWalletEthereum, localWalletEthereumConnect} from "../util/blockchain/localWallet";
 import {LogError, LogInfo} from "../util/log";
@@ -107,27 +107,7 @@ declare global { // Extend the window interface with public callback objects
             localStorage.setItem("yp_local_wallet_ethereum", localWalletData);
         }
         InitTooltips();
-        if (hasLocalWalletEthereum()) {
-            autoLoginLocalWallet();
-        } else {
-            ShowModalLogin();
-        }
-        async function autoLoginLocalWallet() {
-            const address = await localWalletEthereumConnect();
-            if (!address || address === "") {
-                ShowModalLogin();
-                return;
-            }
-            SetWallet("localwalletethereum");
-            SetChain("base");
-            SetAddress(address);
-            const loginResult = await WalletLogin();
-            if (loginResult !== "success") {
-                LogError("Auto-login failed: " + loginResult);
-                ShowModalLogin();
-                return;
-            }
-            window.LoginCallback("success");
-        }
+        ConfigureModalLoginForLocalWallet(hasLocalWalletEthereum());
+        ShowModalLogin();
     }
 })();

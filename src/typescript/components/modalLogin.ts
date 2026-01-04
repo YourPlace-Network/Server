@@ -7,6 +7,16 @@ import {hasLocalWalletEthereum, localWalletEthereumConnect, localWalletEthereumC
 import {IsGatewayMode} from "../util/miscellaneous";
 
 let modal: bootstrap.Modal;
+let DOM: {
+    coinbaseWalletBtn: HTMLButtonElement;
+    csrfToken: string;
+    localWalletBtn: HTMLButtonElement;
+    metaMaskWalletBtn: HTMLButtonElement;
+    modalDialog: HTMLDivElement;
+    modalDialogOkBtn: HTMLButtonElement;
+    noWalletBtn: HTMLButtonElement;
+    peraWalletBtn: HTMLButtonElement;
+};
 
 export function ShowModalLogin() {
     modal.show();
@@ -18,6 +28,15 @@ export function HideModalLogin() {
     document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
     document.body.classList.remove("modal-open");
 }
+export function ConfigureModalLoginForLocalWallet(hasLocalWallet: boolean) {
+    if (hasLocalWallet) {
+        DOM.localWalletBtn.style.display = "flex";
+        DOM.noWalletBtn.style.display = "none";
+    } else {
+        DOM.localWalletBtn.style.display = "none";
+        DOM.noWalletBtn.style.display = "flex";
+    }
+}
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -26,51 +45,27 @@ export function HideModalLogin() {
         ReconnectWallet().then();
         basePrefetchLoginNonce().then();
         modal = new window.bootstrap.Modal("#loginModal", {});
-        let DOM = {
-            noWalletBtn: document.getElementById("noWalletBtn")! as HTMLButtonElement,
+        DOM = {
             coinbaseWalletBtn: document.getElementById("coinbaseWalletBtn")! as HTMLButtonElement,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
+            localWalletBtn: document.getElementById("localWalletBtn")! as HTMLButtonElement,
             metaMaskWalletBtn: document.getElementById("metaMaskWalletBtn")! as HTMLButtonElement,
             modalDialog: document.getElementById("modalDialog")! as HTMLDivElement,
             modalDialogOkBtn: document.getElementsByClassName("yp-modal-btn")[0]! as HTMLButtonElement,
+            noWalletBtn: document.getElementById("noWalletBtn")! as HTMLButtonElement,
             peraWalletBtn: document.getElementById("peraWalletBtn")! as HTMLButtonElement,
         }
 
-        async function handleNoWallet() {
+        async function handleLocalWallet() {
             HideModalLogin();
-            let address: string;
-            let isNewWallet = false;
-            if (hasLocalWalletEthereum()) {
-                address = await localWalletEthereumConnect();
-            } else {
-                isNewWallet = true;
-                address = await localWalletEthereumCreate();
-            }
+            const address = await localWalletEthereumConnect();
             if (!address || address === "") {
-                ShowDialogModal("Failed to create wallet");
+                ShowDialogModal("Failed to connect to your wallet");
                 return;
             }
             SetWallet("localwalletethereum");
             SetChain("base");
             SetAddress(address);
-            if (isNewWallet) {
-                ShowDialogModalWithCallback(
-                    "Your wallet has been created and a backup file has been downloaded. Keep this file safe - you'll need it to recover your account if you clear your browser data.",
-                    async () => {
-                        if (window.location.pathname !== "/setup") {
-                            let loginResult = await WalletLogin();
-                            if (loginResult !== "success") {
-                                ShowDialogModal("Failed to login: " + loginResult);
-                                return;
-                            }
-                        }
-                        if (typeof window.LoginCallback === "function") {
-                            window.LoginCallback("success");
-                        }
-                    }
-                );
-                return;
-            }
             if (window.location.pathname !== "/setup") {
                 let loginResult = await WalletLogin();
                 if (loginResult !== "success") {
@@ -82,21 +77,46 @@ export function HideModalLogin() {
                 window.LoginCallback("success");
             }
         }
-        function connectWalletDispatcher(wallet: string) {
-            if (wallet === "none") {
-                if (IsGatewayMode()) {
-                    return async function(e: Event) {
-                        e.stopImmediatePropagation();
-                        e.preventDefault();
-                        await handleNoWallet();
-                    };
-                } else {
-                    return async function(e: Event) {
-                        e.stopImmediatePropagation();
-                        e.preventDefault();
-                        await handleNoWallet();
-                    };
+        async function handleNoWallet() {
+            HideModalLogin();
+            const address = await localWalletEthereumCreate();
+            if (!address || address === "") {
+                ShowDialogModal("Failed to create wallet");
+                return;
+            }
+            SetWallet("localwalletethereum");
+            SetChain("base");
+            SetAddress(address);
+            ShowDialogModalWithCallback(
+                "Your wallet has been created and a backup file has been downloaded. Keep this file safe - you'll need it to recover your account if you clear your browser data.",
+                async () => {
+                    if (window.location.pathname !== "/setup") {
+                        let loginResult = await WalletLogin();
+                        if (loginResult !== "success") {
+                            ShowDialogModal("Failed to login: " + loginResult);
+                            return;
+                        }
+                    }
+                    if (typeof window.LoginCallback === "function") {
+                        window.LoginCallback("success");
+                    }
                 }
+            );
+        }
+        function connectWalletDispatcher(wallet: string) {
+            if (wallet === "local") {
+                return async function(e: Event) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    await handleLocalWallet();
+                };
+            }
+            if (wallet === "none") {
+                return async function(e: Event) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    await handleNoWallet();
+                };
             }
             return async function(e: Event) {
                 e.stopImmediatePropagation();
@@ -124,6 +144,7 @@ export function HideModalLogin() {
         }
 
         DOM.coinbaseWalletBtn.addEventListener("click", connectWalletDispatcher("cbwalletbase"));
+        DOM.localWalletBtn.addEventListener("click", connectWalletDispatcher("local"));
         DOM.noWalletBtn.addEventListener("click", connectWalletDispatcher("none"));
         DOM.peraWalletBtn.addEventListener("click", connectWalletDispatcher("pera"));
     }
