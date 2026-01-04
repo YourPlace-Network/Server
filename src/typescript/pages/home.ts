@@ -1,5 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/pages/home.scss";
+import "../components/scrollTop";
 import "../../scss/components/scrollTop.scss";
 import "../components/addPost";
 import {preloadTinyMCE} from "../components/addPost";
@@ -34,10 +35,9 @@ import {CreateXcomPostCard} from "../util/domFactory";
             discoverFollowersLabel: document.getElementById("discoverFollowersLabel")! as HTMLHeadingElement,
             discoverPostsRow: document.getElementById("discoverPostsRow")! as HTMLDivElement,
             discoverPostsLabel: document.getElementById("discoverPostsLabel")! as HTMLHeadingElement,
-            scrollTop: document.getElementById("scrollTop")! as HTMLDivElement,
+            feedRefreshBtn: document.getElementById("feedRefreshBtn")! as HTMLElement,
         }
-        let feedScrolledToTop = true;
-        const FEED_PAGE_SIZE = 25;
+        const FEED_PAGE_SIZE = 5;
         let feedOffset = 0;
         let feedLoading = false;
         let feedHasMore = true;
@@ -204,6 +204,7 @@ import {CreateXcomPostCard} from "../util/domFactory";
                     });
                 });
                 await Promise.all(profilePromises);
+                setupFeedObserver();
             } catch (error) {
                 console.error("Error loading followers feed:", error);
             } finally {
@@ -477,25 +478,26 @@ import {CreateXcomPostCard} from "../util/domFactory";
             }
             DOM.discoverSection.style.display = "block";
         });
-        DOM.followersFeedDiv.addEventListener("scroll", () => {
-            // Infinite scroll - load more when near bottom
-            const { scrollTop, scrollHeight, clientHeight } = DOM.followersFeedDiv;
-            if (scrollTop + clientHeight >= scrollHeight - 100) {
-                loadFollowersFeed("more").then();
+        DOM.feedRefreshBtn.addEventListener("click", () => {
+            loadFollowersFeed("initial").then();
+        });
+        let feedObserver: IntersectionObserver | null = null;
+        function setupFeedObserver() {
+            if (feedObserver) {
+                feedObserver.disconnect();
             }
-            // Track if feed is scrolled to top for scrollTop button behavior
-            feedScrolledToTop = scrollTop === 0;
-        });
-        DOM.scrollTop.addEventListener("click", () => {
-            if (!feedScrolledToTop && DOM.followersFeedSection.style.display !== "none") {
-                DOM.followersFeedDiv.scrollTo({ top: 0, behavior: "smooth" });
-            } else {
-                window.scrollTo({ top: 0, behavior: "smooth" });
+            feedObserver = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting && feedHasMore && !feedLoading) {
+                        loadFollowersFeed("more").then();
+                    }
+                }
+            }, { rootMargin: "100px" });
+            const lastPost = DOM.followersFeedDiv.lastElementChild;
+            if (lastPost) {
+                feedObserver.observe(lastPost);
             }
-        });
-        window.addEventListener("scroll", () => {
-            DOM.scrollTop.style.display = window.scrollY >= 400 ? "block" : "none";
-        });
+        }
 
         /* --- Initialize page variables and start loading --- */
         DOM.searchInput.value = "";

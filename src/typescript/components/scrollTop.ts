@@ -13,7 +13,7 @@ import "../../scss/components/scrollTop.scss"
         }
 
         document.getElementById("scrollTop")!.addEventListener("click", function () {
-            window.scrollTo(0, 0);
+            window.scrollTo({ top: 0, behavior: "smooth" });
         });
 
         window.onscroll = function scroll() {

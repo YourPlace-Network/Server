@@ -5,6 +5,7 @@ import {AddFileToIPFS} from "../util/ipfs";
 import {IsValidIpfsCid, XSSSanitizeTextUrl} from "../util/security";
 import {CreatePostControlsBar} from "./postControls";
 import {HttpGetJson} from "../util/network";
+import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
 
 interface CommentPreview {
     txHash: string;
@@ -159,8 +160,8 @@ function initCommentEditor(editorId: string): void {
     }
     window.tinymce.init({
         selector: `#${editorId}`,
-        plugins: "code table emoticons lists",
-        toolbar: "emoticons forecolor backcolor | bold italic underline strikethrough | bullist numlist",
+        plugins: "code table lists",
+        toolbar: "emojipicker forecolor backcolor | bold italic underline strikethrough | bullist numlist",
         menubar: false,
         statusbar: true,
         resize: true,
@@ -208,6 +209,7 @@ function initCommentEditor(editorId: string): void {
             return blobUrl;
         },
         setup: (editor: any) => {
+            setupTinyMCEEmojiButton(editor);
             editor.on("init", () => {
                 inlineMediaMap.set(editorId, []);
             });

@@ -2138,7 +2138,15 @@ func (db *SQLite) OnchainCA(txHash string, blockchain string, fromAddr string, p
 	}
 }
 func (db *SQLite) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
-	if reactionType != "like" && reactionType != "dislike" {
+	if reactionType == "like" {
+		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND blockchain = ? AND reactionType = 'dislike'"
+		deleteQuery := fmt.Sprintf(deleteQueryFmt, blockchain)
+		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash, blockchain)
+	} else if reactionType == "dislike" {
+		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND blockchain = ? AND reactionType = 'like'"
+		deleteQuery := fmt.Sprintf(deleteQueryFmt, blockchain)
+		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash, blockchain)
+	} else {
 		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND blockchain = ? AND reactionType NOT IN ('like', 'dislike')"
 		deleteQuery := fmt.Sprintf(deleteQueryFmt, blockchain)
 		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash, blockchain)
@@ -2462,6 +2470,27 @@ func (db *SQLite) GetUserReaction(targetTxHash string, blockchain string, fromAd
 		rows.Scan(&reactionType)
 	}
 	return reactionType
+}
+func (db *SQLite) GetUserReactions(targetTxHash string, blockchain string, fromAddress string) map[string]string {
+	result := map[string]string{"likeDislike": "", "emoji": ""}
+	queryFmt := `SELECT reactionType FROM onchain_%s_reaction
+		WHERE targetTxHash = ? AND blockchain = ? AND fromAddress = ?`
+	query := fmt.Sprintf(queryFmt, blockchain)
+	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, fromAddress)
+	if err != nil {
+		return result
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var reactionType string
+		rows.Scan(&reactionType)
+		if reactionType == "like" || reactionType == "dislike" {
+			result["likeDislike"] = reactionType
+		} else if reactionType != "" {
+			result["emoji"] = reactionType
+		}
+	}
+	return result
 }
 
 // --- Post Get Functions --- //

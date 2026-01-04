@@ -44,6 +44,7 @@
   margin-top: 1.7em;
 }
 .postCard {
+  position: relative;
   width: 100%;
   padding: 0.5em;
   display: flex;
@@ -225,6 +226,24 @@ ul.ellipsesMenu {
     color: global.$text-muted;
   }
 }
+.blockchainBadge {
+  position: absolute;
+  bottom: 0.5em;
+  right: 0.5em;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.blockchainBadgeIcon {
+  width: 20px;
+  height: 20px;
+  transform: translateY(3px);
+  filter: grayscale(100%) opacity(0.3);
+  transition: filter 0.2s ease;
+  &:hover {
+    filter: none;
+  }
+}
 .xcomPostCard {
   border-left: 3px solid #000;
 }
@@ -352,14 +371,44 @@ ul.ellipsesMenu {
   margin-top: 0.5em;
 }
 .reactionsPopup {
-  position: fixed;
-  background: map-get(global.$colors, "primary");
-  border: 1px solid map-get(global.$colors, "secondary");
-  border-radius: 0.5em;
-  padding: 0.75em;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  position: absolute;
   z-index: 1000;
+  border-radius: 0.5em;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  background: map-get(global.$colors, "tertiary");
+  padding: 0.75em;
   min-width: 200px;
+  max-height: 80vh;
+  overflow-y: auto;
+  @include global.dark-scrollbar;
+}
+.addReactionBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  width: 100%;
+  padding: 0.5em 0.75em;
+  margin-top: 0.5em;
+  background: map-get(global.$colors, "secondary");
+  color: map-get(global.$colors, "text");
+  border: none;
+  border-radius: 0.5em;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background 0.2s ease;
+  &:hover {
+    background: map-get(global.$colors, "quaternary");
+  }
+}
+.pickerContainer {
+  margin-top: 0.5em;
+}
+.emojiPickerPopup {
+  position: absolute;
+  z-index: 10000;
+  border-radius: 0.5em;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 .existingReactions {
   display: flex;
@@ -383,26 +432,6 @@ ul.ellipsesMenu {
   }
   .count {
     font-size: 0.8em;
-  }
-}
-.emojiGrid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 0.25em;
-  max-height: 200px;
-  overflow-y: auto;
-  margin-top: 0.5em;
-  @include global.dark-scrollbar;
-}
-.emojiButton {
-  font-size: 1.5em;
-  padding: 0.25em;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  border-radius: 0.25em;
-  &:hover {
-    background: map-get(global.$colors, "secondary");
   }
 }
 .postPreviewCard {
@@ -544,8 +573,5 @@ ul.ellipsesMenu {
   }
   .commentThreadPreview {
     padding-left: 0.25em;
-  }
-  .emojiGrid {
-    grid-template-columns: repeat(6, 1fr);
   }
 }

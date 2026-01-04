@@ -11,6 +11,7 @@ import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
 import {CreateAttachmentPreview} from "../util/domFactory";
 import {XcomCrossPost, XcomIsCrossPostEnabled} from "../services/twitter";
+import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
 // TinyMCE will be lazy loaded when needed
 let tinymceModulePromise: Promise<any> | null = null;
 
@@ -85,8 +86,8 @@ export async function preloadTinyMCE() {
                 const tinymce = tinymceModulePromise ? await tinymceModulePromise : await import("tinymce/tinymce");
                 await tinymce.default.init({
                     selector: "#addPostText",
-                    plugins: "code table lists emoticons",
-                    toolbar: "emoticons forecolor backcolor | bold italic underline strikethrough | bullist numlist",
+                    plugins: "code table lists",
+                    toolbar: "emojipicker forecolor backcolor | bold italic underline strikethrough | bullist numlist",
                     toolbar_mode: "sliding",
                     menubar: false,
                     statusbar: true,
@@ -130,6 +131,7 @@ export async function preloadTinyMCE() {
                         return blobUrl;
                     },
                     setup: function(editor: any) {
+                        setupTinyMCEEmojiButton(editor);
                         editor.on("input", function() {
                             debounceHandler();
                         });

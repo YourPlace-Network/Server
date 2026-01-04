@@ -12,7 +12,7 @@ import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
 import {GetAddress, GetChain, GetWallet, IsValidAddress, WalletFollowUser, WalletGetAvatar, WalletGetDescription, WalletGetExplorerAddressLink, WalletGetName, WalletSendPostNudge, WalletUnfollowUser} from "../util/blockchain/wallet";
-import {CreatePostCard, processTextWithTags} from "../util/domFactory";
+import {CreatePostCard, getBlockchainIconPath, getBlockchainUrl, processTextWithTags} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
@@ -55,6 +55,7 @@ declare global { // Extend the window interface with public objects
             profileEditBtn: document.getElementById("profileEditBtn")! as HTMLButtonElement,
             profileDescription: document.getElementById("profileDescription")! as HTMLDivElement,
             profileLocation: document.getElementById("profileLocation")! as HTMLDivElement,
+            profileVertical: document.getElementById("profileVertical")! as HTMLDivElement,
             profileWebsite: document.getElementById("profileWebsite")! as HTMLAnchorElement,
             profileJoined: document.getElementById("profileJoined")! as HTMLDivElement,
             postAvatars: document.getElementsByClassName("postCardAvatar")! as HTMLCollectionOf<HTMLImageElement>,
@@ -71,6 +72,8 @@ declare global { // Extend the window interface with public objects
             followerCount: document.getElementById("followerCount")! as HTMLDivElement,
             postsNum: document.getElementById("postsNum")! as HTMLDivElement,
             likesNum: document.getElementById("likesNum")! as HTMLDivElement,
+            profileBlockchainIcon: document.getElementById("profileBlockchainIcon")! as HTMLImageElement,
+            profileBlockchainLink: document.getElementById("profileBlockchainLink")! as HTMLAnchorElement,
         }
         let copiedTooltip: any;
         let isFollowing = false;
@@ -82,6 +85,18 @@ declare global { // Extend the window interface with public objects
         async function init() {
             let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]:not(#modalProfileEdit [data-bs-toggle="tooltip"])'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});}); // enable tooltips
+            const blockchainIconPath = getBlockchainIconPath(DOM.injectedBlockchain.value);
+            const blockchainUrl = getBlockchainUrl(DOM.injectedBlockchain.value);
+            if (blockchainIconPath) {
+                DOM.profileBlockchainIcon.src = blockchainIconPath;
+                DOM.profileBlockchainIcon.alt = DOM.injectedBlockchain.value;
+                DOM.profileBlockchainLink.title = DOM.injectedBlockchain.value;
+                if (blockchainUrl) {
+                    DOM.profileBlockchainLink.href = blockchainUrl;
+                }
+            } else {
+                DOM.profileBlockchainLink.style.display = "none";
+            }
             await updateProfile();
             ShowNotifications().then(); // Load notifications in background - don't block profile loading
             copiedTooltip = new window.bootstrap.Tooltip(DOM.profileAddressCopy, {title: "Copied", trigger: "manual", placement: "right"});
@@ -223,6 +238,7 @@ declare global { // Extend the window interface with public objects
             await renderProfileAvatarFromData(profileData.avatarAddress, blockchain, address);
             await renderProfileDescriptionFromData(profileData.description, blockchain, address);
             await renderProfileLocationFromData(profileData.location);
+            await renderProfileVerticalFromData(profileData.vertical);
             await renderProfileWebsiteFromData(profileData.website);
             await renderProfileJoinedDateFromData(profileData.joinedDate);
             await renderProfileFollowerCountFromData(profileData.followerCount);
@@ -400,6 +416,17 @@ declare global { // Extend the window interface with public objects
                 DOM.profileLocation.parentElement?.classList.remove("hidden");
             } else {
                 DOM.profileLocation.parentElement?.classList.add("hidden");
+            }
+        }
+        async function renderProfileVerticalFromData(vertical: string) {
+            if (vertical && vertical.length > 0) {
+                const displayVertical = vertical.charAt(0).toUpperCase() + vertical.slice(1);
+                if (DOM.profileVertical.textContent !== displayVertical) {
+                    DOM.profileVertical.textContent = displayVertical;
+                }
+                DOM.profileVertical.parentElement?.classList.remove("hidden");
+            } else {
+                DOM.profileVertical.parentElement?.classList.add("hidden");
             }
         }
         async function renderProfileWebsiteFromData(website: string) {

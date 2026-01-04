@@ -1,6 +1,7 @@
 import { GetAddress, GetChain, WalletSubmitDislike, WalletSubmitEmojiReaction, WalletSubmitLike } from "../util/blockchain/wallet";
 import { HttpGetJson } from "../util/network";
 import { ShowDialogModal } from "./modalDialog";
+import { createEmojiPicker, closeEmojiPicker } from "../util/emojiPicker";
 
 export interface PostControlsOptions {
     txHash: string;
@@ -20,6 +21,10 @@ export interface ReactionCounts {
     dislikes: number;
     emoji: { [key: string]: number };
     userReaction?: string | null;
+}
+export interface UserReactions {
+    reaction: string | null;
+    emojiReaction: string | null;
 }
 export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElement {
     const controlsBar = document.createElement("div");
@@ -134,11 +139,14 @@ export async function FetchReactionCounts(blockchain: string, txHash: string): P
     }
     return null;
 }
-export async function FetchUserReaction(blockchain: string, txHash: string, address: string): Promise<string | null> {
+export async function FetchUserReaction(blockchain: string, txHash: string, address: string): Promise<UserReactions | null> {
     try {
         const response = await HttpGetJson(`/reactions/${blockchain}/${txHash}/user/${address}`);
         if (response[0] === 200 && response[1]) {
-            return response[1].reaction || null;
+            return {
+                reaction: response[1].reaction || null,
+                emojiReaction: response[1].emojiReaction || null
+            };
         }
     } catch (e) {
         console.error("Failed to fetch user reaction:", e);
@@ -157,19 +165,52 @@ function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockcha
     existingReactionsDiv.classList.add("existingReactions");
     popup.appendChild(existingReactionsDiv);
     const addReactionBtn = document.createElement("button");
-    addReactionBtn.classList.add("btn", "btn-sm", "btn-outline-secondary");
-    addReactionBtn.textContent = "Add Reaction";
-    addReactionBtn.addEventListener("click", () => {
-        showEmojiPicker(popup, txHash, blockchain, targetType);
-    });
+    addReactionBtn.classList.add("addReactionBtn");
+    addReactionBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Add Reaction';
     popup.appendChild(addReactionBtn);
+    const pickerContainer = document.createElement("div");
+    pickerContainer.classList.add("pickerContainer");
+    pickerContainer.style.display = "none";
+    popup.appendChild(pickerContainer);
+    loadExistingReactions(existingReactionsDiv, txHash, blockchain, targetType);
+    addReactionBtn.addEventListener("click", () => {
+        if (pickerContainer.style.display === "none") {
+            const picker = createEmojiPicker(async (emoji: string) => {
+                const address = GetAddress();
+                if (!address) {
+                    ShowDialogModal("Please connect your wallet to react");
+                    return;
+                }
+                await WalletSubmitEmojiReaction(txHash, targetType, emoji);
+                const controlsBar = document.querySelector(`.postControlsBar[data-txhash="${txHash}"][data-blockchain="${blockchain}"]`);
+                if (controlsBar) {
+                    const reactControl = controlsBar.querySelector(".react");
+                    if (reactControl) {
+                        reactControl.classList.add("active");
+                    }
+                }
+                if (activeReactionsPopup) {
+                    activeReactionsPopup.remove();
+                    activeReactionsPopup = null;
+                }
+            });
+            pickerContainer.appendChild(picker);
+            pickerContainer.style.display = "block";
+            addReactionBtn.innerHTML = '<i class="bi bi-dash-circle"></i> Hide Picker';
+        } else {
+            pickerContainer.innerHTML = "";
+            pickerContainer.style.display = "none";
+            addReactionBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Add Reaction';
+        }
+    });
     const rect = targetElement.getBoundingClientRect();
-    popup.style.position = "fixed";
-    popup.style.left = `${rect.left}px`;
-    popup.style.top = `${rect.bottom + 5}px`;
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
+    popup.style.position = "absolute";
+    popup.style.left = `${rect.left + scrollX}px`;
+    popup.style.top = `${rect.bottom + scrollY + 5}px`;
     document.body.appendChild(popup);
     activeReactionsPopup = popup;
-    loadExistingReactions(existingReactionsDiv, txHash, blockchain, targetType);
     const closeOnOutsideClick = (e: MouseEvent) => {
         if (!popup.contains(e.target as Node) && e.target !== targetElement) {
             popup.remove();
@@ -185,16 +226,19 @@ async function loadExistingReactions(container: HTMLElement, txHash: string, blo
     const counts = await FetchReactionCounts(blockchain, txHash);
     if (!counts || !counts.emoji) return;
     const address = GetAddress();
-    let userReaction: string | null = null;
+    let userEmojiReaction: string | null = null;
     if (address) {
-        userReaction = await FetchUserReaction(blockchain, txHash, address);
+        const userReactions = await FetchUserReaction(blockchain, txHash, address);
+        if (userReactions) {
+            userEmojiReaction = userReactions.emojiReaction;
+        }
     }
     container.innerHTML = "";
     for (const [emoji, count] of Object.entries(counts.emoji)) {
         if (count > 0) {
             const chip = document.createElement("div");
             chip.classList.add("reactionChip");
-            if (userReaction === emoji) {
+            if (userEmojiReaction === emoji) {
                 chip.classList.add("selected");
             }
             const emojiSpan = document.createElement("span");
@@ -224,40 +268,4 @@ async function loadExistingReactions(container: HTMLElement, txHash: string, blo
             container.appendChild(chip);
         }
     }
-}
-const commonEmojis = ["👍", "👎", "😀", "😂", "😍", "😢", "😮", "🎉", "❤️", "🔥", "👏", "🙏", "💯", "✨", "🚀", "💪"];
-function showEmojiPicker(popup: HTMLElement, txHash: string, blockchain: string, targetType: string): void {
-    let existingPicker = popup.querySelector(".emojiGrid");
-    if (existingPicker) {
-        existingPicker.remove();
-        return;
-    }
-    const grid = document.createElement("div");
-    grid.classList.add("emojiGrid");
-    for (const emoji of commonEmojis) {
-        const btn = document.createElement("button");
-        btn.classList.add("emojiButton");
-        btn.textContent = emoji;
-        btn.addEventListener("click", async () => {
-            const address = GetAddress();
-            if (!address) {
-                ShowDialogModal("Please connect your wallet to react");
-                return;
-            }
-            await WalletSubmitEmojiReaction(txHash, targetType, emoji);
-            const controlsBar = document.querySelector(`.postControlsBar[data-txhash="${txHash}"][data-blockchain="${blockchain}"]`);
-            if (controlsBar) {
-                const reactControl = controlsBar.querySelector(".react");
-                if (reactControl) {
-                    reactControl.classList.add("active");
-                }
-            }
-            if (activeReactionsPopup) {
-                activeReactionsPopup.remove();
-                activeReactionsPopup = null;
-            }
-        });
-        grid.appendChild(btn);
-    }
-    popup.appendChild(grid);
 }

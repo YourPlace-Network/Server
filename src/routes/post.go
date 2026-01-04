@@ -76,8 +76,25 @@ func PostRoutes(router *gin.Engine, database *db.Database, title string) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
 			return
 		}
+		var emojiCount int64
+		if emojiMap, ok := reactions["emoji"].(map[string]int64); ok {
+			for _, count := range emojiMap {
+				emojiCount += count
+			}
+		}
 		post["reactions"] = reactions
 		post["commentCount"] = commentCount
+		post["emojiCount"] = emojiCount
+		userAddress := c.Query("address")
+		if userAddress != "" && security.IsValidAddress(userAddress, blockchain) {
+			userReactions := database.GetUserReactions(txHash, blockchain, userAddress)
+			if userReactions["likeDislike"] != "" {
+				post["userReaction"] = userReactions["likeDislike"]
+			}
+			if userReactions["emoji"] != "" {
+				post["userEmojiReaction"] = userReactions["emoji"]
+			}
+		}
 		c.SecureJSON(http.StatusOK, gin.H{"post": post})
 	})
 }

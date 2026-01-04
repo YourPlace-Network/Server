@@ -15,6 +15,32 @@ import {ShowModalMediaViewer} from "../components/modalMediaViewer";
 import {base64decode} from "byte-base64";
 import {LogError} from "./log";
 
+const blockchainIcons: Record<string, string> = {
+    "algorand": "/static/image/algorand.svg",
+    "avalanche": "/static/image/avalanche.svg",
+    "base": "/static/image/base-square.svg",
+    "cardano": "/static/image/cardano.svg",
+    "ethereum": "/static/image/ethereum.svg",
+    "optimism": "/static/image/optimism.svg",
+    "solana": "/static/image/solana.svg",
+};
+const blockchainUrls: Record<string, string> = {
+    "algorand": "https://algorand.com",
+    "avalanche": "https://avax.network",
+    "base": "https://base.org",
+    "cardano": "https://cardano.org",
+    "ethereum": "https://ethereum.org",
+    "optimism": "https://optimism.io",
+    "solana": "https://solana.com",
+};
+export function getBlockchainIconPath(blockchain: string): string | null {
+    const key = blockchain.toLowerCase();
+    return blockchainIcons[key] || null;
+}
+export function getBlockchainUrl(blockchain: string): string | null {
+    const key = blockchain.toLowerCase();
+    return blockchainUrls[key] || null;
+}
 interface TagPattern {
     regex: RegExp;
     createLink: (match: string) => HTMLAnchorElement | null;
@@ -84,7 +110,6 @@ export function processTextWithTags(element: HTMLElement): void {
         }
     }
 }
-
 async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLElement) {
     // Prevent infinite loop - only run once per image
     if (avatarImg.dataset.avatarLoaded === "true") {
@@ -112,7 +137,6 @@ async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLEl
         }
     }
 }
-
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { // returns a post div element when given a post's data
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
@@ -322,7 +346,9 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
         initialLikes: postData.likes || 0,
         initialDislikes: postData.dislikes || 0,
         initialComments: postData.commentCount || 0,
+        initialEmojiCount: postData.emojiCount || 0,
         userReaction: postData.userReaction || null,
+        userEmojiReaction: postData.userEmojiReaction || null,
         onCommentClick: () => {
             const commentBtn = controlsBar.querySelector(".comment") as HTMLElement;
             const commentIcon = commentBtn?.querySelector("i") as HTMLElement | null;
@@ -358,6 +384,27 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     reactionDiv.appendChild(controlsBar);
     postDiv.appendChild(reactionDiv);
     postDiv.appendChild(addCommentContainer);
+    const blockchainIconPath = getBlockchainIconPath(postData.blockchain);
+    if (blockchainIconPath) {
+        let blockchainBadge = document.createElement("div") as HTMLDivElement;
+        let blockchainIcon = document.createElement("img") as HTMLImageElement;
+        let blockchainUrl = getBlockchainUrl(postData.blockchain);
+        blockchainBadge.classList.add("blockchainBadge");
+        blockchainBadge.title = postData.blockchain;
+        blockchainIcon.src = blockchainIconPath;
+        blockchainIcon.classList.add("blockchainBadgeIcon");
+        if (blockchainUrl) {
+            let blockchainLink = document.createElement("a") as HTMLAnchorElement;
+            blockchainLink.href = blockchainUrl;
+            blockchainLink.target = "_blank";
+            blockchainLink.rel = "noopener noreferrer";
+            blockchainLink.appendChild(blockchainIcon);
+            blockchainBadge.appendChild(blockchainLink);
+        } else {
+            blockchainBadge.appendChild(blockchainIcon);
+        }
+        postDiv.appendChild(blockchainBadge);
+    }
     fetchAndUpdatePostControls(controlsBar, postData.blockchain, postData.txHash);
     // Embed Rich Media
     // Extract attachment URLs for deduplication
@@ -853,11 +900,17 @@ async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchai
         if (counts) {
             const address = GetAddress();
             let userReaction: string | null = null;
+            let userEmojiReaction: string | null = null;
             if (address) {
-                userReaction = await FetchUserReaction(blockchain, txHash, address);
+                const userReactions = await FetchUserReaction(blockchain, txHash, address);
+                if (userReactions) {
+                    userReaction = userReactions.reaction;
+                    userEmojiReaction = userReactions.emojiReaction;
+                }
             }
-            const likeControl = controlsBar.querySelector(".postControlItem.like");
             const dislikeControl = controlsBar.querySelector(".postControlItem.dislike");
+            const likeControl = controlsBar.querySelector(".postControlItem.like");
+            const reactControl = controlsBar.querySelector(".postControlItem.react");
             if (likeControl) {
                 const countSpan = likeControl.querySelector(".count");
                 if (countSpan) {
@@ -874,6 +927,21 @@ async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchai
                 }
                 if (userReaction === "dislike") {
                     dislikeControl.classList.add("active");
+                }
+            }
+            if (reactControl) {
+                let emojiCount = 0;
+                if (counts.emoji) {
+                    for (const count of Object.values(counts.emoji)) {
+                        emojiCount += count;
+                    }
+                }
+                const countSpan = reactControl.querySelector(".count");
+                if (countSpan) {
+                    countSpan.textContent = emojiCount > 0 ? emojiCount.toString() : "";
+                }
+                if (userEmojiReaction) {
+                    reactControl.classList.add("active");
                 }
             }
         }

@@ -872,3 +872,12 @@ func (db *Database) GetUserReaction(targetTxHash string, blockchain string, from
 	}
 	return ""
 }
+func (db *Database) GetUserReactions(targetTxHash string, blockchain string, fromAddress string) map[string]string {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.GetUserReactions(targetTxHash, blockchain, fromAddress)
+	case "sqlite":
+		return db.sqlite.GetUserReactions(targetTxHash, blockchain, fromAddress)
+	}
+	return map[string]string{"likeDislike": "", "emoji": ""}
+}

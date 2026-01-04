@@ -53,8 +53,10 @@ func getUserReaction(database *db.Database) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}
-		var userReaction string
-		userReaction = database.GetUserReaction(txHash, blockchain, address)
-		c.JSON(http.StatusOK, gin.H{"reaction": userReaction})
+		userReactions := database.GetUserReactions(txHash, blockchain, address)
+		c.JSON(http.StatusOK, gin.H{
+			"reaction":      userReactions["likeDislike"],
+			"emojiReaction": userReactions["emoji"],
+		})
 	}
 }

@@ -2,6 +2,15 @@
 @use "../global.scss";
 
 // -------- Profile Header -------- //
+#profileDiv {
+  position: relative;
+}
+#profileBlockchainLink {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.25em;
+  position: static;
+}
 #profileBannerDiv {
   height: 13em;
   overflow: hidden;
