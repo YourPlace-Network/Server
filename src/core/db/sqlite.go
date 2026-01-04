@@ -1446,14 +1446,16 @@ func (db *SQLite) ProfileGetPosts(address string, blockchain string) []map[strin
 			}
 			rowsAttachments.Close()
 		}
+		commentCount := db.GetCommentCount(txHash, blockchain)
 		post := map[string]interface{}{
-			"resultType": "profile post",
-			"txHash":     txHash,
-			"parent":     parent,
-			"timestamp":  timestamp,
-			"payload":    payload,
-			"blockchain": blockchain,
-			"address":    address,
+			"resultType":   "profile post",
+			"txHash":       txHash,
+			"parent":       parent,
+			"timestamp":    timestamp,
+			"payload":      payload,
+			"blockchain":   blockchain,
+			"address":      address,
+			"commentCount": commentCount,
 		}
 		if attachments != nil { // Adds attachment field only if attachments exist for this post
 			post["attachments"] = attachments
@@ -2565,14 +2567,16 @@ func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain st
 			}
 			rowsAttachments.Close()
 		}
+		commentCount := db.GetCommentCount(txHash, blockchain)
 		post := map[string]interface{}{
-			"resultType": "post",
-			"txHash":     txHash,
-			"parentHash": parentTxHash,
-			"timestamp":  timestamp,
-			"payload":    payload,
-			"blockchain": blockchain,
-			"address":    address,
+			"resultType":   "post",
+			"txHash":       txHash,
+			"parentHash":   parentTxHash,
+			"timestamp":    timestamp,
+			"payload":      payload,
+			"blockchain":   blockchain,
+			"address":      address,
+			"commentCount": commentCount,
 		}
 		if attachments != nil {
 			post["attachments"] = attachments

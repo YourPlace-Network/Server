@@ -246,8 +246,7 @@ ul.ellipsesMenu {
   display: flex;
   justify-content: flex-start;
   gap: 1.5em;
-  padding-bottom: 0.5em;
-  margin-left: 5em;
+  padding: 1em;
   margin-top: 0.5em;
 }
 .postControlItem {
@@ -326,7 +325,6 @@ ul.ellipsesMenu {
   }
 }
 .addCommentContainer {
-  margin-left: 4.3em;
   width: 100%;
   transform-origin: top;
   transform: scaleY(0);

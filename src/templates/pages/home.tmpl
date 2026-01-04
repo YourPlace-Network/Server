@@ -27,7 +27,7 @@
                 <div id="resultsDiv"></div>
                 <div id="discoverSection">
                     <div class="discoverRow">
-                        <h5 class="discoverRowLabel">Random Profiles</h5>
+                        <h5 class="discoverRowLabel" id="discoverRandomLabel" style="visibility: hidden;">Random Profiles</h5>
                         <div class="row" id="discoverRandomRow">
                             <div class="col-12 col-sm-6 col-md-4 col-lg discoverCol"></div>
                             <div class="col-12 col-sm-6 col-md-4 col-lg discoverCol"></div>
@@ -37,7 +37,7 @@
                         </div>
                     </div>
                     <div class="discoverRow">
-                        <h5 class="discoverRowLabel">Most Followed</h5>
+                        <h5 class="discoverRowLabel" id="discoverFollowersLabel" style="visibility: hidden;">Most Followed</h5>
                         <div class="row" id="discoverFollowersRow">
                             <div class="col-12 col-sm-6 col-md-4 col-lg discoverCol"></div>
                             <div class="col-12 col-sm-6 col-md-4 col-lg discoverCol"></div>
@@ -47,7 +47,7 @@
                         </div>
                     </div>
                     <div class="discoverRow">
-                        <h5 class="discoverRowLabel">Most Active</h5>
+                        <h5 class="discoverRowLabel" id="discoverPostsLabel" style="visibility: hidden;">Most Active</h5>
                         <div class="row" id="discoverPostsRow">
                             <div class="col-12 col-sm-6 col-md-4 col-lg discoverCol"></div>
                             <div class="col-12 col-sm-6 col-md-4 col-lg discoverCol"></div>
@@ -59,11 +59,6 @@
                 </div>
                 <div id="followersFeedSection" style="display: none;">
                     <h5 class="discoverRowLabel">Your Feed</h5>
-                    <div id="followersFeedControls" class="feedControls">
-                        <button id="feedTopBtn" class="btn btn-outline-primary btn-sm" disabled title="Scroll to top">
-                            <i class="bi bi-arrow-up"></i> Top
-                        </button>
-                    </div>
                     <div id="followersFeedDiv" class="feedScrollWindow"></div>
                 </div>
             </div>

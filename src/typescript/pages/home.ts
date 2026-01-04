@@ -25,12 +25,14 @@ import {CreateXcomPostCard} from "../util/domFactory";
             resultsDiv: document.getElementById("resultsDiv")! as HTMLDivElement,
             followersFeedDiv: document.getElementById("followersFeedDiv")! as HTMLDivElement,
             followersFeedSection: document.getElementById("followersFeedSection")! as HTMLDivElement,
-            feedTopBtn: document.getElementById("feedTopBtn")! as HTMLButtonElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
             discoverSection: document.getElementById("discoverSection")! as HTMLDivElement,
             discoverRandomRow: document.getElementById("discoverRandomRow")! as HTMLDivElement,
+            discoverRandomLabel: document.getElementById("discoverRandomLabel")! as HTMLHeadingElement,
             discoverFollowersRow: document.getElementById("discoverFollowersRow")! as HTMLDivElement,
+            discoverFollowersLabel: document.getElementById("discoverFollowersLabel")! as HTMLHeadingElement,
             discoverPostsRow: document.getElementById("discoverPostsRow")! as HTMLDivElement,
+            discoverPostsLabel: document.getElementById("discoverPostsLabel")! as HTMLHeadingElement,
         }
         const FEED_PAGE_SIZE = 25;
         let feedOffset = 0;
@@ -156,8 +158,6 @@ import {CreateXcomPostCard} from "../util/domFactory";
                         feedChildren[i].classList.remove("shaded");
                     }
                 }
-                // Update top button state
-                DOM.feedTopBtn.disabled = DOM.followersFeedDiv.children.length === 0;
                 // Fetch profile data for each unique author
                 const profilePromises = posts.map(async post => {
                     let blockchain = post.blockchain;
@@ -216,8 +216,11 @@ import {CreateXcomPostCard} from "../util/domFactory";
                 }
                 const data = resp[1];
                 await populateDiscoverRow(DOM.discoverRandomRow, data.random || []);
+                DOM.discoverRandomLabel.style.visibility = "visible";
                 await populateDiscoverRow(DOM.discoverFollowersRow, data.byFollowers || []);
+                DOM.discoverFollowersLabel.style.visibility = "visible";
                 await populateDiscoverRow(DOM.discoverPostsRow, data.byPosts || []);
+                DOM.discoverPostsLabel.style.visibility = "visible";
             } catch (error) {
                 console.error("Error loading discover profiles:", error);
             }
@@ -470,9 +473,6 @@ import {CreateXcomPostCard} from "../util/domFactory";
                 DOM.followersFeedSection.style.display = "block";
             }
             DOM.discoverSection.style.display = "block";
-        });
-        DOM.feedTopBtn.addEventListener("click", () => {
-            DOM.followersFeedDiv.scrollTo({ top: 0, behavior: "smooth" });
         });
         DOM.followersFeedDiv.addEventListener("scroll", () => {
             // Infinite scroll - load more when near bottom
