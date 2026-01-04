@@ -123,10 +123,16 @@ export async function DisconnectWallet() {
     SetWallet("");
     SetChain("");
     SetAddress("");
-    const localWalletData = localStorage.getItem("yp_local_wallet_ethereum");
+    const localWallets: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith("yp_local_wallet_")) {
+            localWallets[key] = localStorage.getItem(key)!;
+        }
+    }
     localStorage.clear();
-    if (localWalletData) {
-        localStorage.setItem("yp_local_wallet_ethereum", localWalletData);
+    for (const [key, value] of Object.entries(localWallets)) {
+        localStorage.setItem(key, value);
     }
     window.DisconnectWalletCallback();
 }

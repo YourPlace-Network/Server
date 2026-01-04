@@ -96,7 +96,17 @@ export async function algoDisconnectWallet() {
             console.log("algoDisconnectWallet() - error: " + error);
         }
     }
+    const localWallets: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith("yp_local_wallet_")) {
+            localWallets[key] = localStorage.getItem(key)!;
+        }
+    }
     localStorage.clear();
+    for (const [key, value] of Object.entries(localWallets)) {
+        localStorage.setItem(key, value);
+    }
 }
 export async function algoConnectSession(): Promise<string> {
     console.log("algoConnectSession()");

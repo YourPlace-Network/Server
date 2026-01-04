@@ -271,7 +271,17 @@ export async function baseConnectWallet(): Promise<string> {
 }
 export async function baseDisconnectWallet(): Promise<void> {
     await disconnect(wagmiConfig);
+    const localWallets: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith("yp_local_wallet_")) {
+            localWallets[key] = localStorage.getItem(key)!;
+        }
+    }
     localStorage.clear();
+    for (const [key, value] of Object.entries(localWallets)) {
+        localStorage.setItem(key, value);
+    }
 }
 export async function baseIsWalletConnected(): Promise<boolean> {
     // todo: check if wallet is connected

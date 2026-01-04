@@ -90,8 +90,18 @@ declare global { // Extend the window interface with public callback objects
                 const name = cookie.split("=")[0].trim();
                 document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
             });
+            const localWallets: Record<string, string> = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key?.startsWith("yp_local_wallet_")) {
+                    localWallets[key] = localStorage.getItem(key)!;
+                }
+            }
             localStorage.clear();
             sessionStorage.clear();
+            for (const [key, value] of Object.entries(localWallets)) {
+                localStorage.setItem(key, value);
+            }
             window.location.reload();
         });
 
@@ -100,11 +110,17 @@ declare global { // Extend the window interface with public callback objects
             const name = cookie.split("=")[0].trim();
             document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
         });
-        const localWalletData = localStorage.getItem("yp_local_wallet_ethereum");
+        const localWallets: Record<string, string> = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key?.startsWith("yp_local_wallet_")) {
+                localWallets[key] = localStorage.getItem(key)!;
+            }
+        }
         localStorage.clear();
         sessionStorage.clear();
-        if (localWalletData) {
-            localStorage.setItem("yp_local_wallet_ethereum", localWalletData);
+        for (const [key, value] of Object.entries(localWallets)) {
+            localStorage.setItem(key, value);
         }
         InitTooltips();
         ConfigureModalLoginForLocalWallet(hasLocalWalletEthereum());
