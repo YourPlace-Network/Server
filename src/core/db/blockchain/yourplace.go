@@ -15,7 +15,7 @@ func isValidYourPlacePayload(payload string) (bool, int, string, map[string]inte
 	var protocolRegex = regexp.MustCompile(`^yp/([\d.]+)/([a-z]+):(.+)$`)
 	matches := protocolRegex.FindStringSubmatch(payload) // match the string to the protocol regex
 	if matches == nil {
-		core.LogDebug("Invalid YourPlace JSON payload")
+		core.LogDebug("Invalid YourPlace JSON payload: " + payload)
 		return false, 0, "", nil
 	}
 	versionNumber, err := strconv.Atoi(matches[1]) // get the version number
