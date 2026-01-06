@@ -403,7 +403,7 @@ func handleCommentTransaction(payloadObject map[string]interface{}, txHash, bloc
 		return false
 	}
 	commentTextStr = security.SanitizeNonPrintable(commentTextStr)
-	_Database.OnchainC(txHash, blockchain, fromAddress, targetTxHashStr, "post", amountInt, timestamp, commentTextStr)
+	_Database.OnchainC(txHash, blockchain, fromAddress, targetTxHashStr, amountInt, timestamp, commentTextStr)
 	return true
 }
 func handleCommentTransactionAttachment(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
@@ -466,7 +466,7 @@ func handleCommentTransactionAttachment(payloadObject map[string]interface{}, tx
 		parsedAttachments = append(parsedAttachments, parsedAttachment)
 	}
 	commentTextStr = security.SanitizeNonPrintable(commentTextStr)
-	_Database.OnchainCA(txHash, blockchain, fromAddress, targetTxHashStr, "post", amountInt, timestamp, commentTextStr, parsedAttachments)
+	_Database.OnchainCA(txHash, blockchain, fromAddress, targetTxHashStr, amountInt, timestamp, commentTextStr, parsedAttachments)
 	return true
 }
 

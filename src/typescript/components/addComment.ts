@@ -1,25 +1,24 @@
 import {GetAddress, WalletSubmitComment, WalletSubmitCommentAttach} from "../util/blockchain/wallet";
 import {ShowDialogModal, ShowDialogModalHTML} from "./modalDialog";
 import {UploadFile} from "../util/files";
-import {AddFileToIPFS} from "../util/ipfs";
+import {AddFileToIPFS, CIDToSubdomainURL} from "../util/ipfs";
 import {IsValidIpfsCid, XSSSanitizeTextUrl} from "../util/security";
 import {CreatePostControlsBar} from "./postControls";
 import {HttpGetJson} from "../util/network";
 import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
 
 interface CommentPreview {
-    txHash: string;
-    blockchain: string;
     address: string;
-    parentTxHash: string;
-    parentType: string;
-    timestamp: number;
-    payload: string;
     author: string;
     avatarSrc: string;
-    likeCount: number;
+    blockchain: string;
     dislikeCount: number;
+    likeCount: number;
+    parentTxHash: string;
+    payload: string;
     replyCount: number;
+    timestamp: number;
+    txHash: string;
 }
 let commentEditorId = 0;
 interface InlineMediaData {
@@ -263,19 +262,33 @@ async function loadThreadPreview(container: HTMLElement, parentTxHash: string, b
 function createPreviewCommentElement(comment: CommentPreview, blockchain: string): HTMLDivElement {
     const commentDiv = document.createElement("div");
     commentDiv.classList.add("previewCommentItem");
+    commentDiv.dataset.address = comment.address;
+    commentDiv.dataset.blockchain = comment.blockchain;
+    commentDiv.dataset.parenttxhash = comment.parentTxHash;
+    commentDiv.dataset.txhash = comment.txHash;
     const headerDiv = document.createElement("div");
     headerDiv.classList.add("previewCommentHeader");
+    const profileUrl = `/p/${comment.blockchain}/${comment.address}`;
+    const avatarLink = document.createElement("a");
+    avatarLink.href = profileUrl;
+    avatarLink.classList.add("previewCommentAvatarLink");
     const avatarImg = document.createElement("img");
     avatarImg.classList.add("previewCommentAvatar");
-    avatarImg.src = comment.avatarSrc || "/static/image/avatar.png";
+    let avatarSrc = comment.avatarSrc || "/static/image/avatar.png";
+    if (avatarSrc.startsWith("ipfs://")) {
+        avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.png";
+    }
+    avatarImg.src = avatarSrc;
     avatarImg.alt = "avatar";
     avatarImg.crossOrigin = "anonymous";
     avatarImg.referrerPolicy = "no-referrer";
-    headerDiv.appendChild(avatarImg);
-    const authorSpan = document.createElement("span");
-    authorSpan.classList.add("previewCommentAuthor");
-    authorSpan.textContent = comment.author || comment.address.substring(0, 10) + "...";
-    headerDiv.appendChild(authorSpan);
+    avatarLink.appendChild(avatarImg);
+    headerDiv.appendChild(avatarLink);
+    const authorLink = document.createElement("a");
+    authorLink.href = profileUrl;
+    authorLink.classList.add("previewCommentAuthorLink");
+    authorLink.textContent = comment.author || comment.address.substring(0, 10) + "...";
+    headerDiv.appendChild(authorLink);
     const dateSpan = document.createElement("span");
     dateSpan.classList.add("previewCommentDate");
     dateSpan.textContent = formatPreviewTimestamp(comment.timestamp);
@@ -308,6 +321,8 @@ function createPreviewCommentElement(comment: CommentPreview, blockchain: string
             expandBtn.style.display = "inline";
         }
     }, 10);
+    const addCommentContainer = document.createElement("div");
+    addCommentContainer.classList.add("addCommentContainer");
     const controlsBar = CreatePostControlsBar({
         txHash: comment.txHash,
         blockchain: comment.blockchain,
@@ -316,7 +331,22 @@ function createPreviewCommentElement(comment: CommentPreview, blockchain: string
         initialDislikes: comment.dislikeCount,
         initialComments: comment.replyCount,
         onCommentClick: () => {
-            window.location.href = `/post/${comment.blockchain}/${comment.txHash}`;
+            const commentBtn = controlsBar.querySelector(".comment") as HTMLElement;
+            const commentIcon = commentBtn?.querySelector("i") as HTMLElement | null;
+            if (addCommentContainer.classList.contains("expanded")) {
+                addCommentContainer.classList.remove("expanded");
+                addCommentContainer.innerHTML = "";
+                if (commentIcon) {
+                    commentIcon.style.color = "";
+                }
+            } else {
+                addCommentContainer.classList.add("expanded");
+                const commentUI = ShowAddCommentUI(comment.txHash, comment.blockchain, () => {
+                    addCommentContainer.classList.remove("expanded");
+                    addCommentContainer.innerHTML = "";
+                }, commentBtn);
+                addCommentContainer.appendChild(commentUI);
+            }
         },
         onRepostClick: () => {
             window.open(`/post/${comment.blockchain}/${comment.txHash}`, '_blank');
@@ -324,6 +354,7 @@ function createPreviewCommentElement(comment: CommentPreview, blockchain: string
     });
     controlsBar.classList.add("previewControlsBar");
     commentDiv.appendChild(controlsBar);
+    commentDiv.appendChild(addCommentContainer);
     return commentDiv;
 }
 function formatPreviewTimestamp(timestamp: number): string {

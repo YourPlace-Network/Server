@@ -810,20 +810,20 @@ func (db *Database) WalletGetAll() ([]map[string]interface{}, error) {
 }
 
 // --- Comment Functions --- //
-func (db *Database) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
+func (db *Database) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
 	switch db.Engine {
 	case "mysql":
-		db.mysql.OnchainC(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+		db.mysql.OnchainC(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	case "sqlite":
-		db.sqlite.OnchainC(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+		db.sqlite.OnchainC(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	}
 }
-func (db *Database) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+func (db *Database) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
 	switch db.Engine {
 	case "mysql":
-		db.mysql.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data, attachments)
+		db.mysql.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data, attachments)
 	case "sqlite":
-		db.sqlite.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data, attachments)
+		db.sqlite.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data, attachments)
 	}
 }
 func (db *Database) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {

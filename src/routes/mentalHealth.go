@@ -1115,4 +1115,5 @@ var mentalHealthTips = []string{
 	"People can and will walk out of your life with no reason and there's nothing you can do about that",
 	"It's easier and quieter to kill journalism with activism, than with authoritarianism",
 	"You probably have a vitamin D deficiency. Sunlight is often not enough. Talk to your doctor about supplementing - it's cheap",
+	"It's not safe to be everybody's friend. You can safely be friendly with most people, though",
 }

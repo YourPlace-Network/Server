@@ -733,7 +733,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					return
 				}
 				commentTextStr = security.SanitizeNonPrintable(commentTextStr)
-				_AlgoDatabase.OnchainC(txHash, blockchain, fromAddr, parentTxHashStr, "post", amount, timestamp, commentTextStr)
+				_AlgoDatabase.OnchainC(txHash, blockchain, fromAddr, parentTxHashStr, amount, timestamp, commentTextStr)
 			case "a":
 				parentTxHashRaw, ok1 := payloadObject["txh"]
 				commentText, ok2 := payloadObject["p"]
@@ -782,7 +782,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 					parsedAttachments = append(parsedAttachments, parsedAttachment)
 				}
 				commentTextStr = security.SanitizeNonPrintable(commentTextStr)
-				_AlgoDatabase.OnchainCA(txHash, blockchain, fromAddr, parentTxHashStr, "post", amount, timestamp, commentTextStr, parsedAttachments)
+				_AlgoDatabase.OnchainCA(txHash, blockchain, fromAddr, parentTxHashStr, amount, timestamp, commentTextStr, parsedAttachments)
 			}
 		case 'r': // Reaction Actions
 			switch actionPostfix {

@@ -176,7 +176,7 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (blockchain VARCHAR(255), address VARCHAR(255), name VARCHAR(255) DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location VARCHAR(255) DEFAULT '', banner TEXT DEFAULT '', website VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', server VARCHAR(255) DEFAULT '', blockchainTimestamp BIGINT DEFAULT 0, addressTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_base_block":    "CREATE TABLE IF NOT EXISTS onchain_base_block (txHash VARCHAR(255), blockchain VARCHAR(255), blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_base_follow":   "CREATE TABLE IF NOT EXISTS onchain_base_follow (txHash VARCHAR(255), blockchain VARCHAR(255), followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_base_comment":  "CREATE TABLE IF NOT EXISTS onchain_base_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', parentType VARCHAR(255) DEFAULT 'post', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
+		"onchain_base_comment":  "CREATE TABLE IF NOT EXISTS onchain_base_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
 		"onchain_base_reaction": "CREATE TABLE IF NOT EXISTS onchain_base_reaction (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 		// Algorand-specific tables
 		"algorand_indexer_jobs":     "CREATE TABLE IF NOT EXISTS algorand_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, blockchain VARCHAR(255), headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
@@ -184,7 +184,7 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain VARCHAR(255), address VARCHAR(255), name VARCHAR(255) DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location VARCHAR(255) DEFAULT '', banner TEXT DEFAULT '', website VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', server VARCHAR(255) DEFAULT '', blockchainTimestamp BIGINT DEFAULT 0, addressTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_algorand_block":    "CREATE TABLE IF NOT EXISTS onchain_algorand_block (txHash VARCHAR(255), blockchain VARCHAR(255), blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_algorand_follow":   "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash VARCHAR(255), blockchain VARCHAR(255), followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_algorand_comment":  "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', parentType VARCHAR(255) DEFAULT 'post', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
+		"onchain_algorand_comment":  "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
 		"onchain_algorand_reaction": "CREATE TABLE IF NOT EXISTS onchain_algorand_reaction (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 	}
 	for _, createStatement := range tables {
@@ -1190,18 +1190,18 @@ func (db *MySQL) IndexerResetJobs(blockchain string) {
 }
 
 // --- Onchain Tokenized --- //
-func (db *MySQL) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string) {
-	queryFmt := "INSERT IGNORE INTO onchain_%s_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+func (db *MySQL) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
+	queryFmt := "INSERT IGNORE INTO onchain_%s_comment (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
 	}
 }
-func (db *MySQL) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, parentType string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
-	queryFmt := "INSERT IGNORE INTO onchain_%s_comment (txHash, blockchain, fromAddress, parentTxHash, parentType, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+func (db *MySQL) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
+	queryFmt := "INSERT IGNORE INTO onchain_%s_comment (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, parentType, amount, timestamp, data)
+	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
 		return
@@ -1476,7 +1476,7 @@ func (db *MySQL) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64)
 // --- Comment Functions --- //
 func (db *MySQL) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
 	var comments []map[string]interface{}
-	queryFmt := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.parentType, c.timestamp, c.data,
+	queryFmt := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.timestamp, c.data,
 		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc,
 		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'like') as likeCount,
 		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'dislike') as dislikeCount,
@@ -1494,9 +1494,9 @@ func (db *MySQL) GetComments(parentTxHash string, blockchain string, limit int, 
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var txHash, bc, fromAddress, pTxHash, parentType, data, author, avatarSrc string
+		var txHash, bc, fromAddress, pTxHash, data, author, avatarSrc string
 		var timestamp, likeCount, dislikeCount, replyCount int64
-		err := rows.Scan(&txHash, &bc, &fromAddress, &pTxHash, &parentType, &timestamp, &data, &author, &avatarSrc, &likeCount, &dislikeCount, &replyCount)
+		err := rows.Scan(&txHash, &bc, &fromAddress, &pTxHash, &timestamp, &data, &author, &avatarSrc, &likeCount, &dislikeCount, &replyCount)
 		if err != nil {
 			core.LogDebug("Could not scan comment row: " + err.Error())
 			continue
@@ -1506,7 +1506,6 @@ func (db *MySQL) GetComments(parentTxHash string, blockchain string, limit int, 
 			"blockchain":   bc,
 			"address":      fromAddress,
 			"parentTxHash": pTxHash,
-			"parentType":   parentType,
 			"timestamp":    timestamp,
 			"payload":      data,
 			"author":       author,

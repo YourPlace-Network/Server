@@ -35,15 +35,23 @@ export function showEmojiPicker(anchorElement: HTMLElement, onSelect: (emoji: st
     popup.style.zIndex = "10000";
     document.body.appendChild(popup);
     activeEmojiPopup = popup;
+    popup.addEventListener("mousedown", (e: MouseEvent) => {
+        e.stopPropagation();
+    });
+    popup.addEventListener("click", (e: MouseEvent) => {
+        e.stopPropagation();
+    });
     const closeOnOutsideClick = (e: MouseEvent) => {
-        if (!popup.contains(e.target as Node)) {
+        const path = e.composedPath();
+        const isInsidePopup = path.some(el => el === popup);
+        if (!isInsidePopup) {
             popup.remove();
             activeEmojiPopup = null;
-            document.removeEventListener("click", closeOnOutsideClick);
+            document.removeEventListener("click", closeOnOutsideClick, true);
         }
     };
     setTimeout(() => {
-        document.addEventListener("click", closeOnOutsideClick);
+        document.addEventListener("click", closeOnOutsideClick, true);
     }, 100);
 }
 
