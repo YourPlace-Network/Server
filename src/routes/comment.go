@@ -12,6 +12,7 @@ import (
 func CommentRoutes(router *gin.Engine, database *db.Database) {
 	router.GET("/comments/:blockchain/:txHash", getComments(database))
 	router.GET("/comments/:blockchain/:txHash/count", getCommentCount(database))
+	router.GET("/comments/:blockchain/:txHash/user/:address", getUserHasCommented(database))
 }
 func getComments(database *db.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -56,5 +57,26 @@ func getCommentCount(database *db.Database) gin.HandlerFunc {
 		}
 		count := database.GetCommentCount(txHash, blockchain)
 		c.JSON(http.StatusOK, gin.H{"count": count})
+	}
+}
+func getUserHasCommented(database *db.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		blockchain := c.Param("blockchain")
+		txHash := c.Param("txHash")
+		address := c.Param("address")
+		if !security.IsValidBlockchain(blockchain) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
+			return
+		}
+		if !security.IsValidTxHash(txHash, blockchain) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction hash"})
+			return
+		}
+		if !security.IsValidAddress(address, blockchain) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
+			return
+		}
+		hasCommented := database.HasUserCommented(txHash, blockchain, address)
+		c.JSON(http.StatusOK, gin.H{"hasCommented": hasCommented})
 	}
 }

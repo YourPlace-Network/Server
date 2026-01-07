@@ -1532,6 +1532,20 @@ func (db *MySQL) GetCommentCount(targetTxHash string, blockchain string) int64 {
 	}
 	return count
 }
+func (db *MySQL) HasUserCommented(parentTxHash string, blockchain string, address string) bool {
+	queryFmt := "SELECT COUNT(*) FROM onchain_%s_comment WHERE parentTxHash = ? AND blockchain = ? AND fromAddress = ? LIMIT 1"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	rows, err := db.runParamSQLSelect(query, parentTxHash, blockchain, address)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	var count int64
+	if rows.Next() {
+		rows.Scan(&count)
+	}
+	return count > 0
+}
 
 // --- Reaction Functions --- //
 func (db *MySQL) GetReactionCounts(targetTxHash string, blockchain string) map[string]interface{} {

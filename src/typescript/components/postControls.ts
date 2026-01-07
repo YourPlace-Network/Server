@@ -4,17 +4,18 @@ import { ShowDialogModal } from "./modalDialog";
 import { createEmojiPicker, closeEmojiPicker } from "../util/emojiPicker";
 
 export interface PostControlsOptions {
-    txHash: string;
     blockchain: string;
-    targetType: 'post' | 'comment';
-    initialLikes?: number;
-    initialDislikes?: number;
     initialComments?: number;
+    initialDislikes?: number;
     initialEmojiCount?: number;
-    userReaction?: string | null;
-    userEmojiReaction?: string | null;
+    initialLikes?: number;
     onCommentClick?: () => void;
     onRepostClick?: () => void;
+    targetType: 'post' | 'comment';
+    txHash: string;
+    userEmojiReaction?: string | null;
+    userHasCommented?: boolean;
+    userReaction?: string | null;
 }
 export interface ReactionCounts {
     likes: number;
@@ -38,6 +39,9 @@ export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElem
         }
     });
     commentControl.classList.add("comment");
+    if (options.userHasCommented) {
+        commentControl.classList.add("active");
+    }
     const likeControl = createControlItem("bi-hand-thumbs-up", options.initialLikes || 0, "Like", async () => {
         const address = GetAddress();
         if (!address) {
@@ -138,6 +142,17 @@ export async function FetchReactionCounts(blockchain: string, txHash: string): P
         console.error("Failed to fetch reaction counts:", e);
     }
     return null;
+}
+export async function FetchUserHasCommented(blockchain: string, txHash: string, address: string): Promise<boolean> {
+    try {
+        const response = await HttpGetJson(`/comments/${blockchain}/${txHash}/user/${address}`);
+        if (response[0] === 200 && response[1]) {
+            return response[1].hasCommented === true;
+        }
+    } catch (e) {
+        console.error("Failed to fetch user comment status:", e);
+    }
+    return false;
 }
 export async function FetchUserReaction(blockchain: string, txHash: string, address: string): Promise<UserReactions | null> {
     try {

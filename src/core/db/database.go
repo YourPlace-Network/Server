@@ -844,6 +844,15 @@ func (db *Database) GetCommentCount(targetTxHash string, blockchain string) int6
 	}
 	return 0
 }
+func (db *Database) HasUserCommented(parentTxHash string, blockchain string, address string) bool {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.HasUserCommented(parentTxHash, blockchain, address)
+	case "sqlite":
+		return db.sqlite.HasUserCommented(parentTxHash, blockchain, address)
+	}
+	return false
+}
 
 // --- Reaction Functions --- //
 func (db *Database) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {

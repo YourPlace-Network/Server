@@ -2,7 +2,7 @@ import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
 import {ShowAddCommentUI} from "../components/addComment";
-import {CreatePostControlsBar, FetchReactionCounts, FetchUserReaction} from "../components/postControls";
+import {CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented, FetchUserReaction} from "../components/postControls";
 import {ProcessPostContentForPreviews} from "../components/postPreviewCard";
 import {GetAddress} from "./blockchain/wallet";
 import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar} from "./blockchain/wallet";
@@ -349,6 +349,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
         initialEmojiCount: postData.emojiCount || 0,
         userReaction: postData.userReaction || null,
         userEmojiReaction: postData.userEmojiReaction || null,
+        userHasCommented: postData.userHasCommented || false,
         onCommentClick: () => {
             const commentBtn = controlsBar.querySelector(".comment") as HTMLElement;
             const commentIcon = commentBtn?.querySelector("i") as HTMLElement | null;
@@ -899,18 +900,27 @@ async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchai
         const counts = await FetchReactionCounts(blockchain, txHash);
         if (counts) {
             const address = GetAddress();
-            let userReaction: string | null = null;
             let userEmojiReaction: string | null = null;
+            let userHasCommented = false;
+            let userReaction: string | null = null;
             if (address) {
-                const userReactions = await FetchUserReaction(blockchain, txHash, address);
+                const [userReactions, hasCommented] = await Promise.all([
+                    FetchUserReaction(blockchain, txHash, address),
+                    FetchUserHasCommented(blockchain, txHash, address)
+                ]);
                 if (userReactions) {
                     userReaction = userReactions.reaction;
                     userEmojiReaction = userReactions.emojiReaction;
                 }
+                userHasCommented = hasCommented;
             }
+            const commentControl = controlsBar.querySelector(".postControlItem.comment");
             const dislikeControl = controlsBar.querySelector(".postControlItem.dislike");
             const likeControl = controlsBar.querySelector(".postControlItem.like");
             const reactControl = controlsBar.querySelector(".postControlItem.react");
+            if (commentControl && userHasCommented) {
+                commentControl.classList.add("active");
+            }
             if (likeControl) {
                 const countSpan = likeControl.querySelector(".count");
                 if (countSpan) {
