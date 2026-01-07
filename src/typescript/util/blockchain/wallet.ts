@@ -540,7 +540,9 @@ export async function WalletSubmitComment(parentTxHash: string, payload: string)
             await localWalletEthereumSubmitComment(parentTxHash, payload);
             return true;
         case "pera":
-            return true;
+            // TODO: Implement Algorand comment submission via Pera wallet
+            ShowDialogModal("Commenting is not yet supported for Algorand wallets. This feature is coming soon!");
+            return false;
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;
@@ -565,7 +567,9 @@ export async function WalletSubmitCommentAttach(parentTxHash: string, payload: s
             await localWalletEthereumSubmitCommentAttach(parentTxHash, payload, attach);
             return true;
         case "pera":
-            return true;
+            // TODO: Implement Algorand comment attachment submission via Pera wallet
+            ShowDialogModal("Commenting is not yet supported for Algorand wallets. This feature is coming soon!");
+            return false;
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;

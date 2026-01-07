@@ -719,7 +719,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 		case 'c': // Comment Actions
 			switch actionPostfix {
 			case "":
-				parentTxHashRaw, ok1 := payloadObject["txh"]
+				parentTxHashRaw, ok1 := payloadObject["t"]
 				commentText, ok2 := payloadObject["p"]
 				if !ok1 || !ok2 {
 					return
@@ -735,7 +735,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				commentTextStr = security.SanitizeNonPrintable(commentTextStr)
 				_AlgoDatabase.OnchainC(txHash, blockchain, fromAddr, parentTxHashStr, amount, timestamp, commentTextStr)
 			case "a":
-				parentTxHashRaw, ok1 := payloadObject["txh"]
+				parentTxHashRaw, ok1 := payloadObject["t"]
 				commentText, ok2 := payloadObject["p"]
 				attachmentsRaw, ok3 := payloadObject["a"]
 				if !ok1 || !ok2 || !ok3 {
@@ -787,7 +787,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 		case 'r': // Reaction Actions
 			switch actionPostfix {
 			case "l": // Like
-				targetTxHashRaw, ok1 := payloadObject["txh"]
+				targetTxHashRaw, ok1 := payloadObject["t"]
 				targetTypeRaw, ok2 := payloadObject["t"]
 				if !ok1 {
 					return
@@ -807,7 +807,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				}
 				_AlgoDatabase.OnchainR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, "like", timestamp)
 			case "dl": // Dislike
-				targetTxHashRaw, ok1 := payloadObject["txh"]
+				targetTxHashRaw, ok1 := payloadObject["t"]
 				targetTypeRaw, ok2 := payloadObject["t"]
 				if !ok1 {
 					return
@@ -827,7 +827,7 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				}
 				_AlgoDatabase.OnchainR(txHash, blockchain, fromAddr, targetTxHashStr, targetType, "dislike", timestamp)
 			case "e": // Emoji reaction
-				targetTxHashRaw, ok1 := payloadObject["txh"]
+				targetTxHashRaw, ok1 := payloadObject["t"]
 				targetTypeRaw, ok2 := payloadObject["t"]
 				emojiRaw, ok3 := payloadObject["e"]
 				if !ok1 || !ok3 {

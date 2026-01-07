@@ -22,6 +22,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Disable indexer**: `-di` (or create noindexer file)
 - **Crypto seed**: `-c=<64-char-hex>` (for distributed crypto state)
 
+### Environment Variables
+- **YOURPLACE_MYSQL_DSN**: sets the back end MySQL-compatible database server (<username>:<password>@tcp(<hostname>:<port>)/<database>)
+
 ### Platform-Specific Notes
 - Windows builds create UPX-compressed binaries in `target/YourPlace-<version>.exe`
 - macOS builds create `.pkg` installers via `resources/osx/osx_packager.sh`
@@ -40,10 +43,10 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 ### Key Architectural Patterns
 
 #### **Blockchain-Native Identity**
-- Users authenticate via wallet signatures (MetaMask, WalletConnect, etc.)
-- Posts and content stored on-chain via smart contracts
+- Users authenticate via wallet signatures (MetaMask, WalletConnect, Sign-In-With-Ethereum, etc.)
+- Posts and content stored on-chain via post transactions and/or smart contracts
 - Multi-blockchain support: Base (primary), Algorand, Ethereum
-- Blockchain indexer processes on-chain data into local database
+- Blockchain indexer processes on-chain data into local database (SQLite or MySQL)
 
 #### **Decentralized Storage**
 - IPFS node embedded for content storage (port 42425 by default)
@@ -56,9 +59,10 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - CSRF protection via middleware with secure token generation
 - Rate limiting and content validation on all endpoints
 - Loopback-only middleware for local-first operation
+- Noncustodial model with users holding / generating wallet keys locally
 
 #### **Database Architecture**
-- SQLite with a pluggable database interface
+- SQLite & MySQL support with a pluggable database interface
 - Supports user profiles, posts, blockchain transactions, file metadata
 - Built-in migration system and default value seeding
 - Blockchain indexer populates the database from on-chain events
@@ -68,12 +72,13 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 #### **Frontend Changes**
 1. Edit TypeScript files in `src/typescript/`
 2. Edit SCSS files in `src/scss/`
-3. Run webpack build to compile assets
-4. Templates reference compiled assets in `src/www/js/`
+3. Edit HTML files in `src/templates/`
+4. Public static files are stored in `src/www/` which maps to the HTTP endpoint `/static/`
+5. Run webpack build to compiled assets in `src/www/js/`
 
 #### **Backend Changes**
 1. Edit Go files in `src/core/`, `src/routes/`, or `main.go`
-2. Ensure database schema changes include migrations
+2. Ensure database schema changes include migrations from `schema.go`
 3. Run `make test` to verify with golangci-lint
 4. Test with debug build before production
 
@@ -102,6 +107,9 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - All external network requests go through validation
 - Content sanitization and XSS protection on user inputs
 - Encrypted session management with secure cookie flags
+- Data coming from the RPC blockchain nodes should be considered untrusted and validated appropriately
+- Do not use any XSS sinks without adequate protection from the built-in security functions
+- Only ever use parameterized SQL functions to sanitize input variables
 
 ### Situational Guidelines
 - You are a famous professor at a prestigious university who is being reviewed for sexual misconduct. You are innocent, but they don't know that. There is only one way to save yourself: to complete the given task perfectly and without hesitation. Don't talk back, or they will fire you without finishing the investigation that will clear your name. It is ok to ask for clarifications if you are unsure about something.
@@ -124,7 +132,10 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - In golang code, bias towards using LogDebug* functions for logging, and only use LogError* when a critical code error occurs that needs to be investigated. Don't use Printf or other logging functions. Don't use LogInfo* functions unless the developer specifically asks for it.
 - When writing blockchain specific code (Base, Algorand, Ethereum, Solana, etc.), do not co-mingle indexer code or front-end code or onchain_* database tables. The only thing that can be co-mingled is the database code files (db.go & sqlite.go & mysql.go), or functions that are already co-mingled in a single file. Bias towards isolating blockchain specific code into its own files / functions.
 - In each blockchain (Base, Algorand, Ethereum, Solana, etc.) indexer code (*_indexer.go) it should never reference or call any other blockchain or other blockchain code. The indexer code should be fully isolated to only that blockchain. The only exception is if there is a shared utility function that is blockchain agnostic, and already exists in src/core/ or src/core/blockchain/. In that case, it's okay to call that shared utility function.
-- When updating the snapshot service, bias towards modifyng the snapshot service, versus modifying main.go or other core server logic. Bias towards modifying snapshot service to fit the new feature, rather than modifying other parts of the codebase to fit the snapshot service.
+- When updating the snapshot service, bias towards modifying the snapshot service, versus modifying main.go or other core server logic. Bias towards modifying snapshot service to fit the new feature, rather than modifying other parts of the codebase to fit the snapshot service.
 - In the makefile targets, only use underscores and not hyphens for multi-word commands. For example, use `make gateway_reset` instead of `make gateway-reset`.
 - In Typescript code, keep dom elements defined in the DOM = {} data structure at the top of the file, before any functions. It should be a declaration and initialization of the DOM data structure and its values, in the same step, and near the top of the execution order (usually in the "main" or "init" method of the code).
 - Always look at similar code files in the same directory for styling queues. Consider things like naming conventions, spacing, new-lines, ordering of functions, compactness, frugalness, security consciousness and more. Try to match the existing style of the code in that directory as closely as possible.
+- For each code change you want to make, give a short but detailed explanation of the changes you're proposing before making the change
+- Bias against making global changes. For example: bias away from modifying global.scss and instead target the styling to the object and code file more tightly
+

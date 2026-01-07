@@ -41,7 +41,7 @@ YourPlace is a distributed social media platform that is designed to give comple
 [Whitepaper Button]: https://img.shields.io/badge/Whitepaper-9B59B6?style=for-the-badge&logoColor=white
 [FAQ Button]: https://img.shields.io/badge/FAQ-F0AD4E?style=for-the-badge&logoColor=white
 
-The core of YourPlace is a network of self-hosted servers called "places." You can keep your place on your laptop, a cloud server, a 3rd party service, or wherever you can run a PC.
+The core of YourPlace is a network of self-hosted servers called "places." You can keep your place on your laptop, a cloud server, a 3rd party service, or wherever you can run a Windows, MacOS or Linux PC.
 
 Places are owned and managed by a blockchain wallet address. They serve as a hub into your social life. Servers are where you host your profile, read other peoples posts, and share your content. YourPlace servers act on your behalf to manage your entire social media life.
 

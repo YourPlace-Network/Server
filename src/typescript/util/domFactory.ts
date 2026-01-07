@@ -2,6 +2,7 @@ import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
 import {ShowAddCommentUI} from "../components/addComment";
+import {CreateCommentThread} from "../components/commentThread";
 import {CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented, FetchUserReaction} from "../components/postControls";
 import {ProcessPostContentForPreviews} from "../components/postPreviewCard";
 import {GetAddress} from "./blockchain/wallet";
@@ -385,6 +386,27 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     reactionDiv.appendChild(controlsBar);
     postDiv.appendChild(reactionDiv);
     postDiv.appendChild(addCommentContainer);
+    const commentThreadContainer = document.createElement("div");
+    commentThreadContainer.classList.add("commentThreadContainer");
+    let commentThreadLoaded = false;
+    const toggleCommentThread = () => {
+        if (commentThreadContainer.classList.contains("expanded")) {
+            commentThreadContainer.classList.remove("expanded");
+            commentThreadContainer.innerHTML = "";
+            commentThreadLoaded = false;
+        } else {
+            commentThreadContainer.classList.add("expanded");
+            if (!commentThreadLoaded) {
+                const thread = CreateCommentThread({
+                    blockchain: postData.blockchain,
+                    parentTxHash: postData.txHash,
+                });
+                commentThreadContainer.appendChild(thread);
+                commentThreadLoaded = true;
+            }
+        }
+    };
+    postDiv.appendChild(commentThreadContainer);
     const blockchainIconPath = getBlockchainIconPath(postData.blockchain);
     if (blockchainIconPath) {
         let blockchainBadge = document.createElement("div") as HTMLDivElement;

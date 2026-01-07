@@ -1514,6 +1514,10 @@ func (db *MySQL) GetComments(parentTxHash string, blockchain string, limit int, 
 			"dislikeCount": dislikeCount,
 			"replyCount":   replyCount,
 		}
+		attachments := db.GetPostAttachments(txHash, bc)
+		if len(attachments) > 0 {
+			comment["attachments"] = attachments
+		}
 		comments = append(comments, comment)
 	}
 	return comments

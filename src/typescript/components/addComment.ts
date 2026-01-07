@@ -6,9 +6,11 @@ import {IsValidIpfsCid, XSSSanitizeTextUrl} from "../util/security";
 import {CreatePostControlsBar} from "./postControls";
 import {HttpGetJson} from "../util/network";
 import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
+import {formatTimestamp} from "../util/time";
 
-interface CommentPreview {
+export interface Comment {
     address: string;
+    attachments?: string[][];
     author: string;
     avatarSrc: string;
     blockchain: string;
@@ -47,23 +49,7 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
     editorDiv.id = editorId;
     editorDiv.classList.add("commentEditorDiv");
     container.appendChild(editorDiv);
-    const actionsDiv = document.createElement("div");
-    actionsDiv.classList.add("addCommentActions");
-    const cancelBtn = document.createElement("button");
-    cancelBtn.classList.add("btn", "btn-secondary", "btn-sm");
-    cancelBtn.textContent = "Cancel";
-    cancelBtn.addEventListener("click", () => {
-        destroyEditor(editorId);
-        if (icon) {
-            icon.style.color = originalColor;
-        }
-        container.remove();
-    });
-    actionsDiv.appendChild(cancelBtn);
-    const submitBtn = document.createElement("button");
-    submitBtn.classList.add("btn", "btn-primary", "btn-sm");
-    submitBtn.textContent = "Post Comment";
-    submitBtn.addEventListener("click", async () => {
+    const submitHandler = async (setButtonState: (disabled: boolean, text: string) => void) => {
         const address = GetAddress();
         if (!address) {
             ShowDialogModal("Please connect your wallet to comment");
@@ -74,8 +60,7 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
             ShowDialogModal("Please enter a comment");
             return;
         }
-        submitBtn.disabled = true;
-        submitBtn.textContent = "Posting...";
+        setButtonState(true, "Posting...");
         try {
             const mediaList = inlineMediaMap.get(editorId) || [];
             if (mediaList.length > 0) {
@@ -86,8 +71,7 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
                     const cidString = cid?.toString();
                     if (cidString === undefined || !IsValidIpfsCid(cidString)) {
                         ShowDialogModal("Failed to upload attachment to IPFS");
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = "Post Comment";
+                        setButtonState(false, "Post");
                         return;
                     }
                     const ipfsUrl = `ipfs://${cidString}`;
@@ -96,6 +80,14 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
                 await WalletSubmitCommentAttach(parentTxHash, content, attachments);
             } else {
                 await WalletSubmitComment(parentTxHash, content);
+            }
+            if (commentButton) {
+                const countSpan = commentButton.querySelector(".count");
+                if (countSpan) {
+                    const currentCount = parseInt(countSpan.textContent || "0", 10);
+                    countSpan.textContent = (currentCount + 1).toString();
+                }
+                commentButton.classList.add("active");
             }
             destroyEditor(editorId);
             inlineMediaMap.delete(editorId);
@@ -109,14 +101,11 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
         } catch (e) {
             console.error("Failed to submit comment:", e);
             ShowDialogModal("Failed to submit comment. Please try again.");
-            submitBtn.disabled = false;
-            submitBtn.textContent = "Post Comment";
+            setButtonState(false, "Post");
         }
-    });
-    actionsDiv.appendChild(submitBtn);
-    container.appendChild(actionsDiv);
+    };
     setTimeout(() => {
-        initCommentEditor(editorId);
+        initCommentEditor(editorId, submitHandler);
     }, 100);
     const threadPreview = document.createElement("div");
     threadPreview.classList.add("commentThreadPreview");
@@ -124,14 +113,14 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
     loadThreadPreview(threadPreview, parentTxHash, blockchain);
     return container;
 }
-function initCommentEditor(editorId: string): void {
+function initCommentEditor(editorId: string, onSubmit?: (setButtonState: (disabled: boolean, text: string) => void) => void): void {
     if (typeof window.tinymce === 'undefined') {
         const editorDiv = document.getElementById(editorId);
         if (editorDiv) {
             const textarea = document.createElement("textarea");
             textarea.id = `${editorId}_fallback`;
             textarea.classList.add("form-control");
-            textarea.rows = 3;
+            textarea.rows = 1;
             textarea.placeholder = "Write a comment...";
             editorDiv.appendChild(textarea);
         }
@@ -140,7 +129,6 @@ function initCommentEditor(editorId: string): void {
     let DOM = {
         csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
         gatewayMode: document.getElementById("gatewayModeAddComment")! as HTMLInputElement,
-
     };
     function isLocalhost(): boolean {
         const hostname = window.location.hostname;
@@ -160,7 +148,7 @@ function initCommentEditor(editorId: string): void {
     window.tinymce.init({
         selector: `#${editorId}`,
         plugins: "code table lists",
-        toolbar: "emojipicker forecolor backcolor | bold italic underline strikethrough | bullist numlist",
+        toolbar: "emojipicker forecolor backcolor | bold italic underline strikethrough | bullist numlist | postcomment",
         menubar: false,
         statusbar: true,
         resize: true,
@@ -209,8 +197,27 @@ function initCommentEditor(editorId: string): void {
         },
         setup: (editor: any) => {
             setupTinyMCEEmojiButton(editor);
+            if (onSubmit) {
+                editor.ui.registry.addButton('postcomment', {
+                    text: 'Post',
+                    onAction: () => {
+                        const setButtonState = (disabled: boolean, text: string) => {
+                            const btn = editor.editorContainer?.querySelector('.tox-tbtn--postcomment, button[data-mce-name="postcomment"]');
+                            if (btn) {
+                                btn.disabled = disabled;
+                                const textSpan = btn.querySelector('.tox-tbtn__select-label');
+                                if (textSpan) textSpan.textContent = text;
+                            }
+                        };
+                        onSubmit(setButtonState);
+                    }
+                });
+            }
             editor.on("init", () => {
                 inlineMediaMap.set(editorId, []);
+                if (editor.editorContainer) {
+                    editor.editorContainer.classList.add('commentTinyMCE');
+                }
             });
         }
     });
@@ -239,7 +246,7 @@ function destroyEditor(editorId: string): void {
 async function loadThreadPreview(container: HTMLElement, parentTxHash: string, blockchain: string): Promise<void> {
     try {
         const [commentsRes, countRes] = await Promise.all([
-            HttpGetJson(`/comments/${blockchain}/${parentTxHash}?limit=3&offset=0`),
+            HttpGetJson(`/comments/${blockchain}/${parentTxHash}?limit=3&offset=0&sort=likes`),
             HttpGetJson(`/comments/${blockchain}/${parentTxHash}/count`)
         ]);
         const count = countRes[0] === 200 && countRes[1]?.count ? countRes[1].count : 0;
@@ -250,7 +257,7 @@ async function loadThreadPreview(container: HTMLElement, parentTxHash: string, b
             container.appendChild(countLabel);
         }
         if (commentsRes[0] !== 200 || !commentsRes[1]?.comments) return;
-        const comments = commentsRes[1].comments as CommentPreview[];
+        const comments = commentsRes[1].comments as Comment[];
         for (const comment of comments) {
             const el = createPreviewCommentElement(comment, blockchain);
             container.appendChild(el);
@@ -259,7 +266,7 @@ async function loadThreadPreview(container: HTMLElement, parentTxHash: string, b
         console.error("Failed to load thread preview:", e);
     }
 }
-function createPreviewCommentElement(comment: CommentPreview, blockchain: string): HTMLDivElement {
+function createPreviewCommentElement(comment: Comment, blockchain: string): HTMLDivElement {
     const commentDiv = document.createElement("div");
     commentDiv.classList.add("previewCommentItem");
     commentDiv.dataset.address = comment.address;
@@ -291,7 +298,7 @@ function createPreviewCommentElement(comment: CommentPreview, blockchain: string
     headerDiv.appendChild(authorLink);
     const dateSpan = document.createElement("span");
     dateSpan.classList.add("previewCommentDate");
-    dateSpan.textContent = formatPreviewTimestamp(comment.timestamp);
+    dateSpan.textContent = formatTimestamp(comment.timestamp);
     headerDiv.appendChild(dateSpan);
     commentDiv.appendChild(headerDiv);
     const contentWrapper = document.createElement("div");
@@ -357,16 +364,6 @@ function createPreviewCommentElement(comment: CommentPreview, blockchain: string
     commentDiv.appendChild(addCommentContainer);
     return commentDiv;
 }
-function formatPreviewTimestamp(timestamp: number): string {
-    const now = Date.now() / 1000;
-    const diff = now - timestamp;
-    if (diff < 60) return "now";
-    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
-    return new Date(timestamp * 1000).toLocaleDateString();
-}
-
 declare global {
     interface Window {
         tinymce: any;

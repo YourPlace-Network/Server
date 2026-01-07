@@ -100,6 +100,9 @@
   padding-left: 5em;
   transform: translateY(-2.2em);
   margin-bottom: -2.2em;
+  &.clickable {
+    cursor: pointer;
+  }
 }
 .postCardEllipsesDiv {
   margin-left: auto;
@@ -363,6 +366,35 @@ ul.ellipsesMenu {
   padding-left: 2.5em;
   margin-bottom: 0.5em;
 }
+.commentAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  padding-left: 2.5em;
+  margin-bottom: 0.5em;
+}
+.commentAttachmentImage {
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: 0.5em;
+  object-fit: cover;
+  cursor: pointer;
+  &:hover {
+    opacity: 0.9;
+  }
+}
+.commentAttachmentLink {
+  display: inline-block;
+  padding: 0.25em 0.5em;
+  background: map-get(global.$colors, "secondary");
+  border-radius: 0.25em;
+  color: map-get(global.$colors, "text");
+  text-decoration: none;
+  font-size: 0.85em;
+  &:hover {
+    background: map-get(global.$colors, "quaternary");
+  }
+}
 .commentReplies {
   max-height: 2000px;
   overflow: hidden;
@@ -416,17 +448,44 @@ ul.ellipsesMenu {
     opacity: 1;
   }
 }
+.commentThreadContainer {
+  width: 100%;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+  &.expanded {
+    max-height: 2000px;
+    opacity: 1;
+  }
+}
 .addCommentUIContainer {
   padding: 0.5em;
 }
 .commentEditorDiv {
   margin-bottom: 0.5em;
 }
-.addCommentActions {
-  display: flex;
-  gap: 0.5em;
-  justify-content: flex-end;
-  margin-top: 0.5em;
+.commentTinyMCE {
+  .tox-toolbar__primary {
+    flex-wrap: nowrap !important;
+  }
+  .tox-toolbar__group:last-child {
+    margin-left: auto !important;
+  }
+  .tox-tbtn[data-mce-name="postcomment"] {
+    background-color: map-get(global.$colors, "quaternary") !important;
+    border-radius: 0.25em !important;
+    .tox-tbtn__select-label {
+      color: map-get(global.$colors, "text") !important;
+    }
+    &:hover {
+      filter: brightness(1.1);
+    }
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }
 .reactionsPopup {
   position: absolute;
@@ -556,7 +615,7 @@ ul.ellipsesMenu {
 .commentThreadPreview {
   margin-top: 0.5em;
   padding-left: 0.5em;
-  border-left: 3px solid map-get(global.$colors, "quaternary");
+  border-left: 2px solid map-get(global.$colors, "quaternary");
 }
 .threadPreviewCount {
   font-size: 0.8em;

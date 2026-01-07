@@ -1,25 +1,13 @@
 import { HttpGetJson } from "../util/network";
 import { CreatePostControlsBar } from "./postControls";
+import type { Comment } from "./addComment";
 import { ShowAddCommentUI } from "./addComment";
 import { CIDToSubdomainURL } from "../util/ipfs";
-import { XSSSanitizeTextUrl } from "../util/security";
+import { IsValidURL, XSSSanitizeTextUrl, XSSSanitizeUrl } from "../util/security";
+import { formatTimestamp } from "../util/time";
 
 const MAX_INDENT_DEPTH = 4;
 const PAGE_SIZE = 5;
-
-export interface Comment {
-    address: string;
-    author: string;
-    avatarSrc: string;
-    blockchain: string;
-    dislikeCount: number;
-    likeCount: number;
-    parentTxHash: string;
-    payload: string;
-    replyCount: number;
-    timestamp: number;
-    txHash: string;
-}
 export interface CommentThreadOptions {
     blockchain: string;
     maxDepth?: number;
@@ -32,7 +20,7 @@ interface PaginationState {
     pages: Comment[][];
 }
 
-const paginationStates: Map<string, PaginationState> = new Map();
+const paginationStates: WeakMap<HTMLElement, PaginationState> = new WeakMap();
 
 function createPaginationControls(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number): HTMLDivElement {
     const controls = document.createElement("div");
@@ -113,6 +101,38 @@ function createCommentElement(comment: Comment, depth: number, blockchain: strin
     contentDiv.classList.add("commentContent");
     contentDiv.innerHTML = XSSSanitizeTextUrl(comment.payload);
     commentDiv.appendChild(contentDiv);
+    if (comment.attachments && comment.attachments.length > 0) {
+        const attachmentDiv = document.createElement("div");
+        attachmentDiv.classList.add("commentAttachments");
+        for (const attachment of comment.attachments) {
+            let fileUrl = attachment[0];
+            const mimeType = attachment[1];
+            const fileName = attachment[3];
+            if (fileUrl.startsWith("ipfs://")) {
+                fileUrl = CIDToSubdomainURL(fileUrl) || fileUrl;
+            }
+            if (!IsValidURL(fileUrl)) continue;
+            if (mimeType.startsWith("image/")) {
+                const img = document.createElement("img");
+                img.classList.add("commentAttachmentImage");
+                img.src = XSSSanitizeUrl(fileUrl);
+                img.alt = fileName || "attachment";
+                img.crossOrigin = "anonymous";
+                img.referrerPolicy = "no-referrer";
+                attachmentDiv.appendChild(img);
+            } else {
+                const link = document.createElement("a");
+                link.classList.add("commentAttachmentLink");
+                link.href = XSSSanitizeUrl(fileUrl);
+                link.download = fileName || "attachment";
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                link.textContent = fileName || "Download attachment";
+                attachmentDiv.appendChild(link);
+            }
+        }
+        commentDiv.appendChild(attachmentDiv);
+    }
     const controlsBar = CreatePostControlsBar({
         blockchain: comment.blockchain,
         initialComments: comment.replyCount,
@@ -137,34 +157,11 @@ function createCommentElement(comment: Comment, depth: number, blockchain: strin
     commentDiv.appendChild(repliesDiv);
     return commentDiv;
 }
-function formatTimestamp(timestamp: number): string {
-    const now = Date.now() / 1000;
-    const diff = now - timestamp;
-    if (diff < 60) {
-        return "just now";
-    } else if (diff < 3600) {
-        const mins = Math.floor(diff / 60);
-        return `${mins}m ago`;
-    } else if (diff < 86400) {
-        const hours = Math.floor(diff / 3600);
-        return `${hours}h ago`;
-    } else if (diff < 604800) {
-        const days = Math.floor(diff / 86400);
-        return `${days}d ago`;
-    } else {
-        const date = new Date(timestamp * 1000);
-        return date.toLocaleDateString();
-    }
-}
-function getStateKey(parentTxHash: string, depth: number): string {
-    return `${parentTxHash}_${depth}`;
-}
 async function loadCommentsPage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, page: number): Promise<void> {
-    const stateKey = getStateKey(parentTxHash, depth);
-    let state = paginationStates.get(stateKey);
+    let state = paginationStates.get(container);
     if (!state) {
         state = { currentPage: 0, hasMore: true, loading: false, pages: [] };
-        paginationStates.set(stateKey, state);
+        paginationStates.set(container, state);
     }
     if (state.loading) return;
     if (page < state.pages.length) {
@@ -189,16 +186,14 @@ async function loadCommentsPage(container: HTMLElement, parentTxHash: string, bl
     }
 }
 async function navigatePage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, direction: number): Promise<void> {
-    const stateKey = getStateKey(parentTxHash, depth);
-    const state = paginationStates.get(stateKey);
+    const state = paginationStates.get(container);
     if (!state) return;
     const newPage = state.currentPage + direction;
     if (newPage < 0) return;
     await loadCommentsPage(container, parentTxHash, blockchain, depth, newPage);
 }
 function renderPage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, page: number): void {
-    const stateKey = getStateKey(parentTxHash, depth);
-    const state = paginationStates.get(stateKey);
+    const state = paginationStates.get(container);
     if (!state || page >= state.pages.length) return;
     state.currentPage = page;
     const commentsContainer = container.querySelector(".commentsContainer") as HTMLElement;
@@ -238,11 +233,12 @@ function toggleAddCommentUI(commentDiv: HTMLElement, parentTxHash: string, block
         const addCommentUI = ShowAddCommentUI(parentTxHash, blockchain, () => {
             container.classList.remove("expanded");
             container.innerHTML = "";
-            const repliesDiv = commentDiv.querySelector(".commentReplies");
+            const repliesDiv = commentDiv.querySelector(".commentReplies") as HTMLElement | null;
             if (repliesDiv) {
+                paginationStates.delete(repliesDiv);
                 repliesDiv.innerHTML = "";
                 const depth = parseInt(commentDiv.dataset.depth || "0");
-                initializeRepliesContainer(repliesDiv as HTMLElement, parentTxHash, blockchain, depth + 1);
+                initializeRepliesContainer(repliesDiv, parentTxHash, blockchain, depth + 1);
             }
         }, commentBtn);
         container.appendChild(addCommentUI);

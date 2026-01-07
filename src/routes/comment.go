@@ -29,11 +29,11 @@ func getComments(database *db.Database) gin.HandlerFunc {
 		limitStr := c.DefaultQuery("limit", "50")
 		offsetStr := c.DefaultQuery("offset", "0")
 		limit, err := strconv.Atoi(limitStr)
-		if err != nil || limit < 1 || limit > 100 {
+		if err != nil || limit < 1 || limit > 100 { // Anti-DoS: max 100 comments per request
 			limit = 50
 		}
 		offset, err := strconv.Atoi(offsetStr)
-		if err != nil || offset < 0 || offset > 10000 {
+		if err != nil || offset < 0 || offset > 1000 { // Anti-DoS: max offset 1000 to prevent deep pagination abuse
 			offset = 0
 		}
 		comments := database.GetComments(txHash, blockchain, limit, offset)
