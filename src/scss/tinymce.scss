@@ -96,6 +96,9 @@ a {
 .tox-tinymce {
   border: 1px solid map.get(global.$colors, "primary") !important;
 }
+.tox-statusbar {
+  border-top: none !important;
+}
 .tox-statusbar__branding,
 .tox-dialog-wrap__backdrop {
   display: none !important;

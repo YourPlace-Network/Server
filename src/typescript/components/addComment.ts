@@ -145,12 +145,22 @@ function initCommentEditor(editorId: string, onSubmit?: (setButtonState: (disabl
             "<a href=\"https://yourplace.network/download\" target=\"_blank\" rel=\"noopener noreferrer\">Download YourPlace</a>"
         );
     }
+    const isMobile = window.innerWidth < 768;
     window.tinymce.init({
         selector: `#${editorId}`,
         plugins: "code table lists",
-        toolbar: "emojipicker forecolor backcolor | bold italic underline strikethrough | bullist numlist | postcomment",
+        toolbar: isMobile
+            ? "emojipicker forecolor backcolor | formatting | postcomment"
+            : "emojipicker forecolor backcolor | bold italic underline strikethrough | bullist numlist | postcomment",
+        toolbar_groups: isMobile ? {
+            formatting: {
+                icon: 'more-drawer',
+                items: 'bold italic underline strikethrough | bullist numlist'
+            }
+        } : {},
         menubar: false,
         statusbar: true,
+        elementpath: false,
         resize: true,
         height: 150,
         branding: false,

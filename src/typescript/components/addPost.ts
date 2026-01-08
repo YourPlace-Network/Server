@@ -84,13 +84,23 @@ export async function preloadTinyMCE() {
             if (tinymceInitPromise) return tinymceInitPromise;
             tinymceInitPromise = (async () => {
                 const tinymce = tinymceModulePromise ? await tinymceModulePromise : await import("tinymce/tinymce");
+                const isMobile = window.innerWidth < 768;
                 await tinymce.default.init({
                     selector: "#addPostText",
                     plugins: "code table lists",
-                    toolbar: "emojipicker forecolor backcolor | bold italic underline strikethrough | bullist numlist",
+                    toolbar: isMobile
+                        ? "emojipicker forecolor backcolor | formatting"
+                        : "emojipicker forecolor backcolor | bold italic underline strikethrough | bullist numlist",
+                    toolbar_groups: isMobile ? {
+                        formatting: {
+                            icon: 'more-drawer',
+                            items: 'bold italic underline strikethrough | bullist numlist'
+                        }
+                    } : {},
                     toolbar_mode: "sliding",
                     menubar: false,
                     statusbar: true,
+                    elementpath: false,
                     min_height: 200,
                     base_url: "/static/tinymce",
                     resize: true,
