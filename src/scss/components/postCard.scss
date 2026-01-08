@@ -295,6 +295,13 @@ ul.ellipsesMenu {
   .count {
     font-size: 0.85em;
   }
+  .reactEmoji {
+    display: inline-block;
+    font-size: 1em;
+    line-height: 1;
+    text-align: center;
+    width: 1em;
+  }
 }
 .commentThread {
   margin-left: 5em;

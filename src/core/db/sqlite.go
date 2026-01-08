@@ -82,8 +82,8 @@ func (db *SQLite) runParamSQLSelect(query string, params ...interface{}) (*sql.R
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	// if query starts with SELECT or EXPLAIN use Query()
-	if strings.HasPrefix(queryUpper, "SELECT") || strings.HasPrefix(queryUpper, "EXPLAIN") {
+	// if query starts with SELECT, EXPLAIN, or WITH use Query()
+	if strings.HasPrefix(queryUpper, "SELECT") || strings.HasPrefix(queryUpper, "EXPLAIN") || strings.HasPrefix(queryUpper, "WITH") {
 		statement, err := db.database.PrepareContext(ctx, query)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
@@ -2405,9 +2405,15 @@ func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int,
 	return comments
 }
 func (db *SQLite) GetCommentCount(targetTxHash string, blockchain string) int64 {
-	queryFmt := "SELECT COUNT(*) FROM onchain_%s_comment WHERE parentTxHash = ? AND blockchain = ?"
-	query := fmt.Sprintf(queryFmt, blockchain)
-	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
+	queryFmt := `WITH RECURSIVE descendants AS (
+		SELECT txHash FROM onchain_%s_comment WHERE parentTxHash = ? AND blockchain = ?
+		UNION ALL
+		SELECT c.txHash FROM onchain_%s_comment c
+		INNER JOIN descendants d ON c.parentTxHash = d.txHash AND c.blockchain = ?
+	)
+	SELECT COUNT(*) FROM descendants`
+	query := fmt.Sprintf(queryFmt, blockchain, blockchain)
+	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, blockchain)
 	if err != nil {
 		return 0
 	}

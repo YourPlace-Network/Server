@@ -72,7 +72,7 @@ export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElem
     if (options.userReaction === "dislike") {
         dislikeControl.classList.add("active");
     }
-    const reactControl = createControlItem("bi-emoji-smile", options.initialEmojiCount || 0, "React", (e) => {
+    const reactControl = createReactControlItem(options.initialEmojiCount || 0, options.userEmojiReaction || null, (e) => {
         showReactionsPopup(e.currentTarget as HTMLElement, options.txHash, options.blockchain, options.targetType);
     });
     reactControl.classList.add("react");
@@ -105,6 +105,42 @@ function createControlItem(iconClass: string, count: number, tooltip: string, on
     item.appendChild(countSpan);
     item.addEventListener("click", onClick);
     return item;
+}
+function createReactControlItem(count: number, userEmoji: string | null, onClick: (e: MouseEvent) => void): HTMLDivElement {
+    const item = document.createElement("div");
+    item.classList.add("postControlItem");
+    item.title = "React";
+    if (userEmoji) {
+        const emojiSpan = document.createElement("span");
+        emojiSpan.classList.add("reactEmoji");
+        emojiSpan.textContent = userEmoji;
+        item.appendChild(emojiSpan);
+    } else {
+        const icon = document.createElement("i");
+        icon.classList.add("bi", "bi-emoji-smile");
+        item.appendChild(icon);
+    }
+    const countSpan = document.createElement("span");
+    countSpan.classList.add("count");
+    countSpan.textContent = count > 0 ? count.toString() : "";
+    item.appendChild(countSpan);
+    item.addEventListener("click", onClick);
+    return item;
+}
+function updateReactControlIcon(reactControl: Element, emoji: string): void {
+    const existingIcon = reactControl.querySelector("i.bi");
+    const existingEmoji = reactControl.querySelector(".reactEmoji");
+    if (existingIcon) {
+        existingIcon.remove();
+    }
+    if (existingEmoji) {
+        existingEmoji.textContent = emoji;
+    } else {
+        const emojiSpan = document.createElement("span");
+        emojiSpan.classList.add("reactEmoji");
+        emojiSpan.textContent = emoji;
+        reactControl.insertBefore(emojiSpan, reactControl.firstChild);
+    }
 }
 function updateCount(element: HTMLElement, newCount: number): void {
     const countSpan = element.querySelector(".count");
@@ -202,6 +238,7 @@ function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockcha
                     const reactControl = controlsBar.querySelector(".react");
                     if (reactControl) {
                         reactControl.classList.add("active");
+                        updateReactControlIcon(reactControl, emoji);
                     }
                 }
                 if (activeReactionsPopup) {
@@ -277,6 +314,7 @@ async function loadExistingReactions(container: HTMLElement, txHash: string, blo
                     const reactControl = controlsBar.querySelector(".react");
                     if (reactControl) {
                         reactControl.classList.add("active");
+                        updateReactControlIcon(reactControl, emoji);
                     }
                 }
             });
