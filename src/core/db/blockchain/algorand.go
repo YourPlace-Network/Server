@@ -62,6 +62,7 @@ func (algo *Algorand) Init(algodHost string, algodToken string, algodPort int, a
 		log.Panicln("Invalid Algod host URL")
 	}
 	algo.algodHost = algodURL
+	core.LogDebug("Algorand indexer initialized with URL: " + algodHost)
 	if !security.IsValidPort(algodPort) {
 		log.Panicln("Invalid Algod Port")
 	}

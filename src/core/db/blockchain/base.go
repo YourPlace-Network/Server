@@ -86,6 +86,7 @@ func (base *Base) init(database *db.Database, gateway bool) {
 		}
 	}
 	rpcUrl := ResolveRPCUrl(base.RpcUrl)
+	core.LogDebug("Base indexer initialized with URL: " + rpcUrl)
 	httpClient := &http.Client{
 		Transport: &loggingTransport{http.DefaultTransport},
 	}

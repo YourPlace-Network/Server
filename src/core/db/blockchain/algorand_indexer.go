@@ -170,7 +170,9 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 		batchCount.Add(batchCount, big.NewInt(1))
 	}
 	core.LogDebug("[Algo] Batch Count: " + batchCount.String())
+	core.LogDebug("[Algo] Configuring rate limiter...")
 	rateLimiter := algoConfigureRateLimiter(algoThrottle)
+	core.LogDebug("[Algo] Rate limiter configured, initializing variables...")
 	batchStartBlock := new(big.Int).Set(targetEarliestBlockBigInt)
 	txnCount := core.NewThreadSafeCounter()
 	batchJobQueue := core.NewThreadSafeQueue()
@@ -180,7 +182,9 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 	atomic.StoreInt64(&algoActiveRequestsCount, 0)
 	atomic.StoreInt64(&algoTotalRequestsCount, 0)
 	atomic.StoreInt64(&algoLastProgressBlock, 0)
+	core.LogDebug("[Algo] Starting throttle controller...")
 	go algoStartThrottleController(uuid, algoThrottle, rateLimiter, database)
+	core.LogDebug("[Algo] Starting " + strconv.Itoa(algoWorkerCount) + " worker threads...")
 	var wg sync.WaitGroup
 	for i := 0; i < algoWorkerCount; i++ {
 		wg.Add(1)
@@ -195,6 +199,7 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 			}
 		}(i)
 	}
+	core.LogDebug("[Algo] Worker threads started, beginning batch enqueue...")
 	go func() {
 		for i := 1; i <= int(batchCount.Int64()); i++ {
 			if algoBreakPoint(uuid) {
@@ -214,7 +219,9 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 			batchJobQueue.Enqueue(batchBlockNumbers)
 			batchStartBlock = new(big.Int).Add(batchStartBlock, batchSize)
 		}
+		core.LogDebug("[Algo] All batches enqueued")
 	}()
+	core.LogDebug("[Algo] Waiting for workers to complete...")
 	done := make(chan struct{})
 	go func() {
 		wg.Wait()
@@ -992,13 +999,25 @@ RETRYBLOCK:
 	return transactions, nil
 }
 func algoWorkerThread(uuid string, rateLimiter *rate.Limiter, algo *Algorand, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *AlgoSequentialBlockTracker, requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string) error {
+	emptyRetries := 0
+	maxEmptyRetries := 10
 	for {
 		batch, populated := batchJobQueue.Dequeue()
 		if !populated {
-			return nil
+			emptyRetries++
+			if emptyRetries >= maxEmptyRetries {
+				core.LogDebug("[Algo] Worker exiting after " + strconv.Itoa(maxEmptyRetries) + " empty queue retries")
+				return nil
+			}
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
+		emptyRetries = 0
 		batchArray := batch.([]big.Int)
 		_batchSize := len(batchArray)
+		if _batchSize > 0 {
+			core.LogDebug("[Algo] Processing batch starting at block " + batchArray[0].String())
+		}
 		algoRateLimiterMutex.Lock()
 		for i := 0; i < _batchSize; i++ {
 			err := rateLimiter.Wait(context.Background())
