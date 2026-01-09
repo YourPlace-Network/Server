@@ -144,6 +144,11 @@ a {
   text-align: center;
   margin-top: 1em;
 }
+#footerText {
+  text-align: center;
+  color: map.get($colors, "text");
+  font-size: 12px;
+}
 footer {
   flex-shrink: 0;
   margin-top: 3em;
@@ -153,6 +158,14 @@ footer {
   font-size: 0.8em;
   > p {
     margin: 0;
+  }
+}
+.profileFooterImg {
+  width: 15px;
+  height: 15px;
+  margin-left: 0.5em;
+  &:hover {
+    scale: 1.3;
   }
 }
 

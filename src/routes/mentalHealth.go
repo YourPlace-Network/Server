@@ -1118,4 +1118,5 @@ var mentalHealthTips = []string{
 	"It's not safe to be everybody's friend. You can safely be friendly with most people, though",
 	"Even in this digital age, word of mouth is still a very powerful network creator. You can just ask around for stuff - no internet needed",
 	"Genius is almost always misunderstood because it's new thoughts and ways of being, that comes in infinitely many forms. When you do see it, take time to absorb it because it's a rare gift. Also observe the habits and ecosystems that genius curates",
+	"Do not allow your intelligence to be insulted by people who are playing stupid",
 }
