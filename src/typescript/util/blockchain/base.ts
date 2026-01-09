@@ -122,7 +122,6 @@ export async function basePrefetchLoginNonce(): Promise<void> {
                 issuedAt: response[1].issuedAt,
                 fetchedAt: Date.now(),
             };
-            LogInfo("Pre-fetched login nonce for Base wallet popup optimization");
         }
     } catch (e) {
         LogError("Failed to pre-fetch login nonce: " + e);
@@ -150,7 +149,6 @@ export async function baseAuthLogin(): Promise<string> {
         nonce = prefetchedNonce.nonce;
         issuedAt = prefetchedNonce.issuedAt;
         prefetchedNonce = null;
-        LogInfo("Using pre-fetched nonce for faster popup");
     } else {
         const response = await HttpGetJson("/login/nonce");
         if (response[0] != 200) {
@@ -161,7 +159,6 @@ export async function baseAuthLogin(): Promise<string> {
         issuedAt = response[1].issuedAt;
     }
     const checksumAddress = getAddress(address);
-    LogInfo(`Creating SIWE with: domain=${window.location.host}, address=${checksumAddress}, uri=${window.location.origin}, chainId=${mainnetBase.ethChainID}, nonce=${nonce}, issuedAt=${issuedAt}`);
     const siweMsg = new SiweMessage({
         domain: window.location.host,
         address: checksumAddress,
@@ -173,7 +170,6 @@ export async function baseAuthLogin(): Promise<string> {
         issuedAt: issuedAt,
     });
     const siweMessage = siweMsg.prepareMessage();
-    LogInfo("SIWE message: " + siweMessage);
     let signature: any;
     try {
         signature = await signMessage(wagmiConfig, {
@@ -194,7 +190,6 @@ export async function baseAuthLogin(): Promise<string> {
         signature: signature,
     };
     const response2 = await HttpPostJson("/login/wallet/base", loginPayload, csrfToken);
-    LogInfo(`Login response: status=${response2[0]}, body=${JSON.stringify(response2[1])}`);
     // Handle undeployed smart wallet - prompt user to deploy
     if (response2[0] === 428 && response2[1]?.status === "wallet_not_deployed") {
         LogInfo("Smart wallet not deployed, prompting user to deploy...");

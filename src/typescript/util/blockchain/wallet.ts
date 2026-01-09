@@ -28,7 +28,7 @@ import {
     algoUnfollowUser,
     peraWallet,
     setAlgoAvatar,
-    setAlgoPost,
+    algoSubmitPost,
     setAlgoPostAttach,
 } from "./algorand";
 import {
@@ -260,7 +260,7 @@ export async function ReconnectWallet() {
             await localWalletEthereumReconnect();
             break;
         case "pera":
-            algoReconnectSession();
+            await algoReconnectSession();
             break;
     }
 }
@@ -513,7 +513,7 @@ export async function WalletSubmitPost(payload: string): Promise<boolean> {
             await localWalletEthereumSubmitPost(payload);
             return true;
         case "pera":
-            await setAlgoPost(payload);
+            await algoSubmitPost(payload);
             return true;
         default:
             LogError("Invalid wallet selection: " + wallet);

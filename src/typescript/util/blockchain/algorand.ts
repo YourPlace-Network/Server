@@ -1,5 +1,6 @@
 import {PeraWalletConnect} from "@perawallet/connect";
 import algosdk, {Algodv2, type CustomTokenHeader} from "algosdk";
+import {HideDialogModal, ShowDialogModalHTML} from "../../components/modalDialog";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {DisconnectWallet, GetAddress, GetWallet, ReconnectWallet} from "./wallet";
 import {YP} from "../../services/yourplace";
@@ -73,13 +74,19 @@ export async function algoConnectWallet(name: string): Promise<string> {
     }
     return "";
 }
-export function algoReconnectSession() {
-    peraWallet.reconnectSession().then((accounts) => {
-        let account = accounts[0];
-        peraWallet.connector?.on("disconnect", DisconnectWallet);
-        localStorage.setItem("accountAddress", accounts[0]);
-        localStorage.setItem("walletSelection", "pera");
-    });
+export async function algoReconnectSession() {
+    if (!algoInitialized) {
+        await initAlgoWallet();
+    }
+    try {
+        const accounts = await peraWallet.reconnectSession();
+        if (accounts && accounts.length > 0) {
+            peraWallet.connector?.on("disconnect", DisconnectWallet);
+            localStorage.setItem("accountAddress", accounts[0]);
+            localStorage.setItem("walletSelection", "pera");
+        }
+    } catch {
+    }
 }
 export function algoHandleDisconnectWallet(event: any) {
     event.preventDefault();
@@ -270,7 +277,7 @@ export async function algoSetWebsite(website: string): Promise<boolean> {
     await algoSubmitTxn(txn);
     return true;
 }
-export async function setAlgoPost(text: string): Promise<boolean> {
+export async function algoSubmitPost(text: string): Promise<boolean> {
     if (text == "" || text == null) return false;
     let address = GetAddress()!;
     let payload = YP.post(text);
@@ -359,6 +366,9 @@ export async function algoUnfollowUser(toAddress: string, toBlockchain: string):
 
 // ---------- Helper Functions ------------ //
 const algoCreatePostTxn = async function(destination: string, payload: string): Promise<any> {
+    if (!algoInitialized) {
+        await initAlgoWallet();
+    }
     await ReconnectWallet();
     try {
         let encoder = new TextEncoder();
@@ -372,24 +382,45 @@ const algoCreatePostTxn = async function(destination: string, payload: string): 
             note: note,
         });
         const singleTxnGroups = [{txn: txn, signers: [GetAddress()!]}];
+        if (!peraWallet.isConnected) {
+            try {
+                await peraWallet.reconnectSession();
+            } catch (e) {
+                await peraWallet.connect();
+            }
+        }
         let signedTxn = null;
         try {
+            ShowDialogModalHTML(
+                '<div style="text-align: center;">' +
+                '<img src="/static/image/pera-small.png" alt="Pera Wallet" style="width: 64px; height: 64px; margin-bottom: 16px;">' +
+                '<p>Open your Pera Wallet to sign the transaction</p>' +
+                '</div>'
+            );
             signedTxn = await peraWallet.signTransaction([singleTxnGroups]);
+            HideDialogModal();
             return signedTxn;
         } catch (error) {
-            console.log("Couldn't sign or submit enrollment transaction: ", error);
+            HideDialogModal();
+            LogError("algoCreatePostTxn: Couldn't sign transaction: " + error);
             return;
         }
     } catch (error) {
-        console.log("algoCreatePostTxn() error: ", error);
+        LogError("algoCreatePostTxn() error: " + error);
         return;
     }
 }
-const algoSubmitTxn = async function (txn: any): Promise<any> {
+const algoSubmitTxn = async function (txn: any): Promise<string> {
+    if (!algoInitialized) {
+        await initAlgoWallet();
+    }
     try {
-        await algod.sendRawTransaction(txn).do();
+        let response = await algod.sendRawTransaction(txn).do();
+        LogInfo("algoSubmitTxn: Transaction submitted, txID: " + response.txid);
+        return response.txid;
     } catch (error) {
-        console.log("algoSubmitTxn() error: ", error);
+        LogError("algoSubmitTxn() error: " + error);
+        return "";
     }
 }
 
