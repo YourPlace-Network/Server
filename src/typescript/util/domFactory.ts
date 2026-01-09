@@ -161,7 +161,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     let unixpostdate = postData.timestamp;
     let postdatevalue = new Date(unixpostdate * 1000).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true});
     let walletAddressLink = WalletGetYourPlaceAddressLink(postData.address);
-    let walletTxLink = WalletGetExplorerTxLink(postData.txHash);
+    let walletTxLink = WalletGetExplorerTxLink(postData.txHash, postData.blockchain);
 
     // adding attributes to elements
     postDiv.classList.add("postCard");

@@ -252,7 +252,7 @@ declare global { // Extend the window interface with public objects
         async function renderProfileAddress(address: string) {
             let truncatedAddress = truncateAddress(address);
             let sanitizedAddress = XSSSanitizeValue(address);
-            let explorerLink = XSSSanitizeUrl(WalletGetExplorerAddressLink(address));
+            let explorerLink = XSSSanitizeUrl(WalletGetExplorerAddressLink(address, DOM.injectedBlockchain.value));
             if (DOM.profileAddressFull.value !== sanitizedAddress) {
                 DOM.profileAddressFull.value = sanitizedAddress;
             }

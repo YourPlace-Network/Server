@@ -344,22 +344,22 @@ export async function WalletGetDescription(chain?: string, address?: string): Pr
     }
     return null;
 }
-export function WalletGetExplorerAddressLink(address: string) {
-    let chain = GetChain();
+export function WalletGetExplorerAddressLink(address: string, blockchain?: string) {
+    let chain = blockchain || GetChain();
     if (chain == "algorand") {
-        return `https://explorer.perawallet.app/address/${address}`;
+        return `https://allo.info/account/${address}`;
     } else if (chain == "base") {
         return mainnetBase.explorerUrl + "/address/" + address;
     }
     return "";
 }
-export function WalletGetExplorerTxLink(tx: string) {
+export function WalletGetExplorerTxLink(tx: string, blockchain?: string) {
     if (tx == "") {
         return "";
     }
-    let chain = GetChain();
+    let chain = blockchain || GetChain();
     if (chain == "algorand") {
-        return `https://explorer.perawallet.app/tx/${tx}`;
+        return `https://allo.info/tx/${tx}`;
     } else if (chain == "base") {
         return mainnetBase.explorerUrl + "/tx/" + tx;
     }
