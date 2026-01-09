@@ -11,6 +11,12 @@ export function IsValidBlockchain(chain: string): boolean {
 export function IsValidAlgoAddress(address: string): boolean {
     return isValidAddress(address);
 }
+export function NormalizeAddress(address: string, blockchain: string): string {
+    if (blockchain === "algorand") {
+        return address.toUpperCase();
+    }
+    return address;
+}
 export function IsValidBaseAddress(address: string): boolean {
     return isAddress(address);
 }

@@ -523,8 +523,8 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 		return
 	}
 	txHash := strings.ToLower(txID)
-	fromAddr := strings.ToLower(fromAddress)
-	_ = strings.ToLower(toAddress)
+	fromAddr := strings.ToUpper(fromAddress)
+	_ = strings.ToUpper(toAddress)
 	parentTxHash := ""
 	actionPrefix := actionCode[0]
 	actionPostfix := actionCode[1:]

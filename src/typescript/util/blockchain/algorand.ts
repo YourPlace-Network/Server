@@ -22,10 +22,8 @@ const nfdAddressCache = new PersistentCache("algo_nfd_address");
 const nfdAvatarCache = new PersistentCache("algo_nfd_avatar");
 const TESTNET_GENESIS_ID = 'testnet-v1.0';
 const TESTNET_GENESIS_HASH_STRING = 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=';
-const TESTNET_GENESIS_HASH = new Uint8Array(Buffer.from(TESTNET_GENESIS_HASH_STRING));
 const MAINNET_GENESIS_ID = 'mainnet-v1.0';
 const MAINNET_GENESIS_HASH_STRING = 'wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=';
-const MAINNET_GENESIS_HASH = new Uint8Array(Buffer.from(MAINNET_GENESIS_HASH_STRING));
 
 // ---------- Initialization Functions ---------- //
 async function initAlgoWallet() {
@@ -143,7 +141,6 @@ export async function algoAuthLogin(address: string): Promise<string> {
     const nonce = response[1].nonce;
     const domain = response[1].domain;
     const issuedAt = response[1].issuedAt;
-    LogInfo("SIWA Login - Nonce: " + nonce);
     const addressUpper = address.toUpperCase();
     const siwaMessage = new SiwaMessage({
         domain: domain,
@@ -156,7 +153,6 @@ export async function algoAuthLogin(address: string): Promise<string> {
         issuedAt: issuedAt,
     });
     const messageToSign = siwaMessage.prepareMessage();
-    LogInfo("SIWA Message: " + messageToSign);
     let signedTxn: Uint8Array[];
     try {
         const suggestedParams = await algod.getTransactionParams().do();
@@ -195,12 +191,6 @@ export async function algoAuthLogin(address: string): Promise<string> {
         LogError("SIWA Login Error: " + JSON.stringify(loginResponse[1]));
         return "";
     }
-}
-export async function algoEnrollRequest() {
-    let address = GetAddress()!;
-    let payload = YP.enroll(address);
-    let txn = await algoCreatePostTxn(address, payload);
-    await algoSubmitTxn(txn);
 }
 
 // ---------- Getters ---------- //
@@ -539,6 +529,7 @@ export async function algoGetNfdAddress(nfdName: string): Promise<string> {
     return "";
 }
 export async function algoGetAvatar(address: string): Promise<string> {
+    address = address.toUpperCase();
     if (!IsValidAlgoAddress(address)) {
         return "";
     }

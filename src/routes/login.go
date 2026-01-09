@@ -26,6 +26,16 @@ type TxnLoginNonce struct {
 	Domain     string `json:"domain" binding:"required"`
 	Expiration string `json:"expiration" binding:"required"`
 }
+type SiwaMessageParsed struct {
+	Address   string
+	Domain    string
+	Nonce     string
+	Statement string
+	URI       string
+	Version   string
+	ChainID   string
+	IssuedAt  string
+}
 
 func LoginRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, domain string, port int, installed bool, gateway bool) {
 	var expectedDomain string
@@ -297,26 +307,6 @@ func GenerateLoginNonce(database *db.Database, domain string) (string, error) {
 	database.AuthUpdateLoginNonce(nonceObj.Nonce, domain, expirationTimestamp, nonceHash)
 	return nonceHash, nil
 }
-func parseSignature(sigHex string) ([]byte, error) {
-	sigHex = strings.TrimPrefix(sigHex, "0x")
-	sigBytes, err := hex.DecodeString(sigHex)
-	if err != nil {
-		return nil, err
-	}
-	return sigBytes, nil
-}
-
-type SiwaMessageParsed struct {
-	Address   string
-	Domain    string
-	Nonce     string
-	Statement string
-	URI       string
-	Version   string
-	ChainID   string
-	IssuedAt  string
-}
-
 func ParseSiwaMessage(message string) (*SiwaMessageParsed, error) {
 	parsed := &SiwaMessageParsed{}
 	lines := strings.Split(message, "\n")
@@ -351,7 +341,6 @@ func ParseSiwaMessage(message string) (*SiwaMessageParsed, error) {
 	}
 	return parsed, nil
 }
-
 func VerifySiwaTransaction(encodedTransaction string, signatureBase64 string, address string, expectedMessage string) bool {
 	txnBytes, err := base64.StdEncoding.DecodeString(encodedTransaction)
 	if err != nil {
