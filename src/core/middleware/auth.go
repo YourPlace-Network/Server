@@ -25,6 +25,7 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/faq", "GET"},                                                                              // FAQ page
 	{"/notification", "GET"},                                                                     // Notification page
 	{"/robots.txt", "GET"},                                                                       // Robots direction
+	{"/rpc/base", "POST"},                                                                        // Public RPC proxy endpoint
 	{"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"}, // Database snapshot endpoints
 	{"/settings/ipfs/port", "GET"},                           // IPFS settings
 	{"/settings/base", "GET"}, {"/settings/base/url", "GET"}, // Base settings
