@@ -5,7 +5,32 @@ for the application. This code is stateful using localstorage to keep a few valu
     "accountAddress" = wallet address of the user
 */
 import {Transaction} from "algosdk";
-import {algoAuthLogin, algoConnectWallet, algoDisconnectWallet, algoGetAvatar, algoGetName, algoGetNfdAddress, algoReconnectSession, algoSetName, peraWallet, setAlgoAvatar, setAlgoPost} from "./algorand";
+import {
+    algoAuthLogin,
+    algoConnectWallet,
+    algoDisconnectWallet,
+    algoFollowUser,
+    algoGetAvatar,
+    algoGetName,
+    algoGetNfdAddress,
+    algoReconnectSession,
+    algoSetBanner,
+    algoSetDescription,
+    algoSetLocation,
+    algoSetName,
+    algoSetVertical,
+    algoSetWebsite,
+    algoSubmitComment,
+    algoSubmitCommentAttach,
+    algoSubmitDislike,
+    algoSubmitEmojiReaction,
+    algoSubmitLike,
+    algoUnfollowUser,
+    peraWallet,
+    setAlgoAvatar,
+    setAlgoPost,
+    setAlgoPostAttach,
+} from "./algorand";
 import {
     baseAuthLogin,
     baseConnectWallet,
@@ -404,7 +429,7 @@ export async function WalletSetBanner(bannerURL: string): Promise<boolean> {
         case "localwalletethereum":
             return !!await localWalletEthereumSetBanner(bannerURL);
         case "pera":
-            break;
+            return await algoSetBanner(bannerURL);
     }
     return false;
 }
@@ -416,7 +441,7 @@ export async function WalletSetDescription(description: string): Promise<boolean
         case "localwalletethereum":
             return !!await localWalletEthereumSetDescription(description);
         case "pera":
-            break;
+            return await algoSetDescription(description);
     }
     return false;
 }
@@ -428,7 +453,7 @@ export async function WalletSetLocation(location: string): Promise<boolean> {
         case "localwalletethereum":
             return !!await localWalletEthereumSetLocation(location);
         case "pera":
-            break;
+            return await algoSetLocation(location);
     }
     return false;
 }
@@ -440,7 +465,7 @@ export async function WalletSetVertical(vertical: string): Promise<boolean> {
         case "localwalletethereum":
             return !!await localWalletEthereumSetVertical(vertical);
         case "pera":
-            break;
+            return await algoSetVertical(vertical);
     }
     return false;
 }
@@ -452,7 +477,7 @@ export async function WalletSetWebsite(website: string): Promise<boolean> {
         case "localwalletethereum":
             return !!await localWalletEthereumSetWebsite(website);
         case "pera":
-            break;
+            return await algoSetWebsite(website);
     }
     return false;
 }
@@ -514,8 +539,7 @@ export async function WalletSubmitPostAttach(payload: string, attach: string[][]
             await localWalletEthereumSubmitPostAttach(payload, attach);
             return true;
         case "pera":
-            //await setAlgoPostAttach(payload, attach);
-            return true;
+            return await setAlgoPostAttach(payload, attach);
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;
@@ -540,9 +564,7 @@ export async function WalletSubmitComment(parentTxHash: string, payload: string)
             await localWalletEthereumSubmitComment(parentTxHash, payload);
             return true;
         case "pera":
-            // TODO: Implement Algorand comment submission via Pera wallet
-            ShowDialogModal("Commenting is not yet supported for Algorand wallets. This feature is coming soon!");
-            return false;
+            return await algoSubmitComment(parentTxHash, payload);
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;
@@ -567,9 +589,7 @@ export async function WalletSubmitCommentAttach(parentTxHash: string, payload: s
             await localWalletEthereumSubmitCommentAttach(parentTxHash, payload, attach);
             return true;
         case "pera":
-            // TODO: Implement Algorand comment attachment submission via Pera wallet
-            ShowDialogModal("Commenting is not yet supported for Algorand wallets. This feature is coming soon!");
-            return false;
+            return await algoSubmitCommentAttach(parentTxHash, payload, attach);
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;
@@ -594,7 +614,7 @@ export async function WalletSubmitLike(targetTxHash: string, targetType: string)
             await localWalletEthereumSubmitLike(targetTxHash, targetType);
             return true;
         case "pera":
-            return true;
+            return await algoSubmitLike(targetTxHash, targetType);
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;
@@ -619,7 +639,7 @@ export async function WalletSubmitDislike(targetTxHash: string, targetType: stri
             await localWalletEthereumSubmitDislike(targetTxHash, targetType);
             return true;
         case "pera":
-            return true;
+            return await algoSubmitDislike(targetTxHash, targetType);
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;
@@ -644,7 +664,7 @@ export async function WalletSubmitEmojiReaction(targetTxHash: string, targetType
             await localWalletEthereumSubmitEmojiReaction(targetTxHash, targetType, emoji);
             return true;
         case "pera":
-            return true;
+            return await algoSubmitEmojiReaction(targetTxHash, targetType, emoji);
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;
@@ -698,7 +718,7 @@ export async function WalletFollowUser(toAddress: string, toBlockchain: string):
             }
             break;
         case "pera":
-            break;
+            return await algoFollowUser(toAddress, toBlockchain);
     }
     return "";
 }
@@ -723,7 +743,7 @@ export async function WalletUnfollowUser(toAddress: string, toBlockchain: string
             }
             break;
         case "pera":
-            break;
+            return await algoUnfollowUser(toAddress, toBlockchain);
     }
     return "";
 }

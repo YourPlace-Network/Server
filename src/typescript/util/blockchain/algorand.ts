@@ -217,12 +217,144 @@ export async function setAlgoAvatar(avatarURL: string): Promise<any> {
     await algoSubmitTxn(txn);
 }
 export async function algoSetName(name: string): Promise<boolean> {
-
-    return false;
-}
-export async function setAlgoPost(text: string) {
-    if (text == "" || text == null) return;
+    if (name == "" || name == null) return false;
     let address = GetAddress()!;
+    let payload = YP.metadataName(name);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSetBanner(bannerURL: string): Promise<boolean> {
+    if (bannerURL == "" || bannerURL == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.metadataBanner(bannerURL);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSetDescription(description: string): Promise<boolean> {
+    if (description == "" || description == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.metadataDescription(description);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSetLocation(location: string): Promise<boolean> {
+    if (location == "" || location == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.metadataLocation(location);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSetVertical(vertical: string): Promise<boolean> {
+    if (vertical == "" || vertical == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.metadataVertical(vertical);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSetWebsite(website: string): Promise<boolean> {
+    if (website == "" || website == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.metadataWebsite(website);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function setAlgoPost(text: string): Promise<boolean> {
+    if (text == "" || text == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.post(text);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function setAlgoPostAttach(text: string, attachments: string[][]): Promise<boolean> {
+    if (text == "" || text == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.postAttach(text, attachments);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSubmitComment(parentTxHash: string, text: string): Promise<boolean> {
+    if (text == "" || text == null) return false;
+    if (parentTxHash == "" || parentTxHash == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.comment(parentTxHash, text);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSubmitCommentAttach(parentTxHash: string, text: string, attachments: string[][]): Promise<boolean> {
+    if (text == "" || text == null) return false;
+    if (parentTxHash == "" || parentTxHash == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.commentAttach(parentTxHash, text, attachments);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSubmitLike(targetTxHash: string, targetType: string): Promise<boolean> {
+    if (targetTxHash == "" || targetTxHash == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.like(targetTxHash, targetType);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSubmitDislike(targetTxHash: string, targetType: string): Promise<boolean> {
+    if (targetTxHash == "" || targetTxHash == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.dislike(targetTxHash, targetType);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSubmitEmojiReaction(targetTxHash: string, targetType: string, emoji: string): Promise<boolean> {
+    if (targetTxHash == "" || targetTxHash == null) return false;
+    if (emoji == "" || emoji == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.emojiReact(targetTxHash, targetType, emoji);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoFollowUser(toAddress: string, toBlockchain: string): Promise<string> {
+    if (toAddress == "" || toAddress == null) return "";
+    if (toBlockchain == "" || toBlockchain == null) return "";
+    let address = GetAddress()!;
+    let payload = YP.follow(toAddress, toBlockchain);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return "";
+    await algoSubmitTxn(txn);
+    return "success";
+}
+export async function algoUnfollowUser(toAddress: string, toBlockchain: string): Promise<string> {
+    if (toAddress == "" || toAddress == null) return "";
+    if (toBlockchain == "" || toBlockchain == null) return "";
+    let address = GetAddress()!;
+    let payload = YP.unfollow(toAddress, toBlockchain);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return "";
+    await algoSubmitTxn(txn);
+    return "success";
 }
 
 // ---------- Helper Functions ------------ //
