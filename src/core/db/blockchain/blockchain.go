@@ -15,7 +15,7 @@ type Blockchain struct {
 }
 
 var DefaultBlockchainNodes = map[string][]string{
-	"algorand": {"https://mainnet-api.algonode.cloud", "58"},
+	"algorand": {"https://mainnet-api.algonode.cloud", "60"},
 	"base":     {"/rpc/base", "5"},
 }
 
