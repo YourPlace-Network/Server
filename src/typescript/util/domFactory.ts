@@ -7,7 +7,7 @@ import {CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented, Fetch
 import {ProcessPostContentForPreviews} from "../components/postPreviewCard";
 import {GetAddress} from "./blockchain/wallet";
 import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar} from "./blockchain/wallet";
-import {IsValidBlockchain, IsValidURL, NormalizeAddress, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
+import {IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL, getIpfsAvatarUrl} from "./ipfs";
 import {IsGatewayMode} from "./miscellaneous";
 import {getFileIcon, formatFileSize} from "./files";
@@ -121,7 +121,7 @@ async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLEl
     const addressInput = cardElement.querySelector('.postCardAddress, .profileCardAddressInput') as HTMLInputElement;
     if (blockchainInput && addressInput) {
         const blockchain = blockchainInput.value;
-        const address = NormalizeAddress(addressInput.value, blockchain);
+        const address = addressInput.value;
         if (blockchain && address && IsValidAddress(address, blockchain)) {
             try {
                 let avatarUrl: string | null = null;
@@ -178,7 +178,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     if (postData.resultType != "profile post" && IsValidBlockchain(postData.blockchain) && IsValidAddress(postData.address, postData.blockchain)) { // makes a post card avatar a clickable link to its authors profile
         avatarDiv.classList.add("clickable");
         avatarDiv.addEventListener("click", () => {
-            window.location.href = "/p/" + postData.blockchain + "/" + NormalizeAddress(postData.address, postData.blockchain);
+            window.location.href = "/p/" + postData.blockchain + "/" + postData.address;
         });
     }
     avatarImg.classList.add("postCardAvatar");
@@ -563,7 +563,7 @@ export async function CreateProfileCard (profileData: any): Promise<HTMLDivEleme
     profileDiv.classList.add("clickable");
     profileDiv.classList.add("profileCard");
     profileDiv.addEventListener("click", () => {
-        window.location.href = "/p/" + profileData.blockchain + "/" + NormalizeAddress(profileData.address, profileData.blockchain);
+        window.location.href = "/p/" + profileData.blockchain + "/" + profileData.address;
     });
     avatarDiv.classList.add("profileCardAvatar");
     avatarImg.classList.add("profileCardAvatar");

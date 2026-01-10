@@ -529,7 +529,6 @@ export async function algoGetNfdAddress(nfdName: string): Promise<string> {
     return "";
 }
 export async function algoGetAvatar(address: string): Promise<string> {
-    address = address.toUpperCase();
     if (!IsValidAlgoAddress(address)) {
         return "";
     }

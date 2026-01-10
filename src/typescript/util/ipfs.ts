@@ -1,5 +1,5 @@
 import {CID} from "multiformats/cid";
-import {IsValidIpfsCid, IsValidURL, NormalizeAddress} from "./security";
+import {IsValidIpfsCid, IsValidURL} from "./security";
 import {HttpGetJson, HttpPostJson} from "./network";
 import {LogError, LogInfo} from "./log";
 import {IsGatewayMode} from "./miscellaneous";
@@ -264,8 +264,7 @@ export async function checkIPFSContentExists(cid: string, timeoutMs: number = 30
 /* --- IPFS Avatar Caching --- */
 export async function getIpfsAvatarUrl(blockchain: string, address: string): Promise<string | null> {
     try {
-        const normalizedAddress = NormalizeAddress(address, blockchain);
-        const response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + normalizedAddress);
+        const response = await HttpGetJson("/profile/avatar/" + blockchain + "/" + address);
         if (response[0] === 200 && response[1] && response[1].avatarAddress) {
             const avatarCid = response[1].avatarAddress.trim();
             if (avatarCid.length > 0) {
