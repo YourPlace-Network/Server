@@ -851,7 +851,6 @@ var mentalHealthTips = []string{
 	"List out the top 5 news sources you trust - and be honest with yourself here. If they are all rated as biased towards one political viewpoint, then you know where you stand",
 	"If you're visiting a country that values modesty, politeness and respectfulness - then you better act right or they might throw you in jail",
 	"Making fun of a disabled person makes you the bad guy. Laughing at or encouraging that behavior makes you just as bad",
-	"Propaganda purposefully doesn't want you to have a balanced perspective on life and world events. Whenever something is \"the worst/best thing to ever happen\" then you know someone's trying to play you - and every politician does this",
 	"Are you leaders pushing for real reform, or are they talking about irrelevant side-topics?",
 	"Generosity can become an overindulgence. If you start taking and borrowing money that you don't have, then generosity can become a vice",
 	"It's much easier to find people who are wrong about everything, than to find one's who are right about everything",
