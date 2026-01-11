@@ -1,3 +1,11 @@
 {{define "footer"}}<footer>
-    <span><span id="footerText">Copyright © <script>document.write(/\d{4}/.exec(Date())[0])</script> YourPlace, Inc.</span> | <a href="https://yourplace.network" id="footerLink"><u>YourPlace.Network</u></a> | <span id="footerSocials"><a href="https://app.yourplace.network/p/yourplace.base.eth"><img class="profileFooterImg" src="/static/image/yourplace-logo.svg" alt="YourPlace Profile"></a><a href="https://x.com/YourPlace_Inc" target="_blank"><img class="profileFooterImg hoverInvert" src="/static/image/x.svg" alt="X Profile"></a></span></span>
+    <span>
+        <span id="footerText">Copyright © <script>document.write(/\d{4}/.exec(Date())[0])</script> YourPlace, Inc.</span><span class="footerPipe">|</span>
+        <a href="https://yourplace.network" id="footerLink"><u>YourPlace.Network</u></a><span class="footerPipe">|</span>
+        <span id="footerSocials">
+            <a href="https://app.yourplace.network/p/yourplace.base.eth" target="_blank"><img class="profileFooterImg" src="/static/image/yourplace-logo.svg" alt="YourPlace Profile"></a>
+            <a href="https://github.com/YourPlace-Network" target="_blank"><img class="profileFooterImg footerInvert" src="/static/image/github.svg" alt="Github Profile" style="width:13px;height:13px;"></a>
+            <a href="https://x.com/YourPlace_Inc" target="_blank"><img class="profileFooterImg footerInvert" src="/static/image/x.svg" alt="X Profile"></a>
+        </span>
+    </span>
 </footer>{{end}}

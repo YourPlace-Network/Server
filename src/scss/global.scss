@@ -160,6 +160,11 @@ footer {
     margin: 0;
   }
 }
+.footerPipe {
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  color: $text;
+}
 .profileFooterImg {
   width: 15px;
   height: 15px;
@@ -168,11 +173,8 @@ footer {
     scale: 1.3;
   }
 }
-.hoverInvert {
-  transition: filter 0.2s ease-in-out;
-  &:hover {
-    filter: invert(1);
-  }
+.footerInvert {
+  filter: invert(1);
 }
 
 @keyframes rotate {
