@@ -136,6 +136,6 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - In the makefile targets, only use underscores and not hyphens for multi-word commands. For example, use `make gateway_reset` instead of `make gateway-reset`.
 - In Typescript code, keep dom elements defined in the DOM = {} data structure at the top of the file, before any functions. It should be a declaration and initialization of the DOM data structure and its values, in the same step, and near the top of the execution order (usually in the "main" or "init" method of the code).
 - Always look at similar code files in the same directory for styling queues. Consider things like naming conventions, spacing, new-lines, ordering of functions, compactness, frugalness, security consciousness and more. Try to match the existing style of the code in that directory as closely as possible.
-- For each code change you want to make, give a short but detailed explanation of the changes you're proposing before making the change
+- For each code change you want to make or file you want to update update, give a short but detailed explanation of the changes you're proposing to allow the developer to understand the changes as you go
 - Bias against making global changes. For example: bias away from modifying global.scss and instead target the styling to the object and code file more tightly
 

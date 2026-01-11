@@ -8,7 +8,6 @@ import (
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -1006,7 +1005,6 @@ func algoWorkerThread(uuid string, rateLimiter *rate.Limiter, algo *Algorand, ba
 		if !populated {
 			emptyRetries++
 			if emptyRetries >= maxEmptyRetries {
-				core.LogDebug("[Algo] Worker exiting after " + strconv.Itoa(maxEmptyRetries) + " empty queue retries")
 				return nil
 			}
 			time.Sleep(500 * time.Millisecond)
@@ -1015,9 +1013,6 @@ func algoWorkerThread(uuid string, rateLimiter *rate.Limiter, algo *Algorand, ba
 		emptyRetries = 0
 		batchArray := batch.([]big.Int)
 		_batchSize := len(batchArray)
-		if _batchSize > 0 {
-			core.LogDebug("[Algo] Processing batch starting at block " + batchArray[0].String())
-		}
 		algoRateLimiterMutex.Lock()
 		for i := 0; i < _batchSize; i++ {
 			err := rateLimiter.Wait(context.Background())
@@ -1232,13 +1227,4 @@ func AlgoIndexerCatchUpAll(database *db.Database) (bool, string) {
 		return
 	}()
 	return true, "Indexer catch-up started successfully."
-}
-
-// Helper to decode base64 note field
-func decodeAlgoNote(noteB64 string) string {
-	decoded, err := base64.StdEncoding.DecodeString(noteB64)
-	if err != nil {
-		return ""
-	}
-	return string(decoded)
 }

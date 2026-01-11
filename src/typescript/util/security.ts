@@ -11,6 +11,12 @@ export function IsValidBlockchain(chain: string): boolean {
 export function IsValidAlgoAddress(address: string): boolean {
     return isValidAddress(address);
 }
+export function IsValidAlgoTxId(txId: string): boolean {
+    if (txId.length !== 52) {
+        return false;
+    }
+    return /^[A-Z2-7]{52}$/i.test(txId);
+}
 export function IsValidBaseAddress(address: string): boolean {
     return isAddress(address);
 }

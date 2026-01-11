@@ -7,7 +7,7 @@ import {preloadTinyMCE} from "../components/addPost";
 import "../components/menu";
 import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
 import {HttpGetJson} from "../util/network";
-import {XSSSanitizeUrl} from "../util/security";
+import {IsValidAlgoAddress, IsValidAlgoTxId, XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {baseGetEnsAddress} from "../util/blockchain/base";
 import {algoGetNfdAddress} from "../util/blockchain/algorand";
@@ -283,6 +283,7 @@ import {CreateXcomPostCard} from "../util/domFactory";
                 DOM.discoverSection.style.display = "block";
                 return;
             }
+            let algoQuery = query.trim();
             DOM.resultsDiv.style.display = "block";
             let spinnerDiv = document.createElement("div");
             spinnerDiv.className = "search-spinner-container";
@@ -307,10 +308,15 @@ import {CreateXcomPostCard} from "../util/domFactory";
             if (!nfdQuery.endsWith(".algo")) {
                 nfdQuery = nfdQuery + ".algo";
             }
-            const [resp, ensAddress, nfdAddress] = await Promise.all([
+            let algoTxIdPostPromise: Promise<[number, any]> | null = null;
+            if (IsValidAlgoTxId(algoQuery)) {
+                algoTxIdPostPromise = HttpGetJson("/post/data/algorand/" + algoQuery);
+            }
+            const [resp, ensAddress, nfdAddress, algoTxIdResp] = await Promise.all([
                 HttpGetJson("/s/?q=" + query),
                 baseGetEnsAddress(ensQuery),
-                algoGetNfdAddress(nfdQuery)
+                algoGetNfdAddress(nfdQuery),
+                algoTxIdPostPromise
             ]);
             DOM.resultsDiv.replaceChildren();
             let results: any[] = [];
@@ -318,6 +324,14 @@ import {CreateXcomPostCard} from "../util/domFactory";
                 results = resp[1].results;
             } else if (resp[0] !== 200) {
                 console.error("Search failed with status:", resp[0], "Response:", resp[1]);
+            }
+            if (algoTxIdResp && algoTxIdResp[0] === 200 && algoTxIdResp[1] && algoTxIdResp[1].post) {
+                let post = algoTxIdResp[1].post;
+                post.resultType = "post";
+                results.unshift(post);
+            }
+            if (IsValidAlgoAddress(algoQuery)) {
+                results.unshift({resultType: "profile", blockchain: "algorand", address: algoQuery});
             }
             if (nfdAddress && nfdAddress !== "") {
                 results.unshift({resultType: "profile", blockchain: "algorand", address: nfdAddress});
@@ -513,19 +527,5 @@ import {CreateXcomPostCard} from "../util/domFactory";
                 loadFollowersFeed("refresh").then();
             }
         }, 60000); // Auto-refresh feed every 60 seconds to fetch new posts
-        if (IsGatewayMode()) {
-            // Show gateway mode download prompt
-            /*const dismissedKey = "gatewayDownloadDismissed";
-            const dismissed = localStorage.getItem(dismissedKey);
-            if (!dismissed) {
-                ShowDialogModalHTML(
-                    `<h5>Welcome to YourPlace</h5>
-                    <p>This page is just for viewing content. To unlock every YourPlace feature, download it here:</p><br>
-                    <p class="text-center"><a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer"><button class="btn btn-primary" id="downloadBtn">💾 Download</button></a></p><br>
-                    <p>You may dismiss this message and continue using the application.</p>`,
-                );
-                localStorage.setItem(dismissedKey, "true");
-            }*/
-        }
     }
 })();
