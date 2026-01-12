@@ -201,7 +201,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     postAuthorLink.classList.add("postCardAuthorLink");
     postAuthorLink.href = XSSSanitizeUrl(walletAddressLink);
     postAuthor.classList.add("postCardAuthor");
-    postAuthor.textContent = postData.author;
+    postAuthor.textContent = postData.author || "Anonymous";
     postDate.classList.add("postCardDate");
     postDate.textContent = postdatevalue;
     ellipsesDiv.classList.add("postCardEllipsesDiv");
