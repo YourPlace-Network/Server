@@ -138,4 +138,5 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - Always look at similar code files in the same directory for styling queues. Consider things like naming conventions, spacing, new-lines, ordering of functions, compactness, frugalness, security consciousness and more. Try to match the existing style of the code in that directory as closely as possible.
 - For each code change you want to make or file you want to update update, give a short but detailed explanation of the changes you're proposing to allow the developer to understand the changes as you go
 - Bias against making global changes. For example: bias away from modifying global.scss and instead target the styling to the object and code file more tightly
+- For profile colors, it should only change colors for the specific user's profile page, their profile and post cards, and any other obvious controls on their profile page (login button color, addPost button color, footer link color, scrollTop control color, menu button color) Other important UI controls should not be re-colored (menu background and text colors, any other pages outside a profile page)
 
