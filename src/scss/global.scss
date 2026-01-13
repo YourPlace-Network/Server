@@ -80,10 +80,17 @@ body {
   overflow-y: scroll;
   padding-right: 0 !important;
 }
-a {
+#topContainer a {
   color: var(--yp-link) !important;
 }
-a:hover {
+#topContainer a:hover {
+  color: var(--yp-link) !important;
+  filter: brightness(1.2);
+}
+footer a {
+  color: var(--yp-link) !important;
+}
+footer a:hover {
   color: var(--yp-link) !important;
   filter: brightness(1.2);
 }
