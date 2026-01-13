@@ -17,6 +17,12 @@ export let YP = {
         }
         return `yp/1/mb:${JSON.stringify(payload)}`
     },
+    metadataColors: function(colors: Record<string, string>): string {
+        const payload = {
+            c: colors
+        }
+        return `yp/1/mc:${JSON.stringify(payload)}`
+    },
     metadataDescription: function(description: string): string {
         const payload = {
             d: description

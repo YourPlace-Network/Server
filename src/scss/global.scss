@@ -15,6 +15,20 @@ $colors: (
         "link": #3A7FD1,
 );
 
+:root {
+        --yp-danger: #{map.get($colors, "danger")};
+        --yp-dark: #{map.get($colors, "dark")};
+        --yp-light: #{map.get($colors, "light")};
+        --yp-link: #{map.get($colors, "link")};
+        --yp-primary: #{map.get($colors, "primary")};
+        --yp-quaternary: #{map.get($colors, "quaternary")};
+        --yp-secondary: #{map.get($colors, "secondary")};
+        --yp-success: #{map.get($colors, "success")};
+        --yp-tertiary: #{map.get($colors, "tertiary")};
+        --yp-text: #{map.get($colors, "text")};
+        --yp-warning: #{map.get($colors, "warning")};
+}
+
 /* Bootstrap Global Colors */
 $body-bg: map.get($colors, "tertiary");
 $body-color: map.get($colors, "text");

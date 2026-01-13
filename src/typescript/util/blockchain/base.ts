@@ -343,6 +343,10 @@ export async function baseSetBanner(bannerAddress: string) {
     let jsonData = YP.metadataBanner(bannerAddress);
     return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
+export async function baseSetColors(colors: Record<string, string>) {
+    let jsonData = YP.metadataColors(colors);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
 export async function baseSetDescription(description: string) {
     let jsonData = YP.metadataDescription(description);
     return await baseTxn(mainnetBase.burnAddress, jsonData);

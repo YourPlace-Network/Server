@@ -509,6 +509,15 @@ func IsValidHex(payload string) bool {
 	}
 	return true
 }
+func IsValidHexColor(payload string) bool {
+	if len(payload) != 7 {
+		return false
+	}
+	if payload[0] != '#' {
+		return false
+	}
+	return RegexMatch("^#[0-9A-Fa-f]{6}$", payload)
+}
 func IsValidBase64(payload string) bool {
 	if len(payload) == 0 {
 		return false

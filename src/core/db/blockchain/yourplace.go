@@ -45,6 +45,23 @@ func isValidBurnAddress(blockchain string, toAddress string) bool {
 	}
 	return false
 }
+func validateProfileColors(colorsMap map[string]interface{}) map[string]string {
+	allowedColorKeys := []string{
+		"danger", "dark", "light", "link", "primary",
+		"quaternary", "secondary", "success", "tertiary", "text", "warning",
+	}
+	validColors := make(map[string]string)
+	for _, key := range allowedColorKeys {
+		if val, exists := colorsMap[key]; exists {
+			if colorStr, ok := val.(string); ok {
+				if security.IsValidHexColor(colorStr) {
+					validColors[key] = colorStr
+				}
+			}
+		}
+	}
+	return validColors
+}
 func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]interface{}, timestamp uint64, blockNumber uint64) {
 	// Pattern-based tokenization and database storage of YourPlace transactions
 	data := transaction["input"].(string)[2:]
@@ -232,6 +249,26 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 				bannerStr = security.SanitizeNonPrintable(bannerStr)
 				if security.IsValidURL(bannerStr) || security.IsValidCID(bannerStr) {
 					_Database.OnchainMB(blockchain, fromAddress, bannerStr, timestamp)
+				}
+				break
+			case "c":
+				colorsRaw, ok1 := payloadObject["c"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required colors field")
+					break
+				}
+				colorsMap, ok2 := colorsRaw.(map[string]interface{})
+				if !ok2 {
+					core.LogDebug("Metadata action colors field is not an object")
+					break
+				}
+				validColors := validateProfileColors(colorsMap)
+				if len(validColors) > 0 {
+					colorsJSON, err := json.Marshal(validColors)
+					if err != nil {
+						break
+					}
+					_Database.OnchainMC(blockchain, fromAddress, string(colorsJSON), timestamp)
 				}
 				break
 			case "v":

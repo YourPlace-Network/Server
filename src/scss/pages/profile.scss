@@ -31,9 +31,9 @@
   top: -5em;
   float: left;
   object-fit: contain;
-  background-color: global.$tertiary;
+  background-color: var(--yp-tertiary);
   border-radius: 1em;
-  border: 2px solid global.$secondary;
+  border: 2px solid var(--yp-secondary);
 }
 #profileNavDiv {
   height: 75px;
@@ -51,7 +51,7 @@
   z-index: 100;
 }
 #addressLink {
-  color: map.get(global.$colors, "text");
+  color: var(--yp-text);
   text-decoration: none;
 }
 #addressLink:hover {
@@ -144,11 +144,11 @@
   flex-wrap: nowrap;
 }
 #profileLink {
-  color: map.get(global.$colors, "text");
+  color: var(--yp-text);
   text-decoration: none;
 }
 #profileWebsite {
-  color: map.get(global.$colors, "text");
+  color: var(--yp-text);
 }
 #profileWebsite:hover {
     text-decoration: underline;
@@ -219,25 +219,25 @@
   justify-content: center;
   padding: 2rem;
   text-align: center;
-  color: map.get(global.$colors, "text");
-  background-color: map.get(global.$colors, "secondary");
+  color: var(--yp-text);
+  background-color: var(--yp-secondary);
   border-radius: 1rem;
 }
 .placeHolderIconDiv {
-  background-color: map.get(global.$colors, "secondary");
+  background-color: var(--yp-secondary);
 }
 #placeHolderIcon {
   font-size: 3rem;
-  color: map.get(global.$colors, "quaternary");
+  color: var(--yp-quaternary);
 }
 #emptyContentDivPlaceHolder h3 {
   margin-bottom: 0.5rem;
-  color: map.get(global.$colors, "text");
+  color: var(--yp-text);
 }
 #emptyContentDivPlaceHolder p {
   margin: 0;
   font-size: 1.1rem;
-  color: map.get(global.$colors, "text");
+  color: var(--yp-text);
 }
 // -------Edit Profile -------- //
 .editInput,
@@ -250,7 +250,7 @@ input[type="file"] {
   display: none;
 }
 .editLabel {
-  color: map.get(global.$colors, "primary");
+  color: var(--yp-primary);
 }
 #saveProfileBtn {
   float: right;

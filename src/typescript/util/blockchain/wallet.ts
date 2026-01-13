@@ -15,6 +15,7 @@ import {
     algoGetNfdAddress,
     algoReconnectSession,
     algoSetBanner,
+    algoSetColors,
     algoSetDescription,
     algoSetLocation,
     algoSetName,
@@ -41,6 +42,7 @@ import {
     baseGetName,
     baseSetAvatar,
     baseSetBanner,
+    baseSetColors,
     baseSetDescription,
     baseSetLocation,
     baseSetName,
@@ -66,6 +68,7 @@ import {
     localWalletEthereumReconnect,
     localWalletEthereumSetAvatar,
     localWalletEthereumSetBanner,
+    localWalletEthereumSetColors,
     localWalletEthereumSetDescription,
     localWalletEthereumSetLocation,
     localWalletEthereumSetName,
@@ -430,6 +433,21 @@ export async function WalletSetBanner(bannerURL: string): Promise<boolean> {
             return !!await localWalletEthereumSetBanner(bannerURL);
         case "pera":
             return await algoSetBanner(bannerURL);
+    }
+    return false;
+}
+export async function WalletSetColors(colors: Record<string, string>): Promise<boolean> {
+    if (!colors || Object.keys(colors).length === 0) {
+        return false;
+    }
+    let walletSelection = GetWallet()!;
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetColors(colors);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetColors(colors);
+        case "pera":
+            return await algoSetColors(colors);
     }
     return false;
 }

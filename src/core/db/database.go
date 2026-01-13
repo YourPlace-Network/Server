@@ -472,6 +472,14 @@ func (db *Database) OnchainMW(blockchain string, address string, website string,
 		db.sqlite.OnchainMW(blockchain, address, website, timestamp)
 	}
 }
+func (db *Database) OnchainMC(blockchain string, address string, colors string, timestamp uint64) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMC(blockchain, address, colors, timestamp)
+	case "sqlite":
+		db.sqlite.OnchainMC(blockchain, address, colors, timestamp)
+	}
+}
 func (db *Database) OnchainMD(blockchain string, address string, description string, timestamp uint64) {
 	switch db.Engine {
 	case "mysql":
@@ -611,6 +619,16 @@ func (db *Database) ProfileGetBanner(address string, blockchain string) string {
 		banner = db.sqlite.ProfileGetBanner(address, blockchain)
 	}
 	return banner
+}
+func (db *Database) ProfileGetColors(address string, blockchain string) string {
+	var colors string
+	switch db.Engine {
+	case "mysql":
+		colors = db.mysql.ProfileGetColors(address, blockchain)
+	case "sqlite":
+		colors = db.sqlite.ProfileGetColors(address, blockchain)
+	}
+	return colors
 }
 func (db *Database) ProfileGetDescription(address string, blockchain string) string {
 	var description string

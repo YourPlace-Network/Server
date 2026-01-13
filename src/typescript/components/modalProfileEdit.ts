@@ -2,7 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalProfileEdit.scss";
 import {LogError, LogInfo} from "../util/log";
 import {UploadFile} from "../util/files";
-import {WalletSetAvatar, WalletSetBanner, WalletSetDescription, WalletSetLocation, WalletSetName, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
+import {WalletSetAvatar, WalletSetBanner, WalletSetColors, WalletSetDescription, WalletSetLocation, WalletSetName, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
 import DOMPurify from "dompurify";
 import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
@@ -56,32 +56,40 @@ export async function showProfileEditModal() {
 
     function main() {
         let DOM = {
+            avatarLabel: document.querySelector('label[for="inputAvatar"]') as HTMLLabelElement,
             avatarPreview: document.getElementById("avatarPreview")! as HTMLImageElement,
-            profileBanner: document.getElementById("profileBanner")! as HTMLImageElement,
+            bannerLabel: document.querySelector('label[for="inputBanner"]') as HTMLLabelElement,
             bannerPreview: document.getElementById("bannerPreview")! as HTMLImageElement,
+            btnColorsReset: document.getElementById("btnColorsReset")! as HTMLButtonElement,
+            btnColorsSave: document.getElementById("btnColorsSave")! as HTMLButtonElement,
             btnDescriptionSave: document.getElementById("btnDescriptionSave")! as HTMLButtonElement,
             btnLocationSave: document.getElementById("btnLocationSave")! as HTMLButtonElement,
             btnUsernameSave: document.getElementById("btnUsernameSave")! as HTMLButtonElement,
             btnVerticalSave: document.getElementById("btnVerticalSave")! as HTMLButtonElement,
             btnWebsiteSave: document.getElementById("btnWebsiteSave")! as HTMLButtonElement,
+            colorLink: document.getElementById("colorLink")! as HTMLInputElement,
+            colorPrimary: document.getElementById("colorPrimary")! as HTMLInputElement,
+            colorQuaternary: document.getElementById("colorQuaternary")! as HTMLInputElement,
+            colorSecondary: document.getElementById("colorSecondary")! as HTMLInputElement,
+            colorTertiary: document.getElementById("colorTertiary")! as HTMLInputElement,
+            colorText: document.getElementById("colorText")! as HTMLInputElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
+            gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement,
+            injectedBlockchain: document.getElementById("injectedBlockchain") as HTMLInputElement,
             inputAvatar: document.getElementById("inputAvatar")! as HTMLInputElement,
             inputBanner: document.getElementById("inputBanner")! as HTMLInputElement,
             inputDescription: document.getElementById("inputDescription")! as HTMLTextAreaElement,
-            inputUsername: document.getElementById("inputUsername")! as HTMLInputElement,
             inputLocation: document.getElementById("inputLocation")! as HTMLInputElement,
+            inputUsername: document.getElementById("inputUsername")! as HTMLInputElement,
             inputVertical: document.getElementById("inputVertical")! as HTMLSelectElement,
             inputWebsite: document.getElementById("inputWebsite")! as HTMLInputElement,
-            profileAvatar: document.getElementById("profileAvatar")! as HTMLImageElement,
-            profileDescription: document.getElementById("profileDescription")! as HTMLDivElement,
-            profileName: document.getElementById("profileName")! as HTMLDivElement,
-            profileLocation: document.getElementById("profileLocation")! as HTMLDivElement,
-            profileWebsite: document.getElementById("profileWebsite")! as HTMLAnchorElement,
             modalProfileEdit: document.getElementById("modalProfileEdit")! as HTMLDivElement,
-            gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement,
-            injectedBlockchain: document.getElementById("injectedBlockchain") as HTMLInputElement,
-            avatarLabel: document.querySelector('label[for="inputAvatar"]') as HTMLLabelElement,
-            bannerLabel: document.querySelector('label[for="inputBanner"]') as HTMLLabelElement,
+            profileAvatar: document.getElementById("profileAvatar")! as HTMLImageElement,
+            profileBanner: document.getElementById("profileBanner")! as HTMLImageElement,
+            profileDescription: document.getElementById("profileDescription")! as HTMLDivElement,
+            profileLocation: document.getElementById("profileLocation")! as HTMLDivElement,
+            profileName: document.getElementById("profileName")! as HTMLDivElement,
+            profileWebsite: document.getElementById("profileWebsite")! as HTMLAnchorElement,
         }
         function getModalInstance() {
             return window.bootstrap.Modal.getInstance(DOM.modalProfileEdit) || new window.bootstrap.Modal(DOM.modalProfileEdit, {});
@@ -191,6 +199,58 @@ export async function showProfileEditModal() {
                 LogError("Failed to set website" + e);
             }
         }
+        const defaultColors: Record<string, string> = {
+            link: "#3A7FD1",
+            primary: "#525252",
+            quaternary: "#3A7FD1",
+            secondary: "#414141",
+            tertiary: "#313131",
+            text: "#D3D3D3",
+        };
+        const colorInputs = [
+            DOM.colorLink,
+            DOM.colorPrimary,
+            DOM.colorQuaternary,
+            DOM.colorSecondary,
+            DOM.colorTertiary,
+            DOM.colorText,
+        ];
+        function initColorPickers() {
+            for (const input of colorInputs) {
+                const key = input.dataset.colorKey;
+                if (!key) continue;
+                const cssValue = getComputedStyle(document.documentElement).getPropertyValue(`--yp-${key}`).trim();
+                if (cssValue && cssValue.startsWith("#")) {
+                    input.value = cssValue;
+                }
+            }
+        }
+        function updateColorPreview(key: string, value: string) {
+            document.documentElement.style.setProperty(`--yp-${key}`, value);
+        }
+        function resetColors() {
+            for (const input of colorInputs) {
+                const key = input.dataset.colorKey;
+                if (!key || !defaultColors[key]) continue;
+                input.value = defaultColors[key];
+                updateColorPreview(key, defaultColors[key]);
+            }
+        }
+        async function saveColors() {
+            const colors: Record<string, string> = {};
+            for (const input of colorInputs) {
+                const key = input.dataset.colorKey;
+                if (!key) continue;
+                colors[key] = input.value;
+            }
+            try {
+                let success = await WalletSetColors(colors);
+                if (success) hideModalAndShowToast();
+            } catch (e) {
+                LogError("Failed to save colors: " + e);
+            }
+        }
+        initColorPickers();
 
         if (DOM.avatarLabel) {
             DOM.avatarLabel.addEventListener("click", (e) => {
@@ -244,5 +304,13 @@ export async function showProfileEditModal() {
         DOM.btnLocationSave.addEventListener("click", updateLocation);
         DOM.btnVerticalSave.addEventListener("click", updateVertical);
         DOM.btnWebsiteSave.addEventListener("click", updateWebsite);
+        for (const input of colorInputs) {
+            input.addEventListener("input", () => {
+                const key = input.dataset.colorKey;
+                if (key) updateColorPreview(key, input.value);
+            });
+        }
+        DOM.btnColorsReset.addEventListener("click", resetColors);
+        DOM.btnColorsSave.addEventListener("click", saveColors);
     }
 })();

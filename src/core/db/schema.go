@@ -7,7 +7,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -25,6 +25,7 @@ type Migration struct {
 var migrations = []Migration{
 	{Version: 1, Description: "Initial schema - base tables created by createTables()", Up: migrateV1},
 	{Version: 2, Description: "Add comment and reaction tables for social interactions", Up: migrateV2},
+	{Version: 3, Description: "Add colors and colorsTimestamp columns to meta tables", Up: migrateV3},
 }
 
 // --- Migration Functions --- //
@@ -48,6 +49,22 @@ func migrateV2(db *SQLite) error {
 		if _, err := db.database.Exec(createStatement); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+func migrateV3(db *SQLite) error {
+	// Version 3 adds colors and colorsTimestamp columns to meta tables for profile theming
+	if err := db.migrateAddColumn("onchain_base_meta", "colors", "TEXT DEFAULT ''"); err != nil {
+		return err
+	}
+	if err := db.migrateAddColumn("onchain_base_meta", "colorsTimestamp", "INTEGER DEFAULT 0"); err != nil {
+		return err
+	}
+	if err := db.migrateAddColumn("onchain_algorand_meta", "colors", "TEXT DEFAULT ''"); err != nil {
+		return err
+	}
+	if err := db.migrateAddColumn("onchain_algorand_meta", "colorsTimestamp", "INTEGER DEFAULT 0"); err != nil {
+		return err
 	}
 	return nil
 }

@@ -39,3 +39,37 @@
   max-height: 200px;
   overflow-y: auto;
 }
+#profileColorsSection {
+  margin-top: 1em;
+  padding-top: 1em;
+  border-top: 1px solid var(--yp-secondary);
+}
+.color-actions {
+  display: flex;
+  gap: 0.5em;
+  justify-content: flex-end;
+  margin-top: 0.75em;
+}
+.color-picker-row {
+  align-items: center;
+  display: flex;
+  gap: 0.5em;
+  justify-content: space-between;
+  label {
+    font-size: 0.85em;
+    min-width: 70px;
+  }
+  input[type="color"] {
+    border: 1px solid var(--yp-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    height: 32px;
+    padding: 2px;
+    width: 50px;
+  }
+}
+.profile-colors-grid {
+  display: grid;
+  gap: 0.5em;
+  grid-template-columns: repeat(2, 1fr);
+}

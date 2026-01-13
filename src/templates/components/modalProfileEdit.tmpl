@@ -89,6 +89,40 @@
                     <button id="btnVerticalSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button"><i class="bi bi-save"></i></button>
                 </div>
 
+                <div id="profileColorsSection">
+                    <label class="editLabel">theme colors</label>
+                    <div class="profile-colors-grid">
+                        <div class="color-picker-row">
+                            <label for="colorPrimary">Primary</label>
+                            <input type="color" id="colorPrimary" data-color-key="primary" value="#525252">
+                        </div>
+                        <div class="color-picker-row">
+                            <label for="colorSecondary">Secondary</label>
+                            <input type="color" id="colorSecondary" data-color-key="secondary" value="#414141">
+                        </div>
+                        <div class="color-picker-row">
+                            <label for="colorTertiary">Tertiary</label>
+                            <input type="color" id="colorTertiary" data-color-key="tertiary" value="#313131">
+                        </div>
+                        <div class="color-picker-row">
+                            <label for="colorQuaternary">Accent</label>
+                            <input type="color" id="colorQuaternary" data-color-key="quaternary" value="#3A7FD1">
+                        </div>
+                        <div class="color-picker-row">
+                            <label for="colorText">Text</label>
+                            <input type="color" id="colorText" data-color-key="text" value="#D3D3D3">
+                        </div>
+                        <div class="color-picker-row">
+                            <label for="colorLink">Links</label>
+                            <input type="color" id="colorLink" data-color-key="link" value="#3A7FD1">
+                        </div>
+                    </div>
+                    <div class="color-actions">
+                        <button type="button" class="btn btn-secondary" id="btnColorsReset">Reset</button>
+                        <button type="button" class="btn" id="btnColorsSave">Save Colors</button>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>

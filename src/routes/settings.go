@@ -337,6 +337,209 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		snapshotPath := host.GetDataDir() + "yourplace.db.snapshot"
 		c.SecureJSON(http.StatusOK, gin.H{"snapshotDirectory": snapshotPath})
 	})
+	router.GET("/settings/services/algorand", func(c *gin.Context) {
+		algodURL := database.SettingsGetValue("algoURL")
+		if algodURL == "" {
+			algodURL = blockchain.DefaultBlockchainNodes["algorand"][0]
+		}
+		algodToken := database.SettingsGetValue("algodToken")
+		c.SecureJSON(http.StatusOK, gin.H{
+			"algodURL":   algodURL,
+			"algodToken": algodToken,
+		})
+	})
+	router.GET("/settings/services/xcom/settings", func(c *gin.Context) {
+		crossPostEnabled := database.SettingsGetValue("xcomCrossPostEnabled")
+		feedAggregationEnabled := database.SettingsGetValue("xcomFeedAggregationEnabled")
+		c.SecureJSON(http.StatusOK, gin.H{
+			"crossPostEnabled":       crossPostEnabled == "true",
+			"feedAggregationEnabled": feedAggregationEnabled == "true",
+		})
+	})
+	router.GET("/settings/services/xcom/credentials", func(c *gin.Context) {
+		apiKey := database.SettingsGetValue("xcomApiKey")
+		accessToken := database.SettingsGetValue("xcomAccessToken")
+		rateLimited := false
+		rateLimitRemaining := ""
+		rateLimitUntil := database.MetaGetValue("xcomRateLimitUntil")
+		if rateLimitUntil != "" {
+			rateLimitTime, err := time.Parse(time.RFC3339, rateLimitUntil)
+			if err == nil && time.Now().Before(rateLimitTime) {
+				rateLimited = true
+				rateLimitRemaining = time.Until(rateLimitTime).Round(time.Minute).String()
+			}
+		}
+		if apiKey == "" || accessToken == "" {
+			c.SecureJSON(http.StatusOK, gin.H{
+				"apiKey":             "",
+				"accessToken":        "",
+				"hasCredentials":     false,
+				"isValid":            false,
+				"rateLimited":        rateLimited,
+				"rateLimitRemaining": rateLimitRemaining,
+			})
+			return
+		}
+		apiSecret := host.GetSecret("xcomApiSecret")
+		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
+		hasCredentials := apiSecret != "" && accessTokenSecret != ""
+		isValid := database.SettingsGetValue("xcomCredentialsValid") == "true"
+		c.SecureJSON(http.StatusOK, gin.H{
+			"apiKey":             apiKey,
+			"accessToken":        accessToken,
+			"hasCredentials":     hasCredentials,
+			"isValid":            isValid,
+			"rateLimited":        rateLimited,
+			"rateLimitRemaining": rateLimitRemaining,
+		})
+	})
+	router.GET("/settings/services/xcom/test", func(c *gin.Context) {
+		rateLimitUntil := database.MetaGetValue("xcomRateLimitUntil")
+		if rateLimitUntil != "" {
+			rateLimitTime, err := time.Parse(time.RFC3339, rateLimitUntil)
+			if err == nil && time.Now().Before(rateLimitTime) {
+				remaining := time.Until(rateLimitTime).Round(time.Minute)
+				c.SecureJSON(http.StatusOK, gin.H{
+					"isValid":     false,
+					"rateLimited": true,
+					"status":      "X.com API rate limited. Please wait " + remaining.String() + " before testing again.",
+				})
+				return
+			}
+		}
+		apiKey := database.SettingsGetValue("xcomApiKey")
+		accessToken := database.SettingsGetValue("xcomAccessToken")
+		if apiKey == "" || accessToken == "" {
+			database.SettingsUpdateValue("xcomCredentialsValid", "false")
+			c.SecureJSON(http.StatusBadRequest, gin.H{"isValid": false, "status": "X.com credentials not configured"})
+			return
+		}
+		apiSecret := host.GetSecret("xcomApiSecret")
+		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
+		if apiSecret == "" || accessTokenSecret == "" {
+			database.SettingsUpdateValue("xcomCredentialsValid", "false")
+			c.SecureJSON(http.StatusBadRequest, gin.H{"isValid": false, "status": "X.com credentials not configured"})
+			return
+		}
+		isValid, statusCode := services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
+		if statusCode == 429 {
+			rateLimitExpiry := time.Now().Add(24 * time.Hour)
+			database.MetaUpdateValue("xcomRateLimitUntil", rateLimitExpiry.Format(time.RFC3339))
+			c.SecureJSON(http.StatusOK, gin.H{
+				"isValid":     false,
+				"rateLimited": true,
+				"status":      "X.com API rate limited. Testing disabled for 24 hours.",
+			})
+			return
+		}
+		database.MetaUpdateValue("xcomRateLimitUntil", "")
+		if isValid {
+			database.SettingsUpdateValue("xcomCredentialsValid", "true")
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": true, "status": "X.com credentials are valid"})
+		} else {
+			database.SettingsUpdateValue("xcomCredentialsValid", "false")
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "X.com credentials are invalid"})
+		}
+	})
+	router.GET("/settings/services/xcom/tier", func(c *gin.Context) {
+		apiKey := database.SettingsGetValue("xcomApiKey")
+		accessToken := database.SettingsGetValue("xcomAccessToken")
+		if apiKey == "" || accessToken == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"isFreeTier": true, "hasCredentials": false})
+			return
+		}
+		apiSecret := host.GetSecret("xcomApiSecret")
+		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
+		if apiSecret == "" || accessTokenSecret == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"isFreeTier": true, "hasCredentials": false})
+			return
+		}
+		isFreeTier := services.XcomIsFreeTier(apiKey, apiSecret, accessToken, accessTokenSecret)
+		c.SecureJSON(http.StatusOK, gin.H{"isFreeTier": isFreeTier, "hasCredentials": true})
+	})
+	router.GET("/settings/services/xcom/scrape/credentials", func(c *gin.Context) {
+		email := database.SettingsGetValue("xcomScrapeEmail")
+		username := database.SettingsGetValue("xcomScrapeUsername")
+		hasPassword := host.GetSecret("xcomScrapePassword") != ""
+		isValid := database.SettingsGetValue("xcomScrapeCredentialsValid") == "true"
+		c.SecureJSON(http.StatusOK, gin.H{
+			"email":       email,
+			"username":    username,
+			"hasPassword": hasPassword,
+			"isValid":     isValid,
+		})
+	})
+	router.GET("/settings/services/xcom/scrape/test", func(c *gin.Context) {
+		email := database.SettingsGetValue("xcomScrapeEmail")
+		username := database.SettingsGetValue("xcomScrapeUsername")
+		password := host.GetSecret("xcomScrapePassword")
+		if email == "" || username == "" || password == "" {
+			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "")
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "X.com scraping credentials not configured"})
+			return
+		}
+		cookies, err := services.LogInToTwitter(email, username, password)
+		if err != nil {
+			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "false")
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "Login failed: " + err.Error()})
+			return
+		}
+		if len(cookies) == 0 {
+			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "false")
+			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "Login failed: no cookies returned"})
+			return
+		}
+		database.SettingsUpdateValue("xcomScrapeCredentialsValid", "true")
+		c.SecureJSON(http.StatusOK, gin.H{"isValid": true})
+	})
+	router.GET("/settings/algorand/url", func(c *gin.Context) {
+		if gateway {
+			c.SecureJSON(http.StatusOK, gin.H{
+				"algoURL": blockchain.DefaultBlockchainNodes["algorand"][0],
+			})
+		} else {
+			algoURL := database.SettingsGetValue("algoURL")
+			c.SecureJSON(http.StatusOK, gin.H{
+				"algoURL": algoURL,
+			})
+		}
+	})
+	router.GET("/settings/algorand/throttle", func(c *gin.Context) {
+		algoURL := database.SettingsGetValue("algoURL")
+		isDefault := algoURL == "" || algoURL == blockchain.DefaultBlockchainNodes["algorand"][0]
+		var throttleInt int
+		if isDefault {
+			throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["algorand"][1])
+		} else {
+			throttle := database.SettingsGetValue("algoThrottle")
+			var err error
+			throttleInt, err = strconv.Atoi(throttle)
+			if err != nil {
+				throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["algorand"][1])
+			}
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"throttle":  throttleInt,
+			"isDefault": isDefault,
+		})
+	})
+	router.GET("/settings/algorand/indexerProgress", func(c *gin.Context) {
+		earliestBlock := _blockchain.GetEarliestBlock("algorand")
+		jobUUID := database.IndexerGetJobUUID("algorand")
+		tailBlock := database.IndexerGetTailBlock(jobUUID)
+		headBlock := database.IndexerGetHeadBlock(jobUUID)
+		latestBlock, err := _blockchain.GetLatestBlock("algorand")
+		if err != nil || latestBlock == big.NewInt(0) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Algorand latest block"})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"earliestBlock": earliestBlock,
+			"tailBlock":     tailBlock,
+			"headBlock":     headBlock,
+			"latestBlock":   latestBlock,
+		})
+	})
 
 	router.POST("/settings/uploadDirectory", func(c *gin.Context) {
 		type Payload struct {
@@ -466,55 +669,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			database.IndexerResetJobs("base")
 			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 		}
-	})
-	// --- Algorand Settings Routes --- //
-	router.GET("/settings/algorand/url", func(c *gin.Context) {
-		if gateway {
-			c.SecureJSON(http.StatusOK, gin.H{
-				"algoURL": blockchain.DefaultBlockchainNodes["algorand"][0],
-			})
-		} else {
-			algoURL := database.SettingsGetValue("algoURL")
-			c.SecureJSON(http.StatusOK, gin.H{
-				"algoURL": algoURL,
-			})
-		}
-	})
-	router.GET("/settings/algorand/throttle", func(c *gin.Context) {
-		algoURL := database.SettingsGetValue("algoURL")
-		isDefault := algoURL == "" || algoURL == blockchain.DefaultBlockchainNodes["algorand"][0]
-		var throttleInt int
-		if isDefault {
-			throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["algorand"][1])
-		} else {
-			throttle := database.SettingsGetValue("algoThrottle")
-			var err error
-			throttleInt, err = strconv.Atoi(throttle)
-			if err != nil {
-				throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["algorand"][1])
-			}
-		}
-		c.SecureJSON(http.StatusOK, gin.H{
-			"throttle":  throttleInt,
-			"isDefault": isDefault,
-		})
-	})
-	router.GET("/settings/algorand/indexerProgress", func(c *gin.Context) {
-		earliestBlock := _blockchain.GetEarliestBlock("algorand")
-		jobUUID := database.IndexerGetJobUUID("algorand")
-		tailBlock := database.IndexerGetTailBlock(jobUUID)
-		headBlock := database.IndexerGetHeadBlock(jobUUID)
-		latestBlock, err := _blockchain.GetLatestBlock("algorand")
-		if err != nil || latestBlock == big.NewInt(0) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Algorand latest block"})
-			return
-		}
-		c.SecureJSON(http.StatusOK, gin.H{
-			"earliestBlock": earliestBlock,
-			"tailBlock":     tailBlock,
-			"headBlock":     headBlock,
-			"latestBlock":   latestBlock,
-		})
 	})
 	router.POST("/settings/algorand/url", func(c *gin.Context) {
 		type Payload struct {
@@ -923,25 +1077,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "enabled": payload.Enabled})
 	})
-	router.GET("/settings/services/algorand", func(c *gin.Context) {
-		algodURL := database.SettingsGetValue("algoURL")
-		if algodURL == "" {
-			algodURL = blockchain.DefaultBlockchainNodes["algorand"][0]
-		}
-		algodToken := database.SettingsGetValue("algodToken")
-		c.SecureJSON(http.StatusOK, gin.H{
-			"algodURL":   algodURL,
-			"algodToken": algodToken,
-		})
-	})
-	router.GET("/settings/services/xcom/settings", func(c *gin.Context) {
-		crossPostEnabled := database.SettingsGetValue("xcomCrossPostEnabled")
-		feedAggregationEnabled := database.SettingsGetValue("xcomFeedAggregationEnabled")
-		c.SecureJSON(http.StatusOK, gin.H{
-			"crossPostEnabled":       crossPostEnabled == "true",
-			"feedAggregationEnabled": feedAggregationEnabled == "true",
-		})
-	})
 	router.POST("/settings/services/xcom/crosspost", func(c *gin.Context) {
 		type Payload struct {
 			Enabled bool `json:"enabled"`
@@ -975,91 +1110,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			database.SettingsUpdateValue("xcomFeedAggregationEnabled", "false")
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
-	})
-	router.GET("/settings/services/xcom/credentials", func(c *gin.Context) {
-		apiKey := database.SettingsGetValue("xcomApiKey")
-		accessToken := database.SettingsGetValue("xcomAccessToken")
-		rateLimited := false
-		rateLimitRemaining := ""
-		rateLimitUntil := database.MetaGetValue("xcomRateLimitUntil")
-		if rateLimitUntil != "" {
-			rateLimitTime, err := time.Parse(time.RFC3339, rateLimitUntil)
-			if err == nil && time.Now().Before(rateLimitTime) {
-				rateLimited = true
-				rateLimitRemaining = time.Until(rateLimitTime).Round(time.Minute).String()
-			}
-		}
-		if apiKey == "" || accessToken == "" {
-			c.SecureJSON(http.StatusOK, gin.H{
-				"apiKey":             "",
-				"accessToken":        "",
-				"hasCredentials":     false,
-				"isValid":            false,
-				"rateLimited":        rateLimited,
-				"rateLimitRemaining": rateLimitRemaining,
-			})
-			return
-		}
-		apiSecret := host.GetSecret("xcomApiSecret")
-		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
-		hasCredentials := apiSecret != "" && accessTokenSecret != ""
-		isValid := database.SettingsGetValue("xcomCredentialsValid") == "true"
-		c.SecureJSON(http.StatusOK, gin.H{
-			"apiKey":             apiKey,
-			"accessToken":        accessToken,
-			"hasCredentials":     hasCredentials,
-			"isValid":            isValid,
-			"rateLimited":        rateLimited,
-			"rateLimitRemaining": rateLimitRemaining,
-		})
-	})
-	router.GET("/settings/services/xcom/test", func(c *gin.Context) {
-		rateLimitUntil := database.MetaGetValue("xcomRateLimitUntil")
-		if rateLimitUntil != "" {
-			rateLimitTime, err := time.Parse(time.RFC3339, rateLimitUntil)
-			if err == nil && time.Now().Before(rateLimitTime) {
-				remaining := time.Until(rateLimitTime).Round(time.Minute)
-				c.SecureJSON(http.StatusOK, gin.H{
-					"isValid":     false,
-					"rateLimited": true,
-					"status":      "X.com API rate limited. Please wait " + remaining.String() + " before testing again.",
-				})
-				return
-			}
-		}
-		apiKey := database.SettingsGetValue("xcomApiKey")
-		accessToken := database.SettingsGetValue("xcomAccessToken")
-		if apiKey == "" || accessToken == "" {
-			database.SettingsUpdateValue("xcomCredentialsValid", "false")
-			c.SecureJSON(http.StatusBadRequest, gin.H{"isValid": false, "status": "X.com credentials not configured"})
-			return
-		}
-		apiSecret := host.GetSecret("xcomApiSecret")
-		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
-		if apiSecret == "" || accessTokenSecret == "" {
-			database.SettingsUpdateValue("xcomCredentialsValid", "false")
-			c.SecureJSON(http.StatusBadRequest, gin.H{"isValid": false, "status": "X.com credentials not configured"})
-			return
-		}
-		isValid, statusCode := services.XcomTestCredentials(apiKey, apiSecret, accessToken, accessTokenSecret)
-		if statusCode == 429 {
-			rateLimitExpiry := time.Now().Add(24 * time.Hour)
-			database.MetaUpdateValue("xcomRateLimitUntil", rateLimitExpiry.Format(time.RFC3339))
-			c.SecureJSON(http.StatusOK, gin.H{
-				"isValid":     false,
-				"rateLimited": true,
-				"status":      "X.com API rate limited. Testing disabled for 24 hours.",
-			})
-			return
-		}
-		database.MetaUpdateValue("xcomRateLimitUntil", "")
-		if isValid {
-			database.SettingsUpdateValue("xcomCredentialsValid", "true")
-			c.SecureJSON(http.StatusOK, gin.H{"isValid": true, "status": "X.com credentials are valid"})
-		} else {
-			database.SettingsUpdateValue("xcomCredentialsValid", "false")
-			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "X.com credentials are invalid"})
-		}
 	})
 	router.POST("/settings/services/xcom/credentials", func(c *gin.Context) {
 		type Payload struct {
@@ -1117,34 +1167,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		services.XcomClearUserCache()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com credentials removed"})
 	})
-	router.GET("/settings/services/xcom/tier", func(c *gin.Context) {
-		apiKey := database.SettingsGetValue("xcomApiKey")
-		accessToken := database.SettingsGetValue("xcomAccessToken")
-		if apiKey == "" || accessToken == "" {
-			c.SecureJSON(http.StatusOK, gin.H{"isFreeTier": true, "hasCredentials": false})
-			return
-		}
-		apiSecret := host.GetSecret("xcomApiSecret")
-		accessTokenSecret := host.GetSecret("xcomAccessTokenSecret")
-		if apiSecret == "" || accessTokenSecret == "" {
-			c.SecureJSON(http.StatusOK, gin.H{"isFreeTier": true, "hasCredentials": false})
-			return
-		}
-		isFreeTier := services.XcomIsFreeTier(apiKey, apiSecret, accessToken, accessTokenSecret)
-		c.SecureJSON(http.StatusOK, gin.H{"isFreeTier": isFreeTier, "hasCredentials": true})
-	})
-	router.GET("/settings/services/xcom/scrape/credentials", func(c *gin.Context) {
-		email := database.SettingsGetValue("xcomScrapeEmail")
-		username := database.SettingsGetValue("xcomScrapeUsername")
-		hasPassword := host.GetSecret("xcomScrapePassword") != ""
-		isValid := database.SettingsGetValue("xcomScrapeCredentialsValid") == "true"
-		c.SecureJSON(http.StatusOK, gin.H{
-			"email":       email,
-			"username":    username,
-			"hasPassword": hasPassword,
-			"isValid":     isValid,
-		})
-	})
 	router.POST("/settings/services/xcom/scrape/credentials", func(c *gin.Context) {
 		type Payload struct {
 			Email    string `json:"email" required:"true"`
@@ -1176,28 +1198,5 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		database.SettingsUpdateValue("xcomScrapeUsername", "")
 		database.SettingsUpdateValue("xcomScrapeCredentialsValid", "")
 		c.SecureJSON(http.StatusOK, gin.H{"status": "X.com scraping credentials removed"})
-	})
-	router.GET("/settings/services/xcom/scrape/test", func(c *gin.Context) {
-		email := database.SettingsGetValue("xcomScrapeEmail")
-		username := database.SettingsGetValue("xcomScrapeUsername")
-		password := host.GetSecret("xcomScrapePassword")
-		if email == "" || username == "" || password == "" {
-			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "")
-			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "X.com scraping credentials not configured"})
-			return
-		}
-		cookies, err := services.LogInToTwitter(email, username, password)
-		if err != nil {
-			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "false")
-			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "Login failed: " + err.Error()})
-			return
-		}
-		if len(cookies) == 0 {
-			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "false")
-			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "Login failed: no cookies returned"})
-			return
-		}
-		database.SettingsUpdateValue("xcomScrapeCredentialsValid", "true")
-		c.SecureJSON(http.StatusOK, gin.H{"isValid": true})
 	})
 }

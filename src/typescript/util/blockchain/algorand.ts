@@ -231,6 +231,15 @@ export async function algoSetBanner(bannerURL: string): Promise<boolean> {
     await algoSubmitTxn(txn);
     return true;
 }
+export async function algoSetColors(colors: Record<string, string>): Promise<boolean> {
+    if (!colors || Object.keys(colors).length === 0) return false;
+    let address = GetAddress()!;
+    let payload = YP.metadataColors(colors);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
 export async function algoSetDescription(description: string): Promise<boolean> {
     if (description == "" || description == null) return false;
     let address = GetAddress()!;

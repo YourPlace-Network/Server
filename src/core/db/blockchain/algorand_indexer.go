@@ -672,6 +672,23 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				if security.IsValidURL(bannerStr) || security.IsValidCID(bannerStr) {
 					_AlgoDatabase.OnchainMB(blockchain, fromAddr, bannerStr, timestamp)
 				}
+			case "c":
+				colorsRaw, ok1 := payloadObject["c"]
+				if !ok1 {
+					return
+				}
+				colorsMap, ok2 := colorsRaw.(map[string]interface{})
+				if !ok2 {
+					return
+				}
+				validColors := validateProfileColors(colorsMap)
+				if len(validColors) > 0 {
+					colorsJSON, err := json.Marshal(validColors)
+					if err != nil {
+						return
+					}
+					_AlgoDatabase.OnchainMC(blockchain, fromAddr, string(colorsJSON), timestamp)
+				}
 			case "v":
 				vertical, ok1 := payloadObject["v"]
 				if !ok1 {

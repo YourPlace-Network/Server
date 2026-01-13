@@ -6,6 +6,7 @@ import (
 	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -92,6 +93,11 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 				profileAvatar = ensAvatar
 			}
 		}*/
+		profileColorsJSON := database.ProfileGetColors(addressParam, blockchainParam)
+		var profileColors map[string]string
+		if profileColorsJSON != "" {
+			json.Unmarshal([]byte(profileColorsJSON), &profileColors)
+		}
 		displayName := profileName
 		if displayName == "" {
 			displayName = addressParam[:6] + "..." + addressParam[len(addressParam)-4:]
@@ -112,6 +118,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"ogDescription":         profileDescription,
 			"ogImage":               profileAvatar,
 			"ogType":                "profile",
+			"profileColors":         profileColors,
 		}
 		c.HTML(http.StatusOK, "src/templates/pages/profile.tmpl", responseJson)
 	})
@@ -336,5 +343,26 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		isFollower := database.ProfileIsFollower(toAddress, toBlockchain, fromAddress, fromBlockchain)
 		c.SecureJSON(http.StatusOK, gin.H{"isFollower": isFollower})
+	})
+	router.GET("/profile/colors/:blockchain/:address", func(c *gin.Context) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
+			return
+		}
+		address := c.Param("address")
+		if !security.IsValidAddress(address, blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
+			return
+		}
+		colorsJSON := database.ProfileGetColors(address, blockchainParam)
+		var colors map[string]string
+		if colorsJSON != "" {
+			json.Unmarshal([]byte(colorsJSON), &colors)
+		}
+		if colors == nil {
+			colors = make(map[string]string)
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"colors": colors})
 	})
 }

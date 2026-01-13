@@ -1,4 +1,11 @@
 {{template "header" .}}
+{{if .profileColors}}
+<style id="profile-custom-colors">
+:root {
+{{range $key, $value := .profileColors}}    --yp-{{$key}}: {{$value}};
+{{end}}}
+</style>
+{{end}}
 <body class="body">
 {{template "htmlMenu" .}}
 {{template "modalDialog" .}}

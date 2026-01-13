@@ -329,6 +329,10 @@ export async function localWalletEthereumSetBanner(bannerAddress: string): Promi
     const jsonData = YP.metadataBanner(bannerAddress);
     return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
 }
+export async function localWalletEthereumSetColors(colors: Record<string, string>): Promise<string | undefined> {
+    const jsonData = YP.metadataColors(colors);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
 export async function localWalletEthereumSetDescription(description: string): Promise<string | undefined> {
     const jsonData = YP.metadataDescription(description);
     return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
