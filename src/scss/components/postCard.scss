@@ -104,6 +104,11 @@
     cursor: pointer;
   }
 }
+.postCardTextDiv img {
+  width: -webkit-fill-available;
+  max-height: 100em;
+  border-radius: 1em;
+}
 .postCardEllipsesDiv {
   margin-left: auto;
   margin-top: -0.5em;
