@@ -11,7 +11,7 @@
   position: fixed;
   bottom: 1em;
   right: 1em;
-  background: map.get(global.$colors, "quaternary");
+  background: var(--yp-quaternary);
   -moz-border-radius: 4em;
   -webkit-border-radius: 4em;
   border-radius: 4em;

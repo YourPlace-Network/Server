@@ -5,8 +5,8 @@
   position: fixed;
   left: 1em;
   bottom: .2em;
-  border-right: 20px solid map-get(global.$colors, "quaternary");
-  border-bottom: 20px solid map-get(global.$colors, "quaternary");
+  border-right: 20px solid var(--yp-quaternary);
+  border-bottom: 20px solid var(--yp-quaternary);
   width: 3em;
   height: 3em;
   transform: rotate(-135deg);
