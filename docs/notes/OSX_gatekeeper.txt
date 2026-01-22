@@ -1,0 +1,8 @@
+1) Move YourPlace.app to the /Applications folder if it is not already there
+
+2) Prompt the user to run the command
+codesign --force --deep -s - /Applications/YourPlace.app && xattr -rd com.apple.quarantine /Applications/YourPlace.app
+
+3) Open the app in the /Applications folder
+
+4) In a browser open http://127.0.0.1:42424 to access YourPlace

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -165,11 +166,20 @@ func EscapePath(path string) string {
 	escaped := strings.ReplaceAll(path, "/", "//")
 	return escaped
 }
-func OpenBrowser(url string) {
-	if !security.IsValidURL(url) {
+func OpenBrowser(openUrl string) {
+	parsed, err := url.Parse(openUrl)
+	if err != nil || parsed.Host == "" {
 		return
 	}
-	err := exec.Command("open", url).Start()
+	host := strings.Split(parsed.Host, ":")[0]
+	isLocalhost := host == "127.0.0.1" || host == "localhost"
+	if parsed.Scheme == "http" && !isLocalhost {
+		return
+	}
+	if parsed.Scheme != "http" && !security.IsValidURL(openUrl) {
+		return
+	}
+	err = exec.Command("open", openUrl).Start()
 	if err != nil {
 		return
 	}

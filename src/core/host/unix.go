@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	_os "os"
 	"os/exec"
 	"os/signal"
@@ -55,8 +56,20 @@ func Restart() {
 func InstallRunBaseNode() bool {
 	return false
 }
-func OpenBrowser(url string) {
-	exec.Command("xdg-open", url).Start()
+func OpenBrowser(openUrl string) {
+	parsed, err := url.Parse(openUrl)
+	if err != nil || parsed.Host == "" {
+		return
+	}
+	host := strings.Split(parsed.Host, ":")[0]
+	isLocalhost := host == "127.0.0.1" || host == "localhost"
+	if parsed.Scheme == "http" && !isLocalhost {
+		return
+	}
+	if parsed.Scheme != "http" && !security.IsValidURL(openUrl) {
+		return
+	}
+	exec.Command("xdg-open", openUrl).Start()
 }
 func CreateAutoStart() {
 	WriteEmbeddedBinary(systemdUnit, "/etc/systemd/system/yourplace.service")

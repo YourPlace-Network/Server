@@ -170,6 +170,7 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		"login_nonce":   "CREATE TABLE IF NOT EXISTS login_nonce (nonce VARCHAR(512) PRIMARY KEY, domain VARCHAR(255), expiration BIGINT, nonceHash VARCHAR(255))",
 		"meta":          "CREATE TABLE IF NOT EXISTS meta (`key` VARCHAR(255) PRIMARY KEY, value BLOB)",
 		"notifications": "CREATE TABLE IF NOT EXISTS notifications (uid VARCHAR(255) PRIMARY KEY, message TEXT, timestamp BIGINT DEFAULT 0)",
+		"oembed_cache":  "CREATE TABLE IF NOT EXISTS oembed_cache (url VARCHAR(512) PRIMARY KEY, data TEXT, fetchedAt BIGINT DEFAULT 0)",
 		"settings":      "CREATE TABLE IF NOT EXISTS settings (`key` VARCHAR(255) PRIMARY KEY, value BLOB)",
 		"wallets":       "CREATE TABLE IF NOT EXISTS wallets (publicKey VARCHAR(255), blockchain VARCHAR(255), address VARCHAR(255), encryptedPrivateKey BLOB, isDefault TINYINT DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
 		// Base-specific tables
@@ -1906,6 +1907,32 @@ func (db *MySQL) NotificationGetActive() []map[string]string {
 		notifications = append(notifications, map[string]string{"uid": uid, "message": message})
 	}
 	return notifications
+}
+
+// --- oEmbed Cache Functions --- //
+func (db *MySQL) OEmbedCacheGet(url string) (string, int64) {
+	rows, err := db.runParamSQLSelect("SELECT data, fetchedAt FROM oembed_cache WHERE url = ?", url)
+	if err != nil {
+		core.LogDebug("Could not get oEmbed cache: " + err.Error())
+		return "", 0
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var data string
+		var fetchedAt int64
+		if err := rows.Scan(&data, &fetchedAt); err != nil {
+			core.LogDebug("Could not scan oEmbed cache row: " + err.Error())
+			return "", 0
+		}
+		return data, fetchedAt
+	}
+	return "", 0
+}
+func (db *MySQL) OEmbedCacheSet(url string, data string) {
+	_, err := db.runParamSQLUpdate("INSERT INTO oembed_cache (url, data, fetchedAt) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data), fetchedAt = VALUES(fetchedAt)", url, data, core.GetTimestamp())
+	if err != nil {
+		core.LogDebug("Could not set oEmbed cache: " + err.Error())
+	}
 }
 
 // --- Snapshot Functions --- //

@@ -5,6 +5,7 @@ import {ShowAddCommentUI} from "../components/addComment";
 import {CreateCommentThread} from "../components/commentThread";
 import {CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented, FetchUserReaction} from "../components/postControls";
 import {ProcessPostContentForPreviews} from "../components/postPreviewCard";
+import {TwitterEmbed} from "../services/twitter";
 import {GetAddress} from "./blockchain/wallet";
 import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar} from "./blockchain/wallet";
 import {IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
@@ -460,6 +461,12 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
             const youtubeEmbed = createYoutubeEmbed(url);
             if (youtubeEmbed) {
                 embedDiv.appendChild(youtubeEmbed);
+                postText = postText.replace(url, "").trim();
+                continue;
+            }
+            const twitterEmbed = await TwitterEmbed(url);
+            if (twitterEmbed) {
+                embedDiv.appendChild(twitterEmbed);
                 postText = postText.replace(url, "").trim();
                 continue;
             }

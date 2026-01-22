@@ -7,7 +7,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 3
+const SchemaVersion = 4
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -26,6 +26,7 @@ var migrations = []Migration{
 	{Version: 1, Description: "Initial schema - base tables created by createTables()", Up: migrateV1},
 	{Version: 2, Description: "Add comment and reaction tables for social interactions", Up: migrateV2},
 	{Version: 3, Description: "Add colors and colorsTimestamp columns to meta tables", Up: migrateV3},
+	{Version: 4, Description: "Add oEmbed cache table for Twitter/X.com embeds", Up: migrateV4},
 }
 
 // --- Migration Functions --- //
@@ -67,6 +68,11 @@ func migrateV3(db *SQLite) error {
 		return err
 	}
 	return nil
+}
+func migrateV4(db *SQLite) error {
+	// Version 4 adds oEmbed cache table for Twitter/X.com embeds
+	_, err := db.database.Exec("CREATE TABLE IF NOT EXISTS oembed_cache (url TEXT PRIMARY KEY, data TEXT DEFAULT '', fetchedAt INTEGER DEFAULT 0)")
+	return err
 }
 
 // Example migration templates for future use:

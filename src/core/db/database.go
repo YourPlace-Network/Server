@@ -746,6 +746,25 @@ func (db *Database) NotificationGetActive() []map[string]string {
 	return nil
 }
 
+// --- oEmbed Cache Functions --- //
+func (db *Database) OEmbedCacheGet(url string) (string, int64) {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.OEmbedCacheGet(url)
+	case "sqlite":
+		return db.sqlite.OEmbedCacheGet(url)
+	}
+	return "", 0
+}
+func (db *Database) OEmbedCacheSet(url string, data string) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OEmbedCacheSet(url, data)
+	case "sqlite":
+		db.sqlite.OEmbedCacheSet(url, data)
+	}
+}
+
 // --- Snapshot Service Functions --- //
 func (db *Database) SnapshotSetDefaults() {
 	defaults := map[string]string{

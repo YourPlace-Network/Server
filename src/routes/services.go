@@ -4,9 +4,13 @@ import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
+	"YourPlace/src/core/network"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
+	"encoding/json"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -161,5 +165,42 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 			return
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"posts": posts})
+	})
+	router.GET("/services/twitter/oembed", func(c *gin.Context) {
+		tweetUrl := c.Query("url")
+		if tweetUrl == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "URL parameter required"})
+			return
+		}
+		tweetUrl = security.SanitizeNonPrintable(tweetUrl)
+		twitterUrlRegex := regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)`)
+		if !twitterUrlRegex.MatchString(tweetUrl) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid Twitter/X.com URL"})
+			return
+		}
+		cacheExpiry := int64(604800) // 7 days in seconds
+		cachedData, fetchedAt := database.OEmbedCacheGet(tweetUrl)
+		if cachedData != "" && (int64(core.GetTimestamp())-fetchedAt) < cacheExpiry {
+			var oembedData map[string]interface{}
+			if err := json.Unmarshal([]byte(cachedData), &oembedData); err == nil {
+				oembedData["cached"] = true
+				c.SecureJSON(http.StatusOK, oembedData)
+				return
+			}
+		}
+		oembedUrl := "https://publish.twitter.com/oembed?url=" + url.QueryEscape(tweetUrl)
+		var oembedResponse map[string]interface{}
+		err := network.HttpGetJson(oembedUrl, &oembedResponse)
+		if err != nil {
+			core.LogDebug("Failed to fetch Twitter oEmbed: " + err.Error())
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch oEmbed data"})
+			return
+		}
+		jsonData, err := json.Marshal(oembedResponse)
+		if err == nil {
+			database.OEmbedCacheSet(tweetUrl, string(jsonData))
+		}
+		oembedResponse["cached"] = false
+		c.SecureJSON(http.StatusOK, oembedResponse)
 	})
 }

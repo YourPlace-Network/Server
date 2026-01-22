@@ -19,6 +19,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/user"
@@ -261,11 +262,20 @@ func KillProcess(processName string) bool {
 	RunShellCommand("C:\\Windows\\system32\\taskkill.exe /F /T /IM " + processName)
 	return !DoesProcExist(processName)
 }
-func OpenBrowser(url string) {
-	if !security.IsValidURL(url) {
+func OpenBrowser(openUrl string) {
+	parsed, err := url.Parse(openUrl)
+	if err != nil || parsed.Host == "" {
 		return
 	}
-	RunShellCommandNoWait("start " + url)
+	host := strings.Split(parsed.Host, ":")[0]
+	isLocalhost := host == "127.0.0.1" || host == "localhost"
+	if parsed.Scheme == "http" && !isLocalhost {
+		return
+	}
+	if parsed.Scheme != "http" && !security.IsValidURL(openUrl) {
+		return
+	}
+	RunShellCommandNoWait("start " + openUrl)
 }
 func CreateMutex(name string) bool {
 	name = "Global\\" + name

@@ -14,26 +14,6 @@
   white-space: nowrap;
   vertical-align: bottom;
 }
-@media(max-width: 800px) {
-  .postCardAuthor {
-    max-width: 16em;
-  }
-}
-@media(max-width: 600px) {
-  .postCardAuthor {
-    max-width: 12em;
-  }
-}
-@media(max-width: 500px) {
-  .postCardAuthor {
-    max-width: 9em;
-  }
-}
-@media(max-width: 400px) {
-  .postCardAuthor {
-    max-width: 6em;
-  }
-}
 .postCardDate {
   font-size: .65em;
   opacity: 0.8;
@@ -52,13 +32,9 @@
   align-items: flex-start;
   border: 2px solid transparent;
   border-radius: 0.5em;
-  transition: border-color 0.2s ease;
 }
 .postCard:not(.shaded) {
   border: 2px solid var(--yp-secondary);
-}
-.postCard:hover {
-  border-color: var(--yp-quaternary);
 }
 .postCardAvatar {
   position: relative;
@@ -692,7 +668,15 @@ ul.ellipsesMenu {
   gap: 1em;
   font-size: 0.85em;
 }
+@media(max-width: 800px) {
+  .postCardAuthor {
+    max-width: 16em;
+  }
+}
 @media(max-width: 600px) {
+  .postCardAuthor {
+    max-width: 12em;
+  }
   .postControlsBar {
     margin-left: 0;
     gap: 1em;
@@ -702,5 +686,15 @@ ul.ellipsesMenu {
   }
   .commentThreadPreview {
     padding-left: 0.25em;
+  }
+}
+@media(max-width: 500px) {
+  .postCardAuthor {
+    max-width: 9em;
+  }
+}
+@media(max-width: 400px) {
+  .postCardAuthor {
+    max-width: 6em;
   }
 }

@@ -139,4 +139,5 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - For each code change you want to make or file you want to update update, give a short but detailed explanation of the changes you're proposing to allow the developer to understand the changes as you go
 - Bias against making global changes. For example: bias away from modifying global.scss and instead target the styling to the object and code file more tightly
 - For profile colors, it should only change colors for the specific user's profile page, their profile and post cards, and any other obvious controls on their profile page (login button color, addPost button color, footer link color, scrollTop control color, menu button color) Other important UI controls should not be re-colored (menu background and text colors, any other pages outside a profile page)
+- Database schema migrations need to happen across all supported databases, and ensure that the query syntax and responses is compatible with each respective database.
 

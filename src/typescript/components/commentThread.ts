@@ -4,6 +4,7 @@ import type { Comment } from "./addComment";
 import { ShowAddCommentUI } from "./addComment";
 import { CIDToSubdomainURL } from "../util/ipfs";
 import { IsValidURL, XSSSanitizeTextUrl, XSSSanitizeUrl } from "../util/security";
+import { isTwitterStatusUrl, TwitterEmbed } from "../services/twitter";
 import { formatTimestamp } from "../util/time";
 
 const MAX_INDENT_DEPTH = 4;
@@ -41,7 +42,7 @@ function createPaginationControls(container: HTMLElement, parentTxHash: string, 
     controls.appendChild(downArrow);
     return controls;
 }
-function createCommentElement(comment: Comment, depth: number, blockchain: string): HTMLDivElement {
+async function createCommentElement(comment: Comment, depth: number, blockchain: string): Promise<HTMLDivElement> {
     const commentDiv = document.createElement("div");
     commentDiv.classList.add("commentItem");
     commentDiv.dataset.address = comment.address;
@@ -101,6 +102,18 @@ function createCommentElement(comment: Comment, depth: number, blockchain: strin
     contentDiv.classList.add("commentContent");
     contentDiv.innerHTML = XSSSanitizeTextUrl(comment.payload);
     commentDiv.appendChild(contentDiv);
+    const urlRegex = /(https:\/\/[^\s"<>]+)/g;
+    const urls = comment.payload.match(urlRegex);
+    if (urls) {
+        for (const url of urls) {
+            if (isTwitterStatusUrl(url)) {
+                const twitterEmbed = await TwitterEmbed(url);
+                if (twitterEmbed) {
+                    commentDiv.appendChild(twitterEmbed);
+                }
+            }
+        }
+    }
     if (comment.attachments && comment.attachments.length > 0) {
         const attachmentDiv = document.createElement("div");
         attachmentDiv.classList.add("commentAttachments");
@@ -165,7 +178,7 @@ async function loadCommentsPage(container: HTMLElement, parentTxHash: string, bl
     }
     if (state.loading) return;
     if (page < state.pages.length) {
-        renderPage(container, parentTxHash, blockchain, depth, page);
+        await renderPage(container, parentTxHash, blockchain, depth, page);
         return;
     }
     if (!state.hasMore) return;
@@ -177,7 +190,7 @@ async function loadCommentsPage(container: HTMLElement, parentTxHash: string, bl
             const comments = response[1].comments as Comment[];
             state.pages.push(comments);
             state.hasMore = comments.length === PAGE_SIZE;
-            renderPage(container, parentTxHash, blockchain, depth, page);
+            await renderPage(container, parentTxHash, blockchain, depth, page);
         }
     } catch (e) {
         console.error("Failed to load comments:", e);
@@ -192,7 +205,7 @@ async function navigatePage(container: HTMLElement, parentTxHash: string, blockc
     if (newPage < 0) return;
     await loadCommentsPage(container, parentTxHash, blockchain, depth, newPage);
 }
-function renderPage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, page: number): void {
+async function renderPage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, page: number): Promise<void> {
     const state = paginationStates.get(container);
     if (!state || page >= state.pages.length) return;
     state.currentPage = page;
@@ -202,7 +215,7 @@ function renderPage(container: HTMLElement, parentTxHash: string, blockchain: st
     commentsContainer.innerHTML = "";
     const comments = state.pages[page];
     for (const comment of comments) {
-        const commentElement = createCommentElement(comment, depth, blockchain);
+        const commentElement = await createCommentElement(comment, depth, blockchain);
         commentsContainer.appendChild(commentElement);
     }
     if (paginationControls) {

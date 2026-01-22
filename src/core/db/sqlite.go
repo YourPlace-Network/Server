@@ -243,6 +243,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"login_nonce":   "CREATE TABLE IF NOT EXISTS login_nonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
 		"csrf_tokens":   "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
 		"notifications": "CREATE TABLE IF NOT EXISTS notifications (uid TEXT PRIMARY KEY, message TEXT, timestamp INTEGER DEFAULT 0)",
+		"oembed_cache":  "CREATE TABLE IF NOT EXISTS oembed_cache (url TEXT PRIMARY KEY, data TEXT DEFAULT '', fetchedAt INTEGER DEFAULT 0)",
 		"wallets":       "CREATE TABLE IF NOT EXISTS wallets (publicKey TEXT, blockchain TEXT, address TEXT, encryptedPrivateKey TEXT, isDefault INTEGER DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
 		// Base-specific tables
 		"base_indexer_jobs":     "CREATE TABLE IF NOT EXISTS base_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
@@ -2712,6 +2713,32 @@ func (db *SQLite) NotificationGetActive() []map[string]string {
 		notifications = append(notifications, map[string]string{"uid": uid, "message": message})
 	}
 	return notifications
+}
+
+// --- oEmbed Cache Functions --- //
+func (db *SQLite) OEmbedCacheGet(url string) (string, int64) {
+	rows, err := db.runParamSQLSelect("SELECT data, fetchedAt FROM oembed_cache WHERE url = ?", url)
+	if err != nil {
+		core.LogDebug("Could not get oEmbed cache: " + err.Error())
+		return "", 0
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var data string
+		var fetchedAt int64
+		if err := rows.Scan(&data, &fetchedAt); err != nil {
+			core.LogDebug("Could not scan oEmbed cache row: " + err.Error())
+			return "", 0
+		}
+		return data, fetchedAt
+	}
+	return "", 0
+}
+func (db *SQLite) OEmbedCacheSet(url string, data string) {
+	_, err := db.runParamSQLUpdate("INSERT OR REPLACE INTO oembed_cache (url, data, fetchedAt) VALUES (?, ?, ?)", url, data, core.GetTimestamp())
+	if err != nil {
+		core.LogDebug("Could not set oEmbed cache: " + err.Error())
+	}
 }
 
 // --- Snapshot Functions --- //
