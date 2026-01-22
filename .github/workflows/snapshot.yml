@@ -3,8 +3,7 @@ name: Snapshot Service
 on:
   workflow_dispatch:
   push:
-    branches:
-      - chad
+    branches: [ chad ]
     paths:
       - 'snapshot/**'
       - '.github/workflows/snapshot.yml'
