@@ -77,13 +77,20 @@
   position: relative;
   margin-left: 2.5em;
   height: 2.5em;
-  width: 5em;
+  width: 5.5em;
 }
 @media (max-width: 576px) {
   .menuItemDiv {
     font-size: 1.5em;
   }
+  .menuLoginText {
+    display: none;
+  }
   .menuMentalText {
     display: none;
+  }
+  #menuLoginBtn {
+    width: 2.5em;
+    margin-left: 3.5em;
   }
 }

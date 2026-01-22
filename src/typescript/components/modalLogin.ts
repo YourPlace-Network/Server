@@ -11,6 +11,7 @@ let DOM: {
     coinbaseWalletBtn: HTMLButtonElement;
     csrfToken: string;
     localWalletBtn: HTMLButtonElement;
+    localWalletDiv: HTMLDivElement;
     metaMaskWalletBtn: HTMLButtonElement;
     modalDialog: HTMLDivElement;
     modalDialogOkBtn: HTMLButtonElement;
@@ -30,10 +31,10 @@ export function HideModalLogin() {
 }
 export function ConfigureModalLoginForLocalWallet(hasLocalWallet: boolean) {
     if (hasLocalWallet) {
-        DOM.localWalletBtn.style.display = "flex";
+        DOM.localWalletDiv.style.display = "flex";
         DOM.noWalletBtn.style.display = "none";
     } else {
-        DOM.localWalletBtn.style.display = "none";
+        DOM.localWalletDiv.style.display = "none";
         DOM.noWalletBtn.style.display = "flex";
     }
 }
@@ -49,6 +50,7 @@ export function ConfigureModalLoginForLocalWallet(hasLocalWallet: boolean) {
             coinbaseWalletBtn: document.getElementById("coinbaseWalletBtn")! as HTMLButtonElement,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
             localWalletBtn: document.getElementById("localWalletBtn")! as HTMLButtonElement,
+            localWalletDiv: document.getElementById("localWalletDiv")! as HTMLDivElement,
             metaMaskWalletBtn: document.getElementById("metaMaskWalletBtn")! as HTMLButtonElement,
             modalDialog: document.getElementById("modalDialog")! as HTMLDivElement,
             modalDialogOkBtn: document.getElementsByClassName("yp-modal-btn")[0]! as HTMLButtonElement,

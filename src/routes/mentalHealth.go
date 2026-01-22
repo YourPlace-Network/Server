@@ -1119,4 +1119,5 @@ var mentalHealthTips = []string{
 	"Genius is almost always misunderstood because it's new thoughts and ways of being, that comes in infinitely many forms. When you do see it, take time to absorb it because it's a rare gift. Also observe the habits and ecosystems that genius curates",
 	"Do not allow your intelligence to be insulted by people who are playing stupid",
 	"If you share power in the right way, then you'll have the power",
+	"Recognize when things don't matter and won't effect you. It'll save you a lot of time. Few will tell you when that's the case, so you gotta figure it out",
 }

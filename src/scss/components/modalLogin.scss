@@ -23,7 +23,33 @@
   margin-left: 10px;
   margin-top: 10px;
 }
+#arrowToLocalWallet {
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 15px solid map-get(global.$colors, "success");
+  display: inline-block;
+  margin-left: 1.5em;
+  animation: bobbingLeft 1s ease-in-out infinite;
+}
 .-cbwsdk-snackbar {
   margin-top: 5em !important;
-  margin-right: calc( 50% - 120px) !important;
+  margin-right: calc(50% - 120px) !important;
+}
+#localWalletDiv {
+  align-items: center;
+}
+#noWalletHint {
+  color: map-get(global.$colors, "text");
+  font-size: 0.85em;
+  margin-left: 0.5em;
+}
+@keyframes bobbingLeft {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-10px);
+  }
 }

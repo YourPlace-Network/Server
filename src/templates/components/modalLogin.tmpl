@@ -3,10 +3,14 @@
         <div class="modal-content">
             <div class="modal-body">
                 <h5 id="modalLoginTitle">Choose Your Wallet</h5>
-                <button type="button" class="btn btn-primary btn-login-wallet" id="localWalletBtn" style="display: none;">
-                    <img class="wallet-logo yourplace-wallet-logo" src="/static/image/yourplace-logo.svg" alt="YourPlace Logo"/>
-                    <span>YourPlace Wallet</span>
-                </button>
+                <div id="localWalletDiv" style="display: none;">
+                    <button type="button" class="btn btn-primary btn-login-wallet" id="localWalletBtn">
+                        <img class="wallet-logo yourplace-wallet-logo" src="/static/image/yourplace-logo.svg" alt="YourPlace Logo"/>
+                        <span>YourPlace</span>
+                    </button>
+                    <div id="arrowToLocalWallet"></div>
+                    <span id="noWalletHint">"I don't have a wallet"</span>
+                </div>
                 <button type="button" class="btn btn-primary btn-login-wallet" id="noWalletBtn">
                     <img class="wallet-logo yourplace-wallet-logo" src="/static/image/yourplace-logo.svg" alt="YourPlace Logo"/>
                     <span>I don't have a wallet</span>
