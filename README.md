@@ -4,6 +4,9 @@
 
 <br><br>
 
+![Last Commit](https://img.shields.io/github/last-commit/YourPlace-Network/Server/chad)
+![Commit Activity](https://img.shields.io/github/commit-activity/w/YourPlace-Network/Server/chad)
+
 ![Windows Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/windows.yml?label=Windows%20Build)
 ![OSX Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/osx.yml?logo=Apple)
 ![Linux Build](https://img.shields.io/github/actions/workflow/status/YourPlace-Network/Server/ubuntu.yml?logo=Ubuntu)
