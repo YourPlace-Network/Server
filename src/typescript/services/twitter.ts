@@ -59,8 +59,6 @@ function createTwitterEmbedCard(data: TwitterOEmbedData, originalUrl: string): H
     const postAuthorLink = document.createElement("a");
     const postAuthor = document.createElement("b");
     const postUsername = document.createElement("span");
-    const xcomBadge = document.createElement("div");
-    const xcomIcon = document.createElement("img");
     const postTextDiv = document.createElement("div");
     postDiv.classList.add("postCard", "xcomPostCard");
     avatarDiv.classList.add("postCardAvatar", "clickable");
@@ -68,9 +66,7 @@ function createTwitterEmbedCard(data: TwitterOEmbedData, originalUrl: string): H
         window.open(XSSSanitizeUrl(data.author_url), "_blank");
     });
     avatarImg.classList.add("postCardAvatar");
-    avatarImg.crossOrigin = "anonymous";
-    avatarImg.referrerPolicy = "no-referrer";
-    avatarImg.src = "/static/image/avatar.png";
+    avatarImg.src = "/static/image/x.svg";
     postHeaderDiv.classList.add("postCardHeaderDiv");
     postAuthorLink.classList.add("postCardAuthorLink");
     postAuthorLink.href = XSSSanitizeUrl(originalUrl);
@@ -79,10 +75,6 @@ function createTwitterEmbedCard(data: TwitterOEmbedData, originalUrl: string): H
     postAuthor.textContent = XSSSanitizeValue(data.author_name || username);
     postUsername.classList.add("postCardUsername");
     postUsername.textContent = " @" + XSSSanitizeValue(username);
-    xcomBadge.classList.add("xcomBadge");
-    xcomBadge.title = "X.com post";
-    xcomIcon.src = "/static/image/x.svg";
-    xcomIcon.classList.add("xcomBadgeIcon");
     postTextDiv.classList.add("postCardTextDiv");
     postTextDiv.innerHTML = XSSSanitizeTextUrl(tweetText);
     avatarDiv.appendChild(avatarImg);
@@ -90,8 +82,6 @@ function createTwitterEmbedCard(data: TwitterOEmbedData, originalUrl: string): H
     postAuthorLink.appendChild(postAuthor);
     postAuthorLink.appendChild(postUsername);
     postHeaderDiv.appendChild(postAuthorLink);
-    xcomBadge.appendChild(xcomIcon);
-    postHeaderDiv.appendChild(xcomBadge);
     postDiv.appendChild(postHeaderDiv);
     postDiv.appendChild(postTextDiv);
     return postDiv;

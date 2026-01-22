@@ -523,9 +523,7 @@ export async function CreateXcomPostCard(postData: any): Promise<HTMLDivElement>
         window.open(`https://x.com/${postData.username}`, "_blank");
     });
     avatarImg.classList.add("postCardAvatar");
-    avatarImg.crossOrigin = "anonymous";
-    avatarImg.referrerPolicy = "no-referrer";
-    avatarImg.src = "/static/image/avatar.png";
+    avatarImg.src = "/static/image/x.svg";
     postHeaderDiv.classList.add("postCardHeaderDiv");
     postAuthorLink.classList.add("postCardAuthorLink");
     postAuthorLink.href = tweetUrl;
