@@ -230,6 +230,10 @@ ul.ellipsesMenu {
 }
 .xcomPostCard {
   border-left: 3px solid #000;
+  .postCardAvatar:hover {
+    filter: invert(1);
+    cursor: pointer;
+  }
 }
 .xcomBadge {
   margin-left: 0.5em;
