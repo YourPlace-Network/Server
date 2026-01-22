@@ -2,6 +2,13 @@ name: Snapshot Service
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - chad
+    paths:
+      - 'snapshot/**'
+      - '.github/workflows/snapshot.yml'
+      - 'src/core/db/**'
 
 env:
   AWS_REGION: us-east-1
