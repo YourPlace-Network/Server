@@ -229,10 +229,14 @@ ul.ellipsesMenu {
   }
 }
 .xcomPostCard {
-  border-left: 3px solid #000;
-  .postCardAvatar:hover {
-    filter: invert(1);
-    cursor: pointer;
+  .postCardAvatar {
+    width: 2.5em;
+    height: 2.5em;
+    background-color: white;
+  }
+  .postCardTextDiv {
+    padding-left: 3.6em;
+    padding-top: 0.5em;
   }
 }
 .xcomBadge {
