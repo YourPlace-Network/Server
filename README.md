@@ -23,7 +23,7 @@ YourPlace is a distributed social media platform that is designed to give comple
 ---
 
 [![Home Button]][Home]
-[![Install Button]][Install]
+[![Download Button]][Download]
 [![Whitepaper Button]][Whitepaper]
 [![FAQ Button]][FAQ]
 
@@ -36,11 +36,11 @@ YourPlace is a distributed social media platform that is designed to give comple
 </div>
 
 [Home]: https://yourplace.network
-[Install]: https://yourplace.network/download
+[Download]: https://yourplace.network/download
 [Whitepaper]: https://whitepaper.yourplace.network
 [FAQ]: https://yourplace.network/faq
 [Home Button]: https://img.shields.io/badge/Home-4A90E2?style=for-the-badge&logoColor=white
-[Install Button]: https://img.shields.io/badge/Install-5CB85C?style=for-the-badge&logoColor=white
+[Download Button]: https://img.shields.io/badge/Install-5CB85C?style=for-the-badge&logoColor=white
 [Whitepaper Button]: https://img.shields.io/badge/Whitepaper-9B59B6?style=for-the-badge&logoColor=white
 [FAQ Button]: https://img.shields.io/badge/FAQ-F0AD4E?style=for-the-badge&logoColor=white
 

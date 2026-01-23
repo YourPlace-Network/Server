@@ -6,8 +6,7 @@ on:
     branches: [ chad ]
     paths:
       - 'snapshot/**'
-      - '.github/workflows/snapshot.yml'
-      - 'src/core/db/**'
+      - 'src/core/db/blockchain/**'
 
 env:
   AWS_REGION: us-east-1

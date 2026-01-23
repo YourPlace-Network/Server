@@ -2,8 +2,10 @@ name: OSX
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ chad ]
+  release:
+    types: [ published ]
+#  push:
+#    branches: [ chad ]
 
 jobs:
   build:
