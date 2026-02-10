@@ -2,8 +2,8 @@ package main
 
 import (
 	"YourPlace/src/core"
+	blockchain2 "YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
-	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/host"
 	"context"
 	"flag"
@@ -65,11 +65,11 @@ func main() {
 	database.SettingsUpdateValue("baseThrottle", baseThrottle)
 	algoURL := host.GetEnvVar("ALGO_RPC_URL")
 	if algoURL == "" {
-		algoURL = blockchain.DefaultBlockchainNodes["algorand"][0]
+		algoURL = blockchain2.DefaultBlockchainNodes["algorand"][0]
 	}
 	algoThrottle := host.GetEnvVar("ALGO_RPC_THROTTLE")
 	if algoThrottle == "" {
-		algoThrottle = blockchain.DefaultBlockchainNodes["algorand"][1]
+		algoThrottle = blockchain2.DefaultBlockchainNodes["algorand"][1]
 	}
 	algoToken := host.GetEnvVar("ALGO_TOKEN")
 	database.SettingsUpdateValue("algoURL", algoURL)
@@ -77,16 +77,16 @@ func main() {
 	if algoToken != "" {
 		database.SettingsUpdateValue("algodToken", algoToken)
 	}
-	_blockchain := new(blockchain.Blockchain)
+	_blockchain := new(blockchain2.Blockchain)
 	_blockchain.Init(database)
 	c := _cron.New(_cron.WithSeconds())
-	blockchain.BaseIndexerRestartJobs(database, "base")
-	blockchain.AlgoIndexerRestartJobs(database, "algorand")
+	blockchain2.BaseIndexerRestartJobs(database, "base")
+	blockchain2.AlgoIndexerRestartJobs(database, "algorand")
 	c.AddFunc("@every 2m", func() {
-		if blockchain.BaseIndexerFetchData(database, _blockchain) {
+		if blockchain2.BaseIndexerFetchData(database, _blockchain) {
 			core.LogDebug("Starting Base indexer run")
 		}
-		if blockchain.AlgorandIndexerFetchData(database, _blockchain) {
+		if blockchain2.AlgorandIndexerFetchData(database, _blockchain) {
 			core.LogDebug("Starting Algorand indexer run")
 		}
 		runtime.GC()
@@ -98,7 +98,7 @@ func main() {
 	c.Start()
 	<-make(chan struct{})
 }
-func exportAlgorandSnapshot(database *db.Database, _blockchain *blockchain.Blockchain, snapshotDir string) {
+func exportAlgorandSnapshot(database *db.Database, _blockchain *blockchain2.Blockchain, snapshotDir string) {
 	progress := getAlgorandIndexerProgress(database, _blockchain)
 	if progress < 99.0 {
 		core.LogInfo("[Algo] Skipping snapshot export - indexer progress is " + strconv.FormatFloat(progress, 'f', 2, 64) + "% (needs 99%+)")
@@ -120,7 +120,7 @@ func exportAlgorandSnapshot(database *db.Database, _blockchain *blockchain.Block
 	handleS3Upload(algoSnapshotDir, "algorand", headBlock, tailBlock)
 	runtime.GC()
 }
-func exportBaseSnapshot(database *db.Database, _blockchain *blockchain.Blockchain, snapshotDir string) {
+func exportBaseSnapshot(database *db.Database, _blockchain *blockchain2.Blockchain, snapshotDir string) {
 	progress := getBaseIndexerProgress(database, _blockchain)
 	if progress < 99.0 {
 		core.LogInfo("[Base] Skipping snapshot export - indexer progress is " + strconv.FormatFloat(progress, 'f', 2, 64) + "% (needs 99%+)")
@@ -142,7 +142,7 @@ func exportBaseSnapshot(database *db.Database, _blockchain *blockchain.Blockchai
 	handleS3Upload(baseSnapshotDir, "base", headBlock, tailBlock)
 	runtime.GC()
 }
-func getAlgorandIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain) float64 {
+func getAlgorandIndexerProgress(database *db.Database, _blockchain *blockchain2.Blockchain) float64 {
 	uuid := database.IndexerGetJobUUID("algorand")
 	if uuid == "" {
 		return 0.0
@@ -167,7 +167,7 @@ func getAlgorandIndexerProgress(database *db.Database, _blockchain *blockchain.B
 	}
 	return progress
 }
-func getBaseIndexerProgress(database *db.Database, _blockchain *blockchain.Blockchain) float64 {
+func getBaseIndexerProgress(database *db.Database, _blockchain *blockchain2.Blockchain) float64 {
 	uuid := database.IndexerGetJobUUID("base")
 	if uuid == "" {
 		return 0.0

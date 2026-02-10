@@ -3,8 +3,8 @@
 package main
 
 import (
+	"YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
-	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/host"
 	"runtime"
 	"strconv"

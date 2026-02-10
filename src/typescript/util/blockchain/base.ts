@@ -5,7 +5,7 @@ import {CIDToSubdomainURL} from "../ipfs";
 import {ensNormalize, ethers} from "ethers";
 import {YP} from "../../services/yourplace";
 import {createPublicClient, defineChain, getAddress, http as viemHttp, UserRejectedRequestError, toCoinType} from "viem";
-import {base as viemBase} from "viem/chains";
+import {base as viemBase, mainnet as viemMainnet} from "viem/chains";
 import {SiweMessage} from "siwe";
 import {
     connect as wagmiConnect,
@@ -76,9 +76,13 @@ async function initBaseWallet() {
     if (baseInit) { return; }
     try {
         viemClient = createPublicClient({
-            transport: viemHttp(mainnetBase.rpcUrl!),
             chain: viemBase,
+            transport: viemHttp(mainnetBase.rpcUrl!),
         });
+        /*const mainnetClient = createPublicClient({
+            chain: viemMainnet,
+            transport: viemHttp("/rpc/ethereum"),
+        });*/
         wagmiConfig = createConfig({
             chains: [wagmiBase],
             multiInjectedProviderDiscovery: false,
@@ -101,6 +105,7 @@ async function initBaseWallet() {
             rpcUrl: mainnetBase.rpcUrl!,
             defaultPublicClients: {
                 [viemBase.id]: viemClient,
+                //[viemMainnet.id]: mainnetClient,
             },
         });
     } catch (e) {
@@ -560,9 +565,8 @@ export async function baseGetEnsName(address: string): Promise<string> {
             ensNameCache.set(address, ensName);
             return ensName;
         }
-    } catch (e) {
-        LogError("baseGetEnsName(): Error fetching ENS name: " + e);
-    }
+    } catch (_) {}
+    ensNameCache.set(address, "");
     return "";
 }
 export async function baseGetEnsAvatar(address: string): Promise<string> {
@@ -573,6 +577,7 @@ export async function baseGetEnsAvatar(address: string): Promise<string> {
     }
     const ensName = await baseGetEnsName(address);
     if (!ensName || ensName === "") {
+        ensAvatarCache.set(address, "");
         return "";
     }
     try {
@@ -581,9 +586,8 @@ export async function baseGetEnsAvatar(address: string): Promise<string> {
             ensAvatarCache.set(address, ensAvatar);
             return ensAvatar;
         }
-    } catch (e) {
-        LogError("baseGetEnsAvatar(): Error fetching ENS avatar: " + e);
-    }
+    } catch (_) {}
+    ensAvatarCache.set(address, "");
     return "";
 }
 export async function baseGetEnsAddress(ensName: string): Promise<string> {
@@ -591,12 +595,14 @@ export async function baseGetEnsAddress(ensName: string): Promise<string> {
     if (cached !== null) {
         return cached;
     }
-    const ensAddress = await ockGetAddress({name: ensName});
-    if (ensAddress) {
-        LogInfo("baseGetEnsAddress(): Fetched ENS address: " + ensAddress);
-        ensAddressCache.set(ensName, ensAddress);
-        return ensAddress;
-    }
+    try {
+        const ensAddress = await ockGetAddress({name: ensName});
+        if (ensAddress) {
+            ensAddressCache.set(ensName, ensAddress);
+            return ensAddress;
+        }
+    } catch (_) {}
+    ensAddressCache.set(ensName, "");
     return "";
 }
 // baseGetEnsDescription removed - ENS description/text fetching not supported right now

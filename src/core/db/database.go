@@ -718,6 +718,41 @@ func (db *Database) GetFollowersFeed(followerAddress string, followerBlockchain 
 	}
 	return nil
 }
+func (db *Database) ProfileGetAddressesWithMissingEnsData(blockchain string) []string {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileGetAddressesWithMissingEnsData(blockchain)
+	case "sqlite":
+		return db.sqlite.ProfileGetAddressesWithMissingEnsData(blockchain)
+	}
+	return nil
+}
+func (db *Database) ProfileUpdateEnsData(address string, blockchain string, name string, avatar string) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.ProfileUpdateEnsData(address, blockchain, name, avatar)
+	case "sqlite":
+		db.sqlite.ProfileUpdateEnsData(address, blockchain, name, avatar)
+	}
+}
+func (db *Database) ProfileGetEnsName(address string, blockchain string) string {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileGetEnsName(address, blockchain)
+	case "sqlite":
+		return db.sqlite.ProfileGetEnsName(address, blockchain)
+	}
+	return ""
+}
+func (db *Database) ProfileGetEnsAvatar(address string, blockchain string) string {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileGetEnsAvatar(address, blockchain)
+	case "sqlite":
+		return db.sqlite.ProfileGetEnsAvatar(address, blockchain)
+	}
+	return ""
+}
 
 // --- Notifications --- //
 func (db *Database) NotificationInsert(uid string, message string) {

@@ -2,8 +2,8 @@ package routes
 
 import (
 	"YourPlace/src/core"
+	blockchain2 "YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
-	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
 	"encoding/json"
@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, gateway bool) {
+func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain2.Blockchain, gateway bool) {
 	router.GET("/p/*path", func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Param("path"), "/")
 		if path == "" {
@@ -50,7 +50,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			var valid bool
 			var err error
 			valid, blockchainParam = security.IsValidENSName(name)
-			addressParam, err = blockchain.WalletGetAddress(blockchainParam, name, _blockchain)
+			addressParam, err = blockchain2.WalletGetAddress(blockchainParam, name, _blockchain)
 			if !valid || err != nil {
 				c.Redirect(http.StatusSeeOther, "/404")
 				return
@@ -141,16 +141,18 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			}
 		}*/
 		profileData := gin.H{
-			"name":           database.ProfileGetName(address, blockchainParam),
-			"description":    database.ProfileGetDescription(address, blockchainParam),
-			"location":       database.ProfileGetLocation(address, blockchainParam),
-			"website":        database.ProfileGetWebsite(address, blockchainParam),
-			"vertical":       database.ProfileGetVertical(address, blockchainParam),
-			"joinedDate":     database.ProfileGetJoinedDate(address, blockchainParam),
-			"followerCount":  database.ProfileGetFollowerCount(address, blockchainParam),
-			"followingCount": database.ProfileGetFollowingCount(address, blockchainParam),
 			"avatarAddress":  avatarAddress,
 			"bannerAddress":  database.ProfileGetBanner(address, blockchainParam),
+			"description":    database.ProfileGetDescription(address, blockchainParam),
+			"ensAvatar":      database.ProfileGetEnsAvatar(address, blockchainParam),
+			"ensName":        database.ProfileGetEnsName(address, blockchainParam),
+			"followerCount":  database.ProfileGetFollowerCount(address, blockchainParam),
+			"followingCount": database.ProfileGetFollowingCount(address, blockchainParam),
+			"joinedDate":     database.ProfileGetJoinedDate(address, blockchainParam),
+			"location":       database.ProfileGetLocation(address, blockchainParam),
+			"name":           database.ProfileGetName(address, blockchainParam),
+			"vertical":       database.ProfileGetVertical(address, blockchainParam),
+			"website":        database.ProfileGetWebsite(address, blockchainParam),
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "profileData": profileData})
 	})

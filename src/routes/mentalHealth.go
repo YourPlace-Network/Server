@@ -1120,4 +1120,5 @@ var mentalHealthTips = []string{
 	"Do not allow your intelligence to be insulted by people who are playing stupid",
 	"If you share power in the right way, then you'll have the power",
 	"Recognize when things don't matter and won't effect you. It'll save you a lot of time. Few will tell you when that's the case, so you gotta figure it out",
+	"The one thing you're not allowed to do with your human rights, is to impede another persons own rights",
 }

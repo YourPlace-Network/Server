@@ -2,21 +2,26 @@ package blockchain
 
 import (
 	"YourPlace/src/core"
+	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"context"
 	"crypto/ed25519"
 	"encoding/base32"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/big"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/algorand/go-algorand-sdk/v2/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/v2/client/v2/common"
@@ -270,4 +275,55 @@ func (algo *Algorand) GetPriceUSD() float64 {
 // ----- Setters ----- //
 func (algo *Algorand) SetWalletAddress(address types.Address) {
 	algo.walletAddress = address
+}
+
+// ----- Identity Resolution ----- //
+func AlgorandResolveIdentities(database *db.Database) {
+	addresses := database.ProfileGetAddressesWithMissingEnsData("algorand")
+	if len(addresses) == 0 {
+		return
+	}
+	core.LogDebug("Resolving NFD names for " + strconv.Itoa(len(addresses)) + " Algorand addresses")
+	for _, address := range addresses {
+		name, avatar := algorandResolveNFD(address)
+		if name != "" || avatar != "" {
+			database.ProfileUpdateEnsData(address, "algorand", name, avatar)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+func algorandResolveNFD(address string) (string, string) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("GET", "https://api.nf.domains/nfd/lookup?address="+address+"&view=brief", nil)
+	if err != nil {
+		return "", ""
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", ""
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", ""
+	}
+	var result map[string]struct {
+		Name       string `json:"name"`
+		Properties struct {
+			Verified struct {
+				Avatar string `json:"avatar"`
+			} `json:"verified"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", ""
+	}
+	for _, nfd := range result {
+		return nfd.Name, nfd.Properties.Verified.Avatar
+	}
+	return "", ""
 }

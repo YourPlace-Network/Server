@@ -19,7 +19,8 @@
       "Bash(go doc:*)",
       "WebFetch(domain:nodely.io)",
       "WebFetch(domain:developer.algorand.org)",
-      "WebFetch(domain:api-docs.nf.domains)"
+      "WebFetch(domain:api-docs.nf.domains)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

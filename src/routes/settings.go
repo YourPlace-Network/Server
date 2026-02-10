@@ -2,8 +2,8 @@ package routes
 
 import (
 	"YourPlace/src/core"
+	blockchain2 "YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
-	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/network"
@@ -19,7 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain.Blockchain, cryptoSeed []byte, gateway bool, ipfs *network.IPFS, debug bool) {
+func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain2.Blockchain, cryptoSeed []byte, gateway bool, ipfs *network.IPFS, debug bool) {
 	defaultUploadDirectory := host.GetDataDir() + "upload" + host.PathSeparator
 
 	router.GET("/settings", func(c *gin.Context) { // Settings View
@@ -64,7 +64,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	router.GET("/settings/base/url", func(c *gin.Context) {
 		if gateway {
 			c.SecureJSON(http.StatusOK, gin.H{
-				"baseURL": blockchain.DefaultBlockchainNodes["base"][0],
+				"baseURL": blockchain2.DefaultBlockchainNodes["base"][0],
 			})
 		} else {
 			baseURL := database.SettingsGetValue("baseURL")
@@ -97,16 +97,16 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.GET("/settings/base/throttle", func(c *gin.Context) {
 		baseURL := database.SettingsGetValue("baseURL")
-		isDefault := baseURL == "" || baseURL == blockchain.DefaultBlockchainNodes["base"][0]
+		isDefault := baseURL == "" || baseURL == blockchain2.DefaultBlockchainNodes["base"][0]
 		var throttleInt int
 		if isDefault {
-			throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["base"][1])
+			throttleInt, _ = strconv.Atoi(blockchain2.DefaultBlockchainNodes["base"][1])
 		} else {
 			throttle := database.SettingsGetValue("baseThrottle")
 			var err error
 			throttleInt, err = strconv.Atoi(throttle)
 			if err != nil {
-				throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["base"][1])
+				throttleInt, _ = strconv.Atoi(blockchain2.DefaultBlockchainNodes["base"][1])
 			}
 		}
 		c.SecureJSON(http.StatusOK, gin.H{
@@ -340,7 +340,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	router.GET("/settings/services/algorand", func(c *gin.Context) {
 		algodURL := database.SettingsGetValue("algoURL")
 		if algodURL == "" {
-			algodURL = blockchain.DefaultBlockchainNodes["algorand"][0]
+			algodURL = blockchain2.DefaultBlockchainNodes["algorand"][0]
 		}
 		algodToken := database.SettingsGetValue("algodToken")
 		c.SecureJSON(http.StatusOK, gin.H{
@@ -495,7 +495,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	router.GET("/settings/algorand/url", func(c *gin.Context) {
 		if gateway {
 			c.SecureJSON(http.StatusOK, gin.H{
-				"algoURL": blockchain.DefaultBlockchainNodes["algorand"][0],
+				"algoURL": blockchain2.DefaultBlockchainNodes["algorand"][0],
 			})
 		} else {
 			algoURL := database.SettingsGetValue("algoURL")
@@ -506,16 +506,16 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.GET("/settings/algorand/throttle", func(c *gin.Context) {
 		algoURL := database.SettingsGetValue("algoURL")
-		isDefault := algoURL == "" || algoURL == blockchain.DefaultBlockchainNodes["algorand"][0]
+		isDefault := algoURL == "" || algoURL == blockchain2.DefaultBlockchainNodes["algorand"][0]
 		var throttleInt int
 		if isDefault {
-			throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["algorand"][1])
+			throttleInt, _ = strconv.Atoi(blockchain2.DefaultBlockchainNodes["algorand"][1])
 		} else {
 			throttle := database.SettingsGetValue("algoThrottle")
 			var err error
 			throttleInt, err = strconv.Atoi(throttle)
 			if err != nil {
-				throttleInt, _ = strconv.Atoi(blockchain.DefaultBlockchainNodes["algorand"][1])
+				throttleInt, _ = strconv.Atoi(blockchain2.DefaultBlockchainNodes["algorand"][1])
 			}
 		}
 		c.SecureJSON(http.StatusOK, gin.H{
@@ -577,9 +577,9 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		if payload.BaseURL == "default" {
-			database.SettingsUpdateValue("baseURL", blockchain.DefaultBlockchainNodes["base"][0])
-			database.SettingsUpdateValue("baseThrottle", blockchain.DefaultBlockchainNodes["base"][1])
-			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultBaseURL": blockchain.DefaultBlockchainNodes["base"][0], "defaultBaseThrottle": blockchain.DefaultBlockchainNodes["base"][1]})
+			database.SettingsUpdateValue("baseURL", blockchain2.DefaultBlockchainNodes["base"][0])
+			database.SettingsUpdateValue("baseThrottle", blockchain2.DefaultBlockchainNodes["base"][1])
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultBaseURL": blockchain2.DefaultBlockchainNodes["base"][0], "defaultBaseThrottle": blockchain2.DefaultBlockchainNodes["base"][1]})
 			return
 		}
 		if !security.IsValidURL(payload.BaseURL) {
@@ -587,7 +587,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		database.SettingsUpdateValue("baseURL", payload.BaseURL)
-		blockchain.BaseIndexerStop()
+		blockchain2.BaseIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/base/dataDirectory", func(c *gin.Context) {
@@ -633,7 +633,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.POST("/settings/base/throttle", func(c *gin.Context) {
 		baseURL := database.SettingsGetValue("baseURL")
-		if baseURL == "" || baseURL == blockchain.DefaultBlockchainNodes["base"][0] {
+		if baseURL == "" || baseURL == blockchain2.DefaultBlockchainNodes["base"][0] {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Cannot change throttle when using default RPC"})
 			return
 		}
@@ -651,7 +651,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		database.SettingsUpdateValue("baseThrottle", strconv.Itoa(payload.Throttle))
-		blockchain.BaseIndexerStop()
+		blockchain2.BaseIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/base/indexerReset", func(c *gin.Context) {
@@ -665,7 +665,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		if payload.IndexerReset {
-			blockchain.BaseIndexerStop()
+			blockchain2.BaseIndexerStop()
 			database.IndexerResetJobs("base")
 			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 		}
@@ -681,9 +681,9 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		if payload.AlgoURL == "default" {
-			database.SettingsUpdateValue("algoURL", blockchain.DefaultBlockchainNodes["algorand"][0])
-			database.SettingsUpdateValue("algoThrottle", blockchain.DefaultBlockchainNodes["algorand"][1])
-			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultAlgoURL": blockchain.DefaultBlockchainNodes["algorand"][0], "defaultAlgoThrottle": blockchain.DefaultBlockchainNodes["algorand"][1]})
+			database.SettingsUpdateValue("algoURL", blockchain2.DefaultBlockchainNodes["algorand"][0])
+			database.SettingsUpdateValue("algoThrottle", blockchain2.DefaultBlockchainNodes["algorand"][1])
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultAlgoURL": blockchain2.DefaultBlockchainNodes["algorand"][0], "defaultAlgoThrottle": blockchain2.DefaultBlockchainNodes["algorand"][1]})
 			return
 		}
 		if !security.IsValidURL(payload.AlgoURL) {
@@ -691,12 +691,12 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		database.SettingsUpdateValue("algoURL", payload.AlgoURL)
-		blockchain.AlgoIndexerStop()
+		blockchain2.AlgoIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/algorand/throttle", func(c *gin.Context) {
 		algoURL := database.SettingsGetValue("algoURL")
-		if algoURL == "" || algoURL == blockchain.DefaultBlockchainNodes["algorand"][0] {
+		if algoURL == "" || algoURL == blockchain2.DefaultBlockchainNodes["algorand"][0] {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Cannot change throttle when using default RPC"})
 			return
 		}
@@ -714,7 +714,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		database.SettingsUpdateValue("algoThrottle", strconv.Itoa(payload.Throttle))
-		blockchain.AlgoIndexerStop()
+		blockchain2.AlgoIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/algorand/indexerReset", func(c *gin.Context) {
@@ -728,7 +728,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		if payload.IndexerReset {
-			blockchain.AlgoIndexerStop()
+			blockchain2.AlgoIndexerStop()
 			database.IndexerResetJobs("algorand")
 			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 		}
@@ -747,7 +747,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid indexer catch up value"})
 			return
 		}
-		success, message := blockchain.BaseIndexerCatchUpAll(database)
+		success, message := blockchain2.BaseIndexerCatchUpAll(database)
 		if !success {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"status": message})
 			return
@@ -768,7 +768,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid indexer catch up value"})
 			return
 		}
-		success, message := blockchain.AlgoIndexerCatchUpAll(database)
+		success, message := blockchain2.AlgoIndexerCatchUpAll(database)
 		if !success {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"status": message})
 			return
@@ -817,8 +817,8 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		database.SettingsUpdateValue("indexerRunning", "false")
 		database.SettingsUpdateValue("baseIndexerRunning", "false")
 		database.SettingsUpdateValue("algoIndexerRunning", "false")
-		blockchain.BaseIndexerStop()
-		blockchain.AlgoIndexerStop()
+		blockchain2.BaseIndexerStop()
+		blockchain2.AlgoIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{
 			"status":  "success",
 			"message": "Indexer stopped",
@@ -847,7 +847,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			database.SettingsUpdateValue("baseIndexerRunning", "true")
 		} else {
 			database.SettingsUpdateValue("baseIndexerRunning", "false")
-			blockchain.BaseIndexerStop()
+			blockchain2.BaseIndexerStop()
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
@@ -865,7 +865,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			database.SettingsUpdateValue("algoIndexerRunning", "true")
 		} else {
 			database.SettingsUpdateValue("algoIndexerRunning", "false")
-			blockchain.AlgoIndexerStop()
+			blockchain2.AlgoIndexerStop()
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
@@ -884,7 +884,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		} else {
 			database.SettingsUpdateValue("indexerOnBattery", "false")
 		}
-		blockchain.BaseIndexerStop()
+		blockchain2.BaseIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
 	router.POST("/settings/database/exportSnapshot", func(c *gin.Context) {
@@ -929,7 +929,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			}
 		}
 		database.MetaUpdateValue("importSnapshotStatus", "running")
-		blockchain.BaseIndexerStop()
+		blockchain2.BaseIndexerStop()
 		go func() {
 			for i := 0; i < 100; i++ {
 				uuids := database.IndexerGetRunningJobsUUIDs()

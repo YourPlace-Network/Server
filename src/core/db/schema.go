@@ -7,7 +7,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 4
+const SchemaVersion = 5
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -27,6 +27,7 @@ var migrations = []Migration{
 	{Version: 2, Description: "Add comment and reaction tables for social interactions", Up: migrateV2},
 	{Version: 3, Description: "Add colors and colorsTimestamp columns to meta tables", Up: migrateV3},
 	{Version: 4, Description: "Add oEmbed cache table for Twitter/X.com embeds", Up: migrateV4},
+	{Version: 5, Description: "Add cached ENS/NFD name and avatar columns to meta tables", Up: migrateV5},
 }
 
 // --- Migration Functions --- //
@@ -73,6 +74,29 @@ func migrateV4(db *SQLite) error {
 	// Version 4 adds oEmbed cache table for Twitter/X.com embeds
 	_, err := db.database.Exec("CREATE TABLE IF NOT EXISTS oembed_cache (url TEXT PRIMARY KEY, data TEXT DEFAULT '', fetchedAt INTEGER DEFAULT 0)")
 	return err
+}
+func migrateV5(db *SQLite) error {
+	// Version 5 adds cached ENS/NFD name and avatar columns to meta tables
+	columns := []struct {
+		table  string
+		column string
+		def    string
+	}{
+		{"onchain_algorand_meta", "ensAvatar", "TEXT DEFAULT ''"},
+		{"onchain_algorand_meta", "ensAvatarTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_algorand_meta", "ensName", "TEXT DEFAULT ''"},
+		{"onchain_algorand_meta", "ensNameTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_base_meta", "ensAvatar", "TEXT DEFAULT ''"},
+		{"onchain_base_meta", "ensAvatarTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_base_meta", "ensName", "TEXT DEFAULT ''"},
+		{"onchain_base_meta", "ensNameTimestamp", "INTEGER DEFAULT 0"},
+	}
+	for _, col := range columns {
+		if err := db.migrateAddColumn(col.table, col.column, col.def); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Example migration templates for future use:

@@ -234,8 +234,8 @@ declare global { // Extend the window interface with public objects
         }
         async function renderProfileFromCache(profileData: any, blockchain: string, address: string) {
             await renderProfileAddress(address);
-            await renderProfileNameFromData(profileData.name, blockchain, address);
-            await renderProfileAvatarFromData(profileData.avatarAddress, blockchain, address);
+            await renderProfileNameFromData(profileData.name, profileData.ensName, blockchain, address);
+            await renderProfileAvatarFromData(profileData.avatarAddress, profileData.ensAvatar, blockchain, address);
             await renderProfileDescriptionFromData(profileData.description, blockchain, address);
             await renderProfileLocationFromData(profileData.location);
             await renderProfileVerticalFromData(profileData.vertical);
@@ -322,11 +322,12 @@ declare global { // Extend the window interface with public objects
         }
 
         // --------- Cache Render Helper Functions --------- //
-        async function renderProfileNameFromData(cachedName: string, blockchain: string, address: string) {
-            // First try ENS lookup (same as original renderProfileName)
-            let name = await WalletGetName(blockchain, address);
+        async function renderProfileNameFromData(cachedName: string, ensName: string, blockchain: string, address: string) {
+            let name = ensName && ensName.length > 0 ? ensName : null;
+            if (!name) {
+                name = await WalletGetName(blockchain, address);
+            }
             if (name === null || name.length === 0) {
-                // Fall back to cached database name or "Anonymous" (never show truncated address)
                 name = cachedName && cachedName.length > 0 ? cachedName : "Anonymous";
             }
             if (DOM.profileName.textContent === name) {
@@ -354,12 +355,16 @@ declare global { // Extend the window interface with public objects
             };
             waitForPostAuthors();
         }
-        async function renderProfileAvatarFromData(avatarAddress: string, blockchain: string, address: string) {
+        async function renderProfileAvatarFromData(avatarAddress: string, ensAvatar: string, blockchain: string, address: string) {
             let avatarURL = avatarAddress;
-            if (!avatarAddress) { // If no cached avatar, try lookup
-                avatarURL = await getIpfsAvatarUrl(blockchain, address) || "";
-                if (!avatarURL || avatarURL === "") {
-                    avatarURL = await WalletGetAvatar(blockchain, address);
+            if (!avatarAddress) {
+                if (ensAvatar && ensAvatar.length > 0) {
+                    avatarURL = ensAvatar;
+                } else {
+                    avatarURL = await getIpfsAvatarUrl(blockchain, address) || "";
+                    if (!avatarURL || avatarURL === "") {
+                        avatarURL = await WalletGetAvatar(blockchain, address);
+                    }
                 }
             }
             // Convert ipfs:// URLs to HTTP gateway URLs

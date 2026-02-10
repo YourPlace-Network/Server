@@ -248,7 +248,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		// Base-specific tables
 		"base_indexer_jobs":     "CREATE TABLE IF NOT EXISTS base_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
 		"onchain_base_post":     "CREATE TABLE IF NOT EXISTS onchain_base_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', vertical TEXT DEFAULT '', server TEXT DEFAULT '', colors TEXT DEFAULT '', blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (blockchain TEXT, address TEXT, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName TEXT DEFAULT '', location TEXT DEFAULT '', name TEXT DEFAULT '', server TEXT DEFAULT '', vertical TEXT DEFAULT '', website TEXT DEFAULT '', addressTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, blockchainTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, ensAvatarTimestamp INTEGER DEFAULT 0, ensNameTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_base_block":    "CREATE TABLE IF NOT EXISTS onchain_base_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_base_follow":   "CREATE TABLE IF NOT EXISTS onchain_base_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_base_comment":  "CREATE TABLE IF NOT EXISTS onchain_base_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
@@ -256,7 +256,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		// Algorand-specific tables
 		"algorand_indexer_jobs":     "CREATE TABLE IF NOT EXISTS algorand_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
 		"onchain_algorand_post":     "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain TEXT, address TEXT, name TEXT DEFAULT '', avatar TEXT DEFAULT '', description TEXT DEFAULT '', location TEXT DEFAULT '', banner TEXT DEFAULT '', website TEXT DEFAULT '', vertical TEXT DEFAULT '', server TEXT DEFAULT '', colors TEXT DEFAULT '', blockchainTimestamp INTEGER DEFAULT 0, addressTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain TEXT, address TEXT, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName TEXT DEFAULT '', location TEXT DEFAULT '', name TEXT DEFAULT '', server TEXT DEFAULT '', vertical TEXT DEFAULT '', website TEXT DEFAULT '', addressTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, blockchainTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, ensAvatarTimestamp INTEGER DEFAULT 0, ensNameTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_algorand_block":    "CREATE TABLE IF NOT EXISTS onchain_algorand_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_algorand_follow":   "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_algorand_comment":  "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
@@ -1540,6 +1540,66 @@ func (db *SQLite) ProfileIsFollower(followeeAddress string, followeeBlockchain s
 		}
 	}
 	return false
+}
+func (db *SQLite) ProfileGetAddressesWithMissingEnsData(blockchain string) []string {
+	var addresses []string
+	staleThreshold := time.Now().Unix() - (7 * 24 * 60 * 60)
+	query := fmt.Sprintf("SELECT address FROM onchain_%s_meta WHERE ensName = '' OR ensNameTimestamp < ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, staleThreshold)
+	if err != nil {
+		core.LogDebug("Could not get addresses with missing ENS data: " + err.Error())
+		return addresses
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var address string
+		if err := rows.Scan(&address); err != nil {
+			core.LogDebug("Could not scan address: " + err.Error())
+			continue
+		}
+		addresses = append(addresses, address)
+	}
+	return addresses
+}
+func (db *SQLite) ProfileUpdateEnsData(address string, blockchain string, name string, avatar string) {
+	now := time.Now().Unix()
+	query := fmt.Sprintf("UPDATE onchain_%s_meta SET ensName = ?, ensAvatar = ?, ensNameTimestamp = ?, ensAvatarTimestamp = ? WHERE address = ?", blockchain)
+	_, err := db.runParamSQLUpdate(query, name, avatar, now, now, address)
+	if err != nil {
+		core.LogDebug("Could not update ENS data: " + err.Error())
+	}
+}
+func (db *SQLite) ProfileGetEnsName(address string, blockchain string) string {
+	query := fmt.Sprintf("SELECT ensName FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return ""
+		}
+		return name
+	}
+	return ""
+}
+func (db *SQLite) ProfileGetEnsAvatar(address string, blockchain string) string {
+	query := fmt.Sprintf("SELECT ensAvatar FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var avatar string
+		if err := rows.Scan(&avatar); err != nil {
+			return ""
+		}
+		return avatar
+	}
+	return ""
 }
 
 // --- Search --- //

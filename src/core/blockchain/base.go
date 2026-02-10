@@ -6,6 +6,7 @@ import (
 	"YourPlace/src/core/services"
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"math/big"
 	"net/http"
@@ -204,4 +205,46 @@ func (base *Base) GetENSAvatar(address string) (string, error) {
 		return "", err
 	}
 	return avatar, nil
+}
+func BaseResolveIdentities(database *db.Database) {
+	addresses := database.ProfileGetAddressesWithMissingEnsData("base")
+	if len(addresses) == 0 {
+		return
+	}
+	core.LogDebug("Resolving Basenames for " + strconv.Itoa(len(addresses)) + " Base addresses")
+	for _, address := range addresses {
+		name, avatar := baseResolveBasename(address)
+		if name != "" || avatar != "" {
+			database.ProfileUpdateEnsData(address, "base", name, avatar)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+func baseResolveBasename(address string) (string, string) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("GET", "https://api.basename.app/v1/addresses/"+address, nil)
+	if err != nil {
+		return "", ""
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", ""
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", ""
+	}
+	var result struct {
+		Avatar string `json:"avatar"`
+		Name   string `json:"name"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", ""
+	}
+	return result.Name, result.Avatar
 }

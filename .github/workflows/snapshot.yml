@@ -6,7 +6,7 @@ on:
     branches: [ chad ]
     paths:
       - 'snapshot/**'
-      - 'src/core/db/blockchain/**'
+      - '../../src/core/blockchain/**'
 
 env:
   AWS_REGION: us-east-1

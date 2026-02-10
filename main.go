@@ -4,8 +4,8 @@ package main
 
 import (
 	"YourPlace/src/core"
+	blockchain2 "YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
-	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/network"
@@ -27,6 +27,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-contrib/gzip"
@@ -220,7 +221,7 @@ func main() {
 
 	// --- Blockchain --- //
 	core.LogDebug("Initializing blockchain")
-	_blockchain := new(blockchain.Blockchain)
+	_blockchain := new(blockchain2.Blockchain)
 	if gateway {
 		_blockchain.InitGateway(database)
 	} else {
@@ -344,7 +345,7 @@ func PostServerRun(database *db.Database) {
 		lastCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun_base")
 		if lastCatchUpStr == "" {
 			core.LogInfo("Gateway first run detected - triggering Base snapshot catch-up")
-			success, message := blockchain.BaseIndexerCatchUpAll(database)
+			success, message := blockchain2.BaseIndexerCatchUpAll(database)
 			if success {
 				core.LogInfo("Gateway Base snapshot catch-up: " + message)
 			} else {
@@ -354,7 +355,7 @@ func PostServerRun(database *db.Database) {
 		lastAlgoCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun_algorand")
 		if lastAlgoCatchUpStr == "" {
 			core.LogInfo("Gateway first run detected - triggering Algorand snapshot catch-up")
-			success, message := blockchain.AlgoIndexerCatchUpAll(database)
+			success, message := blockchain2.AlgoIndexerCatchUpAll(database)
 			if success {
 				core.LogInfo("Gateway Algorand snapshot catch-up: " + message)
 			} else {
@@ -363,7 +364,7 @@ func PostServerRun(database *db.Database) {
 		}
 	}
 }
-func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, ipfs *network.IPFS, installed bool, domain string) {
+func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, ipfs *network.IPFS, installed bool, domain string) {
 	if debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -486,7 +487,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain.Blockchain, i
 	}
 	PostServerRun(database)
 }
-func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
+func StartCronJobs(database *db.Database, _blockchain *blockchain2.Blockchain) {
 	// --- Scheduled Jobs --- //
 	c := _cron.New(_cron.WithSeconds())
 	// ------- ETH Price Updater ------- //
@@ -511,19 +512,19 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 		c.AddFunc("@every 60m", func() { // clean out the cached posts
 			blockchain.IndexerClearOldCachedPosts(database)
 		})*/
-		blockchain.BaseIndexerRestartJobs(database, "base")     // set any Base jobs to "failed" that were left hanging on startup
-		blockchain.AlgoIndexerRestartJobs(database, "algorand") // set any Algorand jobs to "failed" that were left hanging on startup
+		blockchain2.BaseIndexerRestartJobs(database, "base")     // set any Base jobs to "failed" that were left hanging on startup
+		blockchain2.AlgoIndexerRestartJobs(database, "algorand") // set any Algorand jobs to "failed" that were left hanging on startup
 		c.AddFunc("@every 1m", func() {
 			indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
 			indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
 			isOnBattery := host.IsOnBattery()
 			if isOnBattery && !indexerOnBatteryBool { // Don't run any indexers if the computer is on battery
-				blockchain.BaseIndexerStop()
-				blockchain.AlgoIndexerStop()
+				blockchain2.BaseIndexerStop()
+				blockchain2.AlgoIndexerStop()
 				return
 			}
-			_ = blockchain.BaseIndexerFetchData(database, _blockchain)
-			_ = blockchain.AlgorandIndexerFetchData(database, _blockchain)
+			_ = blockchain2.BaseIndexerFetchData(database, _blockchain)
+			_ = blockchain2.AlgorandIndexerFetchData(database, _blockchain)
 		})
 	}
 	// ------- IPFS BadBits ------- //
@@ -533,6 +534,20 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain.Blockchain) {
 	}
 	c.AddFunc("@every 24h", func() {
 		network.UpdateBadBits(database)
+	})
+	// ------- Identity Resolution ------- //
+	c.AddFunc("@every 3h", func() {
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			blockchain2.BaseResolveIdentities(database)
+		}()
+		go func() {
+			defer wg.Done()
+			blockchain2.AlgorandResolveIdentities(database)
+		}()
+		wg.Wait()
 	})
 	// --- Start Cron --- //
 	c.Start()

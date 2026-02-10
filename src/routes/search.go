@@ -1,8 +1,8 @@
 package routes
 
 import (
+	blockchain2 "YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
-	"YourPlace/src/core/db/blockchain"
 	"YourPlace/src/core/security"
 	"net/http"
 	"strings"
@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain.Blockchain) {
+func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain) {
 	router.GET("/discover", func(c *gin.Context) {
 		randomProfiles := database.DiscoverGetRandomProfiles(5)
 		topByFollowers := database.DiscoverGetTopByFollowers(5)
@@ -44,7 +44,7 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 			valid, chain := security.IsValidENSName(tokens[1])
 			if valid {
 				var err error
-				address, err = blockchain.WalletGetAddress(chain, tokens[1], _blockchain)
+				address, err = blockchain2.WalletGetAddress(chain, tokens[1], _blockchain)
 				if err != nil {
 					c.SecureJSON(http.StatusOK, gin.H{"status": "can't get address"})
 					return
@@ -62,7 +62,7 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 		} else {
 			valid, chain := security.IsValidENSName(printableQuery)
 			if valid {
-				address, _ = blockchain.WalletGetAddress(chain, printableQuery, _blockchain)
+				address, _ = blockchain2.WalletGetAddress(chain, printableQuery, _blockchain)
 			}
 			profileQuery := printableQuery
 			if address != "" {
@@ -76,7 +76,7 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 					ensName := strings.ToLower(printableQuery) + suffix
 					valid, chain := security.IsValidENSName(ensName)
 					if valid {
-						ensAddress, err := blockchain.WalletGetAddress(chain, ensName, _blockchain)
+						ensAddress, err := blockchain2.WalletGetAddress(chain, ensName, _blockchain)
 						if err == nil && ensAddress != "" {
 							ensProfiles := database.SearchGetProfiles(ensAddress)
 							profiles = append(profiles, ensProfiles...)
