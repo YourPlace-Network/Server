@@ -784,8 +784,8 @@ func (db *MySQL) ProfileIsFollower(followeeAddress string, followeeBlockchain st
 func (db *MySQL) ProfileGetAddressesWithMissingEnsData(blockchain string) []string {
 	var addresses []string
 	staleThreshold := time.Now().Unix() - (7 * 24 * 60 * 60)
-	query := fmt.Sprintf("SELECT address FROM onchain_%s_meta WHERE ensName IS NULL OR ensName = '' OR ensNameTimestamp IS NULL OR ensNameTimestamp < ? OR ((ensAvatar IS NULL OR ensAvatar = '') AND (ensAvatarTimestamp IS NULL OR ensAvatarTimestamp < ?))", blockchain)
-	rows, err := db.runParamSQLSelect(query, staleThreshold, staleThreshold)
+	query := fmt.Sprintf("SELECT address FROM onchain_%s_meta WHERE ensName IS NULL OR ensName = '' OR ensNameTimestamp IS NULL OR ensNameTimestamp < ? OR ensAvatar IS NULL OR ensAvatar = ''", blockchain)
+	rows, err := db.runParamSQLSelect(query, staleThreshold)
 	if err != nil {
 		core.LogDebug("Could not get addresses with missing ENS data: " + err.Error())
 		return addresses
