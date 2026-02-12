@@ -244,22 +244,17 @@ import {CreateXcomPostCard} from "../util/domFactory";
             }
         }
         async function fetchAndUpdateProfileCard(profileCard: HTMLDivElement, blockchain: string, address: string) {
-            const [status, response] = await HttpGetJson(`/profile/data/${blockchain}/${address}`);
-            const profileData = status === 200 && response?.profileData ? response.profileData : {};
-            let name: string | null = profileData.ensName || null;
-            if (!name || name.length === 0) {
-                name = await WalletGetName(blockchain, address);
-            }
-            let avatarStr: string | null = profileData.ensAvatar || null;
-            if (!avatarStr || avatarStr === "") {
-                avatarStr = await getIpfsAvatarUrl(blockchain, address);
-            }
+            let name: string | null = await WalletGetName(blockchain, address);
+            let avatarStr: string | null = await getIpfsAvatarUrl(blockchain, address);
             if (!avatarStr || avatarStr === "") {
                 avatarStr = await WalletGetAvatar(blockchain, address);
             }
+            let description: string | null = await WalletGetDescription(blockchain, address);
             const nameDiv = profileCard.querySelector('.profileCardName') as HTMLDivElement;
             const avatarImg = profileCard.querySelector('img.profileCardAvatar') as HTMLImageElement;
+            const descriptionDiv = profileCard.querySelector('.profileCardDescription') as HTMLDivElement;
             if (nameDiv) nameDiv.textContent = name || "Anonymous";
+            if (descriptionDiv) descriptionDiv.textContent = description || "";
             if (avatarImg) {
                 const defaultPath = "/static/image/avatar.png";
                 if (avatarStr) {

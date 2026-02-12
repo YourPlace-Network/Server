@@ -6,16 +6,17 @@ import (
 	"YourPlace/src/core/services"
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"math/big"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	ens "github.com/wealdtech/go-ens/v3"
@@ -149,22 +150,6 @@ func (base *Base) GetENSAddresses(name string) ([]string, error) {
 	}
 	return []string{address.Hex()}, nil
 }
-func BaseGetEarliestBlock() big.Int {
-	return *big.NewInt(int64(39000000)) // YourPlace did not exist on-chain before this block
-}
-func BaseGetBalance(address string, database *db.Database) (big.Int, error) {
-	core.LogDebug("BaseGetBalance(): Getting Base balance for address: " + address)
-	base := new(Base)
-	base.Init(database)
-	_addr := common.HexToAddress(address)
-	var result hexutil.Big
-	err := base.RpcClient.Call(&result, "eth_getBalance", _addr, "latest")
-	if err != nil {
-		return *big.NewInt(0), core.LogWarningReturn(err.Error())
-	}
-	//etherBalance := WeiToEther(*result.ToInt())
-	return *result.ToInt(), nil
-}
 func (base *Base) GetBlockTimestamp(blockNumber *big.Int) uint64 {
 	blockNumberHex := "0x" + blockNumber.Text(16)
 	var result map[string]interface{}
@@ -181,70 +166,195 @@ func (base *Base) GetBlockTimestamp(blockNumber *big.Int) uint64 {
 }
 func (base *Base) GetENSName(address string) (string, error) {
 	core.LogDebug("Base.GetENSName(): Getting ENS name for address: " + address)
-	commonAddress := common.HexToAddress(address)
-	name, err := ens.ReverseResolve(base.EthClient, commonAddress)
+	if base.RpcClient == nil {
+		return "", core.LogErrorReturn("Base.GetENSName(): RPC client is nil")
+	}
+	node := baseComputeReverseNode(base, address)
+	if node == ([32]byte{}) {
+		return "", nil
+	}
+	resolverAddr := baseGetDefaultResolver(base)
+	if resolverAddr == (common.Address{}) {
+		return "", nil
+	}
+	methodID := crypto.Keccak256([]byte("name(bytes32)"))[:4]
+	callData := make([]byte, 36)
+	copy(callData[:4], methodID)
+	copy(callData[4:], node[:])
+	msg := map[string]interface{}{
+		"to":   resolverAddr.Hex(),
+		"data": hexutil.Encode(callData),
+	}
+	var result hexutil.Bytes
+	err := base.RpcClient.CallContext(context.Background(), &result, "eth_call", msg, "latest")
 	if err != nil {
-		core.LogDebug("Base.GetENSName(): No ENS name found for address: " + address + " - " + err.Error())
+		core.LogDebug("Base.GetENSName(): Error calling name() for address " + address + ": " + err.Error())
 		return "", err
 	}
-	core.LogDebug("Base ENS name for address " + address + " is " + name)
+	name := baseDecodeABIString(result)
+	if name != "" {
+		core.LogDebug("Base.GetENSName(): Resolved " + address + " -> " + name)
+	}
 	return name, nil
 }
 func (base *Base) GetENSAvatar(address string) (string, error) {
+	return base.GetENSText(address, "avatar")
+}
+func (base *Base) GetENSText(address string, key string) (string, error) {
+	core.LogDebug("Base.GetENSText(): Getting text record '" + key + "' for address: " + address)
+	if base.RpcClient == nil {
+		return "", core.LogErrorReturn("Base.GetENSText(): RPC client is nil")
+	}
 	name, err := base.GetENSName(address)
 	if err != nil || name == "" {
 		return "", err
 	}
-	resolverAddr := common.HexToAddress(base.EnsResolverAddress)
-	resolver, err := ens.NewResolverAt(base.EthClient, name, resolverAddr)
-	if err != nil {
-		return "", err
+	node := baseNameHash(name)
+	resolverAddr := baseGetDefaultResolver(base)
+	if resolverAddr == (common.Address{}) {
+		return "", nil
 	}
-	avatar, err := resolver.Text("avatar")
+	text := baseResolveText(base, resolverAddr, node, key)
+	return text, nil
+}
+
+/* Public Functions */
+func BaseGetEarliestBlock() big.Int {
+	return *big.NewInt(int64(39000000)) // YourPlace did not exist on-chain before this block
+}
+func BaseGetBalance(address string, database *db.Database) (big.Int, error) {
+	base := new(Base)
+	base.Init(database)
+	_addr := common.HexToAddress(address)
+	var result hexutil.Big
+	err := base.RpcClient.Call(&result, "eth_getBalance", _addr, "latest")
 	if err != nil {
-		return "", err
+		return *big.NewInt(0), core.LogWarningReturn(err.Error())
 	}
-	return avatar, nil
+	//etherBalance := WeiToEther(*result.ToInt())
+	return *result.ToInt(), nil
 }
 func BaseResolveIdentities(database *db.Database) {
 	addresses := database.ProfileGetAddressesWithMissingEnsData("base")
 	if len(addresses) == 0 {
 		return
 	}
-	core.LogDebug("Resolving Basenames for " + strconv.Itoa(len(addresses)) + " Base addresses")
+	base := new(Base)
+	base.Init(database)
 	for _, address := range addresses {
-		name, avatar := baseResolveBasename(address)
-		if name != "" || avatar != "" {
-			database.ProfileUpdateEnsData(address, "base", name, avatar)
+		name, _ := base.GetENSName(address)
+		if name == "" {
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
+		avatar, _ := base.GetENSAvatar(address)
+		database.ProfileUpdateEnsData(address, "base", name, avatar)
 		time.Sleep(500 * time.Millisecond)
 	}
 }
-func baseResolveBasename(address string) (string, string) {
-	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequest("GET", "https://api.basename.app/v1/addresses/"+address, nil)
+
+/* Internal Functions */
+func baseComputeReverseNode(base *Base, address string) [32]byte {
+	methodID := crypto.Keccak256([]byte("node(address)"))[:4]
+	addr := common.HexToAddress(address)
+	callData := make([]byte, 36)
+	copy(callData[:4], methodID)
+	copy(callData[16:36], addr.Bytes())
+	registrarAddr := common.HexToAddress(base.ReverseRegistrarAddress)
+	msg := map[string]interface{}{
+		"to":   registrarAddr.Hex(),
+		"data": hexutil.Encode(callData),
+	}
+	var result hexutil.Bytes
+	err := base.RpcClient.CallContext(context.Background(), &result, "eth_call", msg, "latest")
 	if err != nil {
-		return "", ""
+		core.LogDebug("baseComputeReverseNode(): Error calling node() for " + address + ": " + err.Error())
+		return [32]byte{}
 	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := client.Do(req)
+	if len(result) < 32 {
+		core.LogDebug("baseComputeReverseNode(): Unexpected result length " + strconv.Itoa(len(result)) + " for " + address)
+		return [32]byte{}
+	}
+	var node [32]byte
+	copy(node[:], result[:32])
+	return node
+}
+func baseDecodeABIString(data []byte) string {
+	if len(data) < 64 {
+		core.LogDebug("baseDecodeABIString(): Data length less than 64 bytes")
+		return ""
+	}
+	offset := new(big.Int).SetBytes(data[:32]).Uint64()
+	if offset+32 > uint64(len(data)) {
+		core.LogDebug("baseDecodeABIString(): Offset out of bounds")
+		return ""
+	}
+	length := new(big.Int).SetBytes(data[offset : offset+32]).Uint64()
+	if offset+32+length > uint64(len(data)) {
+		core.LogDebug("baseDecodeABIString(): Length out of bounds")
+		return ""
+	}
+	return string(data[offset+32 : offset+32+length])
+}
+func baseGetDefaultResolver(base *Base) common.Address {
+	methodID := crypto.Keccak256([]byte("defaultResolver()"))[:4]
+	registrarAddr := common.HexToAddress(base.ReverseRegistrarAddress)
+	msg := map[string]interface{}{
+		"to":   registrarAddr.Hex(),
+		"data": hexutil.Encode(methodID),
+	}
+	var result hexutil.Bytes
+	err := base.RpcClient.CallContext(context.Background(), &result, "eth_call", msg, "latest")
 	if err != nil {
-		return "", ""
+		core.LogDebug("baseGetDefaultResolver(): Error querying registrar: " + err.Error())
+		return common.Address{}
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", ""
+	if len(result) < 32 {
+		core.LogDebug("baseGetDefaultResolver(): Result too short")
+		return common.Address{}
 	}
-	body, err := io.ReadAll(resp.Body)
+	resolverAddr := common.BytesToAddress(result[12:32])
+	return resolverAddr
+}
+func baseNameHash(name string) [32]byte {
+	var node [32]byte
+	if name == "" {
+		return node
+	}
+	labels := strings.Split(name, ".")
+	for i := len(labels) - 1; i >= 0; i-- {
+		labelHash := crypto.Keccak256([]byte(labels[i]))
+		combined := make([]byte, 64)
+		copy(combined[:32], node[:])
+		copy(combined[32:], labelHash)
+		copy(node[:], crypto.Keccak256(combined))
+	}
+	return node
+}
+func baseResolveText(base *Base, resolverAddr common.Address, node [32]byte, key string) string {
+	methodID := crypto.Keccak256([]byte("text(bytes32,string)"))[:4]
+	keyBytes := []byte(key)
+	keyPadded := make([]byte, ((len(keyBytes)+31)/32)*32)
+	copy(keyPadded, keyBytes)
+	callData := make([]byte, 0, 4+32+32+32+len(keyPadded))
+	callData = append(callData, methodID...)
+	callData = append(callData, node[:]...)
+	offset := make([]byte, 32)
+	offset[31] = 0x40
+	callData = append(callData, offset...)
+	length := make([]byte, 32)
+	length[31] = byte(len(keyBytes))
+	callData = append(callData, length...)
+	callData = append(callData, keyPadded...)
+	msg := map[string]interface{}{
+		"to":   resolverAddr.Hex(),
+		"data": hexutil.Encode(callData),
+	}
+	var result hexutil.Bytes
+	err := base.RpcClient.CallContext(context.Background(), &result, "eth_call", msg, "latest")
 	if err != nil {
-		return "", ""
+		core.LogDebug("baseResolveText(): Error calling text() for key " + key + ": " + err.Error())
+		return ""
 	}
-	var result struct {
-		Avatar string `json:"avatar"`
-		Name   string `json:"name"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return "", ""
-	}
-	return result.Name, result.Avatar
+	return baseDecodeABIString(result)
 }

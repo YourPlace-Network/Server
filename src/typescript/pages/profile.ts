@@ -234,8 +234,8 @@ declare global { // Extend the window interface with public objects
         }
         async function renderProfileFromCache(profileData: any, blockchain: string, address: string) {
             await renderProfileAddress(address);
-            await renderProfileNameFromData(profileData.name, profileData.ensName, blockchain, address);
-            await renderProfileAvatarFromData(profileData.avatarAddress, profileData.ensAvatar, blockchain, address);
+            await renderProfileNameFromData(blockchain, address);
+            await renderProfileAvatarFromData(blockchain, address);
             await renderProfileDescriptionFromData(profileData.description, blockchain, address);
             await renderProfileLocationFromData(profileData.location);
             await renderProfileVerticalFromData(profileData.vertical);
@@ -322,13 +322,10 @@ declare global { // Extend the window interface with public objects
         }
 
         // --------- Cache Render Helper Functions --------- //
-        async function renderProfileNameFromData(cachedName: string, ensName: string, blockchain: string, address: string) {
-            let name = ensName && ensName.length > 0 ? ensName : null;
-            if (!name) {
-                name = await WalletGetName(blockchain, address);
-            }
-            if (name === null || name.length === 0) {
-                name = cachedName && cachedName.length > 0 ? cachedName : "Anonymous";
+        async function renderProfileNameFromData(blockchain: string, address: string) {
+            let name = await WalletGetName(blockchain, address);
+            if (!name || name.length === 0) {
+                name = "Anonymous";
             }
             if (DOM.profileName.textContent === name) {
                 return; // No change, skip DOM updates
@@ -355,17 +352,10 @@ declare global { // Extend the window interface with public objects
             };
             waitForPostAuthors();
         }
-        async function renderProfileAvatarFromData(avatarAddress: string, ensAvatar: string, blockchain: string, address: string) {
-            let avatarURL = avatarAddress;
-            if (!avatarAddress) {
-                if (ensAvatar && ensAvatar.length > 0) {
-                    avatarURL = ensAvatar;
-                } else {
-                    avatarURL = await getIpfsAvatarUrl(blockchain, address) || "";
-                    if (!avatarURL || avatarURL === "") {
-                        avatarURL = await WalletGetAvatar(blockchain, address);
-                    }
-                }
+        async function renderProfileAvatarFromData(blockchain: string, address: string) {
+            let avatarURL = await WalletGetAvatar(blockchain, address);
+            if (!avatarURL || avatarURL === "") {
+                avatarURL = await getIpfsAvatarUrl(blockchain, address) || "";
             }
             // Convert ipfs:// URLs to HTTP gateway URLs
             if (avatarURL && avatarURL.startsWith("ipfs://")) {

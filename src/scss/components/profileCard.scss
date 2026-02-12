@@ -30,6 +30,7 @@
   gap: 0.3em;
 }
 .profileCardName {
+  padding-left: 0.5em;
   font-weight: bold;
   color: var(--yp-text);
 }
@@ -37,6 +38,7 @@
   font-size: 0.7em;
   color: var(--yp-text);
   opacity: 0.8;
+  padding-left: 0.5em;
 }
 .profileCardDescription {
   text-align: justify;

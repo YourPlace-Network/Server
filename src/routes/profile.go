@@ -100,6 +100,9 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		displayName := profileName
 		if displayName == "" {
+			displayName = database.ProfileGetEnsName(addressParam, blockchainParam)
+		}
+		if displayName == "" {
 			displayName = addressParam[:6] + "..." + addressParam[len(addressParam)-4:]
 		}
 		pageTitle := displayName + " | " + title
@@ -168,13 +171,9 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			return
 		}
 		name := database.ProfileGetName(address, blockchainParam)
-		/*if name == "" { // back-end ENS name resolution
-			_name, err := blockchain.WalletGetName(blockchainParam, address, _blockchain)
-			if err != nil || _name == "" {
-				c.SecureJSON(http.StatusOK, gin.H{"status": "no name found"})
-				return
-			}
-		}*/
+		if name == "" {
+			name = database.ProfileGetEnsName(address, blockchainParam)
+		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "name": name})
 	})
 	router.GET("/profile/avatar/:blockchain/:address", func(c *gin.Context) {
@@ -190,11 +189,9 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		avatarAddress := database.ProfileGetAvatar(address, blockchainParam)
 		if avatarAddress == "" {
-			/*ensAvatar, err := blockchain.WalletGetAvatar(blockchainParam, address, _blockchain) // back-end ENS avatar resolution
-			if err == nil && ensAvatar != "" {
-				c.SecureJSON(http.StatusOK, gin.H{"status": "success", "avatarAddress": ensAvatar})
-				return
-			}*/
+			avatarAddress = database.ProfileGetEnsAvatar(address, blockchainParam)
+		}
+		if avatarAddress == "" {
 			c.SecureJSON(http.StatusOK, gin.H{"status": "no avatar found"})
 			return
 		}

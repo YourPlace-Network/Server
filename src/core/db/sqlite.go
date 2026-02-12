@@ -1544,7 +1544,7 @@ func (db *SQLite) ProfileIsFollower(followeeAddress string, followeeBlockchain s
 func (db *SQLite) ProfileGetAddressesWithMissingEnsData(blockchain string) []string {
 	var addresses []string
 	staleThreshold := time.Now().Unix() - (7 * 24 * 60 * 60)
-	query := fmt.Sprintf("SELECT address FROM onchain_%s_meta WHERE ensName = '' OR ensNameTimestamp < ?", blockchain)
+	query := fmt.Sprintf("SELECT address FROM onchain_%s_meta WHERE ensName IS NULL OR ensName = '' OR ensNameTimestamp IS NULL OR ensNameTimestamp < ?", blockchain)
 	rows, err := db.runParamSQLSelect(query, staleThreshold)
 	if err != nil {
 		core.LogDebug("Could not get addresses with missing ENS data: " + err.Error())
@@ -2447,7 +2447,7 @@ func (db *SQLite) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64
 func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
 	var comments []map[string]interface{}
 	queryFmt := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.timestamp, c.data,
-		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc,
+		COALESCE(NULLIF(m.name, ''), NULLIF(m.ensName, ''), '') as author, COALESCE(NULLIF(m.avatar, ''), NULLIF(m.ensAvatar, ''), '') as avatarSrc,
 		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'like') as likeCount,
 		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'dislike') as dislikeCount,
 		(SELECT COUNT(*) FROM onchain_%s_comment c2 WHERE c2.parentTxHash = c.txHash AND c2.blockchain = c.blockchain) as replyCount
@@ -2620,7 +2620,7 @@ func (db *SQLite) GetUserReactions(targetTxHash string, blockchain string, fromA
 func (db *SQLite) GetPost(txHash string, blockchain string) map[string]interface{} {
 	var post map[string]interface{}
 	queryFmt := `SELECT p.txHash, p.blockchain, p.fromAddress, p.parentTxHash, p.timestamp, p.data,
-		COALESCE(m.name, '') as author, COALESCE(m.avatar, '') as avatarSrc
+		COALESCE(NULLIF(m.name, ''), NULLIF(m.ensName, ''), '') as author, COALESCE(NULLIF(m.avatar, ''), NULLIF(m.ensAvatar, ''), '') as avatarSrc
 		FROM onchain_%s_post p
 		LEFT JOIN onchain_%s_meta m ON p.fromAddress = m.address AND p.blockchain = m.blockchain
 		WHERE p.txHash = ? AND p.blockchain = ?`
