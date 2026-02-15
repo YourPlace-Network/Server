@@ -33,6 +33,8 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	_cron "github.com/robfig/cron/v3"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 //go:embed src/templates
@@ -377,10 +379,12 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 	} else {
 		_ = router.SetTrustedProxies(nil)
 	}
-	//router.Use(gin.Logger()) // Attach default logger which prints to stdout
 	router.Use(CustomGinRecovery())
 	router.Use(middleware.CORSMiddleware(gateway, domain))
-	router.Use(gzip.Gzip(gzip.DefaultCompression))
+	router.Use(middleware.EarlyHintsMiddleware(assetManifest))
+	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedExtensions([]string{
+		".gif", ".jpg", ".jpeg", ".mp4", ".png", ".webm", ".webp", ".woff", ".woff2",
+	})))
 	router.Use(middleware.LoopbackMiddleware(port, gateway))
 	router.Use(middleware.LoopbackRedirectMiddleware(port))
 	router.Use(middleware.CSRFMiddleware(middleware.CSRFConfig{CryptoSeed: cryptoSeed}))
@@ -424,12 +428,19 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 		}
 	}
 	// --- Start Web Server Loop --- //
+	http2Cleartext := &http2.Server{
+		IdleTimeout:                  120 * time.Second,
+		MaxConcurrentStreams:         1000,
+		MaxReadFrameSize:             32768,
+		MaxUploadBufferPerConnection: 2 << 20,
+		MaxUploadBufferPerStream:     512 << 10,
+	}
 	var srv *http.Server
 	srv = &http.Server{
 		Addr:              "127.0.0.1:" + strconv.Itoa(port),
-		Handler:           router,
+		Handler:           h2c.NewHandler(router, http2Cleartext),
 		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      60 * time.Second,
+		WriteTimeout:      120 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		ReadHeaderTimeout: 20 * time.Second,
 		MaxHeaderBytes:    1 << 20, // 1 MB max header size
@@ -444,27 +455,39 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 	if gateway { // Gateway mode TLS server
 		certPath := host.GetDataDir() + "cert.pem"
 		keyPath := host.GetDataDir() + "cert.key"
-
 		if host.DoesExist(certPath) && host.DoesExist(keyPath) {
 			core.LogInfo("Loading TLS certificate from cert.pem and cert.key")
 			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 			if err != nil {
 				core.LogWarn("Could not load TLS certificate: " + err.Error())
+				host.Shutdown(1)
 			} else {
 				core.LogInfo("Starting TLS server on port 443 for gateway mode")
 				tlsConfig := &tls.Config{
-					Certificates: []tls.Certificate{cert},
-					MinVersion:   tls.VersionTLS12,
+					Certificates:     []tls.Certificate{cert},
+					CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
+					MinVersion:       tls.VersionTLS12,
+					NextProtos:       []string{"h2", "http/1.1"},
 				}
 				tlsSrv := &http.Server{
 					Addr:              "0.0.0.0:443",
 					Handler:           router,
 					ReadTimeout:       30 * time.Second,
-					WriteTimeout:      60 * time.Second,
+					WriteTimeout:      120 * time.Second,
 					IdleTimeout:       120 * time.Second,
 					ReadHeaderTimeout: 20 * time.Second,
 					MaxHeaderBytes:    1 << 20, // 1 MB max header size
 					TLSConfig:         tlsConfig,
+				}
+				http2Secure := &http2.Server{
+					IdleTimeout:                  120 * time.Second,
+					MaxConcurrentStreams:         1000,
+					MaxReadFrameSize:             32768,
+					MaxUploadBufferPerConnection: 2 << 20,
+					MaxUploadBufferPerStream:     512 << 10,
+				}
+				if err := http2.ConfigureServer(tlsSrv, http2Secure); err != nil {
+					core.LogError("Could not configure HTTP/2: " + err.Error())
 				}
 				go func() {
 					err = tlsSrv.ListenAndServeTLS("", "")
