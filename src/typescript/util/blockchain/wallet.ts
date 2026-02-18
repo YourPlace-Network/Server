@@ -89,6 +89,20 @@ import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
 import {ShowDialogModal, ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
 
+// ---------- Request Deduplication ---------- //
+const inflight = new Map<string, Promise<any>>();
+function Dedup<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const existing = inflight.get(key);
+    if (existing) {
+        return existing as Promise<T>;
+    }
+    const promise = fn().finally(() => {
+        inflight.delete(key);
+    });
+    inflight.set(key, promise);
+    return promise;
+}
+
 // ---------- Connection ---------- //
 export async function WalletLogin() {
     let wallet = GetWallet();
@@ -297,55 +311,57 @@ export function GetChain() {
     return null;
 }
 export async function WalletGetAvatar(chain?: string, address?: string): Promise<string> {
-    let avatar;
     if (!chain) chain = GetChain()!;
     if (!address) address = GetAddress()!;
-    switch (chain) {
-        case "algorand":
-            avatar = await algoGetAvatar(address);
-            break;
-        case "base":
-            avatar = await baseGetAvatar(address);
-            break;
-    }
-    if (avatar && IsValidURL(avatar)) {
-        return avatar;
-    }
-    return "";
+    return Dedup(chain + ":avatar:" + address, async () => {
+        let avatar;
+        switch (chain) {
+            case "algorand":
+                avatar = await algoGetAvatar(address!);
+                break;
+            case "base":
+                avatar = await baseGetAvatar(address!);
+                break;
+        }
+        if (avatar && IsValidURL(avatar)) {
+            return avatar;
+        }
+        return "";
+    });
 }
 export async function WalletGetName(chain: string, address: string): Promise<string|null> {
-    let name;
-    switch (chain) {
-        case "algorand":
-            name = await algoGetName(address);
-            break;
-        case "base":
-            name = await baseGetName(address);
-            break;
-    }
-    if (name) {
-        return name;
-    }
-    return "";
+    return Dedup(chain + ":name:" + address, async () => {
+        let name;
+        switch (chain) {
+            case "algorand":
+                name = await algoGetName(address);
+                break;
+            case "base":
+                name = await baseGetName(address);
+                break;
+        }
+        if (name) {
+            return name;
+        }
+        return "";
+    });
 }
 export async function WalletGetDescription(chain?: string, address?: string): Promise<string|null> {
-    let description;
-    if (!chain) {
-        chain = GetChain()!;
-    }
-    if (!address) {
-        address = GetAddress()!;
-    }
-    switch (chain) {
-        case "algorand":
-            return null;
-        case "base":
-            description = await baseGetDescription(address);
-    }
-    if (description) {
-        return description;
-    }
-    return null;
+    if (!chain) chain = GetChain()!;
+    if (!address) address = GetAddress()!;
+    return Dedup(chain + ":description:" + address, async () => {
+        let description;
+        switch (chain) {
+            case "algorand":
+                return null;
+            case "base":
+                description = await baseGetDescription(address!);
+        }
+        if (description) {
+            return description;
+        }
+        return null;
+    });
 }
 export function WalletGetExplorerAddressLink(address: string, blockchain?: string) {
     let chain = blockchain || GetChain();

@@ -5,9 +5,41 @@ import (
 	"sync"
 )
 
+type dedupeCall struct {
+	wg  sync.WaitGroup
+	err error
+	val interface{}
+}
+type DedupeQueue struct {
+	mu    sync.Mutex
+	calls map[string]*dedupeCall
+}
 type ThreadSafeQueue struct {
 	mu   sync.Mutex
 	list *list.List
+}
+
+func NewDedupeQueue() *DedupeQueue {
+	return &DedupeQueue{calls: make(map[string]*dedupeCall)}
+}
+func (d *DedupeQueue) Do(key string, fn func() (interface{}, error)) (interface{}, error) {
+	d.mu.Lock()
+	if call, ok := d.calls[key]; ok {
+		d.mu.Unlock()
+		LogDebug("DedupeQueue: coalescing duplicate request: " + key)
+		call.wg.Wait()
+		return call.val, call.err
+	}
+	call := &dedupeCall{}
+	call.wg.Add(1)
+	d.calls[key] = call
+	d.mu.Unlock()
+	call.val, call.err = fn()
+	call.wg.Done()
+	d.mu.Lock()
+	delete(d.calls, key)
+	d.mu.Unlock()
+	return call.val, call.err
 }
 
 func NewThreadSafeQueue() *ThreadSafeQueue {
