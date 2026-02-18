@@ -20,7 +20,7 @@ import {
 import {getName as ockGetName, getAvatar as ockGetAvatar, getAddress as ockGetAddress} from "@coinbase/onchainkit/identity";
 import {base as wagmiBase} from "@wagmi/core/chains";
 import {baseAccount} from "@wagmi/connectors";
-import {IsValidBaseAddress} from "../security";
+import {IsValidBaseAddress, IsValidURL} from "../security";
 import {Sleep} from "../time";
 import {PersistentCache} from "../cache";
 import {setOnchainKitConfig} from "@coinbase/onchainkit";
@@ -437,6 +437,10 @@ export async function baseGetAvatar(address: string): Promise<string> {
         if (response[0] === 200 && response[1] && response[1].avatarAddress) {
             const avatarAddress = response[1].avatarAddress.trim();
             if (avatarAddress.length > 0) {
+                if (IsValidURL(avatarAddress)) {
+                    avatarCache.set(address, avatarAddress);
+                    return avatarAddress;
+                }
                 const avatarUrl = CIDToSubdomainURL(avatarAddress);
                 if (avatarUrl !== "") {
                     avatarCache.set(address, avatarUrl);

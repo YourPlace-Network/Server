@@ -25,7 +25,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-contrib/gzip"
@@ -556,17 +555,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain2.Blockchain) {
 	})
 	// ------- Identity Resolution ------- //
 	c.AddFunc("@every 1m", func() {
-		var wg sync.WaitGroup
-		wg.Add(2)
-		go func() {
-			defer wg.Done()
-			blockchain2.BaseResolveIdentities(database)
-		}()
-		go func() {
-			defer wg.Done()
-			blockchain2.AlgorandResolveIdentities(database)
-		}()
-		wg.Wait()
+		blockchain2.WalletResolveIdentities(database, _blockchain)
 	})
 	// --- Start Cron --- //
 	c.Start()

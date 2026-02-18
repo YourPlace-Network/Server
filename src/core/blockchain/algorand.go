@@ -285,14 +285,14 @@ func AlgorandResolveIdentities(database *db.Database) {
 	}
 	core.LogDebug("Resolving NFD names for " + strconv.Itoa(len(addresses)) + " Algorand addresses")
 	for _, address := range addresses {
-		name, avatar := algorandResolveNFD(address)
+		name, avatar := AlgorandResolveNFD(address)
 		if name != "" || avatar != "" {
 			database.ProfileUpdateEnsData(address, "algorand", name, avatar)
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
 }
-func algorandResolveNFD(address string) (string, string) {
+func AlgorandResolveNFD(address string) (string, string) {
 	client := &http.Client{Timeout: 30 * time.Second}
 	req, err := http.NewRequest("GET", "https://api.nf.domains/nfd/lookup?address="+address+"&view=brief", nil)
 	if err != nil {

@@ -7,7 +7,7 @@ import {YP} from "../../services/yourplace";
 import {LogError, LogInfo} from "../log";
 import {SiwaMessage} from "@avmkit/siwa";
 import {PersistentCache} from "../cache";
-import {IsValidAlgoAddress} from "../security";
+import {IsValidAlgoAddress, IsValidURL} from "../security";
 import {CIDToSubdomainURL} from "../ipfs";
 
 // ---------- Algorand Variables & Objects ---------- //
@@ -550,6 +550,10 @@ export async function algoGetAvatar(address: string): Promise<string> {
         if (response[0] === 200 && response[1] && response[1].avatarAddress) {
             const avatarAddress = response[1].avatarAddress.trim();
             if (avatarAddress.length > 0) {
+                if (IsValidURL(avatarAddress)) {
+                    avatarCache.set(address, avatarAddress);
+                    return avatarAddress;
+                }
                 const avatarUrl = CIDToSubdomainURL(avatarAddress);
                 if (avatarUrl !== "") {
                     avatarCache.set(address, avatarUrl);

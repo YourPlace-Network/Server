@@ -268,6 +268,9 @@ export async function getIpfsAvatarUrl(blockchain: string, address: string): Pro
         if (response[0] === 200 && response[1] && response[1].avatarAddress) {
             const avatarCid = response[1].avatarAddress.trim();
             if (avatarCid.length > 0) {
+                if (IsValidURL(avatarCid)) {
+                    return avatarCid;
+                }
                 const avatarURL = CIDToSubdomainURL(avatarCid);
                 if (IsValidURL(avatarURL)) {
                     return avatarURL;

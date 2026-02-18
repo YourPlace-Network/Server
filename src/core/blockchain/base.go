@@ -207,11 +207,13 @@ func (base *Base) GetENSText(address string, key string) (string, error) {
 	}
 	name, err := base.GetENSName(address)
 	if err != nil || name == "" {
+		core.LogDebug("Base.GetENSText(): Could not resolve ENS name for address " + address + ": " + err.Error())
 		return "", err
 	}
 	node := baseNameHash(name)
 	resolverAddr := baseGetDefaultResolver(base)
 	if resolverAddr == (common.Address{}) {
+		core.LogDebug("Base.GetENSText(): Could not get default resolver for address " + address)
 		return "", nil
 	}
 	text := baseResolveText(base, resolverAddr, node, key)
@@ -222,25 +224,11 @@ func (base *Base) GetENSText(address string, key string) (string, error) {
 func BaseGetEarliestBlock() big.Int {
 	return *big.NewInt(int64(39000000)) // YourPlace did not exist on-chain before this block
 }
-func BaseGetBalance(address string, database *db.Database) (big.Int, error) {
-	base := new(Base)
-	base.Init(database)
-	_addr := common.HexToAddress(address)
-	var result hexutil.Big
-	err := base.RpcClient.Call(&result, "eth_getBalance", _addr, "latest")
-	if err != nil {
-		return *big.NewInt(0), core.LogWarningReturn(err.Error())
-	}
-	//etherBalance := WeiToEther(*result.ToInt())
-	return *result.ToInt(), nil
-}
-func BaseResolveIdentities(database *db.Database) {
+func BaseResolveIdentities(base *Base, database *db.Database) {
 	addresses := database.ProfileGetAddressesWithMissingEnsData("base")
 	if len(addresses) == 0 {
 		return
 	}
-	base := new(Base)
-	base.Init(database)
 	for _, address := range addresses {
 		name, _ := base.GetENSName(address)
 		if name == "" {
