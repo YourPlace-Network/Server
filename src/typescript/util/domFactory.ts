@@ -35,14 +35,6 @@ const blockchainUrls: Record<string, string> = {
     "optimism": "https://optimism.io",
     "solana": "https://solana.com",
 };
-export function getBlockchainIconPath(blockchain: string): string | null {
-    const key = blockchain.toLowerCase();
-    return blockchainIcons[key] || null;
-}
-export function getBlockchainUrl(blockchain: string): string | null {
-    const key = blockchain.toLowerCase();
-    return blockchainUrls[key] || null;
-}
 interface TagPattern {
     regex: RegExp;
     createLink: (match: string) => HTMLAnchorElement | null;
@@ -58,8 +50,30 @@ const tagPatterns: TagPattern[] = [
             link.classList.add("mention-link");
             return link;
         }
-    }
+    },
+    {
+        regex: /(^|\s)(https:\/\/[^\s"<>]+)/g,
+        createLink: (url: string) => {
+            const sanitizedUrl = XSSSanitizeUrl(url);
+            if (sanitizedUrl === "#") return null;
+            const link = document.createElement("a");
+            link.href = sanitizedUrl;
+            link.textContent = url.replace(/^https:\/\/(www\.)?/, "");
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            return link;
+        }
+    },
 ];
+
+export function getBlockchainIconPath(blockchain: string): string | null {
+    const key = blockchain.toLowerCase();
+    return blockchainIcons[key] || null;
+}
+export function getBlockchainUrl(blockchain: string): string | null {
+    const key = blockchain.toLowerCase();
+    return blockchainUrls[key] || null;
+}
 export function processTextWithTags(element: HTMLElement): void {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
     const textNodes: Text[] = [];

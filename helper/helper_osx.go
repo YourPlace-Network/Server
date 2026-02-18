@@ -1,4 +1,4 @@
-//go:build go1.24 && darwin
+//go:build darwin
 
 package main
 

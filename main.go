@@ -1,5 +1,3 @@
-//go:build go1.24
-
 package main
 
 import (
@@ -53,10 +51,8 @@ var assetManifest map[string]string // webpack asset manifest
 
 var (
 	title      = "YourPlace"
-	version    = "0.1.0" // Triggers a release build
-	protocol   = "http"  // http or https
-	tlsCert    = host.GetInstallDir() + "server.cert"
-	tlsKey     = host.GetInstallDir() + "server.key"
+	version    = "0.1.0"                  // Triggers a release build
+	protocol   = "http"                   // http or https
 	cryptoSeed = security.RandomBytes(32) // set in 'c' command line flag
 	domain     = "localhost"
 	port       = 42424
