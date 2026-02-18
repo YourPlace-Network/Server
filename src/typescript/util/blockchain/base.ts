@@ -447,16 +447,17 @@ export async function baseGetAvatar(address: string): Promise<string> {
                     return avatarUrl;
                 }
             }
-        } else {
-            const ensAvatar = await baseGetEnsAvatar(address);
-            if (ensAvatar && ensAvatar !== "") {
-                avatarCache.set(address, ensAvatar);
-                return ensAvatar;
-            }
         }
     } catch (error) {
         LogError("Failed to get local avatar: " + error);
     }
+    try {
+        const ensAvatar = await baseGetEnsAvatar(address);
+        if (ensAvatar && ensAvatar !== "") {
+            avatarCache.set(address, ensAvatar);
+            return ensAvatar;
+        }
+    } catch (_) {}
     return "";
 }
 export async function baseGetName(_address: string): Promise<string> {
@@ -496,7 +497,6 @@ export async function baseGetDescription(_address: string): Promise<string> {
     }
     const cached = descriptionCache.get<string>(_address);
     if (cached !== null) {
-        LogInfo("baseGetDescription(): Cache hit for " + _address);
         return cached;
     }
     try {

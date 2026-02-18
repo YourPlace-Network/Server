@@ -206,9 +206,12 @@ func (base *Base) GetENSText(address string, key string) (string, error) {
 		return "", core.LogErrorReturn("Base.GetENSText(): RPC client is nil")
 	}
 	name, err := base.GetENSName(address)
-	if err != nil || name == "" {
+	if err != nil {
 		core.LogDebug("Base.GetENSText(): Could not resolve ENS name for address " + address + ": " + err.Error())
 		return "", err
+	}
+	if name == "" {
+		return "", nil
 	}
 	node := baseNameHash(name)
 	resolverAddr := baseGetDefaultResolver(base)
@@ -231,10 +234,6 @@ func BaseResolveIdentities(base *Base, database *db.Database) {
 	}
 	for _, address := range addresses {
 		name, _ := base.GetENSName(address)
-		if name == "" {
-			time.Sleep(500 * time.Millisecond)
-			continue
-		}
 		avatar, _ := base.GetENSAvatar(address)
 		database.ProfileUpdateEnsData(address, "base", name, avatar)
 		time.Sleep(500 * time.Millisecond)

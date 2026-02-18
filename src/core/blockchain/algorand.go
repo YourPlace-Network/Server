@@ -286,9 +286,7 @@ func AlgorandResolveIdentities(database *db.Database) {
 	core.LogDebug("Resolving NFD names for " + strconv.Itoa(len(addresses)) + " Algorand addresses")
 	for _, address := range addresses {
 		name, avatar := AlgorandResolveNFD(address)
-		if name != "" || avatar != "" {
-			database.ProfileUpdateEnsData(address, "algorand", name, avatar)
-		}
+		database.ProfileUpdateEnsData(address, "algorand", name, avatar)
 		time.Sleep(500 * time.Millisecond)
 	}
 }

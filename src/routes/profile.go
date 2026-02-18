@@ -88,6 +88,9 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		profileDescription := database.ProfileGetDescription(addressParam, blockchainParam)
 		profileAvatar := database.ProfileGetAvatar(addressParam, blockchainParam)
 		if profileAvatar == "" {
+			profileAvatar = database.ProfileGetEnsAvatar(addressParam, blockchainParam)
+		}
+		if profileAvatar == "" {
 			onChainAvatar, err := blockchain2.WalletGetAvatar(blockchainParam, addressParam, _blockchain)
 			if err == nil && onChainAvatar != "" {
 				profileAvatar = onChainAvatar
@@ -140,6 +143,10 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			return
 		}
 		avatarAddress := database.ProfileGetAvatar(address, blockchainParam)
+		ensAvatar := database.ProfileGetEnsAvatar(address, blockchainParam)
+		if avatarAddress == "" && ensAvatar != "" {
+			avatarAddress = ensAvatar
+		}
 		if avatarAddress == "" {
 			onChainAvatar, err := blockchain2.WalletGetAvatar(blockchainParam, address, _blockchain)
 			if err == nil && onChainAvatar != "" {
@@ -150,7 +157,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"avatarAddress":  avatarAddress,
 			"bannerAddress":  database.ProfileGetBanner(address, blockchainParam),
 			"description":    database.ProfileGetDescription(address, blockchainParam),
-			"ensAvatar":      database.ProfileGetEnsAvatar(address, blockchainParam),
+			"ensAvatar":      ensAvatar,
 			"ensName":        database.ProfileGetEnsName(address, blockchainParam),
 			"followerCount":  database.ProfileGetFollowerCount(address, blockchainParam),
 			"followingCount": database.ProfileGetFollowingCount(address, blockchainParam),
