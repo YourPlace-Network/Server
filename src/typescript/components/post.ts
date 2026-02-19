@@ -3,11 +3,10 @@ import "../../scss/components/postCard.scss";
 import DOMPurify from "dompurify";
 import {HttpGetJson} from "../util/network";
 
-export async function FetchPosts(blockchain: string, address: string): Promise<[] | null> { // retrieves a user's posts from the backend
-    let resp = await HttpGetJson("/posts/" + blockchain + "/" + address);
+export async function FetchPosts(blockchain: string, address: string, limit: number, offset: number): Promise<{posts: any[], totalCount: number} | null> {
+    let resp = await HttpGetJson(`/posts/${blockchain}/${address}?limit=${limit}&offset=${offset}`);
     if (resp[0] === 200) {
-        let posts = resp[1].posts;
-        return posts;
+        return {posts: resp[1].posts || [], totalCount: resp[1].totalCount || 0};
     }
     return null;
 }

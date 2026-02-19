@@ -77,9 +77,14 @@ declare global { // Extend the window interface with public objects
         }
         let copiedTooltip: any;
         let isFollowing = false;
-        let refreshIntervalId: ReturnType<typeof setInterval> | null = null;
         let lastPostsHash = "";
-        const REFRESH_INTERVAL_MS = 60000; // 60 seconds
+        let postsHasMore = true;
+        let postsLoading = false;
+        let postsObserver: IntersectionObserver | null = null;
+        let postsOffset = 0;
+        let refreshIntervalId: ReturnType<typeof setInterval> | null = null;
+        const POSTS_PAGE_SIZE = 20;
+        const REFRESH_INTERVAL_MS = 60000;
 
         // --------- Page Functions --------- //
         async function init() {
@@ -129,15 +134,23 @@ declare global { // Extend the window interface with public objects
             await postsPromise;
             await renderGuestView();
         }
-        async function displayPosts(blockchain: string, address: string) { // adds posts to the DOM
-            let posts = await FetchPosts(blockchain, address);
-            if (!posts || posts.length == 0) {
-                DOM.postsNum.textContent = "0";
+        async function displayPosts(blockchain: string, address: string) {
+            postsOffset = 0;
+            postsHasMore = true;
+            let result = await FetchPosts(blockchain, address, POSTS_PAGE_SIZE + 1, 0);
+            if (!result || result.posts.length === 0) {
+                DOM.postsNum.textContent = String(result?.totalCount || 0);
                 lastPostsHash = "";
                 return;
             }
-            lastPostsHash = JSON.stringify(posts.map((p: any) => p.id || p.hash || p.txHash));
-            DOM.postsNum.textContent = String(posts.length);
+            DOM.postsNum.textContent = String(result.totalCount);
+            let posts = result.posts;
+            postsHasMore = posts.length > POSTS_PAGE_SIZE;
+            if (postsHasMore) {
+                posts = posts.slice(0, POSTS_PAGE_SIZE);
+            }
+            postsOffset = posts.length;
+            lastPostsHash = JSON.stringify(posts.map((p: any) => p.txHash));
             for (let i = 0; i < posts.length; i++) {
                 let postDiv = await CreatePostCard(posts[i]);
                 if (i % 2 === 0) {
@@ -145,35 +158,87 @@ declare global { // Extend the window interface with public objects
                 }
                 DOM.contentDiv.appendChild(postDiv);
             }
+            setupPostsObserver(blockchain, address);
         }
-        async function refreshProfileData() { // Refreshes profile data and posts without full page reload
+        async function loadMorePosts(blockchain: string, address: string) {
+            if (postsLoading || !postsHasMore) return;
+            postsLoading = true;
+            try {
+                let result = await FetchPosts(blockchain, address, POSTS_PAGE_SIZE + 1, postsOffset);
+                if (!result || result.posts.length === 0) {
+                    postsHasMore = false;
+                    return;
+                }
+                let posts = result.posts;
+                postsHasMore = posts.length > POSTS_PAGE_SIZE;
+                if (postsHasMore) {
+                    posts = posts.slice(0, POSTS_PAGE_SIZE);
+                }
+                for (const post of posts) {
+                    let postDiv = await CreatePostCard(post);
+                    DOM.contentDiv.appendChild(postDiv);
+                }
+                postsOffset += posts.length;
+                const children = DOM.contentDiv.children;
+                for (let i = 0; i < children.length; i++) {
+                    if (i % 2 === 0) {
+                        children[i].classList.add("shaded");
+                    } else {
+                        children[i].classList.remove("shaded");
+                    }
+                }
+                setupPostsObserver(blockchain, address);
+            } finally {
+                postsLoading = false;
+            }
+        }
+        function setupPostsObserver(blockchain: string, address: string) {
+            if (postsObserver) {
+                postsObserver.disconnect();
+            }
+            if (!postsHasMore) return;
+            postsObserver = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting && postsHasMore && !postsLoading) {
+                        loadMorePosts(blockchain, address).then();
+                    }
+                }
+            }, {rootMargin: "100px"});
+            const lastPost = DOM.contentDiv.lastElementChild;
+            if (lastPost) {
+                postsObserver.observe(lastPost);
+            }
+        }
+        async function refreshProfileData() {
             let requestedAddress = DOM.injectedAddress.value;
             let requestedBlockchain = DOM.injectedBlockchain.value;
             if (!requestedAddress || !IsValidAddress(requestedAddress, requestedBlockchain)) {
                 return;
             }
             try {
-                // Fetch fresh profile data
-                const [profileResponse, posts] = await Promise.all([
+                const [profileResponse, result] = await Promise.all([
                     HttpGetJson(`/profile/data/${requestedBlockchain}/${requestedAddress}`),
-                    FetchPosts(requestedBlockchain, requestedAddress)
+                    FetchPosts(requestedBlockchain, requestedAddress, POSTS_PAGE_SIZE + 1, 0)
                 ]);
-                // Update profile data if successful
                 if (profileResponse[0] === 200 && profileResponse[1]?.profileData) {
                     const profileData = profileResponse[1].profileData;
                     await renderProfileFromCache(profileData, requestedBlockchain, requestedAddress);
                 }
-                // Update posts only if they've changed
-                const newPostsHash = posts ? JSON.stringify(posts.map((p: any) => p.id || p.hash || p.txHash)) : "";
+                if (result) {
+                    DOM.postsNum.textContent = String(result.totalCount);
+                }
+                let posts = result ? result.posts : [];
+                const newPostsHash = posts.length > 0 ? JSON.stringify(posts.slice(0, POSTS_PAGE_SIZE).map((p: any) => p.txHash)) : "";
                 if (newPostsHash !== lastPostsHash) {
                     lastPostsHash = newPostsHash;
-                    // Clear existing posts and re-render
                     const existingPosts = DOM.contentDiv.querySelectorAll('.postCard');
                     existingPosts.forEach(post => post.remove());
-                    if (posts && posts.length > 0) {
-                        if (DOM.postsNum.textContent !== String(posts.length)) {
-                            DOM.postsNum.textContent = String(posts.length);
+                    if (posts.length > 0) {
+                        postsHasMore = posts.length > POSTS_PAGE_SIZE;
+                        if (postsHasMore) {
+                            posts = posts.slice(0, POSTS_PAGE_SIZE);
                         }
+                        postsOffset = posts.length;
                         for (let i = 0; i < posts.length; i++) {
                             let postDiv = await CreatePostCard(posts[i]);
                             if (i % 2 === 0) {
@@ -181,13 +246,12 @@ declare global { // Extend the window interface with public objects
                             }
                             DOM.contentDiv.appendChild(postDiv);
                         }
+                        setupPostsObserver(requestedBlockchain, requestedAddress);
                     } else {
-                        if (DOM.postsNum.textContent !== "0") {
-                            DOM.postsNum.textContent = "0";
-                        }
+                        postsOffset = 0;
+                        postsHasMore = false;
                     }
                 }
-                // Update guest view state (follow button, placeholder visibility)
                 await renderGuestView();
             } catch (error) {
                 LogError("Profile refresh failed: " + error);

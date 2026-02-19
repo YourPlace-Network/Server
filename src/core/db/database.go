@@ -588,14 +588,23 @@ func (db *Database) ProfileGetName(address string, blockchain string) string {
 	}
 	return name
 }
-func (db *Database) ProfileGetPosts(address string, blockchain string) []map[string]interface{} {
+func (db *Database) ProfileGetPostCount(address string, blockchain string) int64 {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileGetPostCount(address, blockchain)
+	case "sqlite":
+		return db.sqlite.ProfileGetPostCount(address, blockchain)
+	}
+	return 0
+}
+func (db *Database) ProfileGetPosts(address string, blockchain string, limit int, offset int) []map[string]interface{} {
 	var posts []map[string]interface{}
 	switch db.Engine {
 	case "mysql":
-		posts = db.mysql.ProfileGetPosts(address, blockchain)
+		posts = db.mysql.ProfileGetPosts(address, blockchain, limit, offset)
 		return posts
 	case "sqlite":
-		posts = db.sqlite.ProfileGetPosts(address, blockchain)
+		posts = db.sqlite.ProfileGetPosts(address, blockchain, limit, offset)
 		return posts
 	}
 	return nil

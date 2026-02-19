@@ -6,6 +6,7 @@ import (
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,8 +23,19 @@ func PostRoutes(router *gin.Engine, database *db.Database, title string) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address"})
 			return
 		}
-		posts := database.ProfileGetPosts(address, blockchain)
-		c.SecureJSON(http.StatusOK, gin.H{"posts": posts})
+		limitStr := c.DefaultQuery("limit", "21")
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 || limit > 21 {
+			limit = 21
+		}
+		offsetStr := c.DefaultQuery("offset", "0")
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 || offset > 10000 {
+			offset = 0
+		}
+		totalCount := database.ProfileGetPostCount(address, blockchain)
+		posts := database.ProfileGetPosts(address, blockchain, limit, offset)
+		c.SecureJSON(http.StatusOK, gin.H{"posts": posts, "totalCount": totalCount})
 	})
 	router.GET("/post/:blockchain/:txHash", func(c *gin.Context) {
 		blockchain := c.Param("blockchain")
