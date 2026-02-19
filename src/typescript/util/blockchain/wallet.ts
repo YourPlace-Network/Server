@@ -84,6 +84,7 @@ import {
     localWalletEthereumTxn,
     localWalletEthereumUnfollowUser,
 } from "./localWallet";
+import {CIDToSubdomainURL} from "../ipfs";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
@@ -323,8 +324,13 @@ export async function WalletGetAvatar(chain?: string, address?: string): Promise
                 avatar = await baseGetAvatar(address!);
                 break;
         }
-        if (avatar && IsValidURL(avatar)) {
-            return avatar;
+        if (avatar) {
+            if (avatar.startsWith("ipfs://")) {
+                return CIDToSubdomainURL(avatar) || "";
+            }
+            if (IsValidURL(avatar)) {
+                return avatar;
+            }
         }
         return "";
     });

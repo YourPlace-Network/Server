@@ -554,7 +554,7 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain2.Blockchain) {
 		network.UpdateBadBits(database)
 	})
 	// ------- Identity Resolution ------- //
-	c.AddFunc("@every 1m", func() {
+	c.AddFunc("@every 3h", func() {
 		blockchain2.WalletResolveIdentities(database, _blockchain)
 	})
 	// --- Start Cron --- //

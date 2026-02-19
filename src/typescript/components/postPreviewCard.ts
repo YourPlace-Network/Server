@@ -1,5 +1,6 @@
+import { CIDToSubdomainURL } from "../util/ipfs";
 import { HttpGetJson } from "../util/network";
-import { XSSSanitizeValue } from "../util/security";
+import { XSSSanitizeUrl, XSSSanitizeValue } from "../util/security";
 
 const POST_URL_REGEX = /\/post\/(base|algorand)\/[a-zA-Z0-9]+/g;
 export function DetectPostUrl(text: string): string | null {
@@ -36,7 +37,11 @@ function renderPreviewCard(post: any, postUrl: string): HTMLDivElement {
     header.classList.add("previewHeader");
     const avatar = document.createElement("img");
     avatar.classList.add("previewAvatar");
-    avatar.src = post.avatarSrc || "/static/image/avatar.png";
+    let avatarSrc = post.avatarSrc || "/static/image/avatar.png";
+    if (avatarSrc.startsWith("ipfs://")) {
+        avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.png";
+    }
+    avatar.src = XSSSanitizeUrl(avatarSrc);
     avatar.alt = "avatar";
     avatar.crossOrigin = "anonymous";
     avatar.referrerPolicy = "no-referrer";
@@ -62,7 +67,11 @@ function renderPreviewCard(post: any, postUrl: string): HTMLDivElement {
         const mimeType = firstAttachment[1] || "";
         if (mimeType.startsWith("image/")) {
             const img = document.createElement("img");
-            img.src = firstAttachment[0];
+            let attachmentSrc = firstAttachment[0];
+            if (attachmentSrc.startsWith("ipfs://")) {
+                attachmentSrc = CIDToSubdomainURL(attachmentSrc) || "";
+            }
+            img.src = XSSSanitizeUrl(attachmentSrc);
             img.alt = "attachment";
             img.crossOrigin = "anonymous";
             img.referrerPolicy = "no-referrer";
