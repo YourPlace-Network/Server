@@ -4,19 +4,8 @@ import {HttpGetJson, HttpPostJson} from "../network";
 import {IsValidBaseAddress} from "../security";
 import {LogError, LogInfo} from "../log";
 import {YP} from "../../services/yourplace";
-import {GetAddress} from "./wallet";
 import {mainnetBase} from "./base";
 import {ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
-import {
-    getPasskeyWalletAddress,
-    getPasskeyWalletCachedData,
-    hasPasskeyWallet,
-    isPasskeyPrfSupported,
-    passkeyWalletAdd,
-    passkeyWalletClearCache,
-    passkeyWalletDelete,
-    passkeyWalletUnlock,
-} from "./passkeyWallet";
 
 const LOCAL_WALLET_KEY = "yp_local_wallet_ethereum";
 
@@ -63,22 +52,10 @@ function downloadWalletBackup(walletData: LocalWalletData): void {
 }
 
 export function hasLocalWalletEthereum(): boolean {
-    return hasPasskeyWallet("base") || localStorage.getItem(LOCAL_WALLET_KEY) !== null;
-}
-export async function isLocalWalletPasskeySupported(): Promise<boolean> {
-    return isPasskeyPrfSupported();
+    return localStorage.getItem(LOCAL_WALLET_KEY) !== null;
 }
 
 export function localWalletEthereumGetWallet(): ethers.Wallet | null {
-    const passkeyData = getPasskeyWalletCachedData("base");
-    if (passkeyData) {
-        try {
-            const data: LocalWalletData = JSON.parse(passkeyData);
-            return new ethers.Wallet(data.privateKey);
-        } catch (e) {
-            LogError("Failed to parse passkey wallet data: " + e);
-        }
-    }
     const stored = localStorage.getItem(LOCAL_WALLET_KEY);
     if (!stored) {
         return null;
@@ -107,33 +84,12 @@ export async function localWalletEthereumCreate(): Promise<string> {
         publicKey: wallet.publicKey,
     };
     const walletDataJson = JSON.stringify(walletData);
-    const passkeySupported = await isPasskeyPrfSupported();
-    if (passkeySupported) {
-        const passkeySuccess = await passkeyWalletAdd("base", walletDataJson, wallet.address);
-        if (passkeySuccess) {
-            LogInfo("Wallet created with passkey protection");
-            downloadWalletBackup(walletData);
-            return wallet.address;
-        }
-        LogInfo("Passkey creation failed, falling back to localStorage");
-    }
     localStorage.setItem(LOCAL_WALLET_KEY, walletDataJson);
     downloadWalletBackup(walletData);
     return wallet.address;
 }
 
 export async function localWalletEthereumConnect(): Promise<string> {
-    if (hasPasskeyWallet("base")) {
-        const passkeyAddress = getPasskeyWalletAddress("base");
-        if (passkeyAddress && IsValidBaseAddress(passkeyAddress)) {
-            const unlocked = await passkeyWalletUnlock("base");
-            if (unlocked) {
-                LogInfo("Passkey wallet unlocked for: " + passkeyAddress);
-                return passkeyAddress;
-            }
-            LogInfo("Passkey wallet unlock failed, checking localStorage fallback");
-        }
-    }
     const stored = localStorage.getItem(LOCAL_WALLET_KEY);
     if (!stored) {
         return "";
@@ -151,58 +107,43 @@ export async function localWalletEthereumConnect(): Promise<string> {
 
 export async function localWalletEthereumDisconnect(): Promise<void> {
     localStorage.removeItem(LOCAL_WALLET_KEY);
-    passkeyWalletDelete("base");
 }
-export async function localWalletDisablePasskey(blockchain: string): Promise<boolean> {
-    if (!hasPasskeyWallet(blockchain)) {
-        return false;
-    }
-    const data = await passkeyWalletUnlock(blockchain);
-    if (!data) {
-        LogError("Failed to unlock passkey wallet for disabling");
-        return false;
-    }
-    const storageKey = `yp_local_wallet_${blockchain}`;
-    localStorage.setItem(storageKey, data);
-    passkeyWalletDelete(blockchain);
-    LogInfo("Passkey protection disabled for " + blockchain);
-    return true;
-}
-export async function localWalletEnablePasskey(blockchain: string): Promise<boolean> {
-    const storageKey = `yp_local_wallet_${blockchain}`;
-    const stored = localStorage.getItem(storageKey);
-    if (!stored) {
-        LogError("No local wallet found for " + blockchain);
-        return false;
-    }
+export function localWalletEthereumImport(walletJson: string): string {
     try {
-        const data = JSON.parse(stored);
-        const address = data.address;
-        if (!address) {
-            LogError("No address in wallet data for " + blockchain);
-            return false;
+        const data = JSON.parse(walletJson);
+        if (!data.address || !data.blockchain || !data.createdAt || !data.mnemonic || !data.privateKey || !data.publicKey) {
+            LogError("Invalid wallet backup file: missing required fields");
+            return "";
         }
-        const success = await passkeyWalletAdd(blockchain, stored, address);
-        if (success) {
-            localStorage.removeItem(storageKey);
-            LogInfo("Passkey protection enabled for " + blockchain);
-            return true;
+        if (typeof data.address !== "string" || typeof data.blockchain !== "string" ||
+            typeof data.createdAt !== "string" || typeof data.mnemonic !== "string" ||
+            typeof data.privateKey !== "string" || typeof data.publicKey !== "string") {
+            LogError("Invalid wallet backup file: invalid field types");
+            return "";
         }
-        return false;
+        if (!IsValidBaseAddress(data.address)) {
+            LogError("Invalid wallet backup file: invalid address");
+            return "";
+        }
+        const wallet = new ethers.Wallet(data.privateKey);
+        if (wallet.address.toLowerCase() !== data.address.toLowerCase()) {
+            LogError("Invalid wallet backup file: private key does not match address");
+            return "";
+        }
+        const cleanData: LocalWalletData = {
+            address: data.address,
+            blockchain: data.blockchain,
+            createdAt: data.createdAt,
+            mnemonic: data.mnemonic,
+            privateKey: data.privateKey,
+            publicKey: data.publicKey,
+        };
+        localStorage.setItem(LOCAL_WALLET_KEY, JSON.stringify(cleanData));
+        return cleanData.address;
     } catch (e) {
-        LogError("Failed to enable passkey protection: " + e);
-        return false;
+        LogError("Failed to import wallet: " + e);
+        return "";
     }
-}
-export function localWalletHasPasskey(blockchain: string): boolean {
-    return hasPasskeyWallet(blockchain);
-}
-export async function localWalletUnlockPasskey(blockchain: string): Promise<boolean> {
-    if (!hasPasskeyWallet(blockchain)) {
-        return false;
-    }
-    const data = await passkeyWalletUnlock(blockchain);
-    return data !== null;
 }
 
 export async function localWalletEthereumReconnect(): Promise<void> {
@@ -213,11 +154,7 @@ export async function localWalletEthereumReconnect(): Promise<void> {
 }
 
 export async function localWalletEthereumAuthLogin(): Promise<string> {
-    let wallet = localWalletEthereumGetWallet();
-    if (!wallet && hasPasskeyWallet("base")) {
-        await passkeyWalletUnlock("base");
-        wallet = localWalletEthereumGetWallet();
-    }
+    const wallet = localWalletEthereumGetWallet();
     if (!wallet) {
         LogError("No local wallet found for login");
         return "no wallet found";
@@ -283,11 +220,7 @@ export async function localWalletEthereumAuthLogin(): Promise<string> {
 }
 
 export async function localWalletEthereumTxn(dest: string, payload: string): Promise<string | undefined> {
-    let wallet = localWalletEthereumGetWallet();
-    if (!wallet && hasPasskeyWallet("base")) {
-        await passkeyWalletUnlock("base");
-        wallet = localWalletEthereumGetWallet();
-    }
+    const wallet = localWalletEthereumGetWallet();
     if (!wallet) {
         LogError("localWalletEthereumTxn: No wallet found");
         return undefined;
