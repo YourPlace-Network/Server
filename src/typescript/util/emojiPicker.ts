@@ -35,6 +35,10 @@ export function showEmojiPicker(anchorElement: HTMLElement, onSelect: (emoji: st
     popup.style.zIndex = "10000";
     document.body.appendChild(popup);
     activeEmojiPopup = popup;
+    requestAnimationFrame(() => {
+        const searchInput = picker.shadowRoot?.querySelector("input#search") as HTMLInputElement;
+        if (searchInput) searchInput.focus();
+    });
     popup.addEventListener("mousedown", (e: MouseEvent) => {
         e.stopPropagation();
     });

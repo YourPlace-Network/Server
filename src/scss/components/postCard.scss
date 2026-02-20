@@ -36,6 +36,10 @@
 .postCard:not(.shaded) {
   border: 2px solid var(--yp-secondary);
 }
+.shaded .postCard:not(.shaded),
+.shaded .postPreviewCard {
+  border-color: var(--yp-tertiary);
+}
 .postCardAvatar {
   position: relative;
   padding: 0;
