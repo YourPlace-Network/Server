@@ -84,6 +84,7 @@ import {
     localWalletEthereumTxn,
     localWalletEthereumUnfollowUser,
 } from "./localWallet";
+import {PersistentCache} from "../cache";
 import {CIDToSubdomainURL} from "../ipfs";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
@@ -102,6 +103,22 @@ function Dedup<T>(key: string, fn: () => Promise<T>): Promise<T> {
     });
     inflight.set(key, promise);
     return promise;
+}
+
+// ---------- Cached Profile Lookups ---------- //
+const cachedAvatars: Record<string, PersistentCache> = {
+    "algorand": new PersistentCache("algo_avatar"),
+    "base": new PersistentCache("base_avatar"),
+};
+const cachedNames: Record<string, PersistentCache> = {
+    "algorand": new PersistentCache("algo_name"),
+    "base": new PersistentCache("base_name"),
+};
+export function WalletGetCachedAvatar(chain: string, address: string): string | null {
+    return cachedAvatars[chain]?.get<string>(address) ?? null;
+}
+export function WalletGetCachedName(chain: string, address: string): string | null {
+    return cachedNames[chain]?.get<string>(address) ?? null;
 }
 
 // ---------- Connection ---------- //

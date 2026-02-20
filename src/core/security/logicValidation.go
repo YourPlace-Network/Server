@@ -197,7 +197,7 @@ func IsValidURL(payload string) bool {
 	if err != nil {
 		return false
 	}
-	if parsed.Scheme != "https" {
+	if parsed.Scheme != "https" && parsed.Scheme != "http" {
 		return false
 	}
 	if parsed.Host == "" {
