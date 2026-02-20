@@ -61,6 +61,7 @@ function createTwitterEmbedCard(data: TwitterOEmbedData, originalUrl: string): H
     const postUsername = document.createElement("span");
     const postTextDiv = document.createElement("div");
     postDiv.classList.add("postCard", "xcomPostCard");
+    postDiv.style.marginLeft = "1em";
     avatarDiv.classList.add("postCardAvatar", "clickable");
     avatarDiv.addEventListener("click", () => {
         window.open(XSSSanitizeUrl(data.author_url), "_blank");
@@ -76,7 +77,7 @@ function createTwitterEmbedCard(data: TwitterOEmbedData, originalUrl: string): H
     postUsername.classList.add("postCardUsername");
     postUsername.textContent = " @" + XSSSanitizeValue(username);
     postTextDiv.classList.add("postCardTextDiv");
-    postTextDiv.innerHTML = XSSSanitizeTextUrl(tweetText);
+    postTextDiv.innerHTML = XSSSanitizeTextUrl(tweetText).replace(/\n/g, "<br>");
     avatarDiv.appendChild(avatarImg);
     postDiv.appendChild(avatarDiv);
     postAuthorLink.appendChild(postAuthor);
