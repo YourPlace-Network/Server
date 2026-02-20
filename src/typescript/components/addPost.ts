@@ -1,6 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
-import {IsValidIpfsCid} from "../util/security";
+import {IsValidIpfsCid, XSSSanitizeValue} from "../util/security";
 import {GetWallet, WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {ShowModalLogin} from "./modalLogin";
 import {UploadFile} from "../util/files";
@@ -447,6 +447,17 @@ export async function preloadTinyMCE() {
             DOM.fileInput.click();
         }
 
+        async function checkDraftParam() {
+            const params = new URLSearchParams(window.location.search);
+            const draft = params.get("draft");
+            if (!draft) return;
+            await showModal();
+            const editor = (window as any).tinymce.get("addPostText");
+            if (editor) {
+                const sanitized = XSSSanitizeValue(draft);
+                editor.setContent(`<p>${sanitized}</p>`);
+            }
+        }
         DOM.addPostButton.addEventListener("click", showModal);
         DOM.submitPostButton.addEventListener("click", submitPost);
         DOM.uploadFileButton.addEventListener("click", clickFileInput);
@@ -456,5 +467,6 @@ export async function preloadTinyMCE() {
                 e.stopImmediatePropagation();
             }
         });
+        checkDraftParam().then();
     }
 })();
