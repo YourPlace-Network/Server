@@ -463,7 +463,7 @@ export async function preloadTinyMCE() {
         DOM.uploadFileButton.addEventListener("click", clickFileInput);
         DOM.fileInput.addEventListener("change", uploadFile);
         document.addEventListener("focusin", (e) => {
-            if (e.target instanceof Element && e.target.closest(".tox-tinymce-aux, .moxman-window, .tam-assetmanager-root") !== null) {
+            if (e.target instanceof Element && e.target.closest(".emojiPickerPopup, .tox-tinymce-aux, .moxman-window, .tam-assetmanager-root") !== null) {
                 e.stopImmediatePropagation();
             }
         });
