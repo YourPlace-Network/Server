@@ -1,5 +1,6 @@
 import { Picker } from "emoji-picker-element";
 
+let activeEmojiCleanup: (() => void) | null = null;
 let activeEmojiPopup: HTMLElement | null = null;
 
 export function createEmojiPicker(onSelect: (emoji: string) => void): HTMLElement {
@@ -13,17 +14,15 @@ export function createEmojiPicker(onSelect: (emoji: string) => void): HTMLElemen
 
 export function showEmojiPicker(anchorElement: HTMLElement, onSelect: (emoji: string) => void): void {
     if (activeEmojiPopup) {
-        activeEmojiPopup.remove();
-        activeEmojiPopup = null;
+        closeEmojiPicker();
+        return;
     }
     const popup = document.createElement("div");
     popup.classList.add("emojiPickerPopup");
     const picker = new Picker();
     picker.addEventListener("emoji-click", (event: any) => {
-        const emoji = event.detail.unicode;
-        onSelect(emoji);
-        popup.remove();
-        activeEmojiPopup = null;
+        onSelect(event.detail.unicode);
+        closeEmojiPicker();
     });
     popup.appendChild(picker);
     const rect = anchorElement.getBoundingClientRect();
@@ -45,21 +44,28 @@ export function showEmojiPicker(anchorElement: HTMLElement, onSelect: (emoji: st
     popup.addEventListener("click", (e: MouseEvent) => {
         e.stopPropagation();
     });
+    const closeOnEscape = (e: KeyboardEvent) => {
+        if (e.key === "Escape") closeEmojiPicker();
+    };
     const closeOnOutsideClick = (e: MouseEvent) => {
         const path = e.composedPath();
-        const isInsidePopup = path.some(el => el === popup);
-        if (!isInsidePopup) {
-            popup.remove();
-            activeEmojiPopup = null;
-            document.removeEventListener("click", closeOnOutsideClick, true);
-        }
+        if (!path.some(el => el === popup)) closeEmojiPicker();
+    };
+    activeEmojiCleanup = () => {
+        document.removeEventListener("click", closeOnOutsideClick, true);
+        document.removeEventListener("keydown", closeOnEscape, true);
     };
     setTimeout(() => {
         document.addEventListener("click", closeOnOutsideClick, true);
+        document.addEventListener("keydown", closeOnEscape, true);
     }, 100);
 }
 
 export function closeEmojiPicker(): void {
+    if (activeEmojiCleanup) {
+        activeEmojiCleanup();
+        activeEmojiCleanup = null;
+    }
     if (activeEmojiPopup) {
         activeEmojiPopup.remove();
         activeEmojiPopup = null;
