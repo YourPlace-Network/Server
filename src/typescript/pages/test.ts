@@ -6,9 +6,6 @@ import "../components/menu";
 import "../components/addPost";
 import {LogError, LogInfo} from "../util/log";
 import {UploadFile} from "../util/files";
-import type {App, Account, FeedItem} from "../services/twitter";
-import {ProfileService} from "../services/twitter";
-
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
 

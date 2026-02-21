@@ -113,6 +113,28 @@ export function XSSSanitizeUrl(href: string): string {
     }
     return "#";
 }
+export function XSSSanitizeOEmbed(payload: string): string {
+    const config = {
+        ALLOWED_TAGS: ["a", "br"],
+        ALLOWED_ATTR: ["href", "target", "class"],
+        ADD_ATTR: ["target"],
+        SANITIZE_DOM: true,
+    };
+    DOMPurify.addHook("beforeSanitizeAttributes", (node) => {
+        if (node.nodeName === "A" && node.hasAttribute("href")) {
+            const href = node.getAttribute("href");
+            if (href && !IsValidURL(href)) {
+                node.remove();
+            }
+            if (href && IsValidURL(href)) {
+                node.setAttribute("target", "_blank");
+            }
+        }
+    });
+    const sanitized = DOMPurify.sanitize(payload, config) as string;
+    DOMPurify.removeHook("beforeSanitizeAttributes");
+    return sanitized;
+}
 export function XSSSanitizeTextUrl(payload: string): string {
     const config = {
         ALLOWED_TAGS: ["a"],

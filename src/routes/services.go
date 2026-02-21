@@ -17,6 +17,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var twitterUrlRegex = regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)`)
+
 func ServicesRoutes(router *gin.Engine, database *db.Database) {
 	router.GET("/service/ai/ollamaEnabled", func(c *gin.Context) {
 		err := services.OllamaHealthCheck()
@@ -173,7 +175,6 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 			return
 		}
 		tweetUrl = security.SanitizeNonPrintable(tweetUrl)
-		twitterUrlRegex := regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)`)
 		if !twitterUrlRegex.MatchString(tweetUrl) {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid Twitter/X.com URL"})
 			return
@@ -183,9 +184,10 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 		if cachedData != "" && (int64(core.GetTimestamp())-fetchedAt) < cacheExpiry {
 			var oembedData map[string]interface{}
 			if err := json.Unmarshal([]byte(cachedData), &oembedData); err == nil {
-				oembedData["cached"] = true
 				c.SecureJSON(http.StatusOK, oembedData)
 				return
+			} else {
+				core.LogDebug("Corrupted oEmbed cache entry for " + tweetUrl + ": " + err.Error())
 			}
 		}
 		oembedUrl := "https://publish.twitter.com/oembed?url=" + url.QueryEscape(tweetUrl)
@@ -200,7 +202,6 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 		if err == nil {
 			database.OEmbedCacheSet(tweetUrl, string(jsonData))
 		}
-		oembedResponse["cached"] = false
 		c.SecureJSON(http.StatusOK, oembedResponse)
 	})
 }
