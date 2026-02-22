@@ -1,0 +1,68 @@
+@use "sass:map";
+@use "../global.scss";
+
+#modalMintNFTBody {
+  .editLabel {
+    color: var(--yp-primary);
+  }
+  .editInput {
+    margin-bottom: 0;
+  }
+}
+#mintNFTPreviewDiv {
+  margin-bottom: 1em;
+  text-align: center;
+  img, video {
+    max-width: 100%;
+    max-height: 15em;
+    border-radius: 0.5em;
+    object-fit: contain;
+  }
+}
+#mintNFTUploadDiv {
+  margin-bottom: 1em;
+  label {
+    background: var(--yp-quaternary);
+    color: var(--yp-text) !important;
+  }
+}
+.mintNFTActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
+}
+#mintNFTSubmitBtn {
+  background: var(--yp-quaternary);
+  color: var(--yp-text);
+}
+#modalTransferNFTBody {
+  .editLabel {
+    color: var(--yp-primary);
+  }
+}
+#transferNFTPreviewDiv {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  margin-bottom: 1em;
+  img, video {
+    width: 3em;
+    height: 3em;
+    border-radius: 0.5em;
+    object-fit: cover;
+  }
+}
+#transferNFTFeeDiv {
+  margin-bottom: 1em;
+  font-size: 0.9em;
+  filter: brightness(70%);
+}
+.transferNFTActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
+}
+#transferNFTConfirmBtn {
+  background: var(--yp-quaternary);
+  color: var(--yp-text);
+}

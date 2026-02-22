@@ -1,0 +1,79 @@
+@use "sass:map";
+@use "../global.scss";
+
+.collectibleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1em;
+  padding: 0.5em 0;
+}
+.collectibleCard {
+  background: var(--yp-secondary);
+  border-radius: 1em;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.15s ease;
+  &:hover {
+    transform: scale(1.02);
+    .collectibleBurnBtn, .collectibleSendBtn {
+      opacity: 1;
+    }
+  }
+}
+.collectibleCardMedia {
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--yp-primary);
+  cursor: pointer;
+}
+.collectibleMediaElement {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.collectibleCardInfo {
+  padding: 0.5em 0.75em;
+}
+.collectibleCardName {
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.collectibleCardDescription {
+  font-size: 0.85em;
+  filter: brightness(70%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.collectibleBurnBtn, .collectibleSendBtn {
+  position: absolute;
+  top: 0.5em;
+  width: 2em;
+  height: 2em;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--yp-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  cursor: pointer;
+  &:hover {
+    background: rgba(0, 0, 0, 0.8);
+  }
+}
+.collectibleBurnBtn {
+  left: 0.5em;
+}
+.collectibleSendBtn {
+  right: 0.5em;
+}
+@media(max-width: 575px) {
+  .collectibleGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

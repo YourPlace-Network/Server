@@ -1,4 +1,5 @@
 import {DisconnectWallet, GetAddress} from "./wallet";
+import type {CollectibleData} from "./wallet";
 import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {CIDToSubdomainURL} from "../ipfs";
@@ -47,6 +48,79 @@ export const mainnetBase = {
     universalResolver: "0xf74b949f2105178eEEd4Ef35a131715E967337ab",
     burnAddress: "0x0000000000000000000000000000000000000000",
 }
+export const YP_NFT_CONTRACT_ADDRESS = "0xe1F3Af40dfdfcF0aA175225be4Feb970a8864A31" as `0x${string}`;
+export const YP_NFT_CONTRACT_ABI = [
+    {
+        inputs: [{name: "tokenURI", type: "string"}],
+        name: "mint",
+        outputs: [{name: "", type: "uint256"}],
+        stateMutability: "payable",
+        type: "function",
+    },
+    {
+        inputs: [],
+        name: "mintFee",
+        outputs: [{name: "", type: "uint256"}],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [{name: "tokenId", type: "uint256"}],
+        name: "burn",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+    },
+    {
+        inputs: [{name: "owner", type: "address"}],
+        name: "balanceOf",
+        outputs: [{name: "", type: "uint256"}],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [],
+        name: "contractURI",
+        outputs: [{name: "", type: "string"}],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [{name: "tokenId", type: "uint256"}],
+        name: "ownerOf",
+        outputs: [{name: "", type: "address"}],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [
+            {name: "from", type: "address"},
+            {name: "to", type: "address"},
+            {name: "tokenId", type: "uint256"},
+        ],
+        name: "safeTransferFrom",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+    },
+    {
+        inputs: [
+            {name: "owner", type: "address"},
+            {name: "index", type: "uint256"},
+        ],
+        name: "tokenOfOwnerByIndex",
+        outputs: [{name: "", type: "uint256"}],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [{name: "tokenId", type: "uint256"}],
+        name: "tokenURI",
+        outputs: [{name: "", type: "string"}],
+        stateMutability: "view",
+        type: "function",
+    },
+] as const;
 let prefetchedNonce: {nonce: string, issuedAt: string, fetchedAt: number} | null = null;
 const NONCE_PREFETCH_VALIDITY_MS = 300000;
 const metadataYourPlace = {
@@ -511,48 +585,161 @@ export async function baseGetDescription(_address: string): Promise<string> {
     }
     return "";
 }
-export async function baseGetNFTs(_address: string) {
-    const minimalERC721ABI = [
-        {
-            inputs: [{ name: 'owner', type: 'address' }],
-            name: 'balanceOf',
-            outputs: [{ name: '', type: 'uint256' }],
-            stateMutability: 'view',
-            type: 'function'
-        },
-        {
-            inputs: [
-                { name: 'owner', type: 'address' },
-                { name: 'index', type: 'uint256' }
-            ],
-            name: 'tokenOfOwnerByIndex',
-            outputs: [{ name: '', type: 'uint256' }],
-            stateMutability: 'view',
-            type: 'function'
-        }
-    ] as const;
+export async function baseBurnCollectible(tokenId: bigint): Promise<boolean> {
+    if (!baseInit) await initBaseWallet();
     try {
-        const balance = await readContract(wagmiConfig, { // get balance of NFTs
-            address: _address as `0x${string}`,
-            abi: minimalERC721ABI,
-            functionName: 'balanceOf',
-            args: [_address as `0x${string}`],
-        }) as bigint;
-        const tokenIds = []; // Get all token IDs
-        for (let i =0; i < balance; i++) {
-            const tokenId = await readContract(wagmiConfig, {
-                address: _address as `0x${string}`,
-                abi: minimalERC721ABI,
-                functionName: 'tokenOfOwnerByIndex',
-                args: [_address as `0x${string}`, BigInt(i)],
-            });
-            tokenIds.push(tokenId);
+        let connections = getConnections(wagmiConfig);
+        if (!connections.length) {
+            await baseConnectWallet();
+            connections = getConnections(wagmiConfig);
+            if (!connections.length) return false;
         }
-        let response =  {balance, tokenIds};
-        console.log(response);
-        return response;
+        const connector = connections[0]?.connector;
+        const provider = await connector?.getProvider() as { request: (args: { method: string; params: unknown[] }) => Promise<string> } | undefined;
+        if (!provider) return false;
+        const iface = new ethers.Interface(YP_NFT_CONTRACT_ABI);
+        const data = iface.encodeFunctionData("burn", [tokenId]);
+        await provider.request({
+            method: "eth_sendTransaction",
+            params: [{
+                from: GetAddress() as `0x${string}`,
+                to: YP_NFT_CONTRACT_ADDRESS,
+                value: "0x0",
+                data: data as `0x${string}`,
+            }],
+        });
+        return true;
     } catch (error) {
-        LogError("Failed to get NFTs: " + error);
+        LogError("baseBurnCollectible failed: " + error);
+        return false;
+    }
+}
+export async function baseGetCollectibles(ownerAddress: string): Promise<CollectibleData[]> {
+    if (!baseInit) await initBaseWallet();
+    const results: CollectibleData[] = [];
+    try {
+        const balance = await readContract(wagmiConfig, {
+            address: YP_NFT_CONTRACT_ADDRESS,
+            abi: YP_NFT_CONTRACT_ABI,
+            functionName: "balanceOf",
+            args: [ownerAddress as `0x${string}`],
+        }) as bigint;
+        for (let i = 0n; i < balance; i++) {
+            try {
+                const tokenId = await readContract(wagmiConfig, {
+                    address: YP_NFT_CONTRACT_ADDRESS,
+                    abi: YP_NFT_CONTRACT_ABI,
+                    functionName: "tokenOfOwnerByIndex",
+                    args: [ownerAddress as `0x${string}`, i],
+                }) as bigint;
+                const tokenUri = await readContract(wagmiConfig, {
+                    address: YP_NFT_CONTRACT_ADDRESS,
+                    abi: YP_NFT_CONTRACT_ABI,
+                    functionName: "tokenURI",
+                    args: [tokenId],
+                }) as string;
+                let metadata: any = {};
+                if (tokenUri) {
+                    const metadataUrl = tokenUri.startsWith("ipfs://") ? CIDToSubdomainURL(tokenUri) : tokenUri;
+                    if (metadataUrl) {
+                        const resp = await fetch(metadataUrl);
+                        if (resp.ok) metadata = await resp.json();
+                    }
+                }
+                results.push({
+                    blockchain: "base",
+                    contractAddress: YP_NFT_CONTRACT_ADDRESS,
+                    creator: "",
+                    description: metadata.description || "",
+                    imageUrl: metadata.image || "",
+                    mimeType: metadata.image_mimetype || "image/png",
+                    name: metadata.name || "Collectible #" + tokenId.toString(),
+                    tokenId: tokenId.toString(),
+                });
+            } catch (innerError) {
+                LogError("baseGetCollectibles: error fetching token " + i + ": " + innerError);
+            }
+        }
+    } catch (error) {
+        LogError("baseGetCollectibles failed: " + error);
+    }
+    return results;
+}
+export async function baseGetTransferFeeEstimate(toAddress: string, tokenId: bigint): Promise<string> {
+    if (!baseInit) await initBaseWallet();
+    try {
+        const gasEstimate = await viemClient.estimateContractGas({
+            address: YP_NFT_CONTRACT_ADDRESS,
+            abi: YP_NFT_CONTRACT_ABI,
+            functionName: "safeTransferFrom",
+            args: [GetAddress() as `0x${string}`, toAddress as `0x${string}`, tokenId],
+            account: GetAddress() as `0x${string}`,
+        });
+        const gasPrice = await viemClient.getGasPrice();
+        const feeWei = gasEstimate * gasPrice;
+        const feeEth = Number(feeWei) / 1e18;
+        return feeEth.toFixed(6) + " ETH";
+    } catch (error) {
+        LogError("baseGetTransferFeeEstimate failed: " + error);
+        return "-- ETH";
+    }
+}
+export async function baseMintCollectible(metadataUri: string): Promise<string | undefined> {
+    if (!baseInit) await initBaseWallet();
+    try {
+        let connections = getConnections(wagmiConfig);
+        if (!connections.length) {
+            await baseConnectWallet();
+            connections = getConnections(wagmiConfig);
+            if (!connections.length) return undefined;
+        }
+        const connector = connections[0]?.connector;
+        const provider = await connector?.getProvider() as { request: (args: { method: string; params: unknown[] }) => Promise<string> } | undefined;
+        if (!provider) return undefined;
+        const iface = new ethers.Interface(YP_NFT_CONTRACT_ABI);
+        const data = iface.encodeFunctionData("mint", [metadataUri]);
+        const txHash = await provider.request({
+            method: "eth_sendTransaction",
+            params: [{
+                from: GetAddress() as `0x${string}`,
+                to: YP_NFT_CONTRACT_ADDRESS,
+                value: "0x5AF3107A4000",
+                data: data as `0x${string}`,
+            }],
+        });
+        return txHash;
+    } catch (error) {
+        LogError("baseMintCollectible failed: " + error);
+        return undefined;
+    }
+}
+export async function baseTransferCollectible(tokenId: bigint, toAddress: string): Promise<boolean> {
+    if (!baseInit) await initBaseWallet();
+    try {
+        let connections = getConnections(wagmiConfig);
+        if (!connections.length) {
+            await baseConnectWallet();
+            connections = getConnections(wagmiConfig);
+            if (!connections.length) return false;
+        }
+        const connector = connections[0]?.connector;
+        const provider = await connector?.getProvider() as { request: (args: { method: string; params: unknown[] }) => Promise<string> } | undefined;
+        if (!provider) return false;
+        const iface = new ethers.Interface(YP_NFT_CONTRACT_ABI);
+        const data = iface.encodeFunctionData("safeTransferFrom", [GetAddress(), toAddress, tokenId]);
+        await provider.request({
+            method: "eth_sendTransaction",
+            params: [{
+                from: GetAddress() as `0x${string}`,
+                to: YP_NFT_CONTRACT_ADDRESS,
+                value: "0x0",
+                data: data as `0x${string}`,
+            }],
+        });
+        return true;
+    } catch (error) {
+        LogError("baseTransferCollectible failed: " + error);
+        return false;
     }
 }
 

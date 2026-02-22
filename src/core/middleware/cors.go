@@ -39,7 +39,7 @@ func CORSMiddleware(gateway bool, gatewayOrigin string) gin.HandlerFunc {
 				}
 			}
 			if !originAllowed && origin != "" {
-				c.AbortWithStatus(http.StatusForbidden)
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "origin not allowed"})
 				return
 			}
 			c.Header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")

@@ -7,12 +7,16 @@ for the application. This code is stateful using localstorage to keep a few valu
 import {Transaction} from "algosdk";
 import {
     algoAuthLogin,
+    algoBurnCollectible,
     algoConnectWallet,
     algoDisconnectWallet,
     algoFollowUser,
     algoGetAvatar,
+    algoGetCollectibles,
     algoGetName,
     algoGetNfdAddress,
+    algoGetTransferFeeEstimate,
+    algoMintCollectible,
     algoReconnectSession,
     algoSetBanner,
     algoSetColors,
@@ -26,6 +30,7 @@ import {
     algoSubmitDislike,
     algoSubmitEmojiReaction,
     algoSubmitLike,
+    algoTransferCollectible,
     algoUnfollowUser,
     peraWallet,
     setAlgoAvatar,
@@ -34,12 +39,16 @@ import {
 } from "./algorand";
 import {
     baseAuthLogin,
+    baseBurnCollectible,
     baseConnectWallet,
     baseDisconnectWallet,
     baseFollowUser,
     baseGetAvatar,
+    baseGetCollectibles,
     baseGetDescription,
     baseGetName,
+    baseGetTransferFeeEstimate,
+    baseMintCollectible,
     baseSetAvatar,
     baseSetBanner,
     baseSetColors,
@@ -55,6 +64,7 @@ import {
     baseSubmitLike,
     baseSubmitPost,
     baseSubmitPostAttach,
+    baseTransferCollectible,
     baseTxn,
     baseUnfollowUser,
     mainnetBase,
@@ -62,9 +72,12 @@ import {
 import {
     hasLocalWalletEthereum,
     localWalletEthereumAuthLogin,
+    localWalletEthereumBurnCollectible,
     localWalletEthereumConnect,
     localWalletEthereumDisconnect,
     localWalletEthereumFollowUser,
+    localWalletEthereumGetCollectibles,
+    localWalletEthereumMintCollectible,
     localWalletEthereumReconnect,
     localWalletEthereumSetAvatar,
     localWalletEthereumSetBanner,
@@ -81,6 +94,7 @@ import {
     localWalletEthereumSubmitLike,
     localWalletEthereumSubmitPost,
     localWalletEthereumSubmitPostAttach,
+    localWalletEthereumTransferCollectible,
     localWalletEthereumTxn,
     localWalletEthereumUnfollowUser,
 } from "./localWallet";
@@ -90,6 +104,18 @@ import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
 import {ShowDialogModal, ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
+
+// ---------- Types ---------- //
+export interface CollectibleData {
+    blockchain: string;
+    contractAddress: string;
+    creator: string;
+    description: string;
+    imageUrl: string;
+    mimeType: string;
+    name: string;
+    tokenId: string;
+}
 
 // ---------- Request Deduplication ---------- //
 const inflight = new Map<string, Promise<any>>();
@@ -803,6 +829,69 @@ export async function WalletUnfollowUser(toAddress: string, toBlockchain: string
             return await algoUnfollowUser(toAddress, toBlockchain);
     }
     return "";
+}
+
+// ---------- Collectible Functions ---------- //
+export async function WalletBurnCollectible(tokenId: string, blockchain: string): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) return false;
+    switch (wallet) {
+        case "cbwalletbase":
+            return await baseBurnCollectible(BigInt(tokenId));
+        case "localwalletethereum":
+            return await localWalletEthereumBurnCollectible(BigInt(tokenId));
+        case "pera":
+            return await algoBurnCollectible(Number(tokenId));
+    }
+    return false;
+}
+export async function WalletGetCollectibles(address: string, blockchain: string): Promise<CollectibleData[]> {
+    switch (blockchain) {
+        case "base":
+            let wallet = GetWallet();
+            if (wallet === "localwalletethereum") {
+                return await localWalletEthereumGetCollectibles(address);
+            }
+            return await baseGetCollectibles(address);
+        case "algorand":
+            return await algoGetCollectibles(address);
+    }
+    return [];
+}
+export async function WalletGetTransferFeeEstimate(toAddress: string, tokenId: string, blockchain: string): Promise<string> {
+    switch (blockchain) {
+        case "base":
+            return await baseGetTransferFeeEstimate(toAddress, BigInt(tokenId));
+        case "algorand":
+            return await algoGetTransferFeeEstimate();
+    }
+    return "--";
+}
+export async function WalletMintCollectible(metadataUri: string, name?: string, unitName?: string): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) return false;
+    switch (wallet) {
+        case "cbwalletbase":
+            return !!await baseMintCollectible(metadataUri);
+        case "localwalletethereum":
+            return !!await localWalletEthereumMintCollectible(metadataUri);
+        case "pera":
+            return await algoMintCollectible(name || "", unitName || "", metadataUri.replace("ipfs://", ""));
+    }
+    return false;
+}
+export async function WalletTransferCollectible(tokenId: string, toAddress: string, blockchain: string): Promise<boolean> {
+    let wallet = GetWallet();
+    if (!wallet) return false;
+    switch (wallet) {
+        case "cbwalletbase":
+            return await baseTransferCollectible(BigInt(tokenId), toAddress);
+        case "localwalletethereum":
+            return await localWalletEthereumTransferCollectible(BigInt(tokenId), toAddress);
+        case "pera":
+            return await algoTransferCollectible(Number(tokenId), toAddress);
+    }
+    return false;
 }
 
 // ---------- Utility ---------- //

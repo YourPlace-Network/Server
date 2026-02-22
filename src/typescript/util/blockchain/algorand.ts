@@ -3,6 +3,7 @@ import algosdk, {Algodv2, type CustomTokenHeader} from "algosdk";
 import {HideDialogModal, ShowDialogModalHTML} from "../../components/modalDialog";
 import {HttpGetJson, HttpPostJson} from "../network";
 import {DisconnectWallet, GetAddress, GetWallet, ReconnectWallet} from "./wallet";
+import type {CollectibleData} from "./wallet";
 import {YP} from "../../services/yourplace";
 import {LogError, LogInfo} from "../log";
 import {SiwaMessage} from "@avmkit/siwa";
@@ -361,6 +362,178 @@ export async function algoUnfollowUser(toAddress: string, toBlockchain: string):
     if (!txn) return "";
     await algoSubmitTxn(txn);
     return "success";
+}
+
+// ---------- Collectible Functions ---------- //
+export async function algoBurnCollectible(assetId: number): Promise<boolean> {
+    if (!algoInitialized) await initAlgoWallet();
+    try {
+        let suggestedParams = await algod.getTransactionParams().do();
+        const txn = algosdk.makeAssetDestroyTxnWithSuggestedParamsFromObject({
+            suggestedParams: suggestedParams,
+            sender: GetAddress()!,
+            assetIndex: assetId,
+        });
+        const singleTxnGroups = [{txn: txn, signers: [GetAddress()!]}];
+        if (!peraWallet.isConnected) {
+            try { await peraWallet.reconnectSession(); } catch (_) { await peraWallet.connect(); }
+        }
+        ShowDialogModalHTML(
+            '<div style="text-align: center;">' +
+            '<img src="/static/image/pera-small.png" alt="Pera Wallet" style="width: 64px; height: 64px; margin-bottom: 16px;">' +
+            '<p>Open your Pera Wallet to sign the transaction</p>' +
+            '</div>'
+        );
+        const signedTxn = await peraWallet.signTransaction([singleTxnGroups]);
+        HideDialogModal();
+        await algod.sendRawTransaction(signedTxn).do();
+        return true;
+    } catch (error) {
+        HideDialogModal();
+        LogError("algoBurnCollectible failed: " + error);
+        return false;
+    }
+}
+export async function algoGetCollectibles(address: string): Promise<CollectibleData[]> {
+    if (!algoInitialized) await initAlgoWallet();
+    const results: CollectibleData[] = [];
+    try {
+        const accountInfo = await algod.accountInformation(address).do();
+        const assets = accountInfo.assets || [];
+        for (const asset of assets) {
+            if (asset.amount <= 0n) continue;
+            try {
+                const assetInfo = await algod.getAssetByID(asset.assetId).do();
+                const params = assetInfo.params;
+                if (BigInt(params.total) !== 1n || BigInt(params.decimals) !== 0n) continue;
+                let metadata: any = {};
+                let imageUrl = "";
+                let mimeType = "image/png";
+                if (params.url && params.url.includes("#arc3")) {
+                    const metadataUrl = params.url.startsWith("ipfs://") ? CIDToSubdomainURL(params.url.split("#")[0]) : params.url.split("#")[0];
+                    if (metadataUrl) {
+                        try {
+                            const resp = await fetch(metadataUrl);
+                            if (resp.ok) {
+                                metadata = await resp.json();
+                                imageUrl = metadata.image || "";
+                                mimeType = metadata.image_mimetype || "image/png";
+                            }
+                        } catch (_) {}
+                    }
+                } else if (params.url) {
+                    imageUrl = params.url;
+                }
+                results.push({
+                    blockchain: "algorand",
+                    contractAddress: asset.assetId.toString(),
+                    creator: params.creator || "",
+                    description: metadata.description || "",
+                    imageUrl: imageUrl,
+                    mimeType: mimeType,
+                    name: params.name || "ASA #" + asset.assetId,
+                    tokenId: asset.assetId.toString(),
+                });
+            } catch (innerError) {
+                LogError("algoGetCollectibles: error fetching asset " + asset.assetId + ": " + innerError);
+            }
+        }
+    } catch (error) {
+        LogError("algoGetCollectibles failed: " + error);
+    }
+    return results;
+}
+export async function algoGetTransferFeeEstimate(): Promise<string> {
+    if (!algoInitialized) await initAlgoWallet();
+    try {
+        const params = await algod.getTransactionParams().do();
+        const fee = Number(params.minFee || 1000);
+        return (fee / 1e6).toFixed(6) + " ALGO";
+    } catch (error) {
+        LogError("algoGetTransferFeeEstimate failed: " + error);
+        return "-- ALGO";
+    }
+}
+export async function algoMintCollectible(name: string, unitName: string, metadataCid: string): Promise<boolean> {
+    if (!algoInitialized) await initAlgoWallet();
+    const PLATFORM_FEE_RECEIVER = "QSDMOUR7FQTP7F2TL6GXTI2ZTXFNQIHCYLPXXUDILG542WU5N636BKZQUY";
+    const PLATFORM_FEE_AMOUNT = 100;
+    try {
+        let suggestedParams = await algod.getTransactionParams().do();
+        const feeTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            suggestedParams: suggestedParams,
+            sender: GetAddress()!,
+            receiver: PLATFORM_FEE_RECEIVER,
+            amount: PLATFORM_FEE_AMOUNT,
+        });
+        const asaTxn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
+            suggestedParams: suggestedParams,
+            sender: GetAddress()!,
+            total: 1,
+            decimals: 0,
+            assetName: name,
+            unitName: unitName.substring(0, 8),
+            assetURL: "ipfs://" + metadataCid + "#arc3",
+            manager: GetAddress()!,
+            reserve: GetAddress()!,
+            freeze: GetAddress()!,
+            clawback: GetAddress()!,
+            defaultFrozen: false,
+        });
+        algosdk.assignGroupID([feeTxn, asaTxn]);
+        const txnGroups = [
+            {txn: feeTxn, signers: [GetAddress()!]},
+            {txn: asaTxn, signers: [GetAddress()!]},
+        ];
+        if (!peraWallet.isConnected) {
+            try { await peraWallet.reconnectSession(); } catch (_) { await peraWallet.connect(); }
+        }
+        ShowDialogModalHTML(
+            '<div style="text-align: center;">' +
+            '<img src="/static/image/pera-small.png" alt="Pera Wallet" style="width: 64px; height: 64px; margin-bottom: 16px;">' +
+            '<p>Open your Pera Wallet to sign the transaction</p>' +
+            '</div>'
+        );
+        const signedTxn = await peraWallet.signTransaction([txnGroups]);
+        HideDialogModal();
+        await algod.sendRawTransaction(signedTxn).do();
+        return true;
+    } catch (error) {
+        HideDialogModal();
+        LogError("algoMintCollectible failed: " + error);
+        return false;
+    }
+}
+export async function algoTransferCollectible(assetId: number, toAddress: string): Promise<boolean> {
+    if (!algoInitialized) await initAlgoWallet();
+    try {
+        let suggestedParams = await algod.getTransactionParams().do();
+        const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+            suggestedParams: suggestedParams,
+            sender: GetAddress()!,
+            receiver: toAddress,
+            assetIndex: assetId,
+            amount: 1,
+        });
+        const singleTxnGroups = [{txn: txn, signers: [GetAddress()!]}];
+        if (!peraWallet.isConnected) {
+            try { await peraWallet.reconnectSession(); } catch (_) { await peraWallet.connect(); }
+        }
+        ShowDialogModalHTML(
+            '<div style="text-align: center;">' +
+            '<img src="/static/image/pera-small.png" alt="Pera Wallet" style="width: 64px; height: 64px; margin-bottom: 16px;">' +
+            '<p>Open your Pera Wallet to sign the transaction</p>' +
+            '</div>'
+        );
+        const signedTxn = await peraWallet.signTransaction([singleTxnGroups]);
+        HideDialogModal();
+        await algod.sendRawTransaction(signedTxn).do();
+        return true;
+    } catch (error) {
+        HideDialogModal();
+        LogError("algoTransferCollectible failed: " + error);
+        return false;
+    }
 }
 
 // ---------- Helper Functions ------------ //

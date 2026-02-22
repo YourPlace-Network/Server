@@ -5,7 +5,10 @@ import {IsValidBaseAddress} from "../security";
 import {LogError, LogInfo} from "../log";
 import {YP} from "../../services/yourplace";
 import {mainnetBase} from "./base";
+import {YP_NFT_CONTRACT_ADDRESS, YP_NFT_CONTRACT_ABI} from "./base";
 import {ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
+import {CIDToSubdomainURL} from "../ipfs";
+import type {CollectibleData} from "./wallet";
 
 const LOCAL_WALLET_KEY = "yp_local_wallet_ethereum";
 
@@ -250,6 +253,85 @@ export async function localWalletEthereumTxn(dest: string, payload: string): Pro
     }
 }
 
+export async function localWalletEthereumBurnCollectible(tokenId: bigint): Promise<boolean> {
+    const wallet = localWalletEthereumGetWallet();
+    if (!wallet) return false;
+    try {
+        const provider = await getProvider();
+        const connectedWallet = wallet.connect(provider);
+        const contract = new ethers.Contract(YP_NFT_CONTRACT_ADDRESS, YP_NFT_CONTRACT_ABI, connectedWallet);
+        await contract.burn(tokenId);
+        return true;
+    } catch (error) {
+        LogError("localWalletEthereumBurnCollectible failed: " + error);
+        return false;
+    }
+}
+export async function localWalletEthereumGetCollectibles(ownerAddress: string): Promise<CollectibleData[]> {
+    const results: CollectibleData[] = [];
+    try {
+        const provider = await getProvider();
+        const contract = new ethers.Contract(YP_NFT_CONTRACT_ADDRESS, YP_NFT_CONTRACT_ABI, provider);
+        const balance = await contract.balanceOf(ownerAddress);
+        for (let i = 0n; i < balance; i++) {
+            try {
+                const tokenId = await contract.tokenOfOwnerByIndex(ownerAddress, i);
+                const tokenUri = await contract.tokenURI(tokenId);
+                let metadata: any = {};
+                if (tokenUri) {
+                    const metadataUrl = tokenUri.startsWith("ipfs://") ? CIDToSubdomainURL(tokenUri) : tokenUri;
+                    if (metadataUrl) {
+                        const resp = await fetch(metadataUrl);
+                        if (resp.ok) metadata = await resp.json();
+                    }
+                }
+                results.push({
+                    blockchain: "base",
+                    contractAddress: YP_NFT_CONTRACT_ADDRESS,
+                    creator: "",
+                    description: metadata.description || "",
+                    imageUrl: metadata.image || "",
+                    mimeType: metadata.image_mimetype || "image/png",
+                    name: metadata.name || "Collectible #" + tokenId.toString(),
+                    tokenId: tokenId.toString(),
+                });
+            } catch (innerError) {
+                LogError("localWalletEthereumGetCollectibles: error fetching token " + i + ": " + innerError);
+            }
+        }
+    } catch (error) {
+        LogError("localWalletEthereumGetCollectibles failed: " + error);
+    }
+    return results;
+}
+export async function localWalletEthereumMintCollectible(metadataUri: string): Promise<string | undefined> {
+    const wallet = localWalletEthereumGetWallet();
+    if (!wallet) return undefined;
+    try {
+        const provider = await getProvider();
+        const connectedWallet = wallet.connect(provider);
+        const contract = new ethers.Contract(YP_NFT_CONTRACT_ADDRESS, YP_NFT_CONTRACT_ABI, connectedWallet);
+        const tx = await contract.mint(metadataUri, {value: 100000000000000n});
+        return tx.hash;
+    } catch (error) {
+        LogError("localWalletEthereumMintCollectible failed: " + error);
+        return undefined;
+    }
+}
+export async function localWalletEthereumTransferCollectible(tokenId: bigint, toAddress: string): Promise<boolean> {
+    const wallet = localWalletEthereumGetWallet();
+    if (!wallet) return false;
+    try {
+        const provider = await getProvider();
+        const connectedWallet = wallet.connect(provider);
+        const contract = new ethers.Contract(YP_NFT_CONTRACT_ADDRESS, YP_NFT_CONTRACT_ABI, connectedWallet);
+        await contract.safeTransferFrom(wallet.address, toAddress, tokenId);
+        return true;
+    } catch (error) {
+        LogError("localWalletEthereumTransferCollectible failed: " + error);
+        return false;
+    }
+}
 export async function localWalletEthereumFollowUser(toAddress: string, toBlockchain: string): Promise<string | undefined> {
     const jsonData = YP.follow(toAddress, toBlockchain);
     return await localWalletEthereumTxn(toAddress, jsonData);

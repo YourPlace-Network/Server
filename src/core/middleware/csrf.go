@@ -58,7 +58,7 @@ func CSRFMiddleware(config CSRFConfig) gin.HandlerFunc {
 		if method == "POST" || method == "PUT" || method == "DELETE" || method == "PATCH" {
 			if !validateCSRFToken(c, config) {
 				core.LogDebug("CSRF validation failed for " + c.Request.URL.Path)
-				c.AbortWithStatus(http.StatusForbidden)
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "csrf validation failed"})
 				return
 			}
 		}

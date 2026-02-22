@@ -1,0 +1,26 @@
+{{define "modalTransferNFT"}}<div class="modal" id="modalTransferNFT" tabindex="-1" aria-labelledby="modalTransferNFTTitle">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTransferNFTTitle">Transfer Collectible</h5>
+            </div>
+            <div class="modal-body" id="modalTransferNFTBody">
+                <div id="transferNFTPreviewDiv"></div>
+                <input type="hidden" id="transferNFTTokenId" value="">
+                <input type="hidden" id="transferNFTBlockchain" value="">
+                <label class="editLabel" for="transferNFTAddress">recipient address</label>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control editInput" id="transferNFTAddress" placeholder="0x...">
+                    <span class="input-group-text" id="transferNFTAddressValid"></span>
+                </div>
+                <div id="transferNFTFeeDiv">
+                    <span class="editLabel">estimated fee: </span><span id="transferNFTFeeEstimate">--</span>
+                </div>
+                <div class="transferNFTActions">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn" id="transferNFTConfirmBtn" disabled>Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>{{end}}

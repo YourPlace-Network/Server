@@ -201,6 +201,25 @@
   height: 2.33em;
   margin-left: 5px;
   margin-right: 5px;
+  &.active {
+    border-bottom: 2px solid var(--yp-quaternary);
+  }
+}
+#mintNFTButton {
+  display: none;
+  width: 3.7em;
+  height: 3.7em;
+  position: fixed;
+  bottom: 1em;
+  right: 1em;
+  background: var(--yp-quaternary);
+  border: 2px solid var(--yp-tertiary);
+  border-radius: 4em;
+  z-index: 1000;
+}
+.mintNFTIcon {
+  font-size: 1.5em;
+  color: var(--yp-text);
 }
 // -------Profile Posts ------- //
 #contentDiv {
@@ -217,6 +236,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  min-height: 50vh;
   padding: 2rem;
   text-align: center;
   color: var(--yp-text);

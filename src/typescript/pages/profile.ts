@@ -3,6 +3,7 @@ import "../../scss/global.scss"
 import "../../scss/pages/profile.scss";
 import "../components/addPost";
 import {preloadTinyMCE} from "../components/addPost";
+import "../components/mintNFT";
 import "../components/modalDialog";
 import "../components/scrollTop";
 import "../components/menu";
@@ -11,17 +12,21 @@ import {HttpGetJson} from "../util/network";
 import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
-import {GetAddress, GetChain, GetWallet, IsValidAddress, WalletFollowUser, WalletGetAvatar, WalletGetDescription, WalletGetExplorerAddressLink, WalletGetName, WalletSendPostNudge, WalletUnfollowUser} from "../util/blockchain/wallet";
-import {CreatePostCard, getBlockchainIconPath, getBlockchainUrl, processTextWithTags} from "../util/domFactory";
-import {IsValidURL, IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
+import {GetAddress, GetChain, GetWallet, IsValidAddress, WalletBurnCollectible, WalletFollowUser, WalletGetAvatar, WalletGetCollectibles, WalletGetDescription, WalletGetExplorerAddressLink, WalletGetName, WalletGetTransferFeeEstimate, WalletSendPostNudge, WalletTransferCollectible, WalletUnfollowUser} from "../util/blockchain/wallet";
+import type {CollectibleData} from "../util/blockchain/wallet";
+import {CreateCollectibleCard, CreatePostCard, getBlockchainIconPath, getBlockchainUrl, processTextWithTags} from "../util/domFactory";
+import {IsValidURL, IsValidIpfsCid, IsValidBaseAddress, IsValidAlgoAddress, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
+import {ShowDialogModalWithCallback} from "../components/modalDialog";
+import {ShowToast} from "../components/toast";
 
-declare global { // Extend the window interface with public objects
+declare global {
     interface Window {
+        CollectibleMintCallback: () => void;
+        DisconnectWalletCallback: () => void;
         LoginCallback: (status: string) => void;
         PageReloadCallback: () => void;
-        DisconnectWalletCallback: () => void;
         PostSubmitCallback: () => void;
     }
 }
@@ -34,11 +39,12 @@ declare global { // Extend the window interface with public objects
             addPostButton: document.getElementById("addPostButton")! as HTMLButtonElement,
             avatarPreview: document.getElementById("avatarPreview")! as HTMLImageElement,
             bannerPreview: document.getElementById("bannerPreview")! as HTMLImageElement,
-            btnFiles: document.getElementById("btnFiles")! as HTMLButtonElement,
-            btnNFTs: document.getElementById("btnNFTs")! as HTMLButtonElement,
-            btnSearch: document.getElementById("btnSearch")! as HTMLButtonElement,
-            btnPosts: document.getElementById("btnPosts")! as HTMLButtonElement,
+            btnCollectible: document.getElementById("btnCollectible")! as HTMLButtonElement,
             btnComments: document.getElementById("btnComments")! as HTMLButtonElement,
+            btnFiles: document.getElementById("btnFiles")! as HTMLButtonElement,
+            btnPosts: document.getElementById("btnPosts")! as HTMLButtonElement,
+            btnSearch: document.getElementById("btnSearch")! as HTMLButtonElement,
+            mintNFTButton: document.getElementById("mintNFTButton")! as HTMLButtonElement,
             profileAddressCopy: document.getElementById("profileAddressCopy")! as HTMLElement,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
             emptyContentDivPlaceHolder: document.getElementById("emptyContentDivPlaceHolder")! as HTMLDivElement,
@@ -75,6 +81,7 @@ declare global { // Extend the window interface with public objects
             profileBlockchainIcon: document.getElementById("profileBlockchainIcon")! as HTMLImageElement,
             profileBlockchainLink: document.getElementById("profileBlockchainLink")! as HTMLAnchorElement,
         }
+        let activeTab: "posts" | "collectibles" = "posts";
         let copiedTooltip: any;
         let isFollowing = false;
         let lastPostsHash = "";
@@ -216,14 +223,13 @@ declare global { // Extend the window interface with public objects
                 return;
             }
             try {
-                const [profileResponse, result] = await Promise.all([
-                    HttpGetJson(`/profile/data/${requestedBlockchain}/${requestedAddress}`),
-                    FetchPosts(requestedBlockchain, requestedAddress, POSTS_PAGE_SIZE + 1, 0)
-                ]);
+                const profileResponse = await HttpGetJson(`/profile/data/${requestedBlockchain}/${requestedAddress}`);
                 if (profileResponse[0] === 200 && profileResponse[1]?.profileData) {
                     const profileData = profileResponse[1].profileData;
                     await renderProfileFromCache(profileData, requestedBlockchain, requestedAddress);
                 }
+                if (activeTab === "collectibles") return;
+                const result = await FetchPosts(requestedBlockchain, requestedAddress, POSTS_PAGE_SIZE + 1, 0);
                 if (result) {
                     DOM.postsNum.textContent = String(result.totalCount);
                 }
@@ -268,6 +274,66 @@ declare global { // Extend the window interface with public objects
                 clearInterval(refreshIntervalId);
                 refreshIntervalId = null;
             }
+        }
+
+        // --------- Collectible Functions --------- //
+        async function displayCollectibles(blockchain: string, address: string) {
+            const existingGrid = DOM.contentDiv.querySelector(".collectibleGrid");
+            if (existingGrid) existingGrid.remove();
+            const collectibles = await WalletGetCollectibles(address, blockchain);
+            if (collectibles.length === 0) {
+                DOM.emptyContentDivPlaceHolder.style.display = "flex";
+                DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
+                DOM.emptyContentDivPlaceHolder.style.cursor = "default";
+                DOM.placeHolderIcon.classList.remove("bi-house-add", "bi-envelope-paper-heart");
+                DOM.placeHolderIcon.classList.add("bi-gem");
+                if (DOM.isGuest.value === "false") {
+                    DOM.placeHolderH3.textContent = "Create your first Collectible!";
+                    DOM.placeHolderP.textContent = "Upload media and create a unique digital collectible";
+                } else {
+                    DOM.placeHolderH3.textContent = "No Collectibles yet";
+                    DOM.placeHolderP.textContent = "";
+                }
+                return;
+            }
+            DOM.emptyContentDivPlaceHolder.style.display = "none";
+            const isOwner = DOM.isGuest.value === "false";
+            let grid = document.createElement("div");
+            grid.classList.add("collectibleGrid");
+            for (const data of collectibles) {
+                let card = CreateCollectibleCard(data, isOwner);
+                grid.appendChild(card);
+            }
+            DOM.contentDiv.appendChild(grid);
+        }
+        function switchToCollectiblesTab() {
+            activeTab = "collectibles";
+            DOM.btnCollectible.classList.add("active");
+            DOM.btnPosts.classList.remove("active");
+            const postCards = DOM.contentDiv.querySelectorAll(".postCard");
+            postCards.forEach(p => (p as HTMLElement).style.display = "none");
+            DOM.emptyContentDivPlaceHolder.style.display = "none";
+            DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
+            DOM.emptyContentDivPlaceHolder.style.cursor = "default";
+            DOM.addPostButton.style.display = "none";
+            if (DOM.isGuest.value === "false") {
+                DOM.mintNFTButton.style.display = "block";
+            }
+            displayCollectibles(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
+        }
+        function switchToPostsTab() {
+            activeTab = "posts";
+            DOM.btnPosts.classList.add("active");
+            DOM.btnCollectible.classList.remove("active");
+            const existingGrid = DOM.contentDiv.querySelector(".collectibleGrid");
+            if (existingGrid) existingGrid.remove();
+            const postCards = DOM.contentDiv.querySelectorAll(".postCard");
+            postCards.forEach(p => (p as HTMLElement).style.display = "");
+            DOM.emptyContentDivPlaceHolder.classList.add("clickable");
+            DOM.emptyContentDivPlaceHolder.style.cursor = "";
+            DOM.mintNFTButton.style.display = "none";
+            DOM.addPostButton.style.display = "";
+            renderGuestView();
         }
 
         // --------- Profile Data Helpers --------- //
@@ -328,11 +394,12 @@ declare global { // Extend the window interface with public objects
             }
         }
         async function renderGuestView() {
-            // Edit the profile view, depending on if the viewer is the owner of the profile or not
             const placeHolderNudgeHandler = () => {
+                if (activeTab !== "posts") return;
                 WalletSendPostNudge(DOM.injectedAddress.value).then();
             };
             const placeHolderAddPostHandler = () => {
+                if (activeTab !== "posts") return;
                 DOM.addPostButton.click();
             };
             let postCount = Number(DOM.postsNum.textContent);
@@ -365,6 +432,15 @@ declare global { // Extend the window interface with public objects
         }
 
         // --------- Exported Functions --------- //
+        window.CollectibleMintCallback = function () {
+            if (activeTab === "collectibles") {
+                displayCollectibles(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
+            }
+        }
+        window.DisconnectWalletCallback = function () {
+            LogInfo("profile.ts DisconnectWalletCallback() stub - redirecting to logout");
+            window.location.href = "/logout";
+        }
         window.LoginCallback = function (status: string) {
             let address = GetAddress();
             if (address == null || !IsValidAddress(address)) {
@@ -375,10 +451,6 @@ declare global { // Extend the window interface with public objects
         window.PageReloadCallback = function () {
             LogInfo("profile.ts PageReloadCallback() stub - reloading page");
             window.location.reload();
-        }
-        window.DisconnectWalletCallback = function () {
-            LogInfo("profile.ts DisconnectWalletCallback() stub - redirecting to logout");
-            window.location.href = "/logout";
         }
         window.PostSubmitCallback = function () {
             LogInfo("profile.ts PostSubmitCallback() - refreshing profile data");
@@ -572,11 +644,123 @@ declare global { // Extend the window interface with public objects
         }
 
         // --------- Event Handlers --------- //
+        DOM.btnCollectible.addEventListener("click", function () {
+            if (activeTab !== "collectibles") switchToCollectiblesTab();
+        });
         DOM.btnPosts.addEventListener("click", function () {
-            window.location.href = "/p/";
+            if (activeTab === "posts") {
+                window.location.href = "/p/";
+            } else {
+                switchToPostsTab();
+            }
         });
         DOM.btnSearch.addEventListener("click", function () {
             window.location.href = "/";
+        });
+        DOM.contentDiv.addEventListener("click", async (e) => {
+            const burnBtn = (e.target as HTMLElement).closest(".collectibleBurnBtn");
+            if (burnBtn) {
+                const card = burnBtn.closest(".collectibleCard") as HTMLDivElement;
+                if (!card) return;
+                const tokenId = (card.querySelector(".collectibleTokenId") as HTMLInputElement).value;
+                const blockchain = (card.querySelector(".collectibleBlockchain") as HTMLInputElement).value;
+                ShowDialogModalWithCallback("Are you sure you want to burn this Collectible? This cannot be undone.", async () => {
+                    const success = await WalletBurnCollectible(tokenId, blockchain);
+                    if (success) {
+                        ShowToast("Collectible burned");
+                        displayCollectibles(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
+                    } else {
+                        ShowToast("Failed to burn collectible");
+                    }
+                });
+                return;
+            }
+            const sendBtn = (e.target as HTMLElement).closest(".collectibleSendBtn");
+            if (sendBtn) {
+                const card = sendBtn.closest(".collectibleCard") as HTMLDivElement;
+                if (!card) return;
+                const tokenId = (card.querySelector(".collectibleTokenId") as HTMLInputElement).value;
+                const blockchain = (card.querySelector(".collectibleBlockchain") as HTMLInputElement).value;
+                const cardName = card.querySelector(".collectibleCardName");
+                const cardMedia = card.querySelector(".collectibleMediaElement") as HTMLImageElement | HTMLVideoElement;
+                const transferTokenIdInput = document.getElementById("transferNFTTokenId") as HTMLInputElement;
+                const transferBlockchainInput = document.getElementById("transferNFTBlockchain") as HTMLInputElement;
+                const transferPreviewDiv = document.getElementById("transferNFTPreviewDiv") as HTMLDivElement;
+                const transferAddressInput = document.getElementById("transferNFTAddress") as HTMLInputElement;
+                const transferFeeEstimate = document.getElementById("transferNFTFeeEstimate") as HTMLSpanElement;
+                const transferConfirmBtn = document.getElementById("transferNFTConfirmBtn") as HTMLButtonElement;
+                const transferAddressValid = document.getElementById("transferNFTAddressValid") as HTMLSpanElement;
+                transferTokenIdInput.value = tokenId;
+                transferBlockchainInput.value = blockchain;
+                transferAddressInput.value = "";
+                transferFeeEstimate.textContent = "--";
+                transferConfirmBtn.disabled = true;
+                transferAddressValid.textContent = "";
+                transferPreviewDiv.innerHTML = "";
+                if (cardMedia) {
+                    let thumb = document.createElement("img");
+                    thumb.src = (cardMedia as HTMLImageElement).src || "";
+                    transferPreviewDiv.appendChild(thumb);
+                }
+                if (cardName) {
+                    let nameSpan = document.createElement("span");
+                    nameSpan.textContent = cardName.textContent || "";
+                    transferPreviewDiv.appendChild(nameSpan);
+                }
+                if (blockchain === "algorand") {
+                    transferAddressInput.placeholder = "ALGO...";
+                } else {
+                    transferAddressInput.placeholder = "0x...";
+                }
+                let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+                const addressHandler = () => {
+                    if (debounceTimer) clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(async () => {
+                        const addr = transferAddressInput.value.trim();
+                        let valid = false;
+                        if (blockchain === "algorand") {
+                            valid = IsValidAlgoAddress(addr);
+                        } else {
+                            valid = IsValidBaseAddress(addr);
+                        }
+                        if (valid) {
+                            transferAddressValid.textContent = "\u2713";
+                            transferAddressValid.style.color = "var(--yp-success)";
+                            transferConfirmBtn.disabled = false;
+                            const fee = await WalletGetTransferFeeEstimate(addr, tokenId, blockchain);
+                            transferFeeEstimate.textContent = fee;
+                        } else {
+                            transferAddressValid.textContent = addr.length > 0 ? "\u2717" : "";
+                            transferAddressValid.style.color = "var(--yp-danger)";
+                            transferConfirmBtn.disabled = true;
+                            transferFeeEstimate.textContent = "--";
+                        }
+                    }, 500);
+                };
+                transferAddressInput.removeEventListener("input", addressHandler);
+                transferAddressInput.addEventListener("input", addressHandler);
+                const confirmHandler = async () => {
+                    const toAddress = transferAddressInput.value.trim();
+                    transferConfirmBtn.disabled = true;
+                    transferConfirmBtn.textContent = "Transferring...";
+                    const success = await WalletTransferCollectible(tokenId, toAddress, blockchain);
+                    if (success) {
+                        ShowToast("Collectible transferred!");
+                        const transferModal = window.bootstrap.Modal.getInstance(document.getElementById("modalTransferNFT")!);
+                        if (transferModal) transferModal.hide();
+                        displayCollectibles(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
+                    } else {
+                        ShowToast("Failed to transfer collectible");
+                    }
+                    transferConfirmBtn.disabled = false;
+                    transferConfirmBtn.textContent = "Confirm";
+                };
+                transferConfirmBtn.onclick = confirmHandler;
+                const transferModalEl = document.getElementById("modalTransferNFT")!;
+                const transferModal = window.bootstrap.Modal.getOrCreateInstance(transferModalEl);
+                transferModal.show();
+                return;
+            }
         });
         DOM.profileEditBtn.addEventListener("click", showProfileEditModal);
         DOM.profileAddressCopy.addEventListener("click", function () {

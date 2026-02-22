@@ -1,3 +1,4 @@
+import "../../scss/components/collectibleCard.scss";
 import "../../scss/components/postCard.scss";
 import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
@@ -8,6 +9,7 @@ import {ProcessPostContentForPreviews} from "../components/postPreviewCard";
 import {TwitterEmbed} from "../services/twitter";
 import {GetAddress} from "./blockchain/wallet";
 import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar} from "./blockchain/wallet";
+import type {CollectibleData} from "./blockchain/wallet";
 import {IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue} from "./security";
 import {CIDToSubdomainURL, getIpfsAvatarUrl} from "./ipfs";
 import {IsGatewayMode} from "./miscellaneous";
@@ -999,4 +1001,79 @@ async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchai
     } catch (e) {
         LogError("Failed to fetch post controls data: " + e);
     }
+}
+export function CreateCollectibleCard(data: CollectibleData, isOwner: boolean): HTMLDivElement {
+    let card = document.createElement("div");
+    card.classList.add("collectibleCard");
+    let blockchainInput = document.createElement("input");
+    blockchainInput.type = "hidden";
+    blockchainInput.classList.add("collectibleBlockchain");
+    blockchainInput.value = XSSSanitizeValue(data.blockchain);
+    card.appendChild(blockchainInput);
+    let contractInput = document.createElement("input");
+    contractInput.type = "hidden";
+    contractInput.classList.add("collectibleContractAddress");
+    contractInput.value = XSSSanitizeValue(data.contractAddress);
+    card.appendChild(contractInput);
+    let tokenIdInput = document.createElement("input");
+    tokenIdInput.type = "hidden";
+    tokenIdInput.classList.add("collectibleTokenId");
+    tokenIdInput.value = XSSSanitizeValue(data.tokenId);
+    card.appendChild(tokenIdInput);
+    let mediaDiv = document.createElement("div");
+    mediaDiv.classList.add("collectibleCardMedia");
+    let mediaUrl = data.imageUrl;
+    if (mediaUrl && mediaUrl.startsWith("ipfs://")) {
+        mediaUrl = CIDToSubdomainURL(mediaUrl);
+    }
+    if (data.mimeType && data.mimeType.startsWith("video/")) {
+        let video = document.createElement("video");
+        video.classList.add("collectibleMediaElement");
+        video.src = XSSSanitizeUrl(mediaUrl);
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.preload = "metadata";
+        mediaDiv.addEventListener("mouseenter", () => { video.play().catch(() => {}); });
+        mediaDiv.addEventListener("mouseleave", () => { video.pause(); video.currentTime = 0; });
+        mediaDiv.appendChild(video);
+    } else {
+        let img = document.createElement("img");
+        img.classList.add("collectibleMediaElement");
+        img.src = XSSSanitizeUrl(mediaUrl);
+        img.alt = XSSSanitizeValue(data.name);
+        img.loading = "lazy";
+        mediaDiv.appendChild(img);
+    }
+    mediaDiv.addEventListener("click", () => {
+        let wrapper = document.createElement("div");
+        let mediaClone = mediaDiv.querySelector(".collectibleMediaElement");
+        if (mediaClone) wrapper.appendChild(mediaClone.cloneNode(true));
+        ShowModalMediaViewer(wrapper);
+    });
+    card.appendChild(mediaDiv);
+    let infoDiv = document.createElement("div");
+    infoDiv.classList.add("collectibleCardInfo");
+    let nameDiv = document.createElement("div");
+    nameDiv.classList.add("collectibleCardName");
+    nameDiv.textContent = XSSSanitizeValue(data.name);
+    infoDiv.appendChild(nameDiv);
+    if (data.description) {
+        let descDiv = document.createElement("div");
+        descDiv.classList.add("collectibleCardDescription");
+        descDiv.textContent = XSSSanitizeValue(data.description);
+        infoDiv.appendChild(descDiv);
+    }
+    card.appendChild(infoDiv);
+    if (isOwner) {
+        let burnBtn = document.createElement("button");
+        burnBtn.classList.add("collectibleBurnBtn");
+        burnBtn.innerHTML = '<i class="bi bi-trash"></i>';
+        card.appendChild(burnBtn);
+        let sendBtn = document.createElement("button");
+        sendBtn.classList.add("collectibleSendBtn");
+        sendBtn.innerHTML = '<i class="bi bi-send"></i>';
+        card.appendChild(sendBtn);
+    }
+    return card;
 }

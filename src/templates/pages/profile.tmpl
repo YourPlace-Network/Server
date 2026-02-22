@@ -11,6 +11,8 @@
 {{template "modalDialog" .}}
 {{template "modalProfileEdit" .}}
 {{template "modalMediaViewer" .}}
+{{template "modalMintNFT" .}}
+{{template "modalTransferNFT" .}}
     <div class="container-fluid" id="topContainer">
         <div class="row" id="rowBanner">
             <div class="col-sm-1"></div>
@@ -111,8 +113,8 @@
                     <button class="navBtn col-sm btn" id="btnReplies" aria-describedby="comingsoon-tooltip" disabled>
                         <i class="bi bi-chat-dots"></i><span class="navBtnTxt">Replies</span>
                     </button>
-                    <button class="navBtn col-sm btn" id="btnProfileMarket" aria-describedby="comingsoon-tooltip" disabled>
-                        <i class="bi bi-gem"></i><span class="navBtnTxt">Market</span>
+                    <button class="navBtn col-sm btn" id="btnCollectible">
+                        <i class="bi bi-gem"></i><span class="navBtnTxt">Collectibles</span>
                     </button>
                     <button class="navBtn col-sm btn" id="btnFiles" aria-describedby="comingsoon-tooltip" disabled>
                         <i class="bi bi-floppy"></i><span class="navBtnTxt">Files</span>
@@ -151,6 +153,7 @@
             </div>
             <div class="col-sm-1">
                 {{template "addPost" .}}
+                {{template "mintNFTButton" .}}
             </div>
         </div>
     </div>

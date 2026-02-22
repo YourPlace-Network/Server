@@ -1,0 +1,37 @@
+{{define "modalMintNFT"}}<div class="modal" id="modalMintNFT" tabindex="-1" aria-labelledby="modalMintNFTTitle">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalMintNFTTitle">Create Collectible (NFT)</h5>
+            </div>
+            <div class="modal-body" id="modalMintNFTBody">
+                <div id="mintNFTPreviewDiv"></div>
+                <label class="editLabel" for="mintNFTName">name</label>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control editInput" id="mintNFTName" placeholder="Collectible Name" maxlength="100">
+                </div>
+                <label class="editLabel" for="mintNFTDescription">description</label>
+                <div class="position-relative">
+                    <textarea class="form-control editInput" id="mintNFTDescription" placeholder="Describe your collectible" maxlength="500"></textarea>
+                </div>
+                <label class="editLabel" for="mintNFTRoyalty">royalty %</label>
+                <div class="input-group mb-3">
+                    <input type="number" class="form-control editInput" id="mintNFTRoyalty" placeholder="5" min="0" max="10" step="1" value="5">
+                </div>
+                <div id="mintNFTUploadDiv">
+                    <label class="editLabel btn" for="mintNFTFileInput"><i class="bi bi-upload"></i> Upload Media</label>
+                    <input type="file" id="mintNFTFileInput" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,video/mp4" style="display: none;">
+                    <input type="hidden" id="gatewayModeMintNFT" value="{{ .gatewayMode }}">
+                </div>
+                <div class="mintNFTActions">
+                    <span style="font-size: 0.8em; filter: brightness(70%); padding-top: 1.2em;">A 0.0001 ETH service fee applies</span>
+                    <button type="button" class="btn" id="mintNFTSubmitBtn">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>{{end}}
+{{define "mintNFTButton"}}<button type="button" class="btn grow" id="mintNFTButton"
+    data-bs-toggle="tooltip" title="Create Collectible" data-bs-placement="left">
+    <i class="bi bi-gem mintNFTIcon"></i>
+</button>{{end}}

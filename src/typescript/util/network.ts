@@ -79,8 +79,25 @@ export async function HttpPostFile(url: string, file: File | FileList, csrfToken
         },
         credentials: "include", // Important for CSRF cookies
     }
-    let response = await fetchWithTimeout(url, options, 120000);
-    return [response.status, await response.json()];
+    let response: Response;
+    try {
+        response = await fetchWithTimeout(url, options, 120000);
+    } catch (error: any) {
+        return [400, {"status": "Request timed out"}];
+    }
+    if (!response.ok) {
+        try {
+            const errorText = await response.text();
+            return [response.status, errorText ? JSON.parse(errorText) : null];
+        } catch (e) {
+            return [response.status, null];
+        }
+    }
+    try {
+        return [response.status, await response.json()];
+    } catch (e) {
+        return [response.status, null];
+    }
 }
 export async function CnameResolve(domain: string): Promise<string | null> {
     const dohURL = `https://dns.google.com/resolve?name=${domain}&type=CNAME`;

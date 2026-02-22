@@ -1123,4 +1123,5 @@ var mentalHealthTips = []string{
 	"The one thing you're not allowed to do with your human rights, is to impede another persons own rights",
 	"Intelligent people do not present their views as absolute truth",
 	"Be realistic and optimistic at the same time",
+	"If someone is failing to meet an expectation, making a stricter expectation won't fix that behavior",
 }
