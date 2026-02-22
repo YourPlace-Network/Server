@@ -308,6 +308,7 @@ declare global {
         }
         function switchToCollectiblesTab() {
             activeTab = "collectibles";
+            history.replaceState(null, "", window.location.pathname + "#collection");
             DOM.btnCollectible.classList.add("active");
             DOM.btnPosts.classList.remove("active");
             const postCards = DOM.contentDiv.querySelectorAll(".postCard");
@@ -323,6 +324,7 @@ declare global {
         }
         function switchToPostsTab() {
             activeTab = "posts";
+            history.replaceState(null, "", window.location.pathname);
             DOM.btnPosts.classList.add("active");
             DOM.btnCollectible.classList.remove("active");
             const existingGrid = DOM.contentDiv.querySelector(".collectibleGrid");
@@ -809,8 +811,11 @@ declare global {
         });
 
         init().then(() => {
-            preloadTinyMCE(); // Preload TinyMCE in background after page loads
-            startAutoRefresh(); // Start auto-refresh after initial load
+            if (window.location.hash === "#collection") {
+                switchToCollectiblesTab();
+            }
+            preloadTinyMCE();
+            startAutoRefresh();
         });
     }
 })();
