@@ -81,6 +81,8 @@ else
 fi
 echo '=== Logging into ECR ==='
 aws ecr get-login-password --region AWS_REGION_PLACEHOLDER | docker login --username AWS --password-stdin ECR_REGISTRY_PLACEHOLDER
+echo '=== Cleaning up old Docker images ==='
+docker image prune -af --filter "until=24h" 2>/dev/null || docker image prune -af 2>/dev/null || echo 'Prune skipped'
 echo '=== Pulling latest image ==='
 docker pull ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
 echo '=== Stopping existing container ==='
