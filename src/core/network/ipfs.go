@@ -483,9 +483,21 @@ func PinningServiceCreateNFTGroup(ps *PinningService) error {
 		return _core.LogErrorReturn("Could not parse Pinata groups response: " + err.Error())
 	}
 	if len(listResult.Data.Groups) > 0 {
-		ps.GroupID = listResult.Data.Groups[0].ID
-		_core.LogDebug("Found existing Pinata NFT group: " + ps.GroupID)
-		return nil
+		candidateID := listResult.Data.Groups[0].ID
+		verifyReq, err := http.NewRequest("GET", pinataAPIURL+"/v3/groups/public/"+candidateID, nil)
+		if err == nil {
+			verifyReq.Header.Set("Authorization", "Bearer "+ps.Key)
+			verifyResp, err := client.Do(verifyReq)
+			if err == nil {
+				verifyResp.Body.Close()
+				if verifyResp.StatusCode == http.StatusOK {
+					ps.GroupID = candidateID
+					_core.LogDebug("Found existing Pinata NFT group: " + ps.GroupID)
+					return nil
+				}
+			}
+		}
+		_core.LogDebug("Existing Pinata NFT group " + candidateID + " is invalid, creating new group")
 	}
 	createBody := `{"name":"nft","is_public":true}`
 	req, err = http.NewRequest("POST", pinataAPIURL+"/v3/groups/public", strings.NewReader(createBody))
