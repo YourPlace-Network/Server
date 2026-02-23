@@ -249,6 +249,7 @@ func main() {
 		pinningType := os.Getenv("YOURPLACE_IPFS_PINNING_TYPE")
 		pinningURL := os.Getenv("YOURPLACE_IPFS_PINNING_URL")
 		pinningKey := os.Getenv("YOURPLACE_IPFS_PINNING_KEY")
+		core.LogDebug("Gateway pinning env: type=" + pinningType + " url=" + pinningURL + " key_len=" + strconv.Itoa(len(pinningKey)))
 		if pinningType != "" && pinningKey != "" && (pinningURL != "" || pinningType == "pinata") {
 			ps, err := network.PinningServiceInit(pinningType, pinningURL, pinningKey)
 			if err != nil {
