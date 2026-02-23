@@ -249,7 +249,7 @@ func main() {
 		pinningType := os.Getenv("YOURPLACE_IPFS_PINNING_TYPE")
 		pinningURL := os.Getenv("YOURPLACE_IPFS_PINNING_URL")
 		pinningKey := os.Getenv("YOURPLACE_IPFS_PINNING_KEY")
-		if pinningType != "" && pinningURL != "" && pinningKey != "" {
+		if pinningType != "" && pinningKey != "" && (pinningURL != "" || pinningType == "pinata") {
 			ps, err := network.PinningServiceInit(pinningType, pinningURL, pinningKey)
 			if err != nil {
 				core.LogDebug("IPFS pinning service init failed — NFT minting disabled in gateway mode")
