@@ -87,6 +87,7 @@ declare global {
         let lastPostsHash = "";
         let postsHasMore = true;
         let postsLoading = false;
+        let displayCollectiblesCallId = 0;
         let postsObserver: IntersectionObserver | null = null;
         let postsOffset = 0;
         let refreshIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -278,9 +279,10 @@ declare global {
 
         // --------- Collectible Functions --------- //
         async function displayCollectibles(blockchain: string, address: string) {
-            const existingGrid = DOM.contentDiv.querySelector(".collectibleGrid");
-            if (existingGrid) existingGrid.remove();
+            const callId = ++displayCollectiblesCallId;
+            DOM.contentDiv.querySelectorAll(".collectibleGrid").forEach(g => g.remove());
             const collectibles = await WalletGetCollectibles(address, blockchain);
+            if (callId !== displayCollectiblesCallId) return;
             if (collectibles.length === 0) {
                 DOM.emptyContentDivPlaceHolder.style.display = "flex";
                 DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
