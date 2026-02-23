@@ -1,7 +1,7 @@
 import {CID} from "multiformats/cid";
 import {IsValidIpfsCid, IsValidURL} from "./security";
 import {HttpGetJson, HttpPostJson} from "./network";
-import {LogError, LogInfo} from "./log";
+import {LogDebug, LogError, LogInfo} from "./log";
 import {IsGatewayMode} from "./miscellaneous";
 
 const IPFS_GATEWAY_DEFAULT = "ipfs.io";
@@ -26,6 +26,14 @@ export async function AddFileToIPFS(fileUUID: string, csrfToken: string): Promis
         return stringToCID(response[1].cid);
     }
     LogError("Failed to add file to IPFS: " + response[1].status);
+    return null;
+}
+export async function GetNFTUploadAuth(csrfToken: string): Promise<any> {
+    const response = await HttpPostJson("/files/nft/sign", {}, csrfToken);
+    if (response[0] === 200) {
+        return response[1];
+    }
+    LogDebug("Failed to get NFT upload auth: " + (response[1].status || response[0]));
     return null;
 }
 export function CIDToSubdomainURL(cid: string): string {
@@ -290,6 +298,61 @@ export async function getIpfsAvatarUrl(blockchain: string, address: string): Pro
 export function stringToCID(cid: string): CID {
     if (!IsValidIpfsCid(cid)) throw new Error("Invalid CID");
     return CID.parse(cid);
+}
+export async function UploadToIPFSService(file: File, csrfToken: string): Promise<string | null> {
+    const auth = await GetNFTUploadAuth(csrfToken);
+    if (!auth) return null;
+    try {
+        if (auth.type === "pinata") {
+            return await uploadToPinata(file, auth.uploadUrl, auth.groupId);
+        } else if (auth.type === "ipfs") {
+            return await uploadToIPFSNode(file, auth.uploadUrl, auth.key);
+        }
+        LogDebug("Unknown pinning service type: " + auth.type);
+        return null;
+    } catch (error) {
+        LogDebug("UploadToIPFSService failed: " + error);
+        return null;
+    }
+}
+async function uploadToIPFSNode(file: File, url: string, key: string): Promise<string | null> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {"Authorization": "Bearer " + key},
+        body: formData,
+    });
+    if (!response.ok) {
+        LogDebug("IPFS node upload failed with status: " + response.status);
+        return null;
+    }
+    const result = await response.json();
+    if (result.Hash && IsValidIpfsCid(result.Hash)) {
+        return result.Hash;
+    }
+    LogDebug("IPFS node upload returned invalid response");
+    return null;
+}
+async function uploadToPinata(file: File, signedUrl: string, groupId: string): Promise<string | null> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("group_id", groupId);
+    const response = await fetch(signedUrl, {
+        method: "POST",
+        body: formData,
+    });
+    if (!response.ok) {
+        LogDebug("Pinata upload failed with status: " + response.status);
+        return null;
+    }
+    const result = await response.json();
+    const cid = result.data?.cid || result.IpfsHash;
+    if (cid && IsValidIpfsCid(cid)) {
+        return cid;
+    }
+    LogDebug("Pinata upload returned invalid response");
+    return null;
 }
 async function iterableToBlobArray(asyncIterable: AsyncIterable<Uint8Array>): Promise<BlobPart[]> {
     const blobParts: BlobPart[] = [];

@@ -89,6 +89,9 @@ jobs:
         CLOUDFLARE_CERT_KEY: ${{ secrets.CLOUDFLARE_CERT_KEY }}
         BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
         BASE_RPC_THROTTLE: ${{ vars.BASE_RPC_THROTTLE }}
+        YOURPLACE_IPFS_PINNING_KEY: ${{ secrets.YOURPLACE_IPFS_PINNING_KEY }}
+        YOURPLACE_IPFS_PINNING_TYPE: ${{ secrets.YOURPLACE_IPFS_PINNING_TYPE }}
+        YOURPLACE_IPFS_PINNING_URL: ${{ secrets.YOURPLACE_IPFS_PINNING_URL }}
         YOURPLACE_ORIGIN: ${{ vars.YOURPLACE_ORIGIN }}
       run: |
         chmod +x gateway/deploy.sh

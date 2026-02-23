@@ -242,6 +242,37 @@ func main() {
 		}
 	}
 
+	// --- Gateway Pinning Service --- //
+	var pinningService *network.PinningService
+	gatewayMintEnabled := false
+	if gateway {
+		pinningType := os.Getenv("YOURPLACE_IPFS_PINNING_TYPE")
+		pinningURL := os.Getenv("YOURPLACE_IPFS_PINNING_URL")
+		pinningKey := os.Getenv("YOURPLACE_IPFS_PINNING_KEY")
+		if pinningType != "" && pinningURL != "" && pinningKey != "" {
+			ps, err := network.PinningServiceInit(pinningType, pinningURL, pinningKey)
+			if err != nil {
+				core.LogDebug("IPFS pinning service init failed — NFT minting disabled in gateway mode")
+				database.MetaUpdateValue("gatewayMintEnabled", "false")
+			} else {
+				err = network.PinningServiceCreateNFTGroup(ps)
+				if err != nil {
+					core.LogDebug("Could not create NFT group — NFT minting disabled in gateway mode")
+					database.MetaUpdateValue("gatewayMintEnabled", "false")
+				} else {
+					pinningService = ps
+					gatewayMintEnabled = true
+					database.MetaUpdateValue("gatewayMintEnabled", "true")
+					database.MetaUpdateValue("pinningGroupId", ps.GroupID)
+					core.LogDebug("Gateway NFT minting enabled with " + pinningType + " pinning service")
+				}
+			}
+		} else {
+			core.LogDebug("IPFS pinning not configured — NFT minting disabled in gateway mode")
+			database.MetaUpdateValue("gatewayMintEnabled", "false")
+		}
+	}
+
 	// --- Start Cron Jobs --- //
 	if installed {
 		core.LogDebug("Starting cron jobs")
@@ -250,7 +281,7 @@ func main() {
 
 	// --- Start Web Server --- //
 	core.LogDebug("Starting web server")
-	StartWebServer(database, _blockchain, ipfs, installed, domain)
+	StartWebServer(database, _blockchain, ipfs, installed, domain, gatewayMintEnabled, pinningService)
 
 	// --- Systray --- //
 	runSystray(database)
@@ -361,7 +392,7 @@ func PostServerRun(database *db.Database) {
 		}
 	}
 }
-func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, ipfs *network.IPFS, installed bool, domain string) {
+func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, ipfs *network.IPFS, installed bool, domain string, gatewayMintEnabled bool, pinningService *network.PinningService) {
 	if debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -380,7 +411,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedExtensions([]string{
 		".gif", ".jpg", ".jpeg", ".mp4", ".png", ".webm", ".webp", ".woff", ".woff2",
 	})))
-	router.Use(middleware.LoopbackMiddleware(port, gateway))
+	router.Use(middleware.LoopbackMiddleware(port, gateway, gatewayMintEnabled))
 	router.Use(middleware.LoopbackRedirectMiddleware(port))
 	router.Use(middleware.CSRFMiddleware(middleware.CSRFConfig{CryptoSeed: cryptoSeed}))
 	router.Use(middleware.AuthMiddleware(cryptoSeed, database))
@@ -412,7 +443,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 		routes.CommentRoutes(router, database)
 		routes.ReactionRoutes(router, database)
 		routes.FeedRoutes(router, database)
-		routes.FilesRoutes(router, database, ipfs, port, gateway)
+		routes.FilesRoutes(router, database, ipfs, port, gateway, pinningService)
 		routes.MentalHealthRoutes(router, title, database, cryptoSeed, gateway)
 		routes.SearchRoutes(router, database, _blockchain)
 		routes.ServicesRoutes(router, database)

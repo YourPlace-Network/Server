@@ -111,6 +111,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		if displayName == "" {
 			displayName = addressParam[:6] + "..." + addressParam[len(addressParam)-4:]
 		}
+		gatewayMintEnabled := database.MetaGetValue("gatewayMintEnabled")
 		pageTitle := displayName + " | " + title
 		responseJson := gin.H{
 			"title":                 pageTitle,
@@ -120,6 +121,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"injectedBlockchain":    blockchainParam,
 			"isCookieAuthenticated": true,
 			"isGuest":               isGuest, // Guest mode distinguishes if the viewer is the guest or owner of the profile
+			"gatewayMintEnabled":    gatewayMintEnabled == "true",
 			"gatewayMode":           gateway,
 			"userAddress":           userAddress,
 			"userBlockchain":        userBlockchain,

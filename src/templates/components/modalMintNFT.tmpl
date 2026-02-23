@@ -21,6 +21,7 @@
                 <div id="mintNFTUploadDiv">
                     <label class="editLabel btn" for="mintNFTFileInput"><i class="bi bi-upload"></i> Upload Media</label>
                     <input type="file" id="mintNFTFileInput" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,video/mp4" style="display: none;">
+                    <input type="hidden" id="gatewayMintEnabled" value="{{ .gatewayMintEnabled }}">
                     <input type="hidden" id="gatewayModeMintNFT" value="{{ .gatewayMode }}">
                 </div>
                 <div class="mintNFTActions">

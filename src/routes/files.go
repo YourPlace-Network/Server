@@ -19,7 +19,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func FilesRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, port int, gateway bool) {
+func FilesRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, port int, gateway bool, pinningService *network.PinningService) {
 	router.GET("/files/download/:uuid", func(c *gin.Context) {
 		uuid := c.Param("uuid")
 		if !security.IsValidUUID(uuid) {
@@ -30,6 +30,18 @@ func FilesRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, 
 		return
 	})
 
+	router.POST("/files/nft/sign", func(c *gin.Context) {
+		if pinningService == nil {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "NFT minting not available"})
+			return
+		}
+		auth, err := network.PinningServiceGenerateUploadAuth(pinningService)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Failed to generate upload credentials"})
+			return
+		}
+		c.SecureJSON(http.StatusOK, auth)
+	})
 	router.POST("/files/upload", func(c *gin.Context) {
 		const maxUploadSize = 100 << 30 // 100 GB
 		if c.Request.ContentLength > maxUploadSize {

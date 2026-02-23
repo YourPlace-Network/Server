@@ -442,6 +442,164 @@ func RestartIPFS() {
 		_core.LogError("Could not run IPFS daemon")
 	}
 }
+type PinningService struct {
+	GroupID string
+	Key     string
+	Type    string
+	URL     string
+}
+
+func PinningServiceCreateNFTGroup(ps *PinningService) error {
+	if ps.Type != "pinata" {
+		return nil
+	}
+	client := &http.Client{Timeout: 15 * time.Second}
+	req, err := http.NewRequest("GET", ps.URL+"/groups?name=nft&isPublic=true", nil)
+	if err != nil {
+		return _core.LogErrorReturn("Could not create Pinata groups request: " + err.Error())
+	}
+	req.Header.Set("Authorization", "Bearer "+ps.Key)
+	resp, err := client.Do(req)
+	if err != nil {
+		return _core.LogErrorReturn("Could not list Pinata groups: " + err.Error())
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return _core.LogErrorReturn("Could not read Pinata groups response: " + err.Error())
+	}
+	var listResult struct {
+		Data struct {
+			Groups []struct {
+				ID string `json:"id"`
+			} `json:"groups"`
+		} `json:"data"`
+	}
+	if err = json.Unmarshal(body, &listResult); err != nil {
+		return _core.LogErrorReturn("Could not parse Pinata groups response: " + err.Error())
+	}
+	if len(listResult.Data.Groups) > 0 {
+		ps.GroupID = listResult.Data.Groups[0].ID
+		_core.LogDebug("Found existing Pinata NFT group: " + ps.GroupID)
+		return nil
+	}
+	createBody := `{"name":"nft","is_public":true}`
+	req, err = http.NewRequest("POST", ps.URL+"/groups", strings.NewReader(createBody))
+	if err != nil {
+		return _core.LogErrorReturn("Could not create Pinata group request: " + err.Error())
+	}
+	req.Header.Set("Authorization", "Bearer "+ps.Key)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = client.Do(req)
+	if err != nil {
+		return _core.LogErrorReturn("Could not create Pinata group: " + err.Error())
+	}
+	defer resp.Body.Close()
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return _core.LogErrorReturn("Could not read Pinata group creation response: " + err.Error())
+	}
+	var createResult struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err = json.Unmarshal(body, &createResult); err != nil {
+		return _core.LogErrorReturn("Could not parse Pinata group creation response: " + err.Error())
+	}
+	if createResult.Data.ID == "" {
+		return _core.LogErrorReturn("Pinata group creation returned empty ID")
+	}
+	ps.GroupID = createResult.Data.ID
+	_core.LogDebug("Created Pinata NFT group: " + ps.GroupID)
+	return nil
+}
+func PinningServiceGenerateUploadAuth(ps *PinningService) (map[string]string, error) {
+	if ps.Type == "ipfs" {
+		return map[string]string{
+			"type":      "ipfs",
+			"uploadUrl": ps.URL + "/api/v0/add",
+			"key":       ps.Key,
+		}, nil
+	}
+	client := &http.Client{Timeout: 15 * time.Second}
+	req, err := http.NewRequest("POST", ps.URL+"/v3/files/sign", nil)
+	if err != nil {
+		return nil, _core.LogErrorReturn("Could not create Pinata sign request: " + err.Error())
+	}
+	req.Header.Set("Authorization", "Bearer "+ps.Key)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, _core.LogErrorReturn("Could not get Pinata signed URL: " + err.Error())
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, _core.LogErrorReturn("Could not read Pinata sign response: " + err.Error())
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, _core.LogErrorReturn("Pinata sign returned status " + strconv.Itoa(resp.StatusCode) + ": " + string(body))
+	}
+	var signResult struct {
+		Data string `json:"data"`
+	}
+	if err = json.Unmarshal(body, &signResult); err != nil {
+		return nil, _core.LogErrorReturn("Could not parse Pinata sign response: " + err.Error())
+	}
+	if signResult.Data == "" {
+		return nil, _core.LogErrorReturn("Pinata sign returned empty URL")
+	}
+	return map[string]string{
+		"type":      "pinata",
+		"uploadUrl": signResult.Data,
+		"groupId":   ps.GroupID,
+	}, nil
+}
+func PinningServiceInit(pinningType string, pinningURL string, key string) (*PinningService, error) {
+	if pinningType != "pinata" && pinningType != "ipfs" {
+		return nil, _core.LogErrorReturn("Invalid pinning service type: " + pinningType + " (must be 'pinata' or 'ipfs')")
+	}
+	if !security.IsValidURL(pinningURL) {
+		return nil, _core.LogErrorReturn("Invalid pinning service URL: " + pinningURL)
+	}
+	client := &http.Client{Timeout: 15 * time.Second}
+	if pinningType == "pinata" {
+		req, err := http.NewRequest("GET", pinningURL+"/data/testAuthentication", nil)
+		if err != nil {
+			return nil, _core.LogErrorReturn("Could not create Pinata auth test request: " + err.Error())
+		}
+		req.Header.Set("Authorization", "Bearer "+key)
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, _core.LogErrorReturn("Pinata health check failed: " + err.Error())
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, _core.LogErrorReturn("Pinata auth test returned status " + strconv.Itoa(resp.StatusCode))
+		}
+	} else {
+		req, err := http.NewRequest("POST", pinningURL+"/api/v0/id", nil)
+		if err != nil {
+			return nil, _core.LogErrorReturn("Could not create IPFS node ID request: " + err.Error())
+		}
+		req.Header.Set("Authorization", "Bearer "+key)
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, _core.LogErrorReturn("IPFS node health check failed: " + err.Error())
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, _core.LogErrorReturn("IPFS node ID returned status " + strconv.Itoa(resp.StatusCode))
+		}
+	}
+	_core.LogDebug("Pinning service '" + pinningType + "' validated successfully")
+	return &PinningService{
+		Key:  key,
+		Type: pinningType,
+		URL:  pinningURL,
+	}, nil
+}
+
 func UpdateBadBits(database *db.Database) {
 	badbitsPath := host.GetDataDir() + ".ipfs" + host.PathSeparator + "denylists" + host.PathSeparator
 	updateFlag := database.SettingsGetValue("badbitsEnabled")
