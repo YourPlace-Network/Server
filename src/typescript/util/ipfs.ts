@@ -304,7 +304,7 @@ export async function UploadToIPFSService(file: File, csrfToken: string): Promis
     if (!auth) return null;
     try {
         if (auth.type === "pinata") {
-            return await uploadToPinata(file, auth.uploadUrl, auth.groupId);
+            return await uploadToPinata(file, auth.uploadUrl);
         } else if (auth.type === "ipfs") {
             return await uploadToIPFSNode(file, auth.uploadUrl, auth.key);
         }
@@ -334,10 +334,9 @@ async function uploadToIPFSNode(file: File, url: string, key: string): Promise<s
     LogDebug("IPFS node upload returned invalid response");
     return null;
 }
-async function uploadToPinata(file: File, signedUrl: string, groupId: string): Promise<string | null> {
+async function uploadToPinata(file: File, signedUrl: string): Promise<string | null> {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("group_id", groupId);
     const response = await fetch(signedUrl, {
         method: "POST",
         body: formData,

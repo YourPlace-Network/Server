@@ -256,17 +256,10 @@ func main() {
 				core.LogDebug("IPFS pinning service init failed — NFT minting disabled in gateway mode")
 				database.MetaUpdateValue("gatewayMintEnabled", "false")
 			} else {
-				err = network.PinningServiceCreateNFTGroup(ps)
-				if err != nil {
-					core.LogDebug("Could not create NFT group — NFT minting disabled in gateway mode")
-					database.MetaUpdateValue("gatewayMintEnabled", "false")
-				} else {
-					pinningService = ps
-					gatewayMintEnabled = true
-					database.MetaUpdateValue("gatewayMintEnabled", "true")
-					database.MetaUpdateValue("pinningGroupId", ps.GroupID)
-					core.LogDebug("Gateway NFT minting enabled with " + pinningType + " pinning service")
-				}
+				pinningService = ps
+				gatewayMintEnabled = true
+				database.MetaUpdateValue("gatewayMintEnabled", "true")
+				core.LogDebug("Gateway NFT minting enabled with " + pinningType + " pinning service")
 			}
 		} else {
 			core.LogDebug("IPFS pinning not configured — NFT minting disabled in gateway mode")

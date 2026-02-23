@@ -447,89 +447,11 @@ const pinataAPIURL = "https://api.pinata.cloud"
 const pinataUploadsURL = "https://uploads.pinata.cloud"
 
 type PinningService struct {
-	GroupID string
-	Key     string
-	Type    string
-	URL     string
+	Key  string
+	Type string
+	URL  string
 }
 
-func PinningServiceCreateNFTGroup(ps *PinningService) error {
-	if ps.Type != "pinata" {
-		return nil
-	}
-	client := &http.Client{Timeout: 15 * time.Second}
-	req, err := http.NewRequest("GET", pinataAPIURL+"/v3/groups/public?name=nft&isPublic=true", nil)
-	if err != nil {
-		return _core.LogErrorReturn("Could not create Pinata groups request: " + err.Error())
-	}
-	req.Header.Set("Authorization", "Bearer "+ps.Key)
-	resp, err := client.Do(req)
-	if err != nil {
-		return _core.LogErrorReturn("Could not list Pinata groups: " + err.Error())
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return _core.LogErrorReturn("Could not read Pinata groups response: " + err.Error())
-	}
-	var listResult struct {
-		Data struct {
-			Groups []struct {
-				ID string `json:"id"`
-			} `json:"groups"`
-		} `json:"data"`
-	}
-	if err = json.Unmarshal(body, &listResult); err != nil {
-		return _core.LogErrorReturn("Could not parse Pinata groups response: " + err.Error())
-	}
-	if len(listResult.Data.Groups) > 0 {
-		candidateID := listResult.Data.Groups[0].ID
-		verifyReq, err := http.NewRequest("GET", pinataAPIURL+"/v3/groups/public/"+candidateID, nil)
-		if err == nil {
-			verifyReq.Header.Set("Authorization", "Bearer "+ps.Key)
-			verifyResp, err := client.Do(verifyReq)
-			if err == nil {
-				verifyResp.Body.Close()
-				if verifyResp.StatusCode == http.StatusOK {
-					ps.GroupID = candidateID
-					_core.LogDebug("Found existing Pinata NFT group: " + ps.GroupID)
-					return nil
-				}
-			}
-		}
-		_core.LogDebug("Existing Pinata NFT group " + candidateID + " is invalid, creating new group")
-	}
-	createBody := `{"name":"nft","is_public":true}`
-	req, err = http.NewRequest("POST", pinataAPIURL+"/v3/groups/public", strings.NewReader(createBody))
-	if err != nil {
-		return _core.LogErrorReturn("Could not create Pinata group request: " + err.Error())
-	}
-	req.Header.Set("Authorization", "Bearer "+ps.Key)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err = client.Do(req)
-	if err != nil {
-		return _core.LogErrorReturn("Could not create Pinata group: " + err.Error())
-	}
-	defer resp.Body.Close()
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return _core.LogErrorReturn("Could not read Pinata group creation response: " + err.Error())
-	}
-	var createResult struct {
-		Data struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if err = json.Unmarshal(body, &createResult); err != nil {
-		return _core.LogErrorReturn("Could not parse Pinata group creation response: " + err.Error())
-	}
-	if createResult.Data.ID == "" {
-		return _core.LogErrorReturn("Pinata group creation returned empty ID")
-	}
-	ps.GroupID = createResult.Data.ID
-	_core.LogDebug("Created Pinata NFT group: " + ps.GroupID)
-	return nil
-}
 func PinningServiceGenerateUploadAuth(ps *PinningService) (map[string]string, error) {
 	if ps.Type == "ipfs" {
 		return map[string]string{
@@ -540,7 +462,7 @@ func PinningServiceGenerateUploadAuth(ps *PinningService) (map[string]string, er
 	}
 	now := time.Now().Unix()
 	expires := int64(300)
-	signBody := fmt.Sprintf(`{"date":%d,"expires":%d,"group_id":"%s"}`, now, expires, ps.GroupID)
+	signBody := fmt.Sprintf(`{"date":%d,"expires":%d}`, now, expires)
 	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequest("POST", pinataUploadsURL+"/v3/files/sign", strings.NewReader(signBody))
 	if err != nil {
@@ -572,7 +494,6 @@ func PinningServiceGenerateUploadAuth(ps *PinningService) (map[string]string, er
 	return map[string]string{
 		"type":      "pinata",
 		"uploadUrl": signResult.Data,
-		"groupId":   ps.GroupID,
 	}, nil
 }
 func PinningServiceInit(pinningType string, pinningURL string, key string) (*PinningService, error) {
