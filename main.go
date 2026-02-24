@@ -259,6 +259,17 @@ func main() {
 				pinningService = ps
 				gatewayMintEnabled = true
 				database.MetaUpdateValue("gatewayMintEnabled", "true")
+				database.MetaUpdateValue("pinataGroupID", "")
+				if pinningType == "pinata" {
+					groupID, err := network.PinningServiceLookupGroupID(ps, "nft")
+					if err != nil {
+						core.LogDebug("Pinata group lookup failed, uploads will not be grouped: " + err.Error())
+					} else {
+						pinningService.GroupID = groupID
+						database.MetaUpdateValue("pinataGroupID", groupID)
+						core.LogDebug("Pinata group ID resolved: " + groupID)
+					}
+				}
 				core.LogDebug("Gateway NFT minting enabled with " + pinningType + " pinning service")
 			}
 		} else {

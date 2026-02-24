@@ -447,9 +447,10 @@ const pinataAPIURL = "https://api.pinata.cloud"
 const pinataUploadsURL = "https://uploads.pinata.cloud"
 
 type PinningService struct {
-	Key  string
-	Type string
-	URL  string
+	GroupID string
+	Key     string
+	Type    string
+	URL     string
 }
 
 func PinningServiceGenerateUploadAuth(ps *PinningService) (map[string]string, error) {
@@ -463,6 +464,9 @@ func PinningServiceGenerateUploadAuth(ps *PinningService) (map[string]string, er
 	now := time.Now().Unix()
 	expires := int64(300)
 	signBody := fmt.Sprintf(`{"date":%d,"expires":%d}`, now, expires)
+	if ps.GroupID != "" {
+		signBody = fmt.Sprintf(`{"date":%d,"expires":%d,"group_id":"%s"}`, now, expires, ps.GroupID)
+	}
 	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequest("POST", pinataUploadsURL+"/v3/files/sign", strings.NewReader(signBody))
 	if err != nil {
@@ -495,6 +499,40 @@ func PinningServiceGenerateUploadAuth(ps *PinningService) (map[string]string, er
 		"type":      "pinata",
 		"uploadUrl": signResult.Data,
 	}, nil
+}
+func PinningServiceLookupGroupID(ps *PinningService, groupName string) (string, error) {
+	client := &http.Client{Timeout: 15 * time.Second}
+	req, err := http.NewRequest("GET", pinataAPIURL+"/v3/groups/public?name="+groupName, nil)
+	if err != nil {
+		return "", _core.LogDebugReturn("Could not create Pinata group lookup request: " + err.Error())
+	}
+	req.Header.Set("Authorization", "Bearer "+ps.Key)
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", _core.LogDebugReturn("Could not look up Pinata group: " + err.Error())
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", _core.LogDebugReturn("Could not read Pinata group response: " + err.Error())
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", _core.LogDebugReturn("Pinata group lookup returned status " + strconv.Itoa(resp.StatusCode) + ": " + string(body))
+	}
+	var groupResult struct {
+		Data struct {
+			Groups []struct {
+				ID string `json:"id"`
+			} `json:"groups"`
+		} `json:"data"`
+	}
+	if err = json.Unmarshal(body, &groupResult); err != nil {
+		return "", _core.LogDebugReturn("Could not parse Pinata group response: " + err.Error())
+	}
+	if len(groupResult.Data.Groups) == 0 || groupResult.Data.Groups[0].ID == "" {
+		return "", _core.LogDebugReturn("Pinata group '" + groupName + "' not found")
+	}
+	return groupResult.Data.Groups[0].ID, nil
 }
 func PinningServiceInit(pinningType string, pinningURL string, key string) (*PinningService, error) {
 	if pinningType != "pinata" && pinningType != "ipfs" {

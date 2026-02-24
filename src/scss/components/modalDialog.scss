@@ -1,2 +1,8 @@
 @use "../global";
-
+#modalDialogContent {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    text-align: center;
+}

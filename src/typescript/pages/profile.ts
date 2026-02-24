@@ -431,7 +431,7 @@ declare global {
             if (postCount > 0) {
                 DOM.emptyContentDivPlaceHolder.style.display = "none";
             } else {
-                DOM.emptyContentDivPlaceHolder.style.display = "block";
+                DOM.emptyContentDivPlaceHolder.style.display = "flex";
             }
         }
 
