@@ -140,4 +140,4 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - Bias against making global changes. For example: bias away from modifying global.scss and instead target the styling to the object and code file more tightly
 - For profile colors, it should only change colors for the specific user's profile page, their profile and post cards, and any other obvious controls on their profile page (login button color, addPost button color, footer link color, scrollTop control color, menu button color) Other important UI controls should not be re-colored (menu background and text colors, any other pages outside a profile page)
 - Database schema migrations need to happen across all supported databases, and ensure that the query syntax and responses is compatible with each respective database.
-
+- Capitalization matters, especially with on-chain data like addresses. Keep the original case of any on-chain data, and ensure that any comparisons or database queries that involve on-chain data are done in a case-sensitive way to prevent bugs and security issues. When in doubt, bias towards preserving the original case of any on-chain data.
