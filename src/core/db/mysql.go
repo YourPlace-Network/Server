@@ -462,7 +462,7 @@ func (db *MySQL) SettingsDeleteValue(key string) error {
 
 // --- Profile --- //
 func (db *MySQL) ProfileGetName(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT name FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	query := fmt.Sprintf("SELECT name FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
 	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile name from database: " + err.Error())
@@ -480,7 +480,7 @@ func (db *MySQL) ProfileGetName(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetAvatar(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT avatar FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	query := fmt.Sprintf("SELECT avatar FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
 	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("could not get profile avatar from database: " + err.Error())
@@ -499,7 +499,7 @@ func (db *MySQL) ProfileGetAvatar(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetBanner(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT banner FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	query := fmt.Sprintf("SELECT banner FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
 	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile banner from database: " + err.Error())
@@ -537,7 +537,7 @@ func (db *MySQL) ProfileGetColors(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetDescription(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT description FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	query := fmt.Sprintf("SELECT description FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
 	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile description from database: " + err.Error())
@@ -556,7 +556,7 @@ func (db *MySQL) ProfileGetDescription(address string, blockchain string) string
 	return ""
 }
 func (db *MySQL) ProfileGetLocation(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT location FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	query := fmt.Sprintf("SELECT location FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
 	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile location from database: " + err.Error())
@@ -575,7 +575,7 @@ func (db *MySQL) ProfileGetLocation(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetWebsite(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT website FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	query := fmt.Sprintf("SELECT website FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
 	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile website from database: " + err.Error())
@@ -594,7 +594,7 @@ func (db *MySQL) ProfileGetWebsite(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetVertical(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT vertical FROM onchain_%s_meta WHERE address = LOWER(?) AND blockchain = ?", blockchain)
+	query := fmt.Sprintf("SELECT vertical FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
 	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get profile vertical from database: " + err.Error())
@@ -616,7 +616,7 @@ func (db *MySQL) ProfileGetJoinedDate(address string, blockchain string) *int64 
 	var metaAge int64 = 0
 	var postAge int64 = 0
 	var joinedDate int64 = 0
-	query := fmt.Sprintf("SELECT COALESCE(MIN(CASE WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN verticalTimestamp > 0 THEN verticalTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp ELSE 0 END), 0) AS min_timestamp FROM onchain_%s_meta WHERE blockchain = ? AND address = LOWER(?)", blockchain)
+	query := fmt.Sprintf("SELECT COALESCE(MIN(CASE WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN verticalTimestamp > 0 THEN verticalTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp ELSE 0 END), 0) AS min_timestamp FROM onchain_%s_meta WHERE blockchain = ? AND address = ?", blockchain)
 	rowsmeta, err := db.runParamSQLSelect(query, blockchain, address)
 	if err == nil {
 		if rowsmeta != nil {
@@ -633,7 +633,7 @@ func (db *MySQL) ProfileGetJoinedDate(address string, blockchain string) *int64 
 		core.LogDebug("Could not parse database rows for profile joined date: " + err.Error())
 		return nil
 	}
-	query2 := fmt.Sprintf("SELECT timestamp FROM onchain_%s_post WHERE fromAddress = LOWER(?) AND blockchain = ?", blockchain)
+	query2 := fmt.Sprintf("SELECT timestamp FROM onchain_%s_post WHERE fromAddress = ? AND blockchain = ?", blockchain)
 	rowsposts, err := db.runParamSQLSelect(query2, address, blockchain)
 	if err == nil {
 		if rowsposts != nil {
@@ -666,7 +666,7 @@ func (db *MySQL) ProfileGetJoinedDate(address string, blockchain string) *int64 
 }
 func (db *MySQL) ProfileGetPostCount(address string, blockchain string) int64 {
 	var count int64
-	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_post WHERE fromAddress = LOWER(?) AND blockchain = ? AND data IS NOT NULL", blockchain)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_post WHERE fromAddress = ? AND blockchain = ? AND data IS NOT NULL", blockchain)
 	rows, err := db.runParamSQLSelect(query, address, blockchain)
 	if err != nil {
 		core.LogDebug("Could not get post count from database: " + err.Error())
@@ -684,7 +684,7 @@ func (db *MySQL) ProfileGetPostCount(address string, blockchain string) int64 {
 }
 func (db *MySQL) ProfileGetPosts(address string, blockchain string, limit int, offset int) []map[string]interface{} {
 	var posts []map[string]interface{}
-	query := fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_%s_post WHERE fromAddress = LOWER(?) AND blockchain = ? AND data IS NOT NULL ORDER BY timestamp DESC LIMIT ? OFFSET ?", blockchain)
+	query := fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_%s_post WHERE fromAddress = ? AND blockchain = ? AND data IS NOT NULL ORDER BY timestamp DESC LIMIT ? OFFSET ?", blockchain)
 	rowsPosts, err := db.runParamSQLSelect(query, address, blockchain, limit, offset)
 	if err != nil {
 		core.LogDebug("Could not get user posts from database: " + err.Error())
@@ -952,86 +952,90 @@ func (db *MySQL) SearchGetProfiles(query string) []map[string]interface{} {
 }
 func (db *MySQL) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
+	var unionParts []string
 	for _, _blockchain := range core.ValidNetworks {
-		sqlQueryFmt := "SELECT address, blockchain FROM (SELECT address, blockchain FROM onchain_%s_meta UNION SELECT followeeAddress, followeeBlockchain FROM onchain_%s_follow) t ORDER BY RAND() LIMIT ?"
-		sqlQuery := fmt.Sprintf(sqlQueryFmt, _blockchain, _blockchain)
-		rows, err := db.runParamSQLSelect(sqlQuery, limit)
+		unionParts = append(unionParts, fmt.Sprintf("SELECT address, blockchain FROM onchain_%s_meta", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT followeeAddress, followeeBlockchain FROM onchain_%s_follow", _blockchain))
+	}
+	sqlQuery := fmt.Sprintf("SELECT address, blockchain FROM (%s) t ORDER BY RAND() LIMIT ?", strings.Join(unionParts, " UNION "))
+	rows, err := db.runParamSQLSelect(sqlQuery, limit)
+	if err != nil {
+		core.LogDebug("Could not get random profiles from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var address, blockchain string
+		err = rows.Scan(&address, &blockchain)
 		if err != nil {
-			core.LogDebug("Could not get random profiles from database: " + err.Error())
+			core.LogDebug("Could not parse random profiles from database rows: " + err.Error())
 			return nil
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var address, blockchain string
-			err = rows.Scan(&address, &blockchain)
-			if err != nil {
-				core.LogDebug("Could not parse random profiles from database rows: " + err.Error())
-				return nil
-			}
-			profile := map[string]interface{}{
-				"address":    address,
-				"blockchain": blockchain,
-			}
-			profiles = append(profiles, profile)
+		profile := map[string]interface{}{
+			"address":    address,
+			"blockchain": blockchain,
 		}
+		profiles = append(profiles, profile)
 	}
 	return profiles
 }
 func (db *MySQL) DiscoverGetTopByFollowers(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
+	var unionParts []string
 	for _, _blockchain := range core.ValidNetworks {
-		sqlQueryFmt := "SELECT followeeAddress, followeeBlockchain, COUNT(*) as follower_count FROM onchain_%s_follow GROUP BY followeeAddress, followeeBlockchain ORDER BY follower_count DESC LIMIT ?"
-		sqlQuery := fmt.Sprintf(sqlQueryFmt, _blockchain)
-		rows, err := db.runParamSQLSelect(sqlQuery, limit)
+		unionParts = append(unionParts, fmt.Sprintf("SELECT followeeAddress, followeeBlockchain FROM onchain_%s_follow", _blockchain))
+	}
+	sqlQuery := fmt.Sprintf("SELECT followeeAddress, followeeBlockchain, COUNT(*) as follower_count FROM (%s) t GROUP BY followeeAddress, followeeBlockchain ORDER BY follower_count DESC LIMIT ?", strings.Join(unionParts, " UNION ALL "))
+	rows, err := db.runParamSQLSelect(sqlQuery, limit)
+	if err != nil {
+		core.LogDebug("Could not get top profiles by followers from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var address, blockchain string
+		var followerCount int
+		err = rows.Scan(&address, &blockchain, &followerCount)
 		if err != nil {
-			core.LogDebug("Could not get top profiles by followers from database: " + err.Error())
+			core.LogDebug("Could not parse top follower profiles from database rows: " + err.Error())
 			return nil
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var address, blockchain string
-			var followerCount int
-			err = rows.Scan(&address, &blockchain, &followerCount)
-			if err != nil {
-				core.LogDebug("Could not parse top follower profiles from database rows: " + err.Error())
-				return nil
-			}
-			profile := map[string]interface{}{
-				"address":       address,
-				"blockchain":    blockchain,
-				"followerCount": followerCount,
-			}
-			profiles = append(profiles, profile)
+		profile := map[string]interface{}{
+			"address":       address,
+			"blockchain":    blockchain,
+			"followerCount": followerCount,
 		}
+		profiles = append(profiles, profile)
 	}
 	return profiles
 }
 func (db *MySQL) DiscoverGetTopByPosts(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
+	var unionParts []string
 	for _, _blockchain := range core.ValidNetworks {
-		sqlQueryFmt := "SELECT fromAddress, blockchain, COUNT(*) as post_count FROM onchain_%s_post GROUP BY fromAddress, blockchain ORDER BY post_count DESC LIMIT ?"
-		sqlQuery := fmt.Sprintf(sqlQueryFmt, _blockchain)
-		rows, err := db.runParamSQLSelect(sqlQuery, limit)
+		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress, blockchain FROM onchain_%s_post", _blockchain))
+	}
+	sqlQuery := fmt.Sprintf("SELECT fromAddress, blockchain, COUNT(*) as post_count FROM (%s) t GROUP BY fromAddress, blockchain ORDER BY post_count DESC LIMIT ?", strings.Join(unionParts, " UNION ALL "))
+	rows, err := db.runParamSQLSelect(sqlQuery, limit)
+	if err != nil {
+		core.LogDebug("Could not get top profiles by posts from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var address, blockchain string
+		var postCount int
+		err = rows.Scan(&address, &blockchain, &postCount)
 		if err != nil {
-			core.LogDebug("Could not get top profiles by posts from database: " + err.Error())
+			core.LogDebug("Could not parse top post profiles from database rows: " + err.Error())
 			return nil
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var address, blockchain string
-			var postCount int
-			err = rows.Scan(&address, &blockchain, &postCount)
-			if err != nil {
-				core.LogDebug("Could not parse top post profiles from database rows: " + err.Error())
-				return nil
-			}
-			profile := map[string]interface{}{
-				"address":    address,
-				"blockchain": blockchain,
-				"postCount":  postCount,
-			}
-			profiles = append(profiles, profile)
+		profile := map[string]interface{}{
+			"address":    address,
+			"blockchain": blockchain,
+			"postCount":  postCount,
 		}
+		profiles = append(profiles, profile)
 	}
 	return profiles
 }
@@ -1935,7 +1939,7 @@ func (db *MySQL) GetFollowersFeed(followerAddress string, followerBlockchain str
 	queryFmt := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, p.blockchain
 			  FROM onchain_%s_post p
 			  INNER JOIN onchain_%s_follow f ON p.fromAddress = f.followeeAddress AND p.blockchain = f.followeeBlockchain
-			  WHERE f.followerAddress = LOWER(?) AND f.followerBlockchain = ? AND p.data IS NOT NULL
+			  WHERE f.followerAddress = ? AND f.followerBlockchain = ? AND p.data IS NOT NULL
 			  ORDER BY p.timestamp DESC
 			  LIMIT ? OFFSET ?`
 	query := fmt.Sprintf(queryFmt, followerBlockchain, followerBlockchain)
