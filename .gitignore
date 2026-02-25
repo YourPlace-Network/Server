@@ -54,3 +54,12 @@ identifier.sqlite
 test_build
 /.claude/settings.local.json
 /src/www/manifest.json
+/src/solidity/*/*/lib/
+/src/solidity/*/*/script/
+/src/solidity/*/*/src/
+/src/solidity/*/*/test/
+/src/solidity/*/*/out/
+/src/solidity/*/*/cache/
+foundry.toml
+.deploy.sh.swp
+

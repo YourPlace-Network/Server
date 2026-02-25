@@ -116,7 +116,7 @@ func (node *IPFS) IPFSAddFile(path string) (string, error) { // Adds & pins file
 	err = copyToMFS(ipfsFilePath, mfsFilePath, node.port)
 	if err != nil {
 		if strings.Contains(err.Error(), "directory already has entry by that name") {
-			_core.LogInfo("duplicate file detected in MFS: " + path)
+			_core.LogDebug("duplicate file detected in MFS: " + path)
 		} else {
 			return "", _core.LogErrorReturn("Could not create MFS symlink: " + err.Error())
 		}

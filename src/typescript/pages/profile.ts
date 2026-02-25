@@ -504,7 +504,7 @@ declare global {
             // Determine the final avatar URL to use
             let finalAvatarUrl = "/static/image/avatar.png";
             if (IsValidURL(avatarURL)) {
-                const success = await loadImageWithTimeout(avatarURL, 3000);
+                const success = await loadImageWithTimeout(avatarURL, 10000);
                 if (success) {
                     finalAvatarUrl = XSSSanitizeUrl(avatarURL);
                 } else {
@@ -513,7 +513,7 @@ declare global {
             } else if (IsValidIpfsCid(avatarURL)) {
                 const ipfsURL = CIDToSubdomainURL(avatarURL);
                 if (ipfsURL) {
-                    const success = await loadImageWithTimeout(ipfsURL, 3000);
+                    const success = await loadImageWithTimeout(ipfsURL, 10000);
                     if (success) {
                         finalAvatarUrl = XSSSanitizeUrl(ipfsURL);
                     } else {
@@ -621,7 +621,7 @@ declare global {
                     bannerURL = CIDToSubdomainURL(bannerAddress);
                 }
                 if (IsValidURL(bannerURL)) {
-                    const success = await loadImageWithTimeout(bannerURL, 3000);
+                    const success = await loadImageWithTimeout(bannerURL, 10000);
                     if (success) {
                         const sanitizedUrl = XSSSanitizeUrl(bannerURL);
                         if (DOM.profileBanner.src !== sanitizedUrl && !DOM.profileBanner.src.endsWith(sanitizedUrl)) {

@@ -1,8 +1,8 @@
-# YourPlace Collectible - Shared ERC-721 Contract
+# YourPlace Collectible - Shared ERC-721 Contract (Ethereum Mainnet)
 
 ## Overview
 
-`YourPlaceCollectible.sol` is a shared ERC-721 NFT contract deployed once on Base. All YourPlace users mint collectibles through this single contract, which provides:
+`YourPlaceCollectible.sol` is a shared ERC-721 NFT contract deployed once on Ethereum mainnet. All YourPlace users mint collectibles through this single contract, which provides:
 
 - **ERC721Enumerable** - On-chain token discovery via `balanceOf()` + `tokenOfOwnerByIndex()`
 - **ERC721URIStorage** - Per-token metadata URIs pointing to IPFS JSON
@@ -55,7 +55,7 @@ foundryup
 ## Setup
 
 ```bash
-cd src/solidity
+cd src/solidity/ethereum/nft/
 forge init --no-git --force .
 forge install OpenZeppelin/openzeppelin-contracts --no-git
 rm -rf lib/openzeppelin-contracts/fv/
@@ -189,40 +189,60 @@ Run tests:
 forge test -vvv
 ```
 
-## Deploy
+## Derive Private Key from Seed Phrase
 
-### Base Sepolia (Testnet)
+Use Foundry's `cast` to derive the deployer private key from a BIP-39 mnemonic seed phrase:
 
 ```bash
-export PRIVATE_KEY=<deployer-private-key>
-export BASE_SEPOLIA_RPC=https://sepolia.base.org
-
-forge create \
-    --rpc-url $BASE_SEPOLIA_RPC \
-    --private-key $PRIVATE_KEY \
-    --broadcast \
-    YourPlaceCollectible.sol:YourPlaceCollectible \
-    --constructor-args "ipfs://<collection-metadata-cid>" 500 0x2bc8444574e747d4327a18c13d339783f06d749a
+cast wallet private-key "word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12"
 ```
 
-### Base Mainnet
+This derives the private key at the default BIP-44 derivation path (`m/44'/60'/0'/0/0`). To use a different account index:
+
+```bash
+cast wallet private-key "word1 word2 ... word12" --mnemonic-index 1
+```
+
+Then export it for use in the deploy commands below:
+
+```bash
+export PRIVATE_KEY=$(cast wallet private-key "word1 word2 ... word12")
+```
+
+## Deploy
+
+### Sepolia (Testnet)
 
 ```bash
 export PRIVATE_KEY=<deployer-private-key>
-export BASE_RPC=https://mainnet.base.org
+export SEPOLIA_RPC=https://rpc.sepolia.org
 
 forge create \
-    --rpc-url $BASE_RPC \
+    --rpc-url $SEPOLIA_RPC \
     --private-key $PRIVATE_KEY \
     --broadcast \
     YourPlaceCollectible.sol:YourPlaceCollectible \
-    --constructor-args "ipfs://<collection-metadata-cid>" 500 0x2bc8444574e747d4327a18c13d339783f06d749a
+    --constructor-args "ipfs://<collection-metadata-cid>" 500 <platform-fee-receiver-address>
+```
+
+### Ethereum Mainnet
+
+```bash
+export PRIVATE_KEY=<deployer-private-key>
+export ETH_RPC=https://eth.llamarpc.com
+
+forge create \
+    --rpc-url $ETH_RPC \
+    --private-key $PRIVATE_KEY \
+    --broadcast \
+    YourPlaceCollectible.sol:YourPlaceCollectible \
+    --constructor-args "ipfs://<collection-metadata-cid>" 500 <platform-fee-receiver-address>
 ```
 
 Constructor arguments:
 - `contractMetadataURI` - IPFS URI to a JSON file with collection metadata (name, description, image)
 - `defaultRoyaltyBps` - Default royalty in basis points (500 = 5%, 1000 = 10%)
-- `platformFeeReceiver` - Address that receives the platform mint fee (yourplace.base.eth: `0x2bc8444574e747d4327a18c13d339783f06d749a`)
+- `platformFeeReceiver` - Address that receives the platform mint fee
 
 ### Collection Metadata JSON
 
@@ -237,35 +257,32 @@ Upload this JSON to IPFS before deploying. The `contractURI()` function returns 
 }
 ```
 
-## Verify on BaseScan
+## Verify on Etherscan
 
 ```bash
 forge verify-contract \
-    --chain base \
+    --chain mainnet \
     --compiler-version v0.8.20 \
     <deployed-contract-address> \
     YourPlaceCollectible.sol:YourPlaceCollectible \
-    --constructor-args $(cast abi-encode "constructor(string,uint96,address)" "ipfs://<cid>" 500 0x2bc8444574e747d4327a18c13d339783f06d749a)
+    --constructor-args $(cast abi-encode "constructor(string,uint96,address)" "ipfs://<cid>" 500 <platform-fee-receiver-address>)
 ```
 
 ## After Deployment
 
 1. Copy the deployed contract address
-2. Update `src/typescript/util/blockchain/base.ts`:
-   ```typescript
-   export const YP_NFT_CONTRACT_ADDRESS = "0x<deployed-address>" as `0x${string}`;
-   ```
+2. Update `src/typescript/util/blockchain/ethereum.ts` with the deployed contract address and ABI (following the same pattern as `base.ts`)
 3. Rebuild the frontend: `npx webpack --config src/typescript/webpack.prod.js`
 
-## Gas Costs (Base L2 Estimates)
+## Gas Costs (Ethereum Mainnet Estimates)
 
-| Operation | Estimated Gas | Estimated Cost |
-|-----------|--------------|----------------|
-| Mint | ~150,000 | ~$0.01-0.05 |
-| Transfer | ~80,000 | ~$0.005-0.02 |
-| Burn | ~60,000 | ~$0.003-0.01 |
+| Operation | Estimated Gas | Estimated Cost (at 30 gwei) |
+|-----------|--------------|----------------------------|
+| Mint | ~150,000 | ~$1.00-5.00 |
+| Transfer | ~80,000 | ~$0.50-2.50 |
+| Burn | ~60,000 | ~$0.40-2.00 |
 
-Gas costs on Base L2 are significantly lower than Ethereum mainnet.
+Gas costs on Ethereum mainnet are significantly higher than Base L2. Costs vary with network congestion and ETH price.
 
 ## Security Notes
 

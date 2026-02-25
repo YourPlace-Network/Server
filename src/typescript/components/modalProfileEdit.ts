@@ -296,8 +296,10 @@ export async function showProfileEditModal() {
             DOM.bannerPreview.src = URL.createObjectURL(file)
             updateBanner().then();
         });
-        DOM.modalProfileEdit.addEventListener("hidden.bs.modal", () => {
-            //window.PageReloadCallback();
+        DOM.modalProfileEdit.addEventListener("hide.bs.modal", () => {
+            if (document.activeElement instanceof HTMLElement && DOM.modalProfileEdit.contains(document.activeElement)) {
+                document.activeElement.blur();
+            }
         });
         DOM.btnUsernameSave.addEventListener("click", updateName);
         DOM.btnDescriptionSave.addEventListener("click", updateDescription);
