@@ -7,7 +7,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 5
+const SchemaVersion = 6
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -28,6 +28,7 @@ var migrations = []Migration{
 	{Version: 3, Description: "Add colors and colorsTimestamp columns to meta tables", Up: migrateV3},
 	{Version: 4, Description: "Add oEmbed cache table for Twitter/X.com embeds", Up: migrateV4},
 	{Version: 5, Description: "Add cached ENS/NFD name and avatar columns to meta tables", Up: migrateV5},
+	{Version: 6, Description: "Add Ethereum blockchain tables", Up: migrateV6},
 }
 
 // --- Migration Functions --- //
@@ -93,6 +94,23 @@ func migrateV5(db *SQLite) error {
 	}
 	for _, col := range columns {
 		if err := db.migrateAddColumn(col.table, col.column, col.def); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func migrateV6(db *SQLite) error {
+	tables := []string{
+		"CREATE TABLE IF NOT EXISTS ethereum_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
+		"CREATE TABLE IF NOT EXISTS onchain_ethereum_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"CREATE TABLE IF NOT EXISTS onchain_ethereum_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"CREATE TABLE IF NOT EXISTS onchain_ethereum_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
+		"CREATE TABLE IF NOT EXISTS onchain_ethereum_meta (blockchain TEXT, address TEXT, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName TEXT DEFAULT '', location TEXT DEFAULT '', name TEXT DEFAULT '', server TEXT DEFAULT '', vertical TEXT DEFAULT '', website TEXT DEFAULT '', addressTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, blockchainTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, ensAvatarTimestamp INTEGER DEFAULT 0, ensNameTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"CREATE TABLE IF NOT EXISTS onchain_ethereum_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
+		"CREATE TABLE IF NOT EXISTS onchain_ethereum_reaction (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', targetTxHash TEXT DEFAULT '', targetType TEXT DEFAULT 'post', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+	}
+	for _, createStatement := range tables {
+		if _, err := db.database.Exec(createStatement); err != nil {
 			return err
 		}
 	}

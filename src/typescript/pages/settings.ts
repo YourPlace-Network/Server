@@ -102,6 +102,26 @@ import {Sleep} from "../util/time";
             algoIndexerRunCheckbox: document.getElementById("algoIndexerRunCheckbox")! as HTMLInputElement,
             baseIndexerStatusLight: document.getElementById("baseIndexerStatusLight")! as HTMLDivElement,
             algoIndexerStatusLight: document.getElementById("algoIndexerStatusLight")! as HTMLDivElement,
+            // Ethereum DOM elements
+            collapseEthereum: document.getElementById("collapseEthereum")! as HTMLDivElement,
+            defaultEthereumURLBtn: document.getElementById("defaultEthereumURLBtn")! as HTMLButtonElement,
+            ethereumCatchUpFullBtn: document.getElementById("ethereumCatchUpFullBtn")! as HTMLButtonElement,
+            ethereumCatchUpHelpBtn: document.getElementById("ethereumCatchUpHelpBtn")! as HTMLButtonElement,
+            ethereumIndexerBlocksIndexed: document.getElementById("ethereumIndexerBlocksIndexed")! as HTMLSpanElement,
+            ethereumIndexerBlocksTotal: document.getElementById("ethereumIndexerBlocksTotal")! as HTMLSpanElement,
+            ethereumIndexerCachedPercent: document.getElementById("ethereumIndexerCachedPercent")! as HTMLSpanElement,
+            ethereumIndexerCatchUpBtn: document.getElementById("ethereumIndexerCatchUpBtn")! as HTMLButtonElement,
+            ethereumIndexerProgressCached: document.getElementById("ethereumIndexerProgressCached")! as HTMLDivElement,
+            ethereumIndexerProgressUncachedHead: document.getElementById("ethereumIndexerProgressUncachedHead")! as HTMLDivElement,
+            ethereumIndexerProgressUncachedTail: document.getElementById("ethereumIndexerProgressUncachedTail")! as HTMLDivElement,
+            ethereumIndexerResetBtn: document.getElementById("ethereumIndexerResetBtn")! as HTMLButtonElement,
+            ethereumIndexerRunCheckbox: document.getElementById("ethereumIndexerRunCheckbox")! as HTMLInputElement,
+            ethereumIndexerStatusLight: document.getElementById("ethereumIndexerStatusLight")! as HTMLDivElement,
+            ethereumThrottle: document.getElementById("ethereumThrottle")! as HTMLInputElement,
+            ethereumThrottleNumber: document.getElementById("ethereumThrottleNumber")! as HTMLSpanElement,
+            ethereumThrottleTooltip: document.getElementById("ethereumThrottleTooltip")! as HTMLElement,
+            ethereumURL: document.getElementById("ethereumURL")! as HTMLInputElement,
+            saveEthereumURLBtn: document.getElementById("saveEthereumURLBtn")! as HTMLButtonElement,
             collapseServices: document.getElementById("collapseServices")! as HTMLDivElement,
             collapseXcom: document.getElementById("collapseXcom")! as HTMLDivElement,
             removeXcomCredentialsBtn: document.getElementById("removeXcomCredentialsBtn")! as HTMLButtonElement,
@@ -125,19 +145,23 @@ import {Sleep} from "../util/time";
         }
         const DEFAULT_ALGO_THROTTLE = "60";
         const DEFAULT_BASE_THROTTLE = "5";
+        const DEFAULT_ETHEREUM_THROTTLE = "5";
         let algoPopperInstance: Instance | null = null;
+        let ethereumPopperInstance: Instance | null = null;
         let popperInstance: Instance | null = null;
 
         async function init() {
             InitTooltips();
             ExpandAccordionByHash();
 
-            setInterval(getBaseIndexerProgress, 300000);
             setInterval(getAlgoIndexerProgress, 300000);
-            setInterval(getIndexerStatus, 6000);
-            setInterval(getIndexerRunning, 6000);
-            setInterval(getBaseIndexerStatus, 6000);
+            setInterval(getBaseIndexerProgress, 300000);
+            setInterval(getEthereumIndexerProgress, 300000);
             setInterval(getAlgoIndexerStatus, 6000);
+            setInterval(getBaseIndexerStatus, 6000);
+            setInterval(getEthereumIndexerStatus, 6000);
+            setInterval(getIndexerRunning, 6000);
+            setInterval(getIndexerStatus, 6000);
         }
 
         /* Getting Current Settings Values */
@@ -286,6 +310,84 @@ import {Sleep} from "../util/time";
                 }
             } else {
                 console.error("Failed to get Algorand indexer progress");
+            }
+        }
+        // Ethereum Getters
+        async function getEthereumURL() {
+            let response = await HttpGetJson("/settings/ethereum/url");
+            if (response[0] === 200) {
+                DOM.ethereumURL.value = DOMPurify.sanitize(response[1].ethereumURL);
+            }
+        }
+        async function getEthereumThrottle() {
+            let response = await HttpGetJson("/settings/ethereum/throttle");
+            if (response[0] === 200) {
+                const cleanThrottle = DOMPurify.sanitize(response[1].throttle);
+                DOM.ethereumThrottle.value = cleanThrottle;
+                DOM.ethereumThrottleNumber.textContent = cleanThrottle;
+                DOM.ethereumThrottle.disabled = response[1].isDefault;
+            } else {
+                DOM.ethereumThrottle.value = DEFAULT_ETHEREUM_THROTTLE;
+                DOM.ethereumThrottleNumber.textContent = DEFAULT_ETHEREUM_THROTTLE;
+                DOM.ethereumThrottle.disabled = true;
+            }
+        }
+        async function getEthereumIndexerProgress() {
+            let response = await HttpGetJson("/settings/ethereum/indexerProgress");
+            if (response[0] === 200) {
+                let earliestBlock = response[1].earliestBlock;
+                let tailBlock = response[1].tailBlock;
+                let headBlock = response[1].headBlock;
+                let latestBlock = response[1].latestBlock;
+                LogInfo("Ethereum Indexer Progress: " + earliestBlock + " " + tailBlock + " " + headBlock + " " + latestBlock);
+                if (isNaN(earliestBlock) || isNaN(tailBlock) || isNaN(headBlock) || isNaN(latestBlock)) {
+                    console.error("Invalid Ethereum indexer data received from server");
+                    return;
+                }
+                const totalRange = latestBlock - earliestBlock;
+                if (totalRange <= 0) {
+                    console.error("Invalid Ethereum indexer block range: ", {earliestBlock, latestBlock});
+                    return;
+                }
+                const earliestToTailRange = tailBlock - earliestBlock;
+                const tailToHeadRange = headBlock - tailBlock;
+                const headToLatestRange = latestBlock - headBlock;
+                const tailPercentage = Math.max(0, Math.min(100, Math.round((earliestToTailRange / totalRange) * 100)));
+                const latestPercentage = Math.max(0, Math.min(100, Math.round((headToLatestRange / totalRange) * 100)));
+                const cachedPercentage = Math.max(0, Math.min(100, 100 - (tailPercentage + latestPercentage)));
+                DOM.ethereumIndexerProgressUncachedTail.style.width = tailPercentage + "%";
+                DOM.ethereumIndexerProgressUncachedTail.setAttribute("aria-valuenow", tailPercentage.toString());
+                DOM.ethereumIndexerProgressCached.style.width = cachedPercentage + "%";
+                DOM.ethereumIndexerProgressCached.setAttribute("aria-valuenow", cachedPercentage.toString());
+                DOM.ethereumIndexerProgressUncachedHead.style.width = latestPercentage + "%";
+                DOM.ethereumIndexerProgressUncachedHead.setAttribute("aria-valuenow", latestPercentage.toString());
+                DOM.ethereumIndexerCachedPercent.textContent = cachedPercentage.toString() + "%";
+                DOM.ethereumIndexerBlocksIndexed.textContent = tailToHeadRange.toLocaleString();
+                DOM.ethereumIndexerBlocksTotal.textContent = totalRange.toLocaleString();
+                if (cachedPercentage === 100) {
+                    DOM.ethereumIndexerProgressCached.classList.remove("progress-bar-striped", "progress-bar-animated");
+                    DOM.ethereumIndexerProgressCached.classList.add("bg-success");
+                    DOM.ethereumIndexerCachedPercent.classList.add("indexerComplete");
+                } else {
+                    DOM.ethereumIndexerProgressCached.classList.add("progress-bar-striped", "progress-bar-animated");
+                    DOM.ethereumIndexerProgressCached.classList.remove("bg-success");
+                    DOM.ethereumIndexerCachedPercent.classList.remove("indexerComplete");
+                }
+            } else {
+                console.error("Failed to get Ethereum indexer progress");
+            }
+        }
+        async function getEthereumIndexerRunning() {
+            let response = await HttpGetJson("/settings/ethereum/indexer/running");
+            if (response[0] === 200) {
+                DOM.ethereumIndexerRunCheckbox.checked = response[1].indexerRunning;
+            }
+        }
+        async function getEthereumIndexerStatus() {
+            let response = await HttpGetJson("/settings/ethereum/indexer/status");
+            if (response[0] === 200) {
+                let status = DOMPurify.sanitize(response[1].status);
+                updateIndexerStatusLight(DOM.ethereumIndexerStatusLight, status, "Ethereum");
             }
         }
         async function getUploadDirectory() {
@@ -742,6 +844,86 @@ import {Sleep} from "../util/time";
                     break;
             }
         }
+        // Ethereum Setters
+        async function setEthereumURL() {
+            const data = {
+                ethereumURL: DOM.ethereumURL.value,
+            }
+            let response = await HttpPostJson("/settings/ethereum/url", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                LogInfo("Ethereum URL Saved");
+                ShowSavedToast();
+                await getEthereumThrottle();
+            } else {
+                DOM.ethereumURL.value = DOMPurify.sanitize(response[1].status);
+            }
+        }
+        async function setEthereumThrottle() {
+            const data = {
+                throttle: DOM.ethereumThrottle.valueAsNumber,
+            }
+            let response = await HttpPostJson("/settings/ethereum/throttle", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                LogInfo("Ethereum Throttle Saved");
+                DOM.ethereumThrottleNumber.textContent = DOM.ethereumThrottle.value;
+                ShowSavedToast();
+            }
+        }
+        async function setDefaultEthereumURL() {
+            const data = {
+                ethereumURL: "default",
+            }
+            let response = await HttpPostJson("/settings/ethereum/url", data, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                DOM.ethereumURL.value = response[1].defaultEthereumURL;
+                DOM.ethereumThrottle.value = response[1].defaultEthereumThrottle;
+                DOM.ethereumThrottleNumber.textContent = response[1].defaultEthereumThrottle;
+                DOM.ethereumThrottle.disabled = true;
+                ShowSavedToast();
+            }
+        }
+        async function setEthereumIndexerReset() {
+            const confirmed = await ShowModalYesNoHTML("⚠️ Are you sure you want to reset the Ethereum indexer? ⚠️<br><br>This will delete cached Ethereum YourPlace data and re-index everything<br><br>It will take a long time and download a lot of data<br><br>Your personal data, posts, and profile <u>will not</u> be deleted");
+            if (confirmed) {
+                let response = await HttpPostJson("/settings/ethereum/indexerReset",
+                    {indexerReset: true}, DOM.csrfToken.value);
+                if (response[0] === 200) {
+                    LogInfo("Ethereum Indexer Reset");
+                    ShowSavedToast();
+                } else {
+                    LogInfo("Ethereum Indexer Reset Error");
+                }
+            }
+        }
+        async function setEthereumIndexerCatchUp(variable: string) {
+            switch (variable) {
+                case "full":
+                    let response = await HttpPostJson("/settings/ethereum/indexerCatchUp",
+                        {indexerCatchUp: "full"}, DOM.csrfToken.value);
+                    if (response[0] === 200) {
+                        LogInfo("Ethereum Indexer Full Catch-Up Started");
+                        ShowSavedToast();
+                    } else {
+                        ShowDialogModal(response[1].status);
+                    }
+                    break;
+                case "h":
+                    ShowDialogModalHTML("This Indexer Catch-Up feature will download a fully cached copy of YourPlace data that we've already downloaded from the blockchain. This prevents you from needing to traverse the whole chain, and allows Servers to quickly catch up to the latest data.<br><br>This will save you bandwidth and time, but can only be run once every 24 hours.<br><br>To stream YourPlace data in real-time, you will still need your own blockchain RPC server.");
+                    break;
+            }
+        }
+        async function setEthereumIndexerRunning() {
+            let response = await HttpPostJson("/settings/ethereum/indexer/running",
+                {indexerRunning: DOM.ethereumIndexerRunCheckbox.checked}, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                LogInfo("Ethereum Indexer " + (DOM.ethereumIndexerRunCheckbox.checked ? "Started" : "Stopped"));
+                ShowSavedToast();
+                updateGlobalIndexerCheckbox();
+            } else {
+                LogError("Ethereum Indexer Toggle Error");
+                DOM.ethereumIndexerRunCheckbox.checked = !DOM.ethereumIndexerRunCheckbox.checked;
+            }
+        }
         async function setSpiceometer() {
             if (DOM.spiceometerCheck.checked) {
                 let response = await HttpPostJson("/settings/ai/spiceometer", {enable: 1}, DOM.csrfToken.value);
@@ -769,8 +951,9 @@ import {Sleep} from "../util/time";
                 if (response[0] === 200) {
                     LogInfo(response[1].status);
                     DOM.indexerOnBatteryCheckbox.disabled = false;
-                    DOM.baseIndexerRunCheckbox.checked = true;
                     DOM.algoIndexerRunCheckbox.checked = true;
+                    DOM.baseIndexerRunCheckbox.checked = true;
+                    DOM.ethereumIndexerRunCheckbox.checked = true;
                 } else {
                     LogError("Indexer Run Error");
                 }
@@ -779,8 +962,9 @@ import {Sleep} from "../util/time";
                 if (response[0] === 200) {
                     LogInfo(response[1].status);
                     DOM.indexerOnBatteryCheckbox.disabled = true;
-                    DOM.baseIndexerRunCheckbox.checked = false;
                     DOM.algoIndexerRunCheckbox.checked = false;
+                    DOM.baseIndexerRunCheckbox.checked = false;
+                    DOM.ethereumIndexerRunCheckbox.checked = false;
                 } else {
                     LogError("Indexer Stop Error");
                 }
@@ -821,7 +1005,7 @@ import {Sleep} from "../util/time";
             }
         }
         function updateGlobalIndexerCheckbox() {
-            const anyRunning = DOM.baseIndexerRunCheckbox.checked || DOM.algoIndexerRunCheckbox.checked;
+            const anyRunning = DOM.algoIndexerRunCheckbox.checked || DOM.baseIndexerRunCheckbox.checked || DOM.ethereumIndexerRunCheckbox.checked;
             DOM.indexerRunCheckbox.checked = anyRunning;
         }
         async function setIPFSPinning() {
@@ -1315,6 +1499,35 @@ import {Sleep} from "../util/time";
         DOM.algoThrottle.addEventListener("mouseup", hideAlgoTooltip);
         DOM.algoThrottle.addEventListener("mouseleave", hideAlgoTooltip);
         DOM.algoThrottle.addEventListener("touchend", hideAlgoTooltip);
+        function showEthereumTooltip() {
+            DOM.ethereumThrottleTooltip.style.display = 'block';
+            if (!ethereumPopperInstance) {
+                ethereumPopperInstance = createPopper(getThumbElement(DOM.ethereumThrottle), DOM.ethereumThrottleTooltip, {
+                    placement: 'top',
+                    modifiers: [{name: 'offset', options: {offset: [0, 8]}}],
+                });
+            }
+        }
+        function hideEthereumTooltip() {
+            DOM.ethereumThrottleTooltip.style.display = 'none';
+            if (ethereumPopperInstance) {
+                ethereumPopperInstance.destroy();
+                ethereumPopperInstance = null;
+            }
+        }
+        function updateEthereumTooltip() {
+            DOM.ethereumThrottleTooltip.querySelector('.throttle-tooltip-inner')!.textContent = DOM.ethereumThrottle.value;
+            if (ethereumPopperInstance) {
+                ethereumPopperInstance.state.elements.reference = getThumbElement(DOM.ethereumThrottle);
+                ethereumPopperInstance.update();
+            }
+        }
+        DOM.ethereumThrottle.addEventListener("input", () => { showEthereumTooltip(); updateEthereumTooltip(); });
+        DOM.ethereumThrottle.addEventListener("mousedown", showEthereumTooltip);
+        DOM.ethereumThrottle.addEventListener("touchstart", showEthereumTooltip);
+        DOM.ethereumThrottle.addEventListener("mouseup", hideEthereumTooltip);
+        DOM.ethereumThrottle.addEventListener("mouseleave", hideEthereumTooltip);
+        DOM.ethereumThrottle.addEventListener("touchend", hideEthereumTooltip);
 
         /* Event Listeners */
         DOM.baseDataDirectory!.addEventListener("change", setBaseDataDirectory);
@@ -1361,6 +1574,13 @@ import {Sleep} from "../util/time";
         DOM.defaultAlgoURLBtn!.addEventListener("click", setDefaultAlgoURL);
         DOM.saveAlgoURLBtn!.addEventListener("click", setAlgoURL);
         DOM.algoIndexerRunCheckbox!.addEventListener("change", setAlgoIndexerRunning);
+        DOM.defaultEthereumURLBtn!.addEventListener("click", setDefaultEthereumURL);
+        DOM.ethereumCatchUpFullBtn!.addEventListener("click", function() { setEthereumIndexerCatchUp("full").then(); });
+        DOM.ethereumCatchUpHelpBtn!.addEventListener("click", function() { setEthereumIndexerCatchUp("h").then(); });
+        DOM.ethereumIndexerResetBtn!.addEventListener("click", setEthereumIndexerReset);
+        DOM.ethereumIndexerRunCheckbox!.addEventListener("change", setEthereumIndexerRunning);
+        DOM.ethereumThrottle!.addEventListener("change", setEthereumThrottle);
+        DOM.saveEthereumURLBtn!.addEventListener("click", setEthereumURL);
         DOM.xcomCrossPostCheckbox.addEventListener("change", setXcomCrossPost);
         DOM.xcomFeedAggregationCheckbox.addEventListener("change", setXcomFeedAggregation);
         DOM.saveXcomCredentialsBtn.addEventListener("click", setXcomCredentials);
@@ -1414,6 +1634,13 @@ import {Sleep} from "../util/time";
             getAlgoThrottle().then();
             getAlgoIndexerRunning().then();
             getAlgoIndexerStatus().then();
+        });
+        DOM.collapseEthereum.addEventListener("show.bs.collapse", function() {
+            getEthereumURL().then();
+            getEthereumIndexerProgress().then();
+            getEthereumThrottle().then();
+            getEthereumIndexerRunning().then();
+            getEthereumIndexerStatus().then();
         });
         DOM.collapseServerInfo.addEventListener("show.bs.collapse", function() {
             getDebugMode().then();

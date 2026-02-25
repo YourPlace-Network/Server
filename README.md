@@ -97,6 +97,62 @@ These are the files and directories that YourPlace creates on your system during
 
 Navigate to [Settings > Server Info](http://localhost:42424/settings#serverInfo) in the YourPlace interface, and click the "Check for Updates" button. If an update is available, it will open the page for you to download it. This will become an auto-update mechanism soon.
 
+## Command-Line Flags
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-c` | 64-character hex string representing a 32-byte crypto seed for distributed deployment synchronization | Random 32-byte value |
+| `-d` | Enable debug mode (also creates ~/YourPlace/debug file) | `false` |
+| `-di` | Disable automatic blockchain indexing | `false` |
+| `-du` | Disable opening browser UI on startup | `false` |
+| `-g` | Enable gateway mode for distributed deployments | `false` |
+| `-p` | Start patching of YourPlace | `false` |
+| `-s` | Started server via shortcut | `false` |
+
+You can also enable debug mode or disable the indexer by placing a `debug` or `noindexer` file in the YourPlace data directory.
+
+## Environment Variables
+
+### Database
+
+| Variable | Description |
+|----------|-------------|
+| `YOURPLACE_MYSQL_DSN` | MySQL-compatible database connection string (`<user>:<pass>@tcp(<host>:<port>)/<db>`). If not set, SQLite is used. |
+
+### Application
+
+| Variable | Description |
+|----------|-------------|
+| `YOURPLACE_ORIGIN` | Origin domain for the application (e.g. `app.yourplace.network`). Defaults to `localhost`. |
+
+### Blockchain RPC
+
+| Variable | Description |
+|----------|-------------|
+| `ALGO_RPC_URL` | Algorand RPC endpoint URL |
+| `ALGO_RPC_THROTTLE` | Algorand RPC rate limit (requests per second) |
+| `BASE_RPC_URL` | Base blockchain RPC endpoint URL |
+| `BASE_RPC_THROTTLE` | Base RPC rate limit (requests per second) |
+| `ETHEREUM_RPC_URL` | Ethereum blockchain RPC endpoint URL |
+| `ETHEREUM_RPC_THROTTLE` | Ethereum RPC rate limit (requests per second) |
+
+### IPFS Pinning (Gateway Mode)
+
+| Variable | Description |
+|----------|-------------|
+| `YOURPLACE_IPFS_PINNING_TYPE` | Type of IPFS pinning service (e.g. `pinata`) |
+| `YOURPLACE_IPFS_PINNING_URL` | IPFS pinning service endpoint URL |
+| `YOURPLACE_IPFS_PINNING_KEY` | API key for IPFS pinning service authentication |
+
+### S3 Snapshot Service
+
+| Variable | Description |
+|----------|-------------|
+| `S3_ENDPOINT` | S3-compatible endpoint URL |
+| `S3_BUCKET_NAME` | S3 bucket name for storing snapshots |
+| `S3_ACCESS_KEY` | S3 access key (optional if using IAM role) |
+| `S3_SECRET_KEY` | S3 secret key (optional if using IAM role) |
+
 ## Uninstalling
 
 YourPlace uses the standard OS interface such as add/remove programs. But there is also an "Uninstall" button in [Settings > Server Info](http://localhost:42424/settings#serverInfo) that starts the same workflow

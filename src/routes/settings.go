@@ -540,6 +540,76 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"latestBlock":   latestBlock,
 		})
 	})
+	router.GET("/settings/ethereum/url", func(c *gin.Context) {
+		if gateway {
+			c.SecureJSON(http.StatusOK, gin.H{
+				"ethereumURL": blockchain2.DefaultBlockchainNodes["ethereum"][0],
+			})
+		} else {
+			ethereumURL := database.SettingsGetValue("ethereumURL")
+			c.SecureJSON(http.StatusOK, gin.H{
+				"ethereumURL": ethereumURL,
+			})
+		}
+	})
+	router.GET("/settings/ethereum/throttle", func(c *gin.Context) {
+		ethereumURL := database.SettingsGetValue("ethereumURL")
+		isDefault := ethereumURL == "" || ethereumURL == blockchain2.DefaultBlockchainNodes["ethereum"][0]
+		var throttleInt int
+		if isDefault {
+			throttleInt, _ = strconv.Atoi(blockchain2.DefaultBlockchainNodes["ethereum"][1])
+		} else {
+			throttle := database.SettingsGetValue("ethereumThrottle")
+			var err error
+			throttleInt, err = strconv.Atoi(throttle)
+			if err != nil {
+				throttleInt, _ = strconv.Atoi(blockchain2.DefaultBlockchainNodes["ethereum"][1])
+			}
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"throttle":  throttleInt,
+			"isDefault": isDefault,
+		})
+	})
+	router.GET("/settings/ethereum/indexer/running", func(c *gin.Context) {
+		indexerRunning := database.SettingsGetValue("ethereumIndexerRunning")
+		indexerRunningBool := indexerRunning != "false"
+		c.SecureJSON(http.StatusOK, gin.H{
+			"indexerRunning": indexerRunningBool,
+		})
+	})
+	router.GET("/settings/ethereum/indexer/status", func(c *gin.Context) {
+		ethUUID := database.IndexerGetJobUUID("ethereum")
+		ethIndexerStatus := database.IndexerGetJobStatus(ethUUID)
+		indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
+		indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
+		isOnBattery := host.IsOnBattery()
+		globalIndexerRunning := database.SettingsGetValue("indexerRunning")
+		ethIndexerRunning := database.SettingsGetValue("ethereumIndexerRunning")
+		if globalIndexerRunning != "true" || ethIndexerRunning == "false" || (isOnBattery && !indexerOnBatteryBool) {
+			ethIndexerStatus = "stopped"
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"status": ethIndexerStatus,
+		})
+	})
+	router.GET("/settings/ethereum/indexerProgress", func(c *gin.Context) {
+		earliestBlock := _blockchain.GetEarliestBlock("ethereum")
+		jobUUID := database.IndexerGetJobUUID("ethereum")
+		tailBlock := database.IndexerGetTailBlock(jobUUID)
+		headBlock := database.IndexerGetHeadBlock(jobUUID)
+		latestBlock, err := _blockchain.GetLatestBlock("ethereum")
+		if err != nil || latestBlock == big.NewInt(0) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Ethereum latest block"})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"earliestBlock": earliestBlock,
+			"tailBlock":     tailBlock,
+			"headBlock":     headBlock,
+			"latestBlock":   latestBlock,
+		})
+	})
 
 	router.POST("/settings/uploadDirectory", func(c *gin.Context) {
 		type Payload struct {
@@ -775,6 +845,108 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
+	router.POST("/settings/ethereum/url", func(c *gin.Context) {
+		type Payload struct {
+			EthereumURL string `json:"ethereumURL" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Ethereum JSON"})
+			return
+		}
+		if payload.EthereumURL == "default" {
+			database.SettingsUpdateValue("ethereumURL", blockchain2.DefaultBlockchainNodes["ethereum"][0])
+			database.SettingsUpdateValue("ethereumThrottle", blockchain2.DefaultBlockchainNodes["ethereum"][1])
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultEthereumURL": blockchain2.DefaultBlockchainNodes["ethereum"][0], "defaultEthereumThrottle": blockchain2.DefaultBlockchainNodes["ethereum"][1]})
+			return
+		}
+		if !security.IsValidURL(payload.EthereumURL) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Ethereum URL"})
+			return
+		}
+		database.SettingsUpdateValue("ethereumURL", payload.EthereumURL)
+		blockchain2.EthereumIndexerStop()
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.POST("/settings/ethereum/throttle", func(c *gin.Context) {
+		ethereumURL := database.SettingsGetValue("ethereumURL")
+		if ethereumURL == "" || ethereumURL == blockchain2.DefaultBlockchainNodes["ethereum"][0] {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Cannot change throttle when using default RPC"})
+			return
+		}
+		type Payload struct {
+			Throttle int `json:"throttle" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Ethereum throttle value"})
+			return
+		}
+		if !security.IsValidNumberRange(payload.Throttle, 0, 10000) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid throttle range"})
+			return
+		}
+		database.SettingsUpdateValue("ethereumThrottle", strconv.Itoa(payload.Throttle))
+		blockchain2.EthereumIndexerStop()
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.POST("/settings/ethereum/indexer/running", func(c *gin.Context) {
+		type Payload struct {
+			IndexerRunning bool `json:"indexerRunning"`
+		}
+		var payload Payload
+		err := c.ShouldBindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid JSON"})
+			return
+		}
+		if payload.IndexerRunning {
+			database.SettingsUpdateValue("ethereumIndexerRunning", "true")
+		} else {
+			database.SettingsUpdateValue("ethereumIndexerRunning", "false")
+			blockchain2.EthereumIndexerStop()
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.POST("/settings/ethereum/indexerReset", func(c *gin.Context) {
+		type Payload struct {
+			IndexerReset bool `json:"indexerReset" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Ethereum indexer reset value"})
+			return
+		}
+		if payload.IndexerReset {
+			blockchain2.EthereumIndexerStop()
+			database.IndexerResetJobs("ethereum")
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+		}
+	})
+	router.POST("/settings/ethereum/indexerCatchUp", func(c *gin.Context) {
+		type Payload struct {
+			IndexerCatchUp string `json:"indexerCatchUp" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid request"})
+			return
+		}
+		if payload.IndexerCatchUp != "full" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid indexer catch up value"})
+			return
+		}
+		success, message := blockchain2.EthereumIndexerCatchUpAll(database)
+		if !success {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"status": message})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
 	router.POST("/settings/post/history", func(c *gin.Context) {
 		type Payload struct {
 			Days int `json:"days" required:"true"`
@@ -815,10 +987,12 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.POST("/settings/indexer/stop", func(c *gin.Context) {
 		database.SettingsUpdateValue("indexerRunning", "false")
-		database.SettingsUpdateValue("baseIndexerRunning", "false")
 		database.SettingsUpdateValue("algoIndexerRunning", "false")
-		blockchain2.BaseIndexerStop()
+		database.SettingsUpdateValue("baseIndexerRunning", "false")
+		database.SettingsUpdateValue("ethereumIndexerRunning", "false")
 		blockchain2.AlgoIndexerStop()
+		blockchain2.BaseIndexerStop()
+		blockchain2.EthereumIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{
 			"status":  "success",
 			"message": "Indexer stopped",
@@ -826,8 +1000,9 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 	})
 	router.POST("/settings/indexer/start", func(c *gin.Context) {
 		database.SettingsUpdateValue("indexerRunning", "true")
-		database.SettingsUpdateValue("baseIndexerRunning", "true")
 		database.SettingsUpdateValue("algoIndexerRunning", "true")
+		database.SettingsUpdateValue("baseIndexerRunning", "true")
+		database.SettingsUpdateValue("ethereumIndexerRunning", "true")
 		c.SecureJSON(http.StatusOK, gin.H{
 			"status":  "success",
 			"message": "Indexer started",

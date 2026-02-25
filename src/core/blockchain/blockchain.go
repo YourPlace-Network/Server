@@ -10,13 +10,15 @@ import (
 )
 
 type Blockchain struct {
-	Base     *Base
 	Algorand *Algorand
+	Base     *Base
+	Ethereum *Ethereum
 }
 
 var DefaultBlockchainNodes = map[string][]string{
 	"algorand": {"https://mainnet-api.algonode.cloud", "60"},
 	"base":     {"/rpc/base", "5"},
+	"ethereum": {"/rpc/ethereum", "5"},
 }
 
 func (blockchain *Blockchain) Init(database *db.Database) {
@@ -54,6 +56,9 @@ func (blockchain *Blockchain) init(database *db.Database, gateway bool) {
 	base := new(Base)
 	base.init(database, gateway)
 	blockchain.Base = base
+	ethereum := new(Ethereum)
+	ethereum.init(database, gateway)
+	blockchain.Ethereum = ethereum
 	//blockchain.StartupIndexerCleanup(database)                      // Reset any indexer backfill jobs that were left hanging on startup
 	if database.SettingsGetValue("baseFullNode") == "true" { // Install Geth + Base if configured to
 		/*gethInstalled := host.InstallGethNode()
@@ -66,10 +71,12 @@ func (blockchain *Blockchain) init(database *db.Database, gateway bool) {
 }
 func (blockchain *Blockchain) GetLatestBlock(chain string) (*big.Int, error) {
 	switch chain {
-	case "base":
-		return blockchain.Base.GetBlockNumber()
 	case "algorand":
 		return blockchain.Algorand.GetBlockNumber()
+	case "base":
+		return blockchain.Base.GetBlockNumber()
+	case "ethereum":
+		return blockchain.Ethereum.GetBlockNumber()
 	default:
 		return big.NewInt(0), core.LogErrorReturn("Invalid chain: " + chain)
 	}
@@ -81,6 +88,8 @@ func (blockchain *Blockchain) GetEarliestBlock(chain string) *big.Int {
 		return &earliestBlock
 	case "base":
 		return &blockchain.Base.EarliestBlock
+	case "ethereum":
+		return &blockchain.Ethereum.EarliestBlock
 	default:
 		return big.NewInt(0)
 	}

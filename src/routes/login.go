@@ -173,6 +173,68 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 		http.SetCookie(c.Writer, authCookie)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "Base wallet login success"})
 	})
+	router.POST("/login/wallet/ethereum", func(c *gin.Context) {
+		type Payload struct {
+			Signature string `json:"signature" binding:"required"`
+			Message   string `json:"message" binding:"required"`
+			Address   string `json:"address" binding:"required"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login json"})
+			return
+		}
+		if !security.IsValidEthAddress(payload.Address) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login address"})
+			return
+		}
+		if !strings.HasPrefix(payload.Signature, "0x") {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login signature prefix"})
+			return
+		}
+		if len(payload.Signature) < 132 || len(payload.Signature) > 10000 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid login signature length"})
+			return
+		}
+		core.LogDebug("Received Ethereum SIWE message: " + payload.Message)
+		message, err := siwe.ParseMessage(payload.Message)
+		if err != nil {
+			core.LogError("Failed to parse SIWE message: " + err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid SIWE message"})
+			return
+		}
+		if !strings.EqualFold(message.GetAddress().Hex(), payload.Address) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Address mismatch"})
+			return
+		}
+		if message.GetDomain() != expectedDomain {
+			core.LogDebug("Domain mismatch: got " + message.GetDomain() + ", expected " + expectedDomain)
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid domain"})
+			return
+		}
+		nonceHash := message.GetNonce()
+		nonce := database.AuthGetLoginNonceByHash(nonceHash)
+		if nonce == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid or expired nonce"})
+			return
+		}
+		database.AuthDeleteLoginNonce(nonce)
+		_, err = message.Verify(payload.Signature, nil, nil, nil)
+		if err != nil {
+			core.LogDebug("Ethereum EIP-191 verification failed: " + err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid signature"})
+			return
+		}
+		authCookie := security.CreateAuthCookie(payload.Address, "ethereum", cryptoSeed, database)
+		if authCookie == nil {
+			core.LogError("Ethereum wallet login - failed to create auth cookie")
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to create auth cookie"})
+			return
+		}
+		http.SetCookie(c.Writer, authCookie)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "Ethereum wallet login success"})
+	})
 	router.POST("/login/wallet/base/local", func(c *gin.Context) {
 		type Payload struct {
 			Address   string `json:"address" binding:"required"`

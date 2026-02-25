@@ -253,7 +253,7 @@ func IsValidAlgoTransaction(payload string) bool {
 	return RegexMatch("[a-zA-Z\\d+/]+={0,2}", payload)
 }
 func IsValidBlockchain(payload string) bool {
-	validBlockchains := []string{"algorand", "base"}
+	validBlockchains := []string{"algorand", "base", "ethereum"}
 	for _, validBlockchain := range validBlockchains {
 		if strings.EqualFold(validBlockchain, strings.ToLower(payload)) {
 			return true
@@ -592,7 +592,7 @@ func IsVersionGreater(current string, latest string) bool {
 	return false // Versions are equal
 }
 func IsValidWallet(payload string) bool {
-	validWallets := []string{"pera", "cbwalletbase"}
+	validWallets := []string{"cbwalletbase", "metamaskethereum", "pera"}
 	for _, wallet := range validWallets {
 		if payload == wallet {
 			return true

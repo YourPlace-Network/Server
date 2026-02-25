@@ -37,7 +37,7 @@ func isValidYourPlacePayload(payload string) (bool, int, string, map[string]inte
 	return true, versionNumber, actionCode, payloadObject
 }
 func isValidBurnAddress(blockchain string, toAddress string) bool {
-	if blockchain == "base" || blockchain == "eth" {
+	if blockchain == "base" || blockchain == "ethereum" {
 		if toAddress != burnAddressETH {
 			return false
 		}

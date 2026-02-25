@@ -359,41 +359,32 @@
                                 <!-- Ethereum -->
                                 <div class="row">
                                     <div class="col-12 centerColumn">
-                                        <div class="accordion accordion-flush" id="ethAccordion">
+                                        <div class="accordion accordion-flush" id="ethereumAccordion">
                                             <div class="accordion-item">
-                                                <h2 class="accordion-header" id="headingEth">
-                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEth" aria-expanded="false" aria-controls="collapseEth" disabled>
-                                                        <img src="/static/image/ethereum.svg" class="settingsBlockchainImg" alt=""><b>Ethereum (Coming Soon)</b>
+                                                <h2 class="accordion-header" id="headingEthereum">
+                                                    <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEthereum" aria-expanded="false" aria-controls="collapseEthereum">
+                                                        <img src="/static/image/ethereum.svg" class="settingsBlockchainImg" alt=""><b>Ethereum</b>
                                                     </button>
                                                 </h2>
-                                                <div id="collapseEth" class="accordion-collapse collapse" aria-labelledby="headingEth" data-bs-parent="#ethAccordion">
+                                                <div id="collapseEthereum" class="accordion-collapse collapse" aria-labelledby="headingEthereum" data-bs-parent="#ethereumAccordion">
                                                     <div class="accordion-body">
-                                                        <div id="EthFullNodeDiv" disabled>
-                                                            <div class="form-check form-switch" id="ethFullNodeSwitch">
-                                                                <input class="form-check-input" type="checkbox" role="switch" id="ethFullNodeCheckbox" disabled>
-                                                                <label class="form-check-label" for="ethFullNodeCheckbox">Run Full Node</label>
-                                                            </div>
-                                                            <div id="ethFullNodeDataDirectoryDiv">
-                                                                <label for="ethDataDirectory" class="form-label">Node Data Directory</label>
-                                                                <div class="input-group mb-3" id="ethFullNodeInputDiv">
-                                                                    <input type="text" class="form-control" id="ethDataDirectory">
-                                                                    <button class="btn btn-primary btn-outline-secondary" id="ethDefaultDataDirectoryBtn" type="button">Default</button>
-                                                                    <button class="btn btn-primary btn-outline-secondary" id="ethSaveDataDirectoryBtn" type="button">Save</button>
-                                                                </div>
-                                                            </div>
+                                                        <div class="form-check form-switch" id="ethereumIndexerRunSwitch">
+                                                            <input class="form-check-input" type="checkbox" role="switch" id="ethereumIndexerRunCheckbox">
+                                                            <label class="form-check-label" for="ethereumIndexerRunCheckbox">Run Indexer</label>
+                                                            <div id="ethereumIndexerStatusLight" class="indexerStatusLight redLight" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" data-bs-title="Ethereum indexer stopped"></div>
                                                         </div>
 
                                                         <hr /><!-- ----------------------------------- -->
-                                                        <label for="ethURL" id="ethUrlLabel" class="form-label">Ethereum RPC URL</label>
-                                                        <div class="input-group mb-3" id="ethUrlInputDiv">
-                                                            <input type="text" class="form-control" id="ethURL">
-                                                            <button class="btn btn-primary btn-outline-secondary" id="defaultEthURLBtn" type="button">Default</button>
-                                                            <button class="btn btn-primary btn-outline-secondary" id="saveEthURLBtn" type="button">Save</button>
+                                                        <label for="ethereumURL" id="ethereumUrlLabel" class="form-label">Ethereum RPC URL</label>
+                                                        <div class="input-group mb-3" id="ethereumUrlInputDiv">
+                                                            <input type="text" class="form-control" id="ethereumURL">
+                                                            <button class="btn btn-primary btn-outline-secondary" id="defaultEthereumURLBtn" type="button">Default</button>
+                                                            <button class="btn btn-primary btn-outline-secondary" id="saveEthereumURLBtn" type="button">Save</button>
                                                         </div>
 
-                                                        <label for="ethThrottle" class="form-label" id="ethThrottleLabel">Server Throttle: <div id="ethThrottleNumber"></div> Requests-Per-Second</label>
-                                                        <div class="input-group mb-3">
-                                                            <datalist id="ethThrottleMarkers">
+                                                        <label for="ethereumThrottle" class="form-label throttleLabel" id="ethereumThrottleLabel">Server Throttle: <span id="ethereumThrottleNumber"></span> Requests-Per-Second</label>
+                                                        <div class="input-group mb3">
+                                                            <datalist id="ethereumThrottleMarkers">
                                                                 <option value="0" label="0"></option>
                                                                 <option value="10" label="10"></option>
                                                                 <option value="50" label="50"></option>
@@ -402,30 +393,37 @@
                                                                 <option value="500" label="500"></option>
                                                                 <option value="1000" label="1000"></option>
                                                             </datalist>
-                                                            <input type="range" class="form-range" id="ethThrottle" min="0" max="1000" step="10" value="0" list="ethThrottleMarkers">
-                                                            <div id="ethThrottleTooltip" class="rangeTooltip" role="tooltip">
+                                                            <input type="range" class="form-range" id="ethereumThrottle" min="0" max="1000" step="5" value="0" list="ethereumThrottleMarkers">
+                                                            <div id="ethereumThrottleTooltip" class="rangeTooltip" role="tooltip">
                                                                 <div class="throttle-tooltip-inner"></div>
                                                                 <div class="throttle-tooltip-arrow"></div>
                                                             </div>
                                                         </div>
 
                                                         <hr /><!-- ----------------------------------- -->
-                                                        <label for="ethIndexerProgress" class="form-label" id="ethIndexerProgressLabel">Indexer Progress:</label>
-                                                        <div class="progress" id="ethIndexerProgressDiv">
-                                                            <div id="ethIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
-                                                            <div id="ethIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"><span id="ethIndexerCachedPercent">0%</span></div>
-                                                            <div id="ethIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        <div class="indexerProgressHeader">
+                                                            <label for="ethereumIndexerProgress" class="form-label" id="ethereumIndexerProgressLabel">Indexer Progress:</label>
+                                                            <span id="ethereumIndexerCachedPercent" class="indexerPercent">0%</span>
+                                                        </div>
+                                                        <div class="progress" id="ethereumIndexerProgressDiv">
+                                                            <div id="ethereumIndexerProgressUncachedTail" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                            <div id="ethereumIndexerProgressCached" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100"></div>
+                                                            <div id="ethereumIndexerProgressUncachedHead" class="progress-bar" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        </div>
+                                                        <div class="indexerStats" id="ethereumIndexerStats">
+                                                            <span id="ethereumIndexerBlocksIndexed">0</span> / <span id="ethereumIndexerBlocksTotal">0</span> blocks
                                                         </div>
 
-                                                        <div id="ethIndexerReset">
-                                                            <button class="btn btn-primary" id="ethIndexerResetBtn">Reset Indexer</button>
-                                                        </div>
-
-                                                        <hr /><!-- ----------------------------------- -->
-                                                        <label class="form-label" for="ethPostHistoryDays" id="ethPostHistoryDaysLabel">Post History To Keep (days)</label>
-                                                        <div class="input-group mb-3">
-                                                            <input type="number" class="form-control" id="ethPostHistoryDays" placeholder="Days" min="1" max="365" step="1" data-bind="value:ethPostHistoryDays" />
-                                                            <button class="btn btn-primary" id="saveEthPostHistoryDaysBtn">Save</button>
+                                                        <div id="ethereumIndexerBtns" class="indexerBtns">
+                                                            <button class="btn btn-primary" id="ethereumIndexerResetBtn">Reset</button>
+                                                            <div class="dropdown indexerCatchUpDropdown">
+                                                                <button class="btn btn-secondary dropdown-toggle" type="button" id="ethereumIndexerCatchUpBtn" data-bs-toggle="dropdown" aria-expanded="false">Catch-Up</button>
+                                                                <ul class="dropdown-menu">
+                                                                    <li><a class="dropdown-item" id="ethereumCatchUpFullBtn">Full</a></li>
+                                                                    <li><hr class="dropdown-divider"></li>
+                                                                    <li><a class="dropdown-item" id="ethereumCatchUpHelpBtn">Help<i class="bi bi-question-circle" id="ethereumIndexerCatchUpHelpIcon"></i></a></li>
+                                                                </ul>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

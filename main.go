@@ -395,6 +395,16 @@ func PostServerRun(database *db.Database) {
 				core.LogWarn("Gateway Algorand snapshot catch-up failed: " + message)
 			}
 		}
+		lastEthCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun_ethereum")
+		if lastEthCatchUpStr == "" {
+			core.LogInfo("Gateway first run detected - triggering Ethereum snapshot catch-up")
+			success, message := blockchain2.EthereumIndexerCatchUpAll(database)
+			if success {
+				core.LogInfo("Gateway Ethereum snapshot catch-up: " + message)
+			} else {
+				core.LogWarn("Gateway Ethereum snapshot catch-up failed: " + message)
+			}
+		}
 	}
 }
 func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, ipfs *network.IPFS, installed bool, domain string, gatewayMintEnabled bool, pinningService *network.PinningService) {
@@ -566,19 +576,22 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain2.Blockchain) {
 		c.AddFunc("@every 60m", func() { // clean out the cached posts
 			blockchain.IndexerClearOldCachedPosts(database)
 		})*/
-		blockchain2.BaseIndexerRestartJobs(database, "base")     // set any Base jobs to "failed" that were left hanging on startup
-		blockchain2.AlgoIndexerRestartJobs(database, "algorand") // set any Algorand jobs to "failed" that were left hanging on startup
+		blockchain2.AlgoIndexerRestartJobs(database, "algorand")     // set any Algorand jobs to "failed" that were left hanging on startup
+		blockchain2.BaseIndexerRestartJobs(database, "base")         // set any Base jobs to "failed" that were left hanging on startup
+		blockchain2.EthereumIndexerRestartJobs(database, "ethereum") // set any Ethereum jobs to "failed" that were left hanging on startup
 		c.AddFunc("@every 1m", func() {
 			indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
 			indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)
 			isOnBattery := host.IsOnBattery()
 			if isOnBattery && !indexerOnBatteryBool { // Don't run any indexers if the computer is on battery
-				blockchain2.BaseIndexerStop()
 				blockchain2.AlgoIndexerStop()
+				blockchain2.BaseIndexerStop()
+				blockchain2.EthereumIndexerStop()
 				return
 			}
-			_ = blockchain2.BaseIndexerFetchData(database, _blockchain)
 			_ = blockchain2.AlgorandIndexerFetchData(database, _blockchain)
+			_ = blockchain2.BaseIndexerFetchData(database, _blockchain)
+			_ = blockchain2.EthereumIndexerFetchData(database, _blockchain)
 		})
 	}
 	// ------- IPFS BadBits ------- //

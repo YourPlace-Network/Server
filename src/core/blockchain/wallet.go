@@ -28,6 +28,16 @@ func WalletGetAddress(blockchain string, name string, _blockchain *Blockchain) (
 				return addresses[0], nil
 			}
 		}
+		if blockchain == "ethereum" {
+			addresses, err := _blockchain.Ethereum.GetENSAddresses(name)
+			if err != nil {
+				core.LogDebug("WalletGetAddress: " + err.Error())
+				return "", nil
+			}
+			if len(addresses) > 0 {
+				return addresses[0], nil
+			}
+		}
 		return "", nil
 	})
 	if val == nil {
@@ -44,6 +54,14 @@ func WalletGetAvatar(blockchain string, address string, _blockchain *Blockchain)
 		}
 		if blockchain == "base" {
 			avatar, err := _blockchain.Base.GetENSAvatar(address)
+			if err != nil {
+				core.LogDebug("WalletGetAvatar: " + err.Error())
+				return "", nil
+			}
+			return avatar, nil
+		}
+		if blockchain == "ethereum" {
+			avatar, err := _blockchain.Ethereum.GetENSAvatar(address)
 			if err != nil {
 				core.LogDebug("WalletGetAvatar: " + err.Error())
 				return "", nil
@@ -72,6 +90,14 @@ func WalletGetBalance(blockchain string, address string, _blockchain *Blockchain
 			}
 			return float64(balance.Uint64()), nil
 		}
+		if blockchain == "ethereum" {
+			balance, err := _blockchain.Ethereum.GetBalance(address)
+			if err != nil {
+				core.LogDebug("WalletGetBalance: " + err.Error())
+				return float64(0), nil
+			}
+			return float64(balance.Uint64()), nil
+		}
 		core.LogDebug("WalletGetBalance: unsupported blockchain: " + blockchain)
 		return float64(0), nil
 	})
@@ -94,6 +120,12 @@ func WalletGetName(blockchain string, address string, _blockchain *Blockchain) (
 				return name, nil
 			}
 		}
+		if blockchain == "ethereum" {
+			name, err := _blockchain.Ethereum.GetENSName(address)
+			if err == nil || name != "" {
+				return name, nil
+			}
+		}
 		return "", nil
 	})
 	if val == nil {
@@ -110,6 +142,9 @@ func WalletGetPriceUSD(blockchain string, _blockchain *Blockchain) (float64, err
 		if blockchain == "base" {
 			return _blockchain.Base.GetPriceUSD(), nil
 		}
+		if blockchain == "ethereum" {
+			return _blockchain.Ethereum.GetPriceUSD(), nil
+		}
 		core.LogDebug("WalletGetPriceUSD: unsupported blockchain: " + blockchain)
 		return float64(0), nil
 	})
@@ -120,14 +155,18 @@ func WalletGetPriceUSD(blockchain string, _blockchain *Blockchain) (float64, err
 }
 func WalletResolveIdentities(database *db.Database, _blockchain *Blockchain) {
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		AlgorandResolveIdentities(database)
+	}()
 	go func() {
 		defer wg.Done()
 		BaseResolveIdentities(_blockchain.Base, database)
 	}()
 	go func() {
 		defer wg.Done()
-		AlgorandResolveIdentities(database)
+		EthereumResolveIdentities(_blockchain.Ethereum, database)
 	}()
 	wg.Wait()
 }

@@ -170,6 +170,7 @@ export function ConfigureModalLoginForLocalWallet(hasLocalWallet: boolean) {
 
         DOM.coinbaseWalletBtn.addEventListener("click", connectWalletDispatcher("cbwalletbase"));
         DOM.localWalletBtn.addEventListener("click", connectWalletDispatcher("local"));
+        DOM.metaMaskWalletBtn.addEventListener("click", connectWalletDispatcher("metamaskethereum"));
         DOM.noWalletBtn.addEventListener("click", connectWalletDispatcher("local"));
         DOM.peraWalletBtn.addEventListener("click", connectWalletDispatcher("pera"));
     }

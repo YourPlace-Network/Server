@@ -70,6 +70,38 @@ import {
     mainnetBase,
 } from "./base";
 import {
+    ethereumAuthLogin,
+    ethereumBurnCollectible,
+    ethereumConnectWallet,
+    ethereumDisconnectWallet,
+    ethereumFollowUser,
+    ethereumGetAvatar,
+    ethereumGetCollectibles,
+    ethereumGetDescription,
+    ethereumGetName,
+    ethereumGetTransferFeeEstimate,
+    ethereumMintCollectible,
+    ethereumSetAvatar,
+    ethereumSetBanner,
+    ethereumSetColors,
+    ethereumSetDescription,
+    ethereumSetLocation,
+    ethereumSetName,
+    ethereumSetVertical,
+    ethereumSetWebsite,
+    ethereumSubmitComment,
+    ethereumSubmitCommentAttach,
+    ethereumSubmitDislike,
+    ethereumSubmitEmojiReaction,
+    ethereumSubmitLike,
+    ethereumSubmitPost,
+    ethereumSubmitPostAttach,
+    ethereumTransferCollectible,
+    ethereumTxn,
+    ethereumUnfollowUser,
+    mainnetEth,
+} from "./ethereum";
+import {
     hasLocalWalletEthereum,
     localWalletEthereumAuthLogin,
     localWalletEthereumBurnCollectible,
@@ -135,10 +167,12 @@ function Dedup<T>(key: string, fn: () => Promise<T>): Promise<T> {
 const cachedAvatars: Record<string, PersistentCache> = {
     "algorand": new PersistentCache("algo_avatar"),
     "base": new PersistentCache("base_avatar"),
+    "ethereum": new PersistentCache("ethereum_avatar"),
 };
 const cachedNames: Record<string, PersistentCache> = {
     "algorand": new PersistentCache("algo_name"),
     "base": new PersistentCache("base_name"),
+    "ethereum": new PersistentCache("ethereum_name"),
 };
 export function WalletGetCachedAvatar(chain: string, address: string): string | null {
     return cachedAvatars[chain]?.get<string>(address) ?? null;
@@ -159,6 +193,13 @@ export async function WalletLogin() {
                 return "";
             }
             return localLoginStatus;
+        case "metamaskethereum":
+            let ethLoginStatus = await ethereumAuthLogin();
+            if (ethLoginStatus !== "success") {
+                LogError("Failed to login to Ethereum wallet: " + ethLoginStatus);
+                return "";
+            }
+            return ethLoginStatus;
         case "pera":
             if (!address) {
                 LogError("No address found for Pera wallet login");
@@ -198,6 +239,9 @@ export async function DisconnectWallet() {
             await baseDisconnectWallet();
             break;
         case "localwalletethereum":
+            break;
+        case "metamaskethereum":
+            await ethereumDisconnectWallet();
             break;
         case "pera":
             await algoDisconnectWallet();
@@ -267,6 +311,27 @@ export async function ConnectWallet(wallet: string): Promise<string> {
             SetChain("base");
             SetAddress(addressLocal);
             return "success";
+        case "metamaskethereum":
+            LogInfo("Connecting to MetaMask Ethereum wallet");
+            let addressEth = await ethereumConnectWallet();
+            if (!addressEth || addressEth === "") {
+                LogError("MetaMask returned empty address");
+                SetWallet("");
+                SetChain("");
+                SetAddress("");
+                return "Failed to connect to MetaMask wallet: Empty address";
+            }
+            if (!IsValidBaseAddress(addressEth)) {
+                LogError("Failed to connect to MetaMask wallet: Invalid address");
+                SetWallet("");
+                SetChain("");
+                SetAddress("");
+                return "Failed to connect to MetaMask wallet: Invalid address";
+            }
+            SetWallet("metamaskethereum");
+            SetChain("ethereum");
+            SetAddress(addressEth);
+            return "success";
         case "pera":
             LogInfo("Connecting to Pera wallet");
             let address = await algoConnectWallet("pera");
@@ -320,6 +385,12 @@ export async function ReconnectWallet() {
         case "localwalletethereum":
             await localWalletEthereumReconnect();
             break;
+        case "metamaskethereum":
+            const ethWagmiStore = localStorage.getItem("yourplace_ethereum");
+            if (ethWagmiStore) {
+                await ethereumConnectWallet();
+            }
+            break;
         case "pera":
             await algoReconnectSession();
             break;
@@ -339,7 +410,7 @@ export function GetAddress() {
     return null;
 }
 export function GetWallet() {
-    const supportedWallets = ["cbwalletbase", "localwalletethereum", "pera", "phantomsolana"];
+    const supportedWallets = ["cbwalletbase", "localwalletethereum", "metamaskethereum", "pera", "phantomsolana"];
     let wallet = localStorage.getItem("walletSelection");
     if (wallet !== null && supportedWallets.includes(wallet)) {
         return wallet;
@@ -347,7 +418,7 @@ export function GetWallet() {
     return null
 }
 export function GetChain() {
-    const supportedChains = ["algorand", "base", "solana"];
+    const supportedChains = ["algorand", "base", "ethereum", "solana"];
     let chain = localStorage.getItem("blockchain");
     if (chain !== null && supportedChains.includes(chain)) {
         return chain;
@@ -365,6 +436,9 @@ export async function WalletGetAvatar(chain?: string, address?: string): Promise
                 break;
             case "base":
                 avatar = await baseGetAvatar(address!);
+                break;
+            case "ethereum":
+                avatar = await ethereumGetAvatar(address!);
                 break;
         }
         if (avatar) {
@@ -388,6 +462,9 @@ export async function WalletGetName(chain: string, address: string): Promise<str
             case "base":
                 name = await baseGetName(address);
                 break;
+            case "ethereum":
+                name = await ethereumGetName(address);
+                break;
         }
         if (name) {
             return name;
@@ -405,6 +482,10 @@ export async function WalletGetDescription(chain?: string, address?: string): Pr
                 return null;
             case "base":
                 description = await baseGetDescription(address!);
+                break;
+            case "ethereum":
+                description = await ethereumGetDescription(address!);
+                break;
         }
         if (description) {
             return description;
@@ -418,6 +499,8 @@ export function WalletGetExplorerAddressLink(address: string, blockchain?: strin
         return `https://allo.info/account/${address}`;
     } else if (chain == "base") {
         return mainnetBase.explorerUrl + "/address/" + address;
+    } else if (chain == "ethereum") {
+        return mainnetEth.explorerUrl + "/address/" + address;
     }
     return "";
 }
@@ -430,6 +513,8 @@ export function WalletGetExplorerTxLink(tx: string, blockchain?: string) {
         return `https://allo.info/tx/${tx}`;
     } else if (chain == "base") {
         return mainnetBase.explorerUrl + "/tx/" + tx;
+    } else if (chain == "ethereum") {
+        return mainnetEth.explorerUrl + "/tx/" + tx;
     }
     return "";
 }
@@ -440,6 +525,8 @@ export function WalletGetYourPlaceAddressLink(address: string) {
         return `${host}/p/algorand/${address}`;
     } else if (chain == "base") {
         return `${host}/p/base/${address}`;
+    } else if (chain == "ethereum") {
+        return `${host}/p/ethereum/${address}`;
     } else if (chain == "solana") {
         return `${host}/p/solana/${address}`;
     } else {
@@ -480,6 +567,8 @@ export async function WalletSetAvatar(avatarURL: string): Promise<boolean> {
             return !!await baseSetAvatar(avatarURL);
         case "localwalletethereum":
             return !!await localWalletEthereumSetAvatar(avatarURL);
+        case "metamaskethereum":
+            return !!await ethereumSetAvatar(avatarURL);
         case "pera":
             await setAlgoAvatar(avatarURL);
             return true;
@@ -496,6 +585,8 @@ export async function WalletSetBanner(bannerURL: string): Promise<boolean> {
             return !!await baseSetBanner(bannerURL);
         case "localwalletethereum":
             return !!await localWalletEthereumSetBanner(bannerURL);
+        case "metamaskethereum":
+            return !!await ethereumSetBanner(bannerURL);
         case "pera":
             return await algoSetBanner(bannerURL);
     }
@@ -511,6 +602,8 @@ export async function WalletSetColors(colors: Record<string, string>): Promise<b
             return !!await baseSetColors(colors);
         case "localwalletethereum":
             return !!await localWalletEthereumSetColors(colors);
+        case "metamaskethereum":
+            return !!await ethereumSetColors(colors);
         case "pera":
             return await algoSetColors(colors);
     }
@@ -523,6 +616,8 @@ export async function WalletSetDescription(description: string): Promise<boolean
             return !!await baseSetDescription(description);
         case "localwalletethereum":
             return !!await localWalletEthereumSetDescription(description);
+        case "metamaskethereum":
+            return !!await ethereumSetDescription(description);
         case "pera":
             return await algoSetDescription(description);
     }
@@ -535,6 +630,8 @@ export async function WalletSetLocation(location: string): Promise<boolean> {
             return !!await baseSetLocation(location);
         case "localwalletethereum":
             return !!await localWalletEthereumSetLocation(location);
+        case "metamaskethereum":
+            return !!await ethereumSetLocation(location);
         case "pera":
             return await algoSetLocation(location);
     }
@@ -547,6 +644,8 @@ export async function WalletSetVertical(vertical: string): Promise<boolean> {
             return !!await baseSetVertical(vertical);
         case "localwalletethereum":
             return !!await localWalletEthereumSetVertical(vertical);
+        case "metamaskethereum":
+            return !!await ethereumSetVertical(vertical);
         case "pera":
             return await algoSetVertical(vertical);
     }
@@ -559,6 +658,8 @@ export async function WalletSetWebsite(website: string): Promise<boolean> {
             return !!await baseSetWebsite(website);
         case "localwalletethereum":
             return !!await localWalletEthereumSetWebsite(website);
+        case "metamaskethereum":
+            return !!await ethereumSetWebsite(website);
         case "pera":
             return await algoSetWebsite(website);
     }
@@ -571,6 +672,8 @@ export async function WalletSetName(name: string): Promise<boolean> {
             return !!await baseSetName(name);
         case "localwalletethereum":
             return !!await localWalletEthereumSetName(name);
+        case "metamaskethereum":
+            return !!await ethereumSetName(name);
         case "pera":
             return await algoSetName(name);
         default:
@@ -594,6 +697,9 @@ export async function WalletSubmitPost(payload: string): Promise<boolean> {
             return true;
         case "localwalletethereum":
             await localWalletEthereumSubmitPost(payload);
+            return true;
+        case "metamaskethereum":
+            await ethereumSubmitPost(payload);
             return true;
         case "pera":
             await algoSubmitPost(payload);
@@ -621,6 +727,9 @@ export async function WalletSubmitPostAttach(payload: string, attach: string[][]
         case "localwalletethereum":
             await localWalletEthereumSubmitPostAttach(payload, attach);
             return true;
+        case "metamaskethereum":
+            await ethereumSubmitPostAttach(payload, attach);
+            return true;
         case "pera":
             return await setAlgoPostAttach(payload, attach);
         default:
@@ -645,6 +754,9 @@ export async function WalletSubmitComment(parentTxHash: string, payload: string)
             return true;
         case "localwalletethereum":
             await localWalletEthereumSubmitComment(parentTxHash, payload);
+            return true;
+        case "metamaskethereum":
+            await ethereumSubmitComment(parentTxHash, payload);
             return true;
         case "pera":
             return await algoSubmitComment(parentTxHash, payload);
@@ -671,6 +783,9 @@ export async function WalletSubmitCommentAttach(parentTxHash: string, payload: s
         case "localwalletethereum":
             await localWalletEthereumSubmitCommentAttach(parentTxHash, payload, attach);
             return true;
+        case "metamaskethereum":
+            await ethereumSubmitCommentAttach(parentTxHash, payload, attach);
+            return true;
         case "pera":
             return await algoSubmitCommentAttach(parentTxHash, payload, attach);
         default:
@@ -695,6 +810,9 @@ export async function WalletSubmitLike(targetTxHash: string, targetType: string)
             return true;
         case "localwalletethereum":
             await localWalletEthereumSubmitLike(targetTxHash, targetType);
+            return true;
+        case "metamaskethereum":
+            await ethereumSubmitLike(targetTxHash, targetType);
             return true;
         case "pera":
             return await algoSubmitLike(targetTxHash, targetType);
@@ -721,6 +839,9 @@ export async function WalletSubmitDislike(targetTxHash: string, targetType: stri
         case "localwalletethereum":
             await localWalletEthereumSubmitDislike(targetTxHash, targetType);
             return true;
+        case "metamaskethereum":
+            await ethereumSubmitDislike(targetTxHash, targetType);
+            return true;
         case "pera":
             return await algoSubmitDislike(targetTxHash, targetType);
         default:
@@ -745,6 +866,9 @@ export async function WalletSubmitEmojiReaction(targetTxHash: string, targetType
             return true;
         case "localwalletethereum":
             await localWalletEthereumSubmitEmojiReaction(targetTxHash, targetType, emoji);
+            return true;
+        case "metamaskethereum":
+            await ethereumSubmitEmojiReaction(targetTxHash, targetType, emoji);
             return true;
         case "pera":
             return await algoSubmitEmojiReaction(targetTxHash, targetType, emoji);
@@ -773,6 +897,14 @@ export async function WalletSendPostNudge(address: string) {
             }
             ShowDialogModalHTMLUnsafe("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdLocal) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
             break;
+        case "metamaskethereum":
+            const txnIdEth = await ethereumTxn(address, nudge);
+            if (!txnIdEth) {
+                ShowDialogModal("Failed to send nudge - try again later");
+                break;
+            }
+            ShowDialogModalHTMLUnsafe("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdEth) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
+            break;
         case "pera":
             break;
         default:
@@ -800,6 +932,12 @@ export async function WalletFollowUser(toAddress: string, toBlockchain: string):
                 return txIDLocal.toString();
             }
             break;
+        case "metamaskethereum":
+            let txIDEth = await ethereumFollowUser(toAddress, toBlockchain);
+            if (txIDEth) {
+                return txIDEth.toString();
+            }
+            break;
         case "pera":
             return await algoFollowUser(toAddress, toBlockchain);
     }
@@ -825,6 +963,12 @@ export async function WalletUnfollowUser(toAddress: string, toBlockchain: string
                 return txIDLocal.toString();
             }
             break;
+        case "metamaskethereum":
+            let txIDEth = await ethereumUnfollowUser(toAddress, toBlockchain);
+            if (txIDEth) {
+                return txIDEth.toString();
+            }
+            break;
         case "pera":
             return await algoUnfollowUser(toAddress, toBlockchain);
     }
@@ -840,6 +984,8 @@ export async function WalletBurnCollectible(tokenId: string, blockchain: string)
             return await baseBurnCollectible(BigInt(tokenId));
         case "localwalletethereum":
             return await localWalletEthereumBurnCollectible(BigInt(tokenId));
+        case "metamaskethereum":
+            return await ethereumBurnCollectible(BigInt(tokenId));
         case "pera":
             return await algoBurnCollectible(Number(tokenId));
     }
@@ -855,6 +1001,8 @@ export async function WalletGetCollectibles(address: string, blockchain: string)
             return await baseGetCollectibles(address);
         case "algorand":
             return await algoGetCollectibles(address);
+        case "ethereum":
+            return await ethereumGetCollectibles(address);
     }
     return [];
 }
@@ -864,6 +1012,8 @@ export async function WalletGetTransferFeeEstimate(toAddress: string, tokenId: s
             return await baseGetTransferFeeEstimate(toAddress, BigInt(tokenId));
         case "algorand":
             return await algoGetTransferFeeEstimate();
+        case "ethereum":
+            return await ethereumGetTransferFeeEstimate(toAddress, BigInt(tokenId));
     }
     return "--";
 }
@@ -875,6 +1025,8 @@ export async function WalletMintCollectible(metadataUri: string, name?: string, 
             return !!await baseMintCollectible(metadataUri);
         case "localwalletethereum":
             return !!await localWalletEthereumMintCollectible(metadataUri);
+        case "metamaskethereum":
+            return !!await ethereumMintCollectible(metadataUri);
         case "pera":
             return await algoMintCollectible(name || "", unitName || "", metadataUri.replace("ipfs://", ""));
     }
@@ -888,6 +1040,8 @@ export async function WalletTransferCollectible(tokenId: string, toAddress: stri
             return await baseTransferCollectible(BigInt(tokenId), toAddress);
         case "localwalletethereum":
             return await localWalletEthereumTransferCollectible(BigInt(tokenId), toAddress);
+        case "metamaskethereum":
+            return await ethereumTransferCollectible(BigInt(tokenId), toAddress);
         case "pera":
             return await algoTransferCollectible(Number(tokenId), toAddress);
     }
@@ -902,6 +1056,8 @@ export async function WalletIsConnected(): Promise<boolean> {
             return false;
         case "localwalletethereum":
             return hasLocalWalletEthereum();
+        case "metamaskethereum":
+            return false;
         case "pera":
             return !!peraWallet.connector?.connected;
     }
@@ -917,6 +1073,9 @@ export function IsValidAddress(address: string, chain?: string): boolean {
             case "base":
                 wallet = "cbwalletbase";
                 break;
+            case "ethereum":
+                wallet = "metamaskethereum";
+                break;
         }
     } else {
         wallet = GetWallet();
@@ -928,6 +1087,7 @@ export function IsValidAddress(address: string, chain?: string): boolean {
     switch (wallet) {
         case "cbwalletbase":
         case "localwalletethereum":
+        case "metamaskethereum":
             return IsValidBaseAddress(address);
         case "pera":
             return IsValidAlgoAddress(address);
@@ -941,7 +1101,7 @@ export function TruncateAddress(address: string) {
         let middle = "...";
         let end = address.slice(52, 58);
         return first + middle + end;
-    } else if (wallet == "cbwalletbase" || wallet == "eth" || wallet == "localwalletethereum") {
+    } else if (wallet == "cbwalletbase" || wallet == "localwalletethereum" || wallet == "metamaskethereum") {
         let first = address.slice(0, 6);
         let middle = "...";
         let end = address.slice(35, 41);

@@ -1,3 +1,3 @@
 package core
 
-var ValidNetworks = []string{"base", "algorand"}
+var ValidNetworks = []string{"algorand", "base", "ethereum"}
