@@ -301,18 +301,21 @@ func IsValidEthAddress(payload string) bool {
 	return false
 }
 func IsValidENSName(payload string) (bool, string) {
-	validSuffixes := map[string]string{
-		".base.eth": "base",
-		".eth":      "eth",
+	validSuffixes := []struct {
+		suffix string
+		chain  string
+	}{
+		{".base.eth", "base"},
+		{".eth", "ethereum"},
 	}
 	hasValidSuffix := false
 	var blockchain string
 	var namePart string
-	for suffix, chain := range validSuffixes {
-		if strings.HasSuffix(payload, suffix) {
+	for _, entry := range validSuffixes {
+		if strings.HasSuffix(payload, entry.suffix) {
 			hasValidSuffix = true
-			blockchain = chain
-			namePart = strings.TrimSuffix(payload, suffix)
+			blockchain = entry.chain
+			namePart = strings.TrimSuffix(payload, entry.suffix)
 			break
 		}
 	}

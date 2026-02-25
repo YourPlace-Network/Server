@@ -11,6 +11,7 @@ import {IsValidAlgoAddress, IsValidAlgoTxId, XSSSanitizeUrl} from "../util/secur
 import {WalletGetAvatar, WalletGetCachedAvatar, WalletGetCachedName, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
 import {baseGetEnsAddress} from "../util/blockchain/base";
 import {algoGetNfdAddress} from "../util/blockchain/algorand";
+import {ethereumGetEnsAddress} from "../util/blockchain/ethereum";
 import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowNotifications} from "../util/notifications";
@@ -306,6 +307,12 @@ import {CreateXcomPostCard} from "../util/domFactory";
             if (!ensQuery.endsWith(".base.eth")) {
                 ensQuery = ensQuery + ".base.eth";
             }
+            let ethEnsQuery = query.toLowerCase().trim();
+            if (ethEnsQuery.endsWith(".base.eth")) {
+                ethEnsQuery = "";
+            } else if (!ethEnsQuery.endsWith(".eth")) {
+                ethEnsQuery = ethEnsQuery + ".eth";
+            }
             let nfdQuery = query.toLowerCase().trim();
             if (!nfdQuery.endsWith(".algo")) {
                 nfdQuery = nfdQuery + ".algo";
@@ -314,9 +321,10 @@ import {CreateXcomPostCard} from "../util/domFactory";
             if (IsValidAlgoTxId(algoQuery)) {
                 algoTxIdPostPromise = HttpGetJson("/post/data/algorand/" + algoQuery);
             }
-            const [resp, ensAddress, nfdAddress, algoTxIdResp] = await Promise.all([
+            const [resp, ensAddress, ethEnsAddress, nfdAddress, algoTxIdResp] = await Promise.all([
                 HttpGetJson("/s/?q=" + query),
                 baseGetEnsAddress(ensQuery),
+                ethEnsQuery !== "" ? ethereumGetEnsAddress(ethEnsQuery) : Promise.resolve(""),
                 algoGetNfdAddress(nfdQuery),
                 algoTxIdPostPromise
             ]);
@@ -337,6 +345,9 @@ import {CreateXcomPostCard} from "../util/domFactory";
             }
             if (nfdAddress && nfdAddress !== "") {
                 results.unshift({resultType: "profile", blockchain: "algorand", address: nfdAddress});
+            }
+            if (ethEnsAddress && ethEnsAddress !== "") {
+                results.unshift({resultType: "profile", blockchain: "ethereum", address: ethEnsAddress});
             }
             if (ensAddress && ensAddress !== "") {
                 results.unshift({resultType: "profile", blockchain: "base", address: ensAddress});

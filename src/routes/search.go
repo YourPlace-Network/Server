@@ -70,7 +70,7 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 			}
 			posts := database.SearchGetPosts(printableQuery)
 			profiles := database.SearchGetProfiles(profileQuery)
-			ensSuffixes := []string{".base.eth"}
+			ensSuffixes := []string{".base.eth", ".eth"}
 			if !strings.Contains(printableQuery, ".") {
 				for _, suffix := range ensSuffixes {
 					ensName := strings.ToLower(printableQuery) + suffix
