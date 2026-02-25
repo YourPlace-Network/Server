@@ -613,13 +613,18 @@ interface NfdRecord {
 async function fetchNfdByAddress(address: string): Promise<NfdRecord | null> {
     try {
         const response = await fetch(`${NFD_API_URL}/nfd/lookup?address=${address}&view=brief`);
-        if (!response.ok) {
-            return null;
+        if (response.ok) {
+            const data = await response.json();
+            if (data && Object.keys(data).length > 0) {
+                const firstKey = Object.keys(data)[0];
+                return data[firstKey] as NfdRecord;
+            }
         }
-        const data = await response.json();
-        if (data && Object.keys(data).length > 0) {
-            const firstKey = Object.keys(data)[0];
-            return data[firstKey] as NfdRecord;
+    } catch (_) {}
+    try {
+        const response = await HttpGetJson(`/services/algorand/nfd/lookup?address=${address}`);
+        if (response[0] === 200 && response[1]) {
+            return response[1] as NfdRecord;
         }
     } catch (error) {
         LogError("fetchNfdByAddress() error: " + error);
@@ -629,10 +634,15 @@ async function fetchNfdByAddress(address: string): Promise<NfdRecord | null> {
 async function fetchNfdByName(name: string): Promise<NfdRecord | null> {
     try {
         const response = await fetch(`${NFD_API_URL}/nfd/${name}?view=brief`);
-        if (!response.ok) {
-            return null;
+        if (response.ok) {
+            return await response.json() as NfdRecord;
         }
-        return await response.json() as NfdRecord;
+    } catch (_) {}
+    try {
+        const response = await HttpGetJson(`/services/algorand/nfd/name?name=${name}`);
+        if (response[0] === 200 && response[1]) {
+            return response[1] as NfdRecord;
+        }
     } catch (error) {
         LogError("fetchNfdByName() error: " + error);
     }

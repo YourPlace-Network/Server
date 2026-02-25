@@ -18,6 +18,10 @@ var rpcDedup = core.NewDedupeQueue()
 func WalletGetAddress(blockchain string, name string, _blockchain *Blockchain) (string, error) {
 	key := blockchain + ":address:" + name
 	val, _ := rpcDedup.Do(key, func() (interface{}, error) {
+		if blockchain == "algorand" {
+			address := _blockchain.Algorand.ResolveNFDName(name)
+			return address, nil
+		}
 		if blockchain == "base" {
 			addresses, err := _blockchain.Base.GetENSAddresses(name)
 			if err != nil {
@@ -49,7 +53,7 @@ func WalletGetAvatar(blockchain string, address string, _blockchain *Blockchain)
 	key := blockchain + ":avatar:" + address
 	val, _ := rpcDedup.Do(key, func() (interface{}, error) {
 		if blockchain == "algorand" {
-			_, avatar := AlgorandResolveNFD(address)
+			_, avatar := _blockchain.Algorand.ResolveNFD(address)
 			return avatar, nil
 		}
 		if blockchain == "base" {
@@ -111,7 +115,7 @@ func WalletGetName(blockchain string, address string, _blockchain *Blockchain) (
 	val, _ := rpcDedup.Do(key, func() (interface{}, error) {
 		core.LogDebug("WalletGetName(): Getting name for address: " + address + " on blockchain: " + blockchain)
 		if blockchain == "algorand" {
-			name, _ := AlgorandResolveNFD(address)
+			name, _ := _blockchain.Algorand.ResolveNFD(address)
 			return name, nil
 		}
 		if blockchain == "base" {
@@ -158,7 +162,7 @@ func WalletResolveIdentities(database *db.Database, _blockchain *Blockchain) {
 	wg.Add(3)
 	go func() {
 		defer wg.Done()
-		AlgorandResolveIdentities(database)
+		AlgorandResolveIdentities(_blockchain.Algorand, database)
 	}()
 	go func() {
 		defer wg.Done()

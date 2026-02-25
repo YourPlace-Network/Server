@@ -6,17 +6,18 @@ import (
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
+	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/base32"
-	"encoding/json"
+	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"math/big"
-	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -278,50 +279,233 @@ func (algo *Algorand) SetWalletAddress(address types.Address) {
 }
 
 // ----- Identity Resolution ----- //
-func AlgorandResolveIdentities(database *db.Database) {
+func AlgorandResolveIdentities(algo *Algorand, database *db.Database) {
 	addresses := database.ProfileGetAddressesWithMissingEnsData("algorand")
 	if len(addresses) == 0 {
 		return
 	}
 	core.LogDebug("Resolving NFD names for " + strconv.Itoa(len(addresses)) + " Algorand addresses")
 	for _, address := range addresses {
-		name, avatar := AlgorandResolveNFD(address)
+		name, avatar := algo.ResolveNFD(address)
 		database.ProfileUpdateEnsData(address, "algorand", name, avatar)
 		time.Sleep(500 * time.Millisecond)
 	}
 }
-func AlgorandResolveNFD(address string) (string, string) {
-	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequest("GET", "https://api.nf.domains/nfd/lookup?address="+address+"&view=brief", nil)
+func (algo *Algorand) ResolveNFD(address string) (string, string) {
+	if !security.IsValidAlgoAddress(address) {
+		return "", ""
+	}
+	ctx := context.Background()
+	registryAppID := nfdRegistryAppID(algo.network)
+	addr, err := types.DecodeAddress(address)
 	if err != nil {
 		return "", ""
 	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := client.Do(req)
+	boxKey := nfdGetRegistryBoxNameForAddress(addr)
+	boxValue, err := algo.algodClient.GetApplicationBoxByName(registryAppID, boxKey).Do(ctx)
+	if err == nil && len(boxValue.Value) >= 8 {
+		for offset := 0; offset+8 <= len(boxValue.Value); offset += 8 {
+			nfdAppID := binary.BigEndian.Uint64(boxValue.Value[offset : offset+8])
+			if nfdAppID == 0 {
+				continue
+			}
+			name, _, avatar := nfdReadAppState(algo.algodClient, nfdAppID)
+			if name != "" {
+				return name, avatar
+			}
+		}
+	}
+	lsig, err := getNFDSigRevAddressLSIG(addr, registryAppID)
 	if err != nil {
 		return "", ""
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", ""
-	}
-	body, err := io.ReadAll(resp.Body)
+	lsigAddr, err := lsig.Address()
 	if err != nil {
 		return "", ""
 	}
-	var result map[string]struct {
-		Name       string `json:"name"`
-		Properties struct {
-			Verified struct {
-				Avatar string `json:"avatar"`
-			} `json:"verified"`
-		} `json:"properties"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
+	acctInfo, err := algo.algodClient.AccountApplicationInformation(lsigAddr.String(), registryAppID).Do(ctx)
+	if err != nil {
 		return "", ""
 	}
-	for _, nfd := range result {
-		return nfd.Name, nfd.Properties.Verified.Avatar
+	for idx := 0; idx < 16; idx++ {
+		targetKey := "i.apps" + strconv.Itoa(idx)
+		found := false
+		for _, kv := range acctInfo.AppLocalState.KeyValue {
+			keyBytes, err := base64.StdEncoding.DecodeString(kv.Key)
+			if err != nil || string(keyBytes) != targetKey {
+				continue
+			}
+			found = true
+			if kv.Value.Type != 1 {
+				break
+			}
+			valBytes, err := base64.StdEncoding.DecodeString(kv.Value.Bytes)
+			if err != nil || len(valBytes) < 8 {
+				break
+			}
+			for off := 0; off+8 <= len(valBytes); off += 8 {
+				nfdAppID := binary.BigEndian.Uint64(valBytes[off : off+8])
+				if nfdAppID == 0 {
+					continue
+				}
+				name, _, avatar := nfdReadAppState(algo.algodClient, nfdAppID)
+				if name != "" {
+					return name, avatar
+				}
+			}
+			break
+		}
+		if !found {
+			break
+		}
 	}
 	return "", ""
+}
+func (algo *Algorand) ResolveNFDName(nfdName string) string {
+	if !security.IsValidNFDomain(nfdName) {
+		return ""
+	}
+	ctx := context.Background()
+	registryAppID := nfdRegistryAppID(algo.network)
+	boxKey := nfdGetRegistryBoxNameForNFD(nfdName)
+	boxValue, err := algo.algodClient.GetApplicationBoxByName(registryAppID, boxKey).Do(ctx)
+	if err == nil && len(boxValue.Value) >= 16 {
+		nfdAppID := binary.BigEndian.Uint64(boxValue.Value[8:16])
+		if nfdAppID != 0 {
+			_, owner, _ := nfdReadAppState(algo.algodClient, nfdAppID)
+			if owner != "" {
+				return owner
+			}
+		}
+	}
+	lsig, err := getNFDSigNameLSIG(nfdName, registryAppID)
+	if err != nil {
+		return ""
+	}
+	lsigAddr, err := lsig.Address()
+	if err != nil {
+		return ""
+	}
+	acctInfo, err := algo.algodClient.AccountApplicationInformation(lsigAddr.String(), registryAppID).Do(ctx)
+	if err != nil {
+		return ""
+	}
+	for _, kv := range acctInfo.AppLocalState.KeyValue {
+		keyBytes, err := base64.StdEncoding.DecodeString(kv.Key)
+		if err != nil || string(keyBytes) != "i.appid" {
+			continue
+		}
+		var nfdAppID uint64
+		if kv.Value.Type == 1 {
+			valBytes, err := base64.StdEncoding.DecodeString(kv.Value.Bytes)
+			if err == nil && len(valBytes) == 8 {
+				nfdAppID = binary.BigEndian.Uint64(valBytes)
+			}
+		} else if kv.Value.Type == 2 {
+			nfdAppID = kv.Value.Uint
+		}
+		if nfdAppID != 0 {
+			_, owner, _ := nfdReadAppState(algo.algodClient, nfdAppID)
+			if owner != "" {
+				return owner
+			}
+		}
+		break
+	}
+	return ""
+}
+func getNFDLookupLSIG(prefixBytes string, lookupBytes string, registryAppID uint64) (crypto.LogicSigAccount, error) {
+	sigLookupByteCode := []byte{
+		0x05, 0x20, 0x01, 0x01, 0x80, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+		0x07, 0x08, 0x17, 0x35, 0x00, 0x31, 0x18, 0x34, 0x00, 0x12, 0x31, 0x10,
+		0x81, 0x06, 0x12, 0x10, 0x31, 0x19, 0x22, 0x12, 0x31, 0x19, 0x81, 0x00,
+		0x12, 0x11, 0x10, 0x40, 0x00, 0x01, 0x00, 0x22, 0x43, 0x26, 0x01,
+	}
+	binary.BigEndian.PutUint64(sigLookupByteCode[6:14], registryAppID)
+	bytesToAppend := bytes.Join([][]byte{[]byte(prefixBytes), []byte(lookupBytes)}, nil)
+	uvarIntBytes := make([]byte, binary.MaxVarintLen64)
+	nBytes := binary.PutUvarint(uvarIntBytes, uint64(len(bytesToAppend)))
+	composedBytecode := bytes.Join([][]byte{sigLookupByteCode, uvarIntBytes[:nBytes], bytesToAppend}, nil)
+	return crypto.MakeLogicSigAccountEscrowChecked(composedBytecode, [][]byte{})
+}
+func getNFDSigNameLSIG(nfdName string, registryAppID uint64) (crypto.LogicSigAccount, error) {
+	return getNFDLookupLSIG("name/", nfdName, registryAppID)
+}
+func getNFDSigRevAddressLSIG(address types.Address, registryAppID uint64) (crypto.LogicSigAccount, error) {
+	return getNFDLookupLSIG("address/", address.String(), registryAppID)
+}
+func nfdGetRegistryBoxNameForAddress(address types.Address) []byte {
+	hash := sha256.Sum256(bytes.Join([][]byte{[]byte("addr/algo/"), address[:]}, nil))
+	return hash[:]
+}
+func nfdGetRegistryBoxNameForNFD(name string) []byte {
+	hash := sha256.Sum256([]byte("name/" + name))
+	return hash[:]
+}
+func nfdReadAppState(algodClient *algod.Client, appID uint64) (string, string, string) {
+	ctx := context.Background()
+	app, err := algodClient.GetApplicationByID(appID).Do(ctx)
+	if err != nil {
+		core.LogDebug("nfdReadAppState: failed to get app " + strconv.FormatUint(appID, 10) + ": " + err.Error())
+		return "", "", ""
+	}
+	var name, owner, verifiedOwner, avatar string
+	for _, kv := range app.Params.GlobalState {
+		keyBytes, err := base64.StdEncoding.DecodeString(kv.Key)
+		if err != nil {
+			continue
+		}
+		key := string(keyBytes)
+		switch {
+		case key == "i.name" && kv.Value.Type == 1:
+			valBytes, err := base64.StdEncoding.DecodeString(kv.Value.Bytes)
+			if err == nil {
+				name = string(valBytes)
+			}
+		case key == "i.owner.a" && kv.Value.Type == 1:
+			valBytes, err := base64.StdEncoding.DecodeString(kv.Value.Bytes)
+			if err == nil && len(valBytes) == 32 {
+				var addr types.Address
+				copy(addr[:], valBytes)
+				owner = addr.String()
+			}
+		case (key == "v.avatar" || key == "u.avatar") && kv.Value.Type == 1 && avatar == "":
+			valBytes, err := base64.StdEncoding.DecodeString(kv.Value.Bytes)
+			if err == nil && len(valBytes) > 0 {
+				avatar = string(valBytes)
+			}
+		case key == "v.caAlgo.0.as" && kv.Value.Type == 1:
+			valBytes, err := base64.StdEncoding.DecodeString(kv.Value.Bytes)
+			if err == nil && len(valBytes) >= 32 {
+				var addr types.Address
+				copy(addr[:], valBytes[:32])
+				verifiedOwner = addr.String()
+			}
+		}
+	}
+	if avatar == "" {
+		for _, boxName := range []string{"v.avatar", "u.avatar"} {
+			boxValue, err := algodClient.GetApplicationBoxByName(appID, []byte(boxName)).Do(ctx)
+			if err == nil && len(boxValue.Value) > 0 {
+				avatar = string(boxValue.Value)
+				break
+			}
+		}
+	}
+	boxValue, err := algodClient.GetApplicationBoxByName(appID, []byte("v.caAlgo.0.as")).Do(ctx)
+	if err == nil && len(boxValue.Value) >= 32 {
+		var addr types.Address
+		copy(addr[:], boxValue.Value[:32])
+		verifiedOwner = addr.String()
+	}
+	if verifiedOwner != "" {
+		owner = verifiedOwner
+	}
+	return name, owner, avatar
+}
+func nfdRegistryAppID(network string) uint64 {
+	if network == "testnet" {
+		return 84366825
+	}
+	return 760937186
 }

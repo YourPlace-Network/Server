@@ -2,6 +2,7 @@ package routes
 
 import (
 	"YourPlace/src/core"
+	blockchain2 "YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/network"
@@ -19,7 +20,7 @@ import (
 
 var twitterUrlRegex = regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)`)
 
-func ServicesRoutes(router *gin.Engine, database *db.Database) {
+func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain) {
 	router.GET("/service/ai/ollamaEnabled", func(c *gin.Context) {
 		err := services.OllamaHealthCheck()
 		if err != nil {
@@ -203,5 +204,28 @@ func ServicesRoutes(router *gin.Engine, database *db.Database) {
 			database.OEmbedCacheSet(tweetUrl, string(jsonData))
 		}
 		c.SecureJSON(http.StatusOK, oembedResponse)
+	})
+	router.GET("/services/algorand/nfd/lookup", func(c *gin.Context) {
+		address := c.Query("address")
+		if !security.IsValidAlgoAddress(address) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid Algorand address"})
+			return
+		}
+		name, avatar := _blockchain.Algorand.ResolveNFD(address)
+		database.ProfileUpdateEnsData(address, "algorand", name, avatar)
+		c.SecureJSON(http.StatusOK, gin.H{"name": name, "avatar": avatar, "owner": address})
+	})
+	router.GET("/services/algorand/nfd/name", func(c *gin.Context) {
+		name := c.Query("name")
+		if !security.IsValidNFDomain(name) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid NFD name"})
+			return
+		}
+		ownerAddress := _blockchain.Algorand.ResolveNFDName(name)
+		if security.IsValidAlgoAddress(ownerAddress) {
+			nfdName, avatar := _blockchain.Algorand.ResolveNFD(ownerAddress)
+			database.ProfileUpdateEnsData(ownerAddress, "algorand", nfdName, avatar)
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"owner": ownerAddress, "name": name, "caAlgo": []string{ownerAddress}})
 	})
 }

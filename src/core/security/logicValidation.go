@@ -305,6 +305,7 @@ func IsValidENSName(payload string) (bool, string) {
 		suffix string
 		chain  string
 	}{
+		{".algo", "algorand"},
 		{".base.eth", "base"},
 		{".eth", "ethereum"},
 	}
