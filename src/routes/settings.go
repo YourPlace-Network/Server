@@ -271,7 +271,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		tailBlock := database.IndexerGetTailBlock(jobUUID)
 		headBlock := database.IndexerGetHeadBlock(jobUUID)
 		latestBlock, err := _blockchain.GetLatestBlock("base")
-		if err != nil || latestBlock == big.NewInt(0) {
+		if err != nil || latestBlock.Cmp(big.NewInt(0)) == 0 {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Base latest block"})
 			return
 		}
@@ -529,7 +529,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		tailBlock := database.IndexerGetTailBlock(jobUUID)
 		headBlock := database.IndexerGetHeadBlock(jobUUID)
 		latestBlock, err := _blockchain.GetLatestBlock("algorand")
-		if err != nil || latestBlock == big.NewInt(0) {
+		if err != nil || latestBlock.Cmp(big.NewInt(0)) == 0 {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Algorand latest block"})
 			return
 		}
@@ -599,7 +599,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		tailBlock := database.IndexerGetTailBlock(jobUUID)
 		headBlock := database.IndexerGetHeadBlock(jobUUID)
 		latestBlock, err := _blockchain.GetLatestBlock("ethereum")
-		if err != nil || latestBlock == big.NewInt(0) {
+		if err != nil || latestBlock.Cmp(big.NewInt(0)) == 0 {
 			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get Ethereum latest block"})
 			return
 		}

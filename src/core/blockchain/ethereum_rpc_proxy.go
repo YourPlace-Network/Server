@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -38,7 +39,7 @@ const DefaultPublicEthereumRPCRateLimit = 5
 
 func InitEthereumRPCProxy(targetURL string, rateLimit int) *EthereumRPCProxy {
 	ethereumRPCProxyOnce.Do(func() {
-		if targetURL == "" {
+		if targetURL == "" || strings.HasPrefix(targetURL, "/") {
 			targetURL = DefaultPublicEthereumRPC
 			rateLimit = DefaultPublicEthereumRPCRateLimit
 			core.LogDebug("Ethereum RPC Proxy using public fallback: " + DefaultPublicEthereumRPC)
