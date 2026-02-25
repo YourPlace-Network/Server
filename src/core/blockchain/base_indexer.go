@@ -30,6 +30,7 @@ import (
 
 const (
 	burnAddressETH       = "0x0000000000000000000000000000000000000000"
+	burnAddressETHDead   = "0x000000000000000000000000000000000000dead"
 	entryPointV06Address = "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789"
 	handleOpsSelector    = "1fad948c"
 	executeBatchSelector = "34fcd5be"
@@ -803,7 +804,7 @@ func extractSmartWalletPayloads(inputHex string) []smartWalletPayload {
 	ypPrefixHex := hex.EncodeToString([]byte(services.YpPrefix))
 	for _, op := range ops {
 		signerAddr := getSenderFromUserOp(op)
-		if !security.RegexMatch(`^0x[a-f0-9]{40}$`, signerAddr) || signerAddr == burnAddressETH {
+		if !security.RegexMatch(`^0x[a-f0-9]{40}$`, signerAddr) || signerAddr == burnAddressETH || signerAddr == burnAddressETHDead {
 			continue
 		}
 		targetAddr := extractTargetFromCallData(op.callData)

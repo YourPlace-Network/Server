@@ -29,7 +29,7 @@ export const mainnetEth = {
     currency: "ETH",
     explorerUrl: "https://etherscan.io",
     rpcUrl: window.location.origin + "/rpc/ethereum",
-    burnAddress: "0x0000000000000000000000000000000000000000",
+    burnAddress: "0x000000000000000000000000000000000000dEaD",
 }
 let ethereumInit = false;
 let ethereumViemClient: any;

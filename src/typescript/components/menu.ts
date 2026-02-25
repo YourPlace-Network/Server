@@ -52,16 +52,13 @@ declare global {
         }
         async function toggleLoginBtn() {
             if (!DOM.isCookieAuthenticated) {
-                DOM.menuLoginBtn.innerHTML = '🔑&nbsp;<span class="menuLoginText">Login</span>';
-                DOM.menuLoginBtn.style.width = "5.5em";
+                DOM.menuLoginBtn.innerHTML = '<span class="menuLoginText">Login</span>';
                 return;
             }
             if (DOM.isCookieAuthenticated.value === "true") {
-                DOM.menuLoginBtn.innerHTML = '🔑&nbsp;<span class="menuLoginText">Logout</span>';
-                DOM.menuLoginBtn.style.width = "6em";
+                DOM.menuLoginBtn.innerHTML = '<span class="menuLoginText">Logout</span>';
             } else {
-                DOM.menuLoginBtn.innerHTML = '🔑&nbsp;<span class="menuLoginText">Login</span>';
-                DOM.menuLoginBtn.style.width = "5.5em";
+                DOM.menuLoginBtn.innerHTML = '<span class="menuLoginText">Login</span>';
             }
         }
         async function toggleAvatarBtn() {
