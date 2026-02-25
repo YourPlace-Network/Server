@@ -22,13 +22,13 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/favicon.ico", "GET"},                                 // Favicon
 	{"/ping", "GET"},                                        // Health check endpoint
 	{"/mentalHealth", "GET"}, {"/mentalHealth/tips", "GET"}, // Mental health resources
-	{"/faq", "GET"},                                                                              // FAQ page
-	{"/notification", "GET"},                                                                     // Notification page
-	{"/robots.txt", "GET"},                                                                       // Robots direction
-	{"/rpc/base", "POST"},                                                                        // Public RPC proxy endpoint
+	{"/faq", "GET"},                                  // FAQ page
+	{"/notification", "GET"},                         // Notification page
+	{"/robots.txt", "GET"},                           // Robots direction
+	{"/rpc/base", "POST"}, {"/rpc/ethereum", "POST"}, // Public RPC proxy endpoints
 	{"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"}, // Database snapshot endpoints
-	{"/settings/ipfs/port", "GET"},                           // IPFS settings
-	{"/settings/base", "GET"}, {"/settings/base/url", "GET"}, // Base settings
+	{"/settings/ipfs/port", "GET"},         // IPFS settings
+	{"/settings/base", "GET"},              // Base settings
 	{"/settings/services/algorand", "GET"}, // Algorand settings
 	{"/s", "GET"},                          // Search endpoint
 	{"/404", "GET"},                        // 404 not-found page

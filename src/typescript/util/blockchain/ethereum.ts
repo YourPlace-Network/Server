@@ -28,7 +28,7 @@ export const mainnetEth = {
     name: "Ethereum",
     currency: "ETH",
     explorerUrl: "https://etherscan.io",
-    rpcUrl: await ethereumGetURL(),
+    rpcUrl: window.location.origin + "/rpc/ethereum",
     burnAddress: "0x0000000000000000000000000000000000000000",
 }
 let ethereumInit = false;
@@ -309,18 +309,6 @@ export async function ethereumSubmitLike(targetTxHash: string, targetType: strin
     return await ethereumTxn(mainnetEth.burnAddress, jsonData);
 }
 
-async function ethereumGetURL(): Promise<string|null> {
-    let response = await HttpGetJson("/settings/ethereum/url");
-    if (response[0] === 200 && response[1] && response[1].ethereumURL !== "") {
-        let url = response[1].ethereumURL;
-        if (url.startsWith('/')) {
-            url = window.location.origin + url;
-        }
-        return url;
-    }
-    LogError("Failed to get Ethereum RPC URL from server: " + response[1]);
-    return null;
-}
 export async function ethereumGetAvatar(address: string): Promise<string> {
     if (!ethereumInit) await initEthWallet();
     if (!IsValidBaseAddress(address)) {

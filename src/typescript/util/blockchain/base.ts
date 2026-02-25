@@ -32,7 +32,7 @@ export const mainnetBase = {
     name: "Base",
     currency: "ETH",
     explorerUrl: "https://basescan.org",
-    rpcUrl: await baseGetURL()!,
+    rpcUrl: window.location.origin + "/rpc/base",
     // ENS Addresses: https://docs.ens.domains/learn/deployments/
     // https://github.com/base/basenames
     //ensUniversalResolverAddress: "0xce01f8eee7E479C928F8919abD53E553a36CeF67",
@@ -484,18 +484,6 @@ export async function baseSubmitLike(targetTxHash: string, targetType: string) {
 }
 
 // ---------- Get Functions ---------- //
-async function baseGetURL(): Promise<string|null> {
-    let response = await HttpGetJson("/settings/base/url");
-    if (response[0] === 200 && response[1] && response[1].baseURL !== "") {
-        let url = response[1].baseURL;
-        if (url.startsWith('/')) {
-            url = window.location.origin + url;
-        }
-        return url;
-    }
-    LogError("Failed to get Base RPC URL from server: " + response[1]);
-    return null;
-}
 export async function baseGetAvatar(address: string): Promise<string> {
     if (!baseInit) await initBaseWallet();
     if (!IsValidBaseAddress(address)) {
