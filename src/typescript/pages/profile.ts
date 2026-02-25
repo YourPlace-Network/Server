@@ -501,28 +501,21 @@ declare global {
             if (avatarURL && avatarURL.startsWith("ipfs://")) {
                 avatarURL = CIDToSubdomainURL(avatarURL);
             }
-            // Determine the final avatar URL to use
-            let finalAvatarUrl = "/static/image/avatar.png";
+            const defaultAvatar = "/static/image/avatar.png";
+            let finalAvatarUrl = defaultAvatar;
             if (IsValidURL(avatarURL)) {
-                const success = await loadImageWithTimeout(avatarURL, 10000);
-                if (success) {
-                    finalAvatarUrl = XSSSanitizeUrl(avatarURL);
-                } else {
-                    LogError(`Avatar failed to load, using default: ${avatarURL}`);
-                }
+                finalAvatarUrl = XSSSanitizeUrl(avatarURL);
             } else if (IsValidIpfsCid(avatarURL)) {
                 const ipfsURL = CIDToSubdomainURL(avatarURL);
                 if (ipfsURL) {
-                    const success = await loadImageWithTimeout(ipfsURL, 10000);
-                    if (success) {
-                        finalAvatarUrl = XSSSanitizeUrl(ipfsURL);
-                    } else {
-                        LogError(`IPFS avatar failed to load, using default: ${ipfsURL}`);
-                    }
+                    finalAvatarUrl = XSSSanitizeUrl(ipfsURL);
                 }
             }
-            // Only update DOM if avatar changed
             if (DOM.profileAvatar.src !== finalAvatarUrl && !DOM.profileAvatar.src.endsWith(finalAvatarUrl)) {
+                DOM.profileAvatar.onerror = () => {
+                    DOM.profileAvatar.src = defaultAvatar;
+                    DOM.profileAvatar.onerror = null;
+                };
                 DOM.profileAvatar.src = finalAvatarUrl;
             }
         }

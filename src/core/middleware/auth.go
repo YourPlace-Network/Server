@@ -38,6 +38,7 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 var prefixGetExclusions = []string{ // Auth exclude all GET requests to these paths (public read-only APIs)
 	"/static/", "/login", "/logout", // Necessary for login page and static assets
 	"/profile/", "/posts/", "/post/", "/comments/", "/reactions/", // Public content browsing
+	"/services/algorand/nfd/", "/services/twitter/oembed", // Public data-fetching proxies for post embeds and profile data
 }
 var prefixPostExclusions = []string{ // Exclude all POST requests to these paths (public, non-auth, stateful APIs)
 	"/login", // Login endpoints

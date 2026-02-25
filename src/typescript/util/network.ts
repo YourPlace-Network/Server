@@ -18,7 +18,11 @@ export async function HttpGetJson(url: string): Promise<[number, any]>{
     if (!response.ok) {
         return [response.status, null];
     }
-    return [response.status, await response.json()];
+    try {
+        return [response.status, await response.json()];
+    } catch (e) {
+        return [response.status, null];
+    }
 }
 export async function HttpPostJson(url: string, payload: any, csrfToken: string): Promise<[number, any]> {
     if (csrfToken == null || csrfToken == "") {
