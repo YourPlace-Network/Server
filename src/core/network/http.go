@@ -82,6 +82,31 @@ func HttpGetJson(url string, item interface{}) error {
 	}
 	return nil
 }
+func HttpResolveRedirect(targetUrl string) string {
+	if !security.IsValidURL(targetUrl) {
+		return targetUrl
+	}
+	client := &http.Client{
+		Timeout: time.Second * 10,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	req, err := http.NewRequest(http.MethodHead, targetUrl, nil)
+	if err != nil {
+		return targetUrl
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return targetUrl
+	}
+	defer resp.Body.Close()
+	location := resp.Header.Get("Location")
+	if location == "" || !security.IsValidURL(location) {
+		return targetUrl
+	}
+	return location
+}
 func HttpPost(url string) (string, error) {
 	if !security.IsValidURL(url) {
 		return "", core.LogErrorReturn("Invalid URL")

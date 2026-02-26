@@ -43,7 +43,7 @@
 .postCardAvatar {
   position: relative;
   padding: 0;
-  margin: .2em 1em .5em .1em;
+  margin: 0 1em 0.5em 0.1em;
   width: 4em;
   height: 4em;
   object-fit: cover;
@@ -76,7 +76,6 @@
 .postCardTextDiv {
   position: relative;
   width: 100%;
-  padding-right: 1em;
   padding-left: 5em;
   transform: translateY(-2.2em);
   margin-bottom: -2.2em;
@@ -124,7 +123,7 @@ ul.ellipsesMenu {
   object-position: center;
 }
 .postCardEmbedDiv {
-  margin-bottom: 0.5em;
+  margin: 0;
   padding: 0;
   display: flex;
   justify-content: center;
@@ -236,10 +235,11 @@ ul.ellipsesMenu {
   .postCardAvatar {
     width: 2.5em;
     height: 2.5em;
-    background-color: white;
+    margin-right: 0.5em;
+    object-fit: contain;
   }
   .postCardTextDiv {
-    padding-left: 3.6em;
+    padding-left: 3.1em;
     padding-top: 0.5em;
   }
 }
@@ -261,7 +261,7 @@ ul.ellipsesMenu {
   display: flex;
   justify-content: flex-start;
   gap: 1.5em;
-  padding: 0 1em 0.5em 1em;
+  padding: 0.5em 1em 0.5em 1em;
 }
 .postControlItem {
   display: flex;

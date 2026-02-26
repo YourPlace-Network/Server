@@ -9,6 +9,7 @@ import (
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"encoding/json"
+	"html"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -18,8 +19,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var tcoLinkRegex = regexp.MustCompile(`<a[^>]*href="(https://t\.co/[a-zA-Z0-9]+)"[^>]*>[^<]*</a>`)
 var twitterUrlRegex = regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)`)
 
+func unwrapTcoLinks(oembedResponse map[string]interface{}) {
+	htmlContent, ok := oembedResponse["html"].(string)
+	if !ok {
+		return
+	}
+	matches := tcoLinkRegex.FindAllStringSubmatch(htmlContent, -1)
+	for _, match := range matches {
+		fullTag := match[0]
+		tcoUrl := match[1]
+		resolved := network.HttpResolveRedirect(tcoUrl)
+		if resolved == tcoUrl {
+			continue
+		}
+		escaped := html.EscapeString(resolved)
+		newTag := `<a href="` + escaped + `">` + escaped + `</a>`
+		htmlContent = strings.Replace(htmlContent, fullTag, newTag, 1)
+	}
+	oembedResponse["html"] = htmlContent
+}
 func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain) {
 	router.GET("/service/ai/ollamaEnabled", func(c *gin.Context) {
 		err := services.OllamaHealthCheck()
@@ -199,6 +220,7 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch oEmbed data"})
 			return
 		}
+		unwrapTcoLinks(oembedResponse)
 		jsonData, err := json.Marshal(oembedResponse)
 		if err == nil {
 			database.OEmbedCacheSet(tweetUrl, string(jsonData))

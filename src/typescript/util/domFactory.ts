@@ -261,7 +261,6 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     ellipsesDiv.appendChild(ellipsesMenu);
     postHeaderDiv.appendChild(ellipsesDiv);
     postDiv.appendChild(postTextDiv);
-    postDiv.appendChild(embedDiv);
     if ("attachments" in postData) { // attachment handling
         let attachmentDiv = document.createElement("div") as HTMLDivElement;
         attachmentDiv.classList.add("postCardAttachmentDiv");
@@ -490,6 +489,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     }
     // Post Rendering
     postTextDiv.innerHTML = XSSSanitizeTinyMCEHtml(postText);
+    postTextDiv.appendChild(embedDiv);
     processTextWithTags(postTextDiv);
     // Convert ipfs:// image sources to displayable URLs
     const images = postTextDiv.querySelectorAll("img");

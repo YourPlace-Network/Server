@@ -52,7 +52,6 @@ function createTwitterEmbedCard(data: TwitterOEmbedData, originalUrl: string): H
     const postUsername = document.createElement("span");
     const postTextDiv = document.createElement("div");
     postDiv.classList.add("postCard", "xcomPostCard");
-    postDiv.style.marginLeft = "1em";
     avatarDiv.classList.add("postCardAvatar", "clickable");
     avatarDiv.addEventListener("click", () => {
         window.open(XSSSanitizeUrl(data.author_url), "_blank");
