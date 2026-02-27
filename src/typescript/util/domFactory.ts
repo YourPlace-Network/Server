@@ -542,7 +542,7 @@ export async function CreateXcomPostCard(postData: any): Promise<HTMLDivElement>
     avatarImg.src = "/static/image/x.svg";
     postHeaderDiv.classList.add("postCardHeaderDiv");
     postAuthorLink.classList.add("postCardAuthorLink");
-    postAuthorLink.href = tweetUrl;
+    postAuthorLink.href = `https://x.com/${postData.username}`;
     postAuthorLink.target = "_blank";
     postAuthor.classList.add("postCardAuthor");
     postAuthor.textContent = postData.name || postData.username;

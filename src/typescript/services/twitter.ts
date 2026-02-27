@@ -60,7 +60,7 @@ function createTwitterEmbedCard(data: TwitterOEmbedData, originalUrl: string): H
     avatarImg.src = "/static/image/x.svg";
     postHeaderDiv.classList.add("postCardHeaderDiv");
     postAuthorLink.classList.add("postCardAuthorLink");
-    postAuthorLink.href = XSSSanitizeUrl(originalUrl);
+    postAuthorLink.href = XSSSanitizeUrl(data.author_url);
     postAuthorLink.target = "_blank";
     postAuthor.classList.add("postCardAuthor");
     postAuthor.textContent = XSSSanitizeValue(data.author_name || username);
