@@ -1135,4 +1135,5 @@ var mentalHealthTips = []string{
 	"\"Not to punish evil is equivalent to authorizing it.<br>-Leonardo da Vinci\"",
 	"Being a \"people pleaser\" isn't being a good person. It's just being too afraid of conflict to have an actual opinion",
 	"Every time you replace \"this is hard\" with \"what's the first step?\" you shift brain activity from your amygdala (fear) to your prefrontal cortex (problem solving)",
+	"The devil speaks in inversion. The anti-fascists are the fascists. The anti-racists are the racists. The fact-checkers are the propagandists. Once you understand this, the world make much more sense",
 }

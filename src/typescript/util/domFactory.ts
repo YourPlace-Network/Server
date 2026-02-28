@@ -6,7 +6,7 @@ import {ShowAddCommentUI} from "../components/addComment";
 import {CreateCommentThread} from "../components/commentThread";
 import {CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented, FetchUserReaction} from "../components/postControls";
 import {ProcessPostContentForPreviews} from "../components/postPreviewCard";
-import {TwitterEmbed} from "../services/twitter";
+import {XcomOEmbedCard} from "../components/xcomOEmbedCard";
 import {GetAddress} from "./blockchain/wallet";
 import {IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar} from "./blockchain/wallet";
 import type {CollectibleData} from "./blockchain/wallet";
@@ -172,7 +172,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     let ellipsesMenu = document.createElement("ul") as HTMLUListElement;
     let ellipsesMenuItemExplorer = document.createElement("li") as HTMLLIElement;
     let ellipsesMenuItemExplorerLink = document.createElement("a") as HTMLAnchorElement;
-    let postTextDiv = document.createElement("div") as HTMLDivElement;
+    let postTextDiv = document.createElement("span") as HTMLSpanElement;
     let embedDiv = document.createElement("div") as HTMLDivElement;
     let reactionDiv = document.createElement("div") as HTMLDivElement;
     let unixpostdate = postData.timestamp;
@@ -479,9 +479,9 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
                 postText = postText.replace(url, "").trim();
                 continue;
             }
-            const twitterEmbed = await TwitterEmbed(url);
-            if (twitterEmbed) {
-                embedDiv.appendChild(twitterEmbed);
+            const xcomEmbed = await XcomOEmbedCard(url);
+            if (xcomEmbed) {
+                embedDiv.appendChild(xcomEmbed);
                 postText = postText.replace(url, "").trim();
                 continue;
             }
@@ -489,8 +489,11 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     }
     // Post Rendering
     postTextDiv.innerHTML = XSSSanitizeTinyMCEHtml(postText);
-    postTextDiv.appendChild(embedDiv);
+    postTextDiv.querySelectorAll("p").forEach(p => {
+        if (p.textContent?.trim() === "") { p.remove(); }
+    });
     processTextWithTags(postTextDiv);
+    postTextDiv.appendChild(embedDiv);
     // Convert ipfs:// image sources to displayable URLs
     const images = postTextDiv.querySelectorAll("img");
     images.forEach(img => {
@@ -516,57 +519,6 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
         }
     });
     ProcessPostContentForPreviews(postTextDiv);
-    return postDiv;
-}
-export async function CreateXcomPostCard(postData: any): Promise<HTMLDivElement> {
-    let postDiv = document.createElement("div") as HTMLDivElement;
-    let avatarDiv = document.createElement("div") as HTMLDivElement;
-    let avatarImg = document.createElement("img") as HTMLImageElement;
-    let postHeaderDiv = document.createElement("div") as HTMLDivElement;
-    let postAuthorLink = document.createElement("a") as HTMLAnchorElement;
-    let postAuthor = document.createElement("b") as HTMLElement;
-    let postUsername = document.createElement("span") as HTMLSpanElement;
-    let postDate = document.createElement("div") as HTMLDivElement;
-    let xcomBadge = document.createElement("div") as HTMLDivElement;
-    let xcomIcon = document.createElement("img") as HTMLImageElement;
-    let postTextDiv = document.createElement("div") as HTMLDivElement;
-    let createdAtDate = new Date(postData.created_at);
-    let postdatevalue = createdAtDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true});
-    let tweetUrl = `https://x.com/${postData.username}/status/${postData.id}`;
-    postDiv.classList.add("postCard", "xcomPostCard");
-    avatarDiv.classList.add("postCardAvatar", "clickable");
-    avatarDiv.addEventListener("click", () => {
-        window.open(`https://x.com/${postData.username}`, "_blank");
-    });
-    avatarImg.classList.add("postCardAvatar");
-    avatarImg.src = "/static/image/x.svg";
-    postHeaderDiv.classList.add("postCardHeaderDiv");
-    postAuthorLink.classList.add("postCardAuthorLink");
-    postAuthorLink.href = `https://x.com/${postData.username}`;
-    postAuthorLink.target = "_blank";
-    postAuthor.classList.add("postCardAuthor");
-    postAuthor.textContent = postData.name || postData.username;
-    postUsername.classList.add("postCardUsername");
-    postUsername.textContent = " @" + postData.username;
-    postDate.classList.add("postCardDate");
-    postDate.textContent = postdatevalue;
-    xcomBadge.classList.add("xcomBadge");
-    xcomBadge.title = "X.com post";
-    xcomIcon.src = "/static/image/x.svg";
-    xcomIcon.classList.add("xcomBadgeIcon");
-    postTextDiv.classList.add("postCardTextDiv");
-    postTextDiv.textContent = postData.text;
-    processTextWithTags(postTextDiv);
-    avatarDiv.appendChild(avatarImg);
-    postDiv.appendChild(avatarDiv);
-    postAuthorLink.appendChild(postAuthor);
-    postAuthorLink.appendChild(postUsername);
-    postHeaderDiv.appendChild(postAuthorLink);
-    postHeaderDiv.appendChild(postDate);
-    xcomBadge.appendChild(xcomIcon);
-    postHeaderDiv.appendChild(xcomBadge);
-    postDiv.appendChild(postHeaderDiv);
-    postDiv.appendChild(postTextDiv);
     return postDiv;
 }
 export async function CreateProfileCard (profileData: any): Promise<HTMLDivElement>{

@@ -4,7 +4,7 @@ import type { Comment } from "./addComment";
 import { ShowAddCommentUI } from "./addComment";
 import { CIDToSubdomainURL } from "../util/ipfs";
 import { IsValidURL, XSSSanitizeTextUrl, XSSSanitizeUrl } from "../util/security";
-import { isTwitterStatusUrl, TwitterEmbed } from "../services/twitter";
+import { XcomOEmbedCard } from "./xcomOEmbedCard";
 import { formatTimestamp } from "../util/time";
 
 const MAX_INDENT_DEPTH = 4;
@@ -106,11 +106,9 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
     const urls = comment.payload.match(urlRegex);
     if (urls) {
         for (const url of urls) {
-            if (isTwitterStatusUrl(url)) {
-                const twitterEmbed = await TwitterEmbed(url);
-                if (twitterEmbed) {
-                    commentDiv.appendChild(twitterEmbed);
-                }
+            const xcomEmbed = await XcomOEmbedCard(url);
+            if (xcomEmbed) {
+                commentDiv.appendChild(xcomEmbed);
             }
         }
     }

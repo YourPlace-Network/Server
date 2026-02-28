@@ -16,7 +16,7 @@ import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowNotifications} from "../util/notifications";
 import {ShowDialogModalHTML} from "../components/modalDialog";
-import {CreateXcomPostCard} from "../util/domFactory";
+import {CreateXcomCard} from "../components/xcomOEmbedCard";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -137,7 +137,13 @@ import {CreateXcomPostCard} from "../util/domFactory";
                         let postDiv = await CreatePostCard(item.data);
                         pendingCards.push(postDiv);
                     } else {
-                        let postDiv = await CreateXcomPostCard(item.data);
+                        const createdAt = new Date(item.data.created_at);
+                        const postDiv = CreateXcomCard({
+                            date: createdAt.toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true}),
+                            postUrl: `https://x.com/${item.data.username}/status/${item.data.id}`,
+                            text: item.data.text,
+                            username: item.data.username,
+                        });
                         pendingCards.push(postDiv);
                     }
                 }
