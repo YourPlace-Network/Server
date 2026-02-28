@@ -221,6 +221,12 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 			return
 		}
 		unwrapTcoLinks(oembedResponse)
+		urlMatch := twitterUrlRegex.FindStringSubmatch(tweetUrl)
+		if urlMatch != nil {
+			originalUsername := urlMatch[2]
+			oembedResponse["author_name"] = originalUsername
+			oembedResponse["author_url"] = "https://x.com/" + originalUsername
+		}
 		jsonData, err := json.Marshal(oembedResponse)
 		if err == nil {
 			database.OEmbedCacheSet(tweetUrl, string(jsonData))
