@@ -138,7 +138,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                         pendingCards.push(postDiv);
                     } else {
                         const createdAt = new Date(item.data.created_at);
-                        const postDiv = CreateXcomCard({
+                        const postDiv = await CreateXcomCard({
                             date: createdAt.toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true}),
                             postUrl: `https://x.com/${item.data.username}/status/${item.data.id}`,
                             text: item.data.text,

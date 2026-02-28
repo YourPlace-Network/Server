@@ -20,7 +20,7 @@ import (
 )
 
 var tcoLinkRegex = regexp.MustCompile(`<a[^>]*href="(https://t\.co/[a-zA-Z0-9]+)"[^>]*>[^<]*</a>`)
-var twitterUrlRegex = regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)`)
+var twitterUrlRegex = regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)/?(?:[?#].*)?$`)
 
 func unwrapTcoLinks(oembedResponse map[string]interface{}) {
 	htmlContent, ok := oembedResponse["html"].(string)

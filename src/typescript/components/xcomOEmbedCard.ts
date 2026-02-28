@@ -5,7 +5,8 @@ import {XSSSanitizeOEmbed, XSSSanitizeValue} from "../util/security";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const twitterOEmbedCache = new PersistentCache("twitter_oembed", SEVEN_DAYS_MS);
-const twitterUrlRegex = /^https:\/\/(?:www\.)?(twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)/;
+const twitterMediaSuffixRegex = /\/(photo|video)\/\d+\/?(?:[?#].*)?$/;
+const twitterUrlRegex = /^https:\/\/(?:www\.)?(twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)\/?(?:[?#].*)?$/;
 
 interface TwitterOEmbedData {
     author_name: string;
@@ -22,7 +23,7 @@ export interface XcomCardData {
     username: string;
 }
 
-export function CreateXcomCard(data: XcomCardData): HTMLDivElement {
+export async function CreateXcomCard(data: XcomCardData, depth: number = 0): Promise<HTMLDivElement> {
     const cardDiv = document.createElement("div");
     const avatarImg = document.createElement("img");
     const headerDiv = document.createElement("div");
@@ -43,6 +44,20 @@ export function CreateXcomCard(data: XcomCardData): HTMLDivElement {
     } else {
         textDiv.textContent = data.text;
     }
+    const links = textDiv.querySelectorAll("a");
+    for (const link of Array.from(links)) {
+        const href = link.getAttribute("href") || "";
+        const statusUrl = normalizeTwitterUrl(href);
+        if (!statusUrl) { continue; }
+        if (depth < 1) {
+            const nestedCard = await XcomOEmbedCard(statusUrl, depth + 1);
+            if (nestedCard) {
+                link.replaceWith(nestedCard);
+                continue;
+            }
+        }
+        link.remove();
+    }
     cardDiv.appendChild(avatarImg);
     headerDiv.appendChild(usernameLink);
     if (data.date) {
@@ -54,6 +69,16 @@ export function CreateXcomCard(data: XcomCardData): HTMLDivElement {
     cardDiv.appendChild(headerDiv);
     cardDiv.appendChild(textDiv);
     return cardDiv;
+}
+function normalizeTwitterUrl(url: string): string | null {
+    if (twitterUrlRegex.test(url)) {
+        return url;
+    }
+    const stripped = url.replace(twitterMediaSuffixRegex, "");
+    if (twitterUrlRegex.test(stripped)) {
+        return stripped;
+    }
+    return null;
 }
 function extractTextFromOEmbedHtml(html: string): string {
     const parser = new DOMParser();
@@ -78,7 +103,7 @@ async function fetchTwitterOEmbed(url: string): Promise<TwitterOEmbedData | null
     }
     return null;
 }
-export async function XcomOEmbedCard(url: string): Promise<HTMLDivElement | null> {
+export async function XcomOEmbedCard(url: string, depth: number = 0): Promise<HTMLDivElement | null> {
     if (!twitterUrlRegex.test(url)) {
         return null;
     }
@@ -97,5 +122,5 @@ export async function XcomOEmbedCard(url: string): Promise<HTMLDivElement | null
         text: tweetText,
         textIsHtml: true,
         username: username,
-    });
+    }, depth);
 }
