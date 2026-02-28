@@ -51,11 +51,11 @@ var xcomDatabase interface {
 	MetaUpdateValue(key, value string) error
 }
 
-func TwitterTest() {
+func XcomTest() {
 	email := host.GetEnvVar("X_EMAIL")
 	username := host.GetEnvVar("X_USERNAME")
 	password := host.GetEnvVar("X_PASSWORD")
-	cookies, __error := LogInToTwitter(email, username, password)
+	cookies, __error := LogInToXcom(email, username, password)
 	if __error != nil {
 		core.LogError("Could not log into x.com: " + __error.Error())
 	} else {
@@ -67,7 +67,7 @@ func TwitterTest() {
 	}
 	host.Shutdown(0)
 }
-func LogInToTwitter(email, username, password string) ([]*network.Cookie, error) {
+func LogInToXcom(email, username, password string) ([]*network.Cookie, error) {
 	core.LogDebug("Logging into x.com")
 
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), chromeOptions...)
@@ -114,7 +114,7 @@ func LogInToTwitter(email, username, password string) ([]*network.Cookie, error)
 	_ = capturePage // todo debug
 
 	// Navigate to the login page
-	core.LogDebug("Navigating to Twitter")
+	core.LogDebug("Navigating to X.com")
 	err := chromedp.Run(ctx,
 		chromedp.Navigate("https://x.com/i/flow/login"),
 		chromedp.WaitVisible("body", chromedp.ByQuery),
@@ -195,10 +195,10 @@ func GetCookies() []*network.Cookie {
 	//security.GetSecret("x.com")
 	return nil
 }
-func CheckTwitterCookiesAlive() {
+func CheckXcomCookiesAlive() {
 	// todo check if the auth cookies are still alive
 }
-func RefreshTwitterCookies() {
+func RefreshXcomCookies() {
 	// perform a request to /home to refresh the cookie expiration
 }
 
@@ -426,7 +426,7 @@ func XcomGetHomeTimelineScrape(email, username, password string, maxResults int)
 		return nil, core.LogDebugReturn("missing scraping credentials")
 	}
 	core.LogDebug("Scraping X.com timeline")
-	cookies, err := LogInToTwitter(email, username, password)
+	cookies, err := LogInToXcom(email, username, password)
 	if err != nil {
 		return nil, core.LogDebugReturn("failed to log in to X.com: " + err.Error())
 	}

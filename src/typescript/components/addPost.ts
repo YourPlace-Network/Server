@@ -10,7 +10,7 @@ import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
 import {CreateAttachmentPreview} from "../util/domFactory";
-import {XcomCrossPost, XcomIsCrossPostEnabled} from "../services/twitter";
+import {XcomCrossPost, XcomIsCrossPostEnabled} from "../services/xcom";
 import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
 // TinyMCE will be lazy loaded when needed
 let tinymceModulePromise: Promise<any> | null = null;

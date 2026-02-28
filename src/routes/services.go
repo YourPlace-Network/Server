@@ -21,8 +21,8 @@ import (
 
 var mediaLinkRegex = regexp.MustCompile(`<a[^>]*href="(https://(?:www\.)?(?:twitter\.com|x\.com)/[a-zA-Z0-9_]+/status/\d+/(?:photo|video)/\d+)"[^>]*>[^<]*</a>`)
 var tcoLinkRegex = regexp.MustCompile(`<a[^>]*href="(https://t\.co/[a-zA-Z0-9]+)"[^>]*>[^<]*</a>`)
-var twitterMediaUrlRegex = regexp.MustCompile(`/status/(\d+)/(?:photo|video)/`)
-var twitterUrlRegex = regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)/?(?:[?#].*)?$`)
+var xcomMediaUrlRegex = regexp.MustCompile(`/status/(\d+)/(?:photo|video)/`)
+var xcomUrlRegex = regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)/?(?:[?#].*)?$`)
 
 func unwrapTcoLinks(oembedResponse map[string]interface{}) {
 	htmlContent, ok := oembedResponse["html"].(string)
@@ -58,7 +58,7 @@ func resolveMediaLinks(oembedResponse map[string]interface{}) {
 		fullTag := match[0]
 		mediaPageUrl := match[1]
 		htmlContent = strings.Replace(htmlContent, fullTag, "", 1)
-		idMatch := twitterMediaUrlRegex.FindStringSubmatch(mediaPageUrl)
+		idMatch := xcomMediaUrlRegex.FindStringSubmatch(mediaPageUrl)
 		if idMatch == nil {
 			continue
 		}
@@ -247,15 +247,15 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"posts": posts})
 	})
-	router.GET("/services/twitter/oembed", func(c *gin.Context) {
+	router.GET("/services/xcom/oembed", func(c *gin.Context) {
 		tweetUrl := c.Query("url")
 		if tweetUrl == "" {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "URL parameter required"})
 			return
 		}
 		tweetUrl = security.SanitizeNonPrintable(tweetUrl)
-		if !twitterUrlRegex.MatchString(tweetUrl) {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid Twitter/X.com URL"})
+		if !xcomUrlRegex.MatchString(tweetUrl) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid X.com URL"})
 			return
 		}
 		cacheExpiry := int64(604800) // 7 days in seconds
@@ -273,13 +273,13 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 		var oembedResponse map[string]interface{}
 		err := network.HttpGetJson(oembedUrl, &oembedResponse)
 		if err != nil {
-			core.LogDebug("Failed to fetch Twitter oEmbed: " + err.Error())
+			core.LogDebug("Failed to fetch X.com oEmbed: " + err.Error())
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch oEmbed data"})
 			return
 		}
 		unwrapTcoLinks(oembedResponse)
 		resolveMediaLinks(oembedResponse)
-		urlMatch := twitterUrlRegex.FindStringSubmatch(tweetUrl)
+		urlMatch := xcomUrlRegex.FindStringSubmatch(tweetUrl)
 		if urlMatch != nil {
 			originalUsername := urlMatch[2]
 			oembedResponse["author_name"] = originalUsername

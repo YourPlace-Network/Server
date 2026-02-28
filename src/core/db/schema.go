@@ -26,7 +26,7 @@ var migrations = []Migration{
 	{Version: 1, Description: "Initial schema - base tables created by createTables()", Up: migrateV1},
 	{Version: 2, Description: "Add comment and reaction tables for social interactions", Up: migrateV2},
 	{Version: 3, Description: "Add colors and colorsTimestamp columns to meta tables", Up: migrateV3},
-	{Version: 4, Description: "Add oEmbed cache table for Twitter/X.com embeds", Up: migrateV4},
+	{Version: 4, Description: "Add oEmbed cache table for X.com embeds", Up: migrateV4},
 	{Version: 5, Description: "Add cached ENS/NFD name and avatar columns to meta tables", Up: migrateV5},
 	{Version: 6, Description: "Add Ethereum blockchain tables", Up: migrateV6},
 }
@@ -72,7 +72,7 @@ func migrateV3(db *SQLite) error {
 	return nil
 }
 func migrateV4(db *SQLite) error {
-	// Version 4 adds oEmbed cache table for Twitter/X.com embeds
+	// Version 4 adds oEmbed cache table for X.com embeds
 	_, err := db.database.Exec("CREATE TABLE IF NOT EXISTS oembed_cache (url TEXT PRIMARY KEY, data TEXT DEFAULT '', fetchedAt INTEGER DEFAULT 0)")
 	return err
 }

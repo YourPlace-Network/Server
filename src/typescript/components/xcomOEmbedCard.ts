@@ -4,16 +4,16 @@ import {HttpGetJson} from "../util/network";
 import {XSSSanitizeOEmbed, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-const twitterOEmbedCache = new PersistentCache("twitter_oembed", SEVEN_DAYS_MS);
-const twitterMediaSuffixRegex = /\/(photo|video)\/\d+\/?(?:[?#].*)?$/;
-const twitterUrlRegex = /^https:\/\/(?:www\.)?(twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)\/?(?:[?#].*)?$/;
+const xcomOEmbedCache = new PersistentCache("xcom_oembed", SEVEN_DAYS_MS);
+const xcomMediaSuffixRegex = /\/(photo|video)\/\d+\/?(?:[?#].*)?$/;
+const xcomUrlRegex = /^https:\/\/(?:www\.)?(twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)\/?(?:[?#].*)?$/;
 
 interface MediaItem {
     type: string;
     url: string;
 }
 
-interface TwitterOEmbedData {
+interface XcomOEmbedData {
     author_name: string;
     author_url: string;
     html: string;
@@ -56,7 +56,7 @@ export async function CreateXcomCard(data: XcomCardData, depth: number = 0): Pro
     const nestedCards: HTMLDivElement[] = [];
     for (const link of Array.from(links)) {
         const href = link.getAttribute("href") || "";
-        const statusUrl = normalizeTwitterUrl(href);
+        const statusUrl = normalizeXcomUrl(href);
         if (!statusUrl) { continue; }
         if (extractStatusId(statusUrl) === currentStatusId) {
             link.remove();
@@ -112,17 +112,17 @@ export async function CreateXcomCard(data: XcomCardData, depth: number = 0): Pro
     cardDiv.appendChild(textDiv);
     return cardDiv;
 }
-function normalizeTwitterUrl(url: string): string | null {
-    if (twitterMediaSuffixRegex.test(url)) {
+function normalizeXcomUrl(url: string): string | null {
+    if (xcomMediaSuffixRegex.test(url)) {
         return null;
     }
-    if (twitterUrlRegex.test(url)) {
+    if (xcomUrlRegex.test(url)) {
         return url;
     }
     return null;
 }
 function extractStatusId(url: string): string {
-    const match = url.match(twitterUrlRegex);
+    const match = url.match(xcomUrlRegex);
     return match ? match[3] : "";
 }
 function extractTextFromOEmbedHtml(html: string): string {
@@ -141,24 +141,24 @@ function extractUsernameFromUrl(authorUrl: string): string {
     const match = authorUrl.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/);
     return match ? match[1] : "";
 }
-async function fetchTwitterOEmbed(url: string): Promise<TwitterOEmbedData | null> {
-    const [status, data] = await HttpGetJson(`/services/twitter/oembed?url=${encodeURIComponent(url)}`);
+async function fetchXcomOEmbed(url: string): Promise<XcomOEmbedData | null> {
+    const [status, data] = await HttpGetJson(`/services/xcom/oembed?url=${encodeURIComponent(url)}`);
     if (status === 200 && data) {
-        return data as TwitterOEmbedData;
+        return data as XcomOEmbedData;
     }
     return null;
 }
 export async function XcomOEmbedCard(url: string, depth: number = 0): Promise<HTMLDivElement | null> {
-    if (!twitterUrlRegex.test(url)) {
+    if (!xcomUrlRegex.test(url)) {
         return null;
     }
-    let data: TwitterOEmbedData | null = twitterOEmbedCache.get<TwitterOEmbedData>(url);
+    let data: XcomOEmbedData | null = xcomOEmbedCache.get<XcomOEmbedData>(url);
     if (!data) {
-        data = await fetchTwitterOEmbed(url);
+        data = await fetchXcomOEmbed(url);
         if (!data) {
             return null;
         }
-        twitterOEmbedCache.set(url, data);
+        xcomOEmbedCache.set(url, data);
     }
     const username = extractUsernameFromUrl(data.author_url);
     const tweetText = extractTextFromOEmbedHtml(data.html);

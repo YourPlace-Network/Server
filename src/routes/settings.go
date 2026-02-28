@@ -478,7 +478,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "X.com scraping credentials not configured"})
 			return
 		}
-		cookies, err := services.LogInToTwitter(email, username, password)
+		cookies, err := services.LogInToXcom(email, username, password)
 		if err != nil {
 			database.SettingsUpdateValue("xcomScrapeCredentialsValid", "false")
 			c.SecureJSON(http.StatusOK, gin.H{"isValid": false, "status": "Login failed: " + err.Error()})
