@@ -1,22 +1,29 @@
 import "../../scss/components/xcomOEmbedCard.scss";
 import {PersistentCache} from "../util/cache";
 import {HttpGetJson} from "../util/network";
-import {XSSSanitizeOEmbed, XSSSanitizeValue} from "../util/security";
+import {XSSSanitizeOEmbed, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const twitterOEmbedCache = new PersistentCache("twitter_oembed", SEVEN_DAYS_MS);
 const twitterMediaSuffixRegex = /\/(photo|video)\/\d+\/?(?:[?#].*)?$/;
 const twitterUrlRegex = /^https:\/\/(?:www\.)?(twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)\/?(?:[?#].*)?$/;
 
+interface MediaItem {
+    type: string;
+    url: string;
+}
+
 interface TwitterOEmbedData {
     author_name: string;
     author_url: string;
     html: string;
+    media_urls?: MediaItem[];
     url: string;
 }
 
 export interface XcomCardData {
     date?: string;
+    mediaUrls?: MediaItem[];
     postUrl: string;
     text: string;
     textIsHtml?: boolean;
@@ -44,19 +51,54 @@ export async function CreateXcomCard(data: XcomCardData, depth: number = 0): Pro
     } else {
         textDiv.textContent = data.text;
     }
+    const currentStatusId = extractStatusId(data.postUrl);
     const links = textDiv.querySelectorAll("a");
+    const nestedCards: HTMLDivElement[] = [];
     for (const link of Array.from(links)) {
         const href = link.getAttribute("href") || "";
         const statusUrl = normalizeTwitterUrl(href);
         if (!statusUrl) { continue; }
+        if (extractStatusId(statusUrl) === currentStatusId) {
+            link.remove();
+            continue;
+        }
         if (depth < 1) {
             const nestedCard = await XcomOEmbedCard(statusUrl, depth + 1);
             if (nestedCard) {
-                link.replaceWith(nestedCard);
+                link.remove();
+                nestedCards.push(nestedCard);
                 continue;
             }
         }
         link.remove();
+    }
+    if (data.mediaUrls && data.mediaUrls.length > 0) {
+        for (const item of data.mediaUrls) {
+            const sanitizedUrl = XSSSanitizeUrl(item.url);
+            if (sanitizedUrl === "#") { continue; }
+            const img = document.createElement("img");
+            img.classList.add("xcomCardMedia");
+            img.src = sanitizedUrl;
+            const linkWrapper = document.createElement("a");
+            linkWrapper.href = data.postUrl;
+            linkWrapper.target = "_blank";
+            linkWrapper.rel = "noopener noreferrer";
+            linkWrapper.appendChild(img);
+            if (item.type === "video") {
+                const playIcon = document.createElement("i");
+                playIcon.classList.add("bi", "bi-play-fill", "xcomCardPlayIcon");
+                linkWrapper.appendChild(playIcon);
+                const container = document.createElement("div");
+                container.classList.add("xcomCardMediaContainer");
+                container.appendChild(linkWrapper);
+                textDiv.appendChild(container);
+            } else {
+                textDiv.appendChild(linkWrapper);
+            }
+        }
+    }
+    for (const nestedCard of nestedCards) {
+        textDiv.appendChild(nestedCard);
     }
     cardDiv.appendChild(avatarImg);
     headerDiv.appendChild(usernameLink);
@@ -71,14 +113,17 @@ export async function CreateXcomCard(data: XcomCardData, depth: number = 0): Pro
     return cardDiv;
 }
 function normalizeTwitterUrl(url: string): string | null {
+    if (twitterMediaSuffixRegex.test(url)) {
+        return null;
+    }
     if (twitterUrlRegex.test(url)) {
         return url;
     }
-    const stripped = url.replace(twitterMediaSuffixRegex, "");
-    if (twitterUrlRegex.test(stripped)) {
-        return stripped;
-    }
     return null;
+}
+function extractStatusId(url: string): string {
+    const match = url.match(twitterUrlRegex);
+    return match ? match[3] : "";
 }
 function extractTextFromOEmbedHtml(html: string): string {
     const parser = new DOMParser();
@@ -118,6 +163,7 @@ export async function XcomOEmbedCard(url: string, depth: number = 0): Promise<HT
     const username = extractUsernameFromUrl(data.author_url);
     const tweetText = extractTextFromOEmbedHtml(data.html);
     return CreateXcomCard({
+        mediaUrls: data.media_urls,
         postUrl: url,
         text: tweetText,
         textIsHtml: true,

@@ -19,7 +19,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var mediaLinkRegex = regexp.MustCompile(`<a[^>]*href="(https://(?:www\.)?(?:twitter\.com|x\.com)/[a-zA-Z0-9_]+/status/\d+/(?:photo|video)/\d+)"[^>]*>[^<]*</a>`)
 var tcoLinkRegex = regexp.MustCompile(`<a[^>]*href="(https://t\.co/[a-zA-Z0-9]+)"[^>]*>[^<]*</a>`)
+var twitterMediaUrlRegex = regexp.MustCompile(`/status/(\d+)/(?:photo|video)/`)
 var twitterUrlRegex = regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)/?(?:[?#].*)?$`)
 
 func unwrapTcoLinks(oembedResponse map[string]interface{}) {
@@ -40,6 +42,61 @@ func unwrapTcoLinks(oembedResponse map[string]interface{}) {
 		htmlContent = strings.Replace(htmlContent, fullTag, newTag, 1)
 	}
 	oembedResponse["html"] = htmlContent
+}
+func resolveMediaLinks(oembedResponse map[string]interface{}) {
+	htmlContent, ok := oembedResponse["html"].(string)
+	if !ok {
+		return
+	}
+	matches := mediaLinkRegex.FindAllStringSubmatch(htmlContent, -1)
+	if len(matches) == 0 {
+		return
+	}
+	fetchedIds := make(map[string]bool)
+	var mediaUrls []map[string]string
+	for _, match := range matches {
+		fullTag := match[0]
+		mediaPageUrl := match[1]
+		htmlContent = strings.Replace(htmlContent, fullTag, "", 1)
+		idMatch := twitterMediaUrlRegex.FindStringSubmatch(mediaPageUrl)
+		if idMatch == nil {
+			continue
+		}
+		statusId := idMatch[1]
+		if fetchedIds[statusId] {
+			continue
+		}
+		fetchedIds[statusId] = true
+		syndicationUrl := "https://cdn.syndication.twimg.com/tweet-result?id=" + statusId + "&token=0"
+		var syndicationData map[string]interface{}
+		err := network.HttpGetJson(syndicationUrl, &syndicationData)
+		if err != nil {
+			core.LogDebug("Could not fetch syndication data for status " + statusId + ": " + err.Error())
+			continue
+		}
+		if mediaDetails, ok := syndicationData["mediaDetails"].([]interface{}); ok {
+			for _, item := range mediaDetails {
+				detail, ok := item.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if mediaType, _ := detail["type"].(string); mediaType == "photo" {
+					if imageUrl, _ := detail["media_url_https"].(string); imageUrl != "" && security.IsValidURL(imageUrl) {
+						mediaUrls = append(mediaUrls, map[string]string{"type": "photo", "url": imageUrl})
+					}
+				}
+			}
+		}
+		if video, ok := syndicationData["video"].(map[string]interface{}); ok {
+			if poster, _ := video["poster"].(string); poster != "" && security.IsValidURL(poster) {
+				mediaUrls = append(mediaUrls, map[string]string{"type": "video", "url": poster})
+			}
+		}
+	}
+	oembedResponse["html"] = htmlContent
+	if len(mediaUrls) > 0 {
+		oembedResponse["media_urls"] = mediaUrls
+	}
 }
 func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain) {
 	router.GET("/service/ai/ollamaEnabled", func(c *gin.Context) {
@@ -221,6 +278,7 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 			return
 		}
 		unwrapTcoLinks(oembedResponse)
+		resolveMediaLinks(oembedResponse)
 		urlMatch := twitterUrlRegex.FindStringSubmatch(tweetUrl)
 		if urlMatch != nil {
 			originalUsername := urlMatch[2]
