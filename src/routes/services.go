@@ -43,6 +43,28 @@ func unwrapTcoLinks(oembedResponse map[string]interface{}) {
 	}
 	oembedResponse["html"] = htmlContent
 }
+func resolveAuthorAvatar(oembedResponse map[string]interface{}, tweetUrl string) {
+	urlMatch := xcomUrlRegex.FindStringSubmatch(tweetUrl)
+	if urlMatch == nil {
+		return
+	}
+	statusId := urlMatch[3]
+	syndicationUrl := "https://cdn.syndication.twimg.com/tweet-result?id=" + statusId + "&token=0"
+	var syndicationData map[string]interface{}
+	err := network.HttpGetJson(syndicationUrl, &syndicationData)
+	if err != nil {
+		core.LogDebug("Could not fetch syndication data for avatar: " + err.Error())
+		return
+	}
+	user, ok := syndicationData["user"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	avatarUrl, _ := user["profile_image_url_https"].(string)
+	if avatarUrl != "" && security.IsValidURL(avatarUrl) {
+		oembedResponse["author_avatar"] = avatarUrl
+	}
+}
 func resolveMediaLinks(oembedResponse map[string]interface{}) {
 	htmlContent, ok := oembedResponse["html"].(string)
 	if !ok {
@@ -278,6 +300,7 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 			return
 		}
 		unwrapTcoLinks(oembedResponse)
+		resolveAuthorAvatar(oembedResponse, tweetUrl)
 		resolveMediaLinks(oembedResponse)
 		urlMatch := xcomUrlRegex.FindStringSubmatch(tweetUrl)
 		if urlMatch != nil {

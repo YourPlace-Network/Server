@@ -7,6 +7,10 @@
   align-items: flex-start;
   border: 2px solid var(--yp-secondary);
   border-radius: 0.5em;
+  cursor: pointer;
+  &:hover:not(:has(.xcomCard:hover)) {
+    border-color: var(--yp-text);
+  }
 }
 .xcomCard .xcomCardAvatar {
   padding: 0;
@@ -16,6 +20,10 @@
   object-fit: contain;
   border-radius: 0.6em;
   flex-shrink: 0;
+  &.xcomCardAvatarRound {
+    border-radius: 50%;
+    object-fit: cover;
+  }
 }
 .xcomCardDate {
   font-size: .65em;

@@ -14,6 +14,7 @@ interface MediaItem {
 }
 
 interface XcomOEmbedData {
+    author_avatar?: string;
     author_name: string;
     author_url: string;
     html: string;
@@ -22,6 +23,7 @@ interface XcomOEmbedData {
 }
 
 export interface XcomCardData {
+    avatarUrl?: string;
     date?: string;
     mediaUrls?: MediaItem[];
     postUrl: string;
@@ -38,10 +40,27 @@ export async function CreateXcomCard(data: XcomCardData, depth: number = 0): Pro
     const usernameLink = document.createElement("a");
     cardDiv.classList.add("xcomCard");
     avatarImg.classList.add("xcomCardAvatar");
-    avatarImg.src = "/static/image/x.svg";
+    if (data.avatarUrl) {
+        avatarImg.crossOrigin = "anonymous";
+        avatarImg.referrerPolicy = "no-referrer";
+        avatarImg.src = XSSSanitizeUrl(data.avatarUrl);
+        avatarImg.classList.add("xcomCardAvatarRound");
+        avatarImg.onerror = () => {
+            avatarImg.classList.remove("xcomCardAvatarRound");
+            avatarImg.src = "/static/image/x.svg";
+        };
+    } else {
+        avatarImg.src = "/static/image/x.svg";
+    }
     headerDiv.classList.add("xcomCardHeaderDiv");
+    cardDiv.addEventListener("click", (e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest("a")) { return; }
+        if (target.closest(".xcomCard") !== cardDiv) { return; }
+        window.open(data.postUrl, "_blank", "noopener,noreferrer");
+    });
     usernameLink.classList.add("xcomCardUsernameLink");
-    usernameLink.href = data.postUrl;
+    usernameLink.href = `https://x.com/${encodeURIComponent(data.username)}`;
     usernameLink.target = "_blank";
     usernameLink.rel = "noopener noreferrer";
     usernameLink.textContent = "@" + XSSSanitizeValue(data.username);
@@ -163,6 +182,7 @@ export async function XcomOEmbedCard(url: string, depth: number = 0): Promise<HT
     const username = extractUsernameFromUrl(data.author_url);
     const tweetText = extractTextFromOEmbedHtml(data.html);
     return CreateXcomCard({
+        avatarUrl: data.author_avatar,
         mediaUrls: data.media_urls,
         postUrl: url,
         text: tweetText,
