@@ -39,6 +39,13 @@ func unwrapTcoLinks(oembedResponse map[string]interface{}) {
 		}
 		escaped := html.EscapeString(resolved)
 		newTag := `<a href="` + escaped + `">` + escaped + `</a>`
+		idx := strings.Index(htmlContent, fullTag)
+		if idx > 0 {
+			prefix := strings.TrimRight(htmlContent[:idx], " \t\n\r")
+			if len(prefix) > 0 && prefix[len(prefix)-1] != '>' {
+				newTag = "<br>" + newTag
+			}
+		}
 		htmlContent = strings.Replace(htmlContent, fullTag, newTag, 1)
 	}
 	oembedResponse["html"] = htmlContent
