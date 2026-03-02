@@ -242,9 +242,6 @@ footer {
   animation: flashFade 2s ease-in-out forwards;
   display: block;
 }
-.shaded {
-  background-color: map-get($colors, "secondary");
-}
 .carousel-indicators [data-bs-target] {
   font-size: 0;
 }

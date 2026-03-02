@@ -30,15 +30,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  border: 2px solid transparent;
-  border-radius: 0.5em;
-}
-.postCard:not(.shaded) {
   border: 2px solid var(--yp-secondary);
-}
-.shaded .postCard:not(.shaded),
-.shaded .postPreviewCard {
-  border-color: var(--yp-tertiary);
 }
 .postCardAvatar {
   position: relative;
@@ -94,26 +86,33 @@
   margin-top: -0.5em;
   margin-right: -0.5em;
 }
-.postCardEllipsesLink {
-    color: var(--yp-text);
+ul.ellipsesMenu .postCardEllipsesLink {
+    color: var(--yp-text) !important;
+    &:hover {
+        text-decoration: underline !important;
+    }
 }
 .navBtn.btn i.bi {
   padding-right: .4em;
 }
-button.ellipsesBtn {
-  background-color: transparent;
-  border-radius: 0.4em !important;
+button.ellipsesBtn.btn.btn-secondary {
+  background-color: var(--yp-tertiary) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--yp-secondary) !important;
+  border-left: 1px solid var(--yp-secondary) !important;
+  border-radius: 0 0 0 0.4em;
   i {
+    color: var(--yp-secondary);
     opacity: 1;
   }
 }
 ul.ellipsesMenu {
-  position: relative;
-  background-color: var(--yp-primary);
-  color: var(--yp-text);
-  transform: none;
+  background-color: var(--yp-tertiary) !important;
+  border-color: var(--yp-secondary) !important;
   padding: 7px;
+  position: relative;
   text-align: center;
+  transform: none;
 }
 .postCardAttachmentDiv {
   width: 100%;

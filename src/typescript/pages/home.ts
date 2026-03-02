@@ -160,14 +160,6 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                         DOM.followersFeedDiv.appendChild(card);
                     }
                 }
-                const feedChildren = DOM.followersFeedDiv.children;
-                for (let i = 0; i < feedChildren.length; i++) {
-                    if (i % 2 === 0) {
-                        feedChildren[i].classList.add("shaded");
-                    } else {
-                        feedChildren[i].classList.remove("shaded");
-                    }
-                }
                 const profilePromises = posts.map(async post => {
                     let blockchain = post.blockchain;
                     let address = post.address;
@@ -473,9 +465,6 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                     profiles[i].name = WalletGetCachedName(profiles[i].blockchain, profiles[i].address) || "Loading...";
                     profiles[i].avatarSrc = WalletGetCachedAvatar(profiles[i].blockchain, profiles[i].address) || "/static/image/avatar.png";
                     let profileDiv = await CreateProfileCard(profiles[i]);
-                    if (i % 2 === 0) {
-                        profileDiv.classList.add("shaded");
-                    }
                     if (i >= SEARCH_PROFILES_VISIBLE) {
                         profileDiv.style.display = "none";
                         profileDiv.classList.add("searchProfileHidden");
@@ -511,9 +500,6 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                     posts[i].author = "Loading...";
                     posts[i].avatarSrc = "/static/image/avatar.png";
                     let postDiv = await CreatePostCard(posts[i]);
-                    if (i % 2 === 0) {
-                        postDiv.classList.add("shaded");
-                    }
                     allCards.push(postDiv);
                     allResults.push(posts[i]);
                     searchPostsDiv.appendChild(postDiv);
@@ -541,9 +527,6 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                     posts[i].author = "Loading...";
                     posts[i].avatarSrc = "/static/image/avatar.png";
                     let postDiv = await CreatePostCard(posts[i]);
-                    if ((existingCount + i) % 2 === 0) {
-                        postDiv.classList.add("shaded");
-                    }
                     newCards.push(postDiv);
                     searchPostsDiv.appendChild(postDiv);
                 }

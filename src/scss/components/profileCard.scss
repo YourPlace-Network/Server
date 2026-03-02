@@ -5,7 +5,7 @@
   position: relative;
   width: 100%;
   padding: 0.5em 0.5em 0.5em 0.5em;
-  border: 2px solid transparent;
+  border: 2px solid var(--yp-primary);
   border-radius: 0.5em;
   transition: border-color 0.2s ease;
 }

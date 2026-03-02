@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   release:
     types: [ published ]
+#  push:
+#    branches: [ chad ]
+# The push trigger is disabled because it's run as part of the Gateway workflow, which is triggered on push to chad. This prevents duplicate runs when pushing to chad.
 
 jobs:
   build:

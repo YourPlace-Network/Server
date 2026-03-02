@@ -161,9 +161,6 @@ declare global {
             lastPostsHash = JSON.stringify(posts.map((p: any) => p.txHash));
             for (let i = 0; i < posts.length; i++) {
                 let postDiv = await CreatePostCard(posts[i]);
-                if (i % 2 === 0) {
-                    postDiv.classList.add("shaded");
-                }
                 DOM.contentDiv.appendChild(postDiv);
             }
             setupPostsObserver(blockchain, address);
@@ -187,14 +184,6 @@ declare global {
                     DOM.contentDiv.appendChild(postDiv);
                 }
                 postsOffset += posts.length;
-                const children = DOM.contentDiv.children;
-                for (let i = 0; i < children.length; i++) {
-                    if (i % 2 === 0) {
-                        children[i].classList.add("shaded");
-                    } else {
-                        children[i].classList.remove("shaded");
-                    }
-                }
                 setupPostsObserver(blockchain, address);
             } finally {
                 postsLoading = false;
@@ -248,9 +237,6 @@ declare global {
                         postsOffset = posts.length;
                         for (let i = 0; i < posts.length; i++) {
                             let postDiv = await CreatePostCard(posts[i]);
-                            if (i % 2 === 0) {
-                                postDiv.classList.add("shaded");
-                            }
                             DOM.contentDiv.appendChild(postDiv);
                         }
                         setupPostsObserver(requestedBlockchain, requestedAddress);

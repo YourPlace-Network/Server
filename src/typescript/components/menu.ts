@@ -23,7 +23,7 @@ declare global {
             menuAvatarLink: document.getElementById("menuAvatarLink")! as HTMLAnchorElement,
             menuSettingsLink: document.getElementById("menuSettingsLink")! as HTMLAnchorElement,
             menuDownloadLink: document.getElementById("menuDownloadLink")! as HTMLAnchorElement,
-            menuPlacesLink: document.getElementById("menuPlacesLink")! as HTMLAnchorElement,
+            menuPlacesLink: document.getElementById("menuPlacesLink") as HTMLAnchorElement | null,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated") as HTMLInputElement | null,
             gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement | null,
             userAddress: document.getElementById("userAddress") as HTMLInputElement | null,
@@ -109,11 +109,11 @@ declare global {
             if (DOM.gatewayMode?.value === "true" && !isLocalhost()) {
                 DOM.menuDownloadLink.style.display = "block";
                 DOM.menuSettingsLink.style.display = "none";
-                DOM.menuPlacesLink.href = `${window.location.protocol}//${window.location.host}/`;
+                if (DOM.menuPlacesLink) { DOM.menuPlacesLink.href = `${window.location.protocol}//${window.location.host}/`; }
             } else {
                 DOM.menuDownloadLink.style.display = "none";
                 DOM.menuSettingsLink.style.display = "block";
-                DOM.menuPlacesLink.href = "/";
+                if (DOM.menuPlacesLink) { DOM.menuPlacesLink.href = "/"; }
             }
         });
 
