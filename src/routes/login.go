@@ -171,6 +171,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			return
 		}
 		http.SetCookie(c.Writer, authCookie)
+		database.OnchainMN("base", payload.Address, "", 0)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "Base wallet login success"})
 	})
 	router.POST("/login/wallet/ethereum", func(c *gin.Context) {
@@ -233,6 +234,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			return
 		}
 		http.SetCookie(c.Writer, authCookie)
+		database.OnchainMN("ethereum", payload.Address, "", 0)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "Ethereum wallet login success"})
 	})
 	router.POST("/login/wallet/base/local", func(c *gin.Context) {
@@ -295,6 +297,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			return
 		}
 		http.SetCookie(c.Writer, authCookie)
+		database.OnchainMN("base", payload.Address, "", 0)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "Local wallet login success"})
 	})
 	router.POST("/login/wallet/pera", func(c *gin.Context) {
@@ -350,6 +353,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			return
 		}
 		http.SetCookie(c.Writer, authCookie)
+		database.OnchainMN("algorand", payload.Address, "", 0)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "Pera wallet login success"})
 	})
 }
