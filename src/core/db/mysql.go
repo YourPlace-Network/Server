@@ -892,92 +892,116 @@ func (db *MySQL) ProfileGetEnsAvatar(address string, blockchain string) string {
 }
 
 // --- Search --- //
-func (db *MySQL) SearchGetPosts(query string) []map[string]interface{} {
+func (db *MySQL) SearchGetPosts(query string, limit int, offset int) []map[string]interface{} {
 	var posts []map[string]interface{}
+	var unionParts []string
+	search := "%" + query + "%"
+	var params []interface{}
 	for _, _blockchain := range core.ValidNetworks {
-		selectionQueryFmt := "SELECT txHash, COALESCE(parentTxHash, '') as parentHash, timestamp, data, fromAddress, blockchain FROM onchain_%s_post WHERE LOWER(data) LIKE LOWER(?)"
-		selectionQuery := fmt.Sprintf(selectionQueryFmt, _blockchain)
-		search := "%" + query + "%"
-		rows, err := db.runParamSQLSelect(selectionQuery, search)
+		unionParts = append(unionParts, fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentHash, timestamp, data, fromAddress, blockchain FROM onchain_%s_post WHERE LOWER(data) LIKE LOWER(?)", _blockchain))
+		params = append(params, search)
+	}
+	params = append(params, limit, offset)
+	sqlQuery := fmt.Sprintf("SELECT txHash, parentHash, timestamp, data, fromAddress, blockchain FROM (%s) t ORDER BY timestamp DESC LIMIT ? OFFSET ?", strings.Join(unionParts, " UNION ALL "))
+	rows, err := db.runParamSQLSelect(sqlQuery, params...)
+	if err != nil {
+		core.LogDebug("Could not get searched posts from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	type postEntry struct {
+		index      int
+		txHash     string
+		blockchain string
+	}
+	var postEntries []postEntry
+	for rows.Next() {
+		var timestamp uint64
+		var txHash, parentHash, payload, blockchain, address string
+		err := rows.Scan(&txHash, &parentHash, &timestamp, &payload, &address, &blockchain)
 		if err != nil {
-			core.LogDebug("Could not get searched posts from database: " + err.Error())
+			core.LogDebug("Could not scan database rows: " + err.Error())
 			return nil
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var timestamp uint64
-			var txHash, parentHash, payload, blockchain, address string
-			var attachments [][]interface{}
-			err := rows.Scan(&txHash, &parentHash, &timestamp, &payload, &address, &blockchain)
-			if err != nil {
-				core.LogDebug("Could not scan database rows: " + err.Error())
-				return nil
+		post := map[string]interface{}{
+			"resultType": "post",
+			"blockchain": blockchain,
+			"address":    address,
+			"txHash":     txHash,
+			"timestamp":  timestamp,
+			"payload":    payload,
+			"parentHash": parentHash,
+		}
+		postEntries = append(postEntries, postEntry{index: len(posts), txHash: txHash, blockchain: blockchain})
+		posts = append(posts, post)
+	}
+	if len(postEntries) > 0 {
+		var placeholders []string
+		var attachParams []interface{}
+		for _, pe := range postEntries {
+			placeholders = append(placeholders, "(?, ?)")
+			attachParams = append(attachParams, pe.txHash, pe.blockchain)
+		}
+		attachQuery := fmt.Sprintf("SELECT fth.txHash, fth.blockchain, f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE (fth.txHash, fth.blockchain) IN (%s)", strings.Join(placeholders, ", "))
+		rowsAttachments, err := db.runParamSQLSelect(attachQuery, attachParams...)
+		if err != nil {
+			core.LogDebug("Could not get attachments for posts: " + err.Error())
+		} else {
+			attachMap := make(map[string][][]interface{})
+			for rowsAttachments.Next() {
+				var aTxHash, aBlockchain, mimeType, fileName string
+				var size uint64
+				var fileURL string
+				err := rowsAttachments.Scan(&aTxHash, &aBlockchain, &mimeType, &size, &fileURL, &fileName)
+				if err != nil {
+					core.LogDebug("Could not parse attachment rows: " + err.Error())
+					break
+				}
+				key := aBlockchain + aTxHash
+				attachMap[key] = append(attachMap[key], []interface{}{fileURL, mimeType, size, fileName})
 			}
-			sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
-			rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
-			if err != nil {
-				core.LogDebug("Could not get attachments for post: " + err.Error())
-			}
-			if rowsAttachments != nil {
-				defer rowsAttachments.Close()
-				for rowsAttachments.Next() {
-					var mimeType string
-					var size uint64
-					var fileURL string
-					var fileName string
-					err := rowsAttachments.Scan(&mimeType, &size, &fileURL, &fileName)
-					if err != nil {
-						core.LogDebug("Could parse rows for post attachment: " + err.Error())
-						break
-					}
-					attachment := []interface{}{fileURL, mimeType, size, fileName}
-					attachments = append(attachments, attachment)
+			rowsAttachments.Close()
+			for _, pe := range postEntries {
+				key := pe.blockchain + pe.txHash
+				if attachments, ok := attachMap[key]; ok {
+					posts[pe.index]["attachments"] = attachments
 				}
 			}
-			post := map[string]interface{}{
-				"resultType": "post",
-				"blockchain": blockchain,
-				"address":    address,
-				"txHash":     txHash,
-				"timestamp":  timestamp,
-				"payload":    payload,
-				"parentHash": parentHash,
-			}
-			if attachments != nil {
-				post["attachments"] = attachments
-			}
-			posts = append(posts, post)
 		}
 	}
 	return posts
 }
-func (db *MySQL) SearchGetProfiles(query string) []map[string]interface{} {
+func (db *MySQL) SearchGetProfiles(query string, limit int, offset int) []map[string]interface{} {
 	var profiles []map[string]interface{}
 	search := "%" + query + "%"
 	searchPrefix := query + "%"
+	var unionParts []string
+	var params []interface{}
 	for _, _blockchain := range core.ValidNetworks {
-		sqlQueryFmt := "SELECT address, blockchain FROM onchain_%s_meta WHERE address LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ?"
-		sqlQuery := fmt.Sprintf(sqlQueryFmt, _blockchain)
-		rows, err := db.runParamSQLSelect(sqlQuery, search, search, searchPrefix, searchPrefix+".eth", searchPrefix+".base.eth", searchPrefix+".algo")
+		unionParts = append(unionParts, fmt.Sprintf("SELECT address, blockchain FROM onchain_%s_meta WHERE address LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ?", _blockchain))
+		params = append(params, search, search, searchPrefix, searchPrefix+".eth", searchPrefix+".base.eth", searchPrefix+".algo")
+	}
+	params = append(params, limit, offset)
+	sqlQuery := fmt.Sprintf("SELECT address, blockchain FROM (%s) t GROUP BY address, blockchain LIMIT ? OFFSET ?", strings.Join(unionParts, " UNION ALL "))
+	rows, err := db.runParamSQLSelect(sqlQuery, params...)
+	if err != nil {
+		core.LogDebug("Could not get searched profiles from database: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var address, blockchain string
+		err = rows.Scan(&address, &blockchain)
 		if err != nil {
-			core.LogDebug("Could not get searched profiles from database: " + err.Error())
+			core.LogDebug("Could not parse profiles from database rows: " + err.Error())
 			return nil
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var address, blockchain string
-			err = rows.Scan(&address, &blockchain)
-			profile := map[string]interface{}{
-				"resultType": "profile",
-				"address":    address,
-				"blockchain": blockchain,
-			}
-			if err != nil {
-				core.LogDebug("Could not parse posts from database rows")
-				return nil
-			}
-			profiles = append(profiles, profile)
+		profile := map[string]interface{}{
+			"resultType": "profile",
+			"address":    address,
+			"blockchain": blockchain,
 		}
+		profiles = append(profiles, profile)
 	}
 	return profiles
 }

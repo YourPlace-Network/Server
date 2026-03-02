@@ -36,10 +36,16 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             feedRefreshBtn: document.getElementById("feedRefreshBtn")! as HTMLElement,
         }
         const FEED_PAGE_SIZE = 5;
+        const SEARCH_POSTS_PAGE_SIZE = 25;
+        const SEARCH_PROFILES_VISIBLE = 5;
         let feedOffset = 0;
         let feedLoading = false;
         let feedHasMore = true;
         let feedNewestTimestamp: number | null = null;
+        let searchPostsOffset = 0;
+        let searchPostsHasMore = false;
+        let searchPostsLoading = false;
+        let currentSearchQuery = "";
         const loadedTxHashes = new Set<string>();
         const loadedXcomIds = new Set<string>();
 
@@ -144,9 +150,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                         pendingCards.push(postDiv);
                     }
                 }
-                // Add cards to DOM in correct order
                 if (mode === "refresh") {
-                    // Insert new posts at top in correct order (newest first)
                     const firstChild = DOM.followersFeedDiv.firstChild;
                     for (let i = pendingCards.length - 1; i >= 0; i--) {
                         DOM.followersFeedDiv.insertBefore(pendingCards[i], firstChild);
@@ -156,7 +160,6 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                         DOM.followersFeedDiv.appendChild(card);
                     }
                 }
-                // Update alternating stripes based on DOM position
                 const feedChildren = DOM.followersFeedDiv.children;
                 for (let i = 0; i < feedChildren.length; i++) {
                     if (i % 2 === 0) {
@@ -165,7 +168,6 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                         feedChildren[i].classList.remove("shaded");
                     }
                 }
-                // Fetch profile data for each unique author
                 const profilePromises = posts.map(async post => {
                     let blockchain = post.blockchain;
                     let address = post.address;
@@ -176,7 +178,6 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                     if (!avatarStr || avatarStr === "") {
                         avatarStr = await WalletGetAvatar(blockchain, address);
                     }
-                    // Update all posts for this profile
                     pendingCards.forEach(postDiv => {
                         const postAddress = postDiv.querySelector('.postCardAddress') as HTMLInputElement;
                         const postBlockchain = postDiv.querySelector('.postCardBlockchain') as HTMLInputElement;
@@ -274,18 +275,101 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 }
             }
         }
+        function updateCardAvatar(element: HTMLImageElement, avatarStr: string | null) {
+            const defaultPath = "/static/image/avatar.png";
+            if (avatarStr) {
+                let avatarSrc = avatarStr;
+                if (avatarSrc.startsWith("ipfs://")) {
+                    avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
+                }
+                const avatarUrl = XSSSanitizeUrl(avatarSrc);
+                element.onerror = () => {
+                    element.src = defaultPath;
+                    element.onerror = null;
+                };
+                element.src = avatarUrl;
+            } else {
+                element.src = defaultPath;
+            }
+        }
+        async function hydrateCards(cards: HTMLDivElement[], results: any[]) {
+            const profileCardMap = new Map<string, HTMLDivElement[]>();
+            const postCardMap = new Map<string, HTMLDivElement[]>();
+            for (const card of cards) {
+                const profileAddr = card.querySelector('.profileCardAddressInput') as HTMLInputElement;
+                const profileChain = card.querySelector('.profileCardBlockchain') as HTMLInputElement;
+                if (profileAddr && profileChain) {
+                    const key = profileChain.value + profileAddr.value;
+                    if (!profileCardMap.has(key)) profileCardMap.set(key, []);
+                    profileCardMap.get(key)!.push(card);
+                }
+                const postAddr = card.querySelector('.postCardAddress') as HTMLInputElement;
+                const postChain = card.querySelector('.postCardBlockchain') as HTMLInputElement;
+                if (postAddr && postChain) {
+                    const key = postChain.value + postAddr.value;
+                    if (!postCardMap.has(key)) postCardMap.set(key, []);
+                    postCardMap.get(key)!.push(card);
+                }
+            }
+            const uniqueKeys = new Set<string>();
+            const uniqueAuthors: {blockchain: string, address: string, isProfile: boolean}[] = [];
+            for (const result of results) {
+                const key = result.blockchain + result.address;
+                if (!uniqueKeys.has(key)) {
+                    uniqueKeys.add(key);
+                    uniqueAuthors.push({blockchain: result.blockchain, address: result.address, isProfile: result.resultType === "profile"});
+                }
+            }
+            const profilePromises = uniqueAuthors.map(async (author) => {
+                const key = author.blockchain + author.address;
+                let name: string | null = await WalletGetName(author.blockchain, author.address);
+                let avatarStr: string | null = await getIpfsAvatarUrl(author.blockchain, author.address);
+                if (!avatarStr || avatarStr === "") {
+                    avatarStr = await WalletGetAvatar(author.blockchain, author.address);
+                }
+                let description: string | null = null;
+                if (author.isProfile) {
+                    description = await WalletGetDescription(author.blockchain, author.address);
+                }
+                const pCards = profileCardMap.get(key);
+                if (pCards) {
+                    for (const card of pCards) {
+                        const nameDiv = card.querySelector('.profileCardName') as HTMLDivElement;
+                        const avatarImg = card.querySelector('img.profileCardAvatar') as HTMLImageElement;
+                        const descriptionDiv = card.querySelector('.profileCardDescription') as HTMLDivElement;
+                        if (nameDiv) nameDiv.textContent = name || "Anonymous";
+                        if (avatarImg) updateCardAvatar(avatarImg, avatarStr);
+                        if (descriptionDiv) descriptionDiv.textContent = description || "";
+                    }
+                }
+                const ptCards = postCardMap.get(key);
+                if (ptCards) {
+                    for (const card of ptCards) {
+                        const authorEl = card.querySelector('.postCardAuthor') as HTMLElement;
+                        const avatarEl = card.querySelector('img.postCardAvatar') as HTMLImageElement;
+                        if (authorEl) authorEl.textContent = name || "Anonymous";
+                        if (avatarEl) updateCardAvatar(avatarEl, avatarStr);
+                    }
+                }
+            });
+            await Promise.all(profilePromises);
+        }
         async function handleSearch() {
             DOM.resultsDiv.replaceChildren();
             DOM.followersFeedSection.style.display = "none";
             DOM.discoverSection.style.display = "none";
+            searchPostsOffset = 0;
+            searchPostsHasMore = false;
+            searchPostsLoading = false;
             let query = DOM.searchInput.value;
-            if (query.length <= 0) {
+            if (query.length < 3) {
                 if (DOM.followersFeedDiv.children.length > 0) {
                     DOM.followersFeedSection.style.display = "block";
                 }
                 DOM.discoverSection.style.display = "block";
                 return;
             }
+            currentSearchQuery = query;
             let algoQuery = query.trim();
             DOM.resultsDiv.style.display = "block";
             let spinnerDiv = document.createElement("div");
@@ -303,175 +387,193 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             visibleText.textContent = "Searching...";
             spinnerDiv.appendChild(visibleText);
             DOM.resultsDiv.appendChild(spinnerDiv);
-            let ensQuery = query.toLowerCase().trim();
-            if (!ensQuery.endsWith(".base.eth")) {
-                ensQuery = ensQuery + ".base.eth";
-            }
-            let ethEnsQuery = query.toLowerCase().trim();
-            if (ethEnsQuery.endsWith(".base.eth")) {
-                ethEnsQuery = "";
-            } else if (!ethEnsQuery.endsWith(".eth")) {
-                ethEnsQuery = ethEnsQuery + ".eth";
-            }
-            let nfdQuery = query.toLowerCase().trim();
-            if (!nfdQuery.endsWith(".algo")) {
-                nfdQuery = nfdQuery + ".algo";
-            }
             let algoTxIdPostPromise: Promise<[number, any]> | null = null;
             if (IsValidAlgoTxId(algoQuery)) {
                 algoTxIdPostPromise = HttpGetJson("/post/data/algorand/" + algoQuery);
             }
-            const [resp, ensAddress, ethEnsAddress, nfdAddress, algoTxIdResp] = await Promise.all([
-                HttpGetJson("/s/?q=" + query),
-                baseGetEnsAddress(ensQuery),
-                ethEnsQuery !== "" ? ethereumGetEnsAddress(ethEnsQuery) : Promise.resolve(""),
-                algoGetNfdAddress(nfdQuery),
+            const [resp, algoTxIdResp] = await Promise.all([
+                HttpGetJson(`/s/?q=${query}&limit=${SEARCH_POSTS_PAGE_SIZE + 1}&offset=0`),
                 algoTxIdPostPromise
             ]);
             DOM.resultsDiv.replaceChildren();
-            let results: any[] = [];
-            if (resp[0] === 200 && resp[1] && resp[1].results !== null) {
-                results = resp[1].results;
+            let profiles: any[] = [];
+            let posts: any[] = [];
+            searchPostsHasMore = false;
+            if (resp[0] === 200 && resp[1]) {
+                profiles = resp[1].profiles || [];
+                posts = resp[1].posts || [];
+                searchPostsHasMore = resp[1].hasMorePosts || false;
             } else if (resp[0] !== 200) {
                 console.error("Search failed with status:", resp[0], "Response:", resp[1]);
             }
             if (algoTxIdResp && algoTxIdResp[0] === 200 && algoTxIdResp[1] && algoTxIdResp[1].post) {
                 let post = algoTxIdResp[1].post;
                 post.resultType = "post";
-                results.unshift(post);
+                posts.unshift(post);
             }
             if (IsValidAlgoAddress(algoQuery)) {
-                results.unshift({resultType: "profile", blockchain: "algorand", address: algoQuery});
+                profiles.unshift({resultType: "profile", blockchain: "algorand", address: algoQuery});
             }
-            if (nfdAddress && nfdAddress !== "") {
-                results.unshift({resultType: "profile", blockchain: "algorand", address: nfdAddress});
-            }
-            if (ethEnsAddress && ethEnsAddress !== "") {
-                results.unshift({resultType: "profile", blockchain: "ethereum", address: ethEnsAddress});
-            }
-            if (ensAddress && ensAddress !== "") {
-                results.unshift({resultType: "profile", blockchain: "base", address: ensAddress});
+            if (profiles.length === 0 && !query.includes(".")) {
+                let ensQuery = query.toLowerCase().trim();
+                if (!ensQuery.endsWith(".base.eth")) {
+                    ensQuery = ensQuery + ".base.eth";
+                }
+                let ethEnsQuery = query.toLowerCase().trim();
+                if (ethEnsQuery.endsWith(".base.eth")) {
+                    ethEnsQuery = "";
+                } else if (!ethEnsQuery.endsWith(".eth")) {
+                    ethEnsQuery = ethEnsQuery + ".eth";
+                }
+                let nfdQuery = query.toLowerCase().trim();
+                if (!nfdQuery.endsWith(".algo")) {
+                    nfdQuery = nfdQuery + ".algo";
+                }
+                const [ensAddress, ethEnsAddress, nfdAddress] = await Promise.all([
+                    baseGetEnsAddress(ensQuery),
+                    ethEnsQuery !== "" ? ethereumGetEnsAddress(ethEnsQuery) : Promise.resolve(""),
+                    algoGetNfdAddress(nfdQuery)
+                ]);
+                if (nfdAddress && nfdAddress !== "") {
+                    profiles.unshift({resultType: "profile", blockchain: "algorand", address: nfdAddress});
+                }
+                if (ethEnsAddress && ethEnsAddress !== "") {
+                    profiles.unshift({resultType: "profile", blockchain: "ethereum", address: ethEnsAddress});
+                }
+                if (ensAddress && ensAddress !== "") {
+                    profiles.unshift({resultType: "profile", blockchain: "base", address: ensAddress});
+                }
             }
             const seenProfiles = new Set<string>();
-            results = results.filter(result => {
-                if (result.resultType === "profile") {
-                    const key = result.blockchain + result.address;
-                    if (seenProfiles.has(key)) {
-                        return false;
-                    }
-                    seenProfiles.add(key);
-                }
+            profiles = profiles.filter(p => {
+                const key = p.blockchain + p.address;
+                if (seenProfiles.has(key)) return false;
+                seenProfiles.add(key);
                 return true;
             });
-            if (results.length === 0) {
+            if (profiles.length === 0 && posts.length === 0) {
                 let noResultsDiv = document.createElement("div");
                 noResultsDiv.className = "no-results-dropdown";
                 noResultsDiv.textContent = "No results found";
                 DOM.resultsDiv.appendChild(noResultsDiv);
                 return;
             }
-            const pendingCards: HTMLDivElement[] = [];
-
-            // Create all cards with placeholder data first
-            for (let i = 0; i < results.length; i++) {
-                if (results[i].resultType == "post") {
-                    results[i].author = "Loading...";
-                    results[i].avatarSrc = "/static/image/avatar.png";
-                    let postDiv = await CreatePostCard(results[i]);
-                    if (i % 2 === 0) {
-                        postDiv.classList.add("shaded");
-                    }
-                    pendingCards.push(postDiv);
-                    DOM.resultsDiv.appendChild(postDiv);
-                } else if (results[i].resultType == "profile") {
-                    results[i].name = WalletGetCachedName(results[i].blockchain, results[i].address) || "Loading...";
-                    results[i].avatarSrc = WalletGetCachedAvatar(results[i].blockchain, results[i].address) || "/static/image/avatar.png";
-                    let profileDiv = await CreateProfileCard(results[i]);
+            const allCards: HTMLDivElement[] = [];
+            const allResults: any[] = [];
+            if (profiles.length > 0) {
+                let profilesLabel = document.createElement("div");
+                profilesLabel.className = "searchSectionLabel";
+                profilesLabel.textContent = "Profiles";
+                DOM.resultsDiv.appendChild(profilesLabel);
+                let searchProfilesDiv = document.createElement("div");
+                searchProfilesDiv.id = "searchProfilesDiv";
+                DOM.resultsDiv.appendChild(searchProfilesDiv);
+                for (let i = 0; i < profiles.length; i++) {
+                    profiles[i].resultType = "profile";
+                    profiles[i].name = WalletGetCachedName(profiles[i].blockchain, profiles[i].address) || "Loading...";
+                    profiles[i].avatarSrc = WalletGetCachedAvatar(profiles[i].blockchain, profiles[i].address) || "/static/image/avatar.png";
+                    let profileDiv = await CreateProfileCard(profiles[i]);
                     if (i % 2 === 0) {
                         profileDiv.classList.add("shaded");
                     }
-                    pendingCards.push(profileDiv);
-                    DOM.resultsDiv.appendChild(profileDiv);
+                    if (i >= SEARCH_PROFILES_VISIBLE) {
+                        profileDiv.style.display = "none";
+                        profileDiv.classList.add("searchProfileHidden");
+                    }
+                    allCards.push(profileDiv);
+                    allResults.push(profiles[i]);
+                    searchProfilesDiv.appendChild(profileDiv);
+                }
+                if (profiles.length > SEARCH_PROFILES_VISIBLE) {
+                    let loadMoreBtn = document.createElement("div");
+                    loadMoreBtn.className = "loadMoreBtn";
+                    loadMoreBtn.textContent = `Show ${profiles.length - SEARCH_PROFILES_VISIBLE} more profiles`;
+                    loadMoreBtn.addEventListener("click", () => {
+                        const hidden = searchProfilesDiv.querySelectorAll(".searchProfileHidden");
+                        hidden.forEach(el => {
+                            (el as HTMLElement).style.display = "";
+                            el.classList.remove("searchProfileHidden");
+                        });
+                        loadMoreBtn.remove();
+                    });
+                    searchProfilesDiv.appendChild(loadMoreBtn);
                 }
             }
-            // Fetch profile data once per unique profile
-            const profilePromises = results.map(async result => {
-                let blockchain = result.blockchain;
-                let address = result.address;
-                let key = blockchain + address;
-                let name: string | null = await WalletGetName(blockchain, address);
-                let avatarStr: string | null = null;
-                avatarStr = await getIpfsAvatarUrl(blockchain, address);
-                if (!avatarStr || avatarStr === "") {
-                    avatarStr = await WalletGetAvatar(blockchain, address);
-                }
-                let description: string | null = null;
-                if (result.resultType == "profile") {
-                    description = await WalletGetDescription(result.blockchain, result.address);
-                }
-                pendingCards.forEach(profileDiv => {
-                    const profileAddress = profileDiv.querySelector('.profileCardAddressInput') as HTMLInputElement;
-                    const profileBlockchain = profileDiv.querySelector('.profileCardBlockchain') as HTMLInputElement;
-                    if (profileAddress && profileBlockchain) {
-                        const profileKey = profileBlockchain.value + profileAddress.value;
-                        if (profileKey === key) {
-                            const nameDiv = profileDiv.querySelector('.profileCardName') as HTMLDivElement;
-                            const avatarImg = profileDiv.querySelector('img.profileCardAvatar') as HTMLImageElement;
-                            const descriptionDiv = profileDiv.querySelector('.profileCardDescription') as HTMLDivElement;
-                            if (nameDiv) nameDiv.textContent = name || "Anonymous";
-                            if (avatarImg) {
-                                const defaultPath = "/static/image/avatar.png";
-                                if (avatarStr) {
-                                    let avatarSrc = avatarStr;
-                                    if (avatarSrc.startsWith("ipfs://")) {
-                                        avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
-                                    }
-                                    const avatarUrl = XSSSanitizeUrl(avatarSrc);
-                                    avatarImg.onerror = () => {
-                                        avatarImg.src = defaultPath;
-                                        avatarImg.onerror = null;
-                                    };
-                                    avatarImg.src = avatarUrl;
-                                } else {
-                                    avatarImg.src = defaultPath;
-                                }
-                            }
-                            if (descriptionDiv) descriptionDiv.textContent = description || "";
-                        }
+            if (posts.length > 0 || searchPostsHasMore) {
+                let postsLabel = document.createElement("div");
+                postsLabel.className = "searchSectionLabel";
+                postsLabel.textContent = "Posts";
+                DOM.resultsDiv.appendChild(postsLabel);
+                let searchPostsDiv = document.createElement("div");
+                searchPostsDiv.id = "searchPostsDiv";
+                DOM.resultsDiv.appendChild(searchPostsDiv);
+                for (let i = 0; i < posts.length; i++) {
+                    posts[i].author = "Loading...";
+                    posts[i].avatarSrc = "/static/image/avatar.png";
+                    let postDiv = await CreatePostCard(posts[i]);
+                    if (i % 2 === 0) {
+                        postDiv.classList.add("shaded");
                     }
-                });
-                // Update all posts for this profile
-                pendingCards.forEach(postDiv => {
-                    const postAddress = postDiv.querySelector('.postCardAddress') as HTMLInputElement;
-                    const postBlockchain = postDiv.querySelector('.postCardBlockchain') as HTMLInputElement;
-                    if (postAddress && postBlockchain) {
-                        const postKey = postBlockchain.value + postAddress.value;
-                        if (postKey === key) {
-                            const authorElement = postDiv.querySelector('.postCardAuthor') as HTMLElement;
-                            const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
-                            if (authorElement) authorElement.textContent = name || "Anonymous";
-                            if (avatarElement) {
-                                const defaultPath = "/static/image/avatar.png";
-                                if (avatarStr) {
-                                    let avatarSrc = avatarStr;
-                                    if (avatarSrc.startsWith("ipfs://")) {
-                                        avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
-                                    }
-                                    const avatarUrl = XSSSanitizeUrl(avatarSrc);
-                                    avatarElement.onerror = () => {
-                                        avatarElement.src = defaultPath;
-                                        avatarElement.onerror = null;
-                                    };
-                                    avatarElement.src = avatarUrl;
-                                } else {
-                                    avatarElement.src = defaultPath;
-                                }
-                            }
-                        }
+                    allCards.push(postDiv);
+                    allResults.push(posts[i]);
+                    searchPostsDiv.appendChild(postDiv);
+                }
+                searchPostsOffset = posts.length;
+                if (searchPostsHasMore) {
+                    setupSearchPostsObserver(searchPostsDiv);
+                }
+            }
+            await hydrateCards(allCards, allResults);
+        }
+        async function loadMoreSearchPosts() {
+            if (searchPostsLoading || !searchPostsHasMore) return;
+            searchPostsLoading = true;
+            try {
+                let searchPostsDiv = document.getElementById("searchPostsDiv");
+                if (!searchPostsDiv) return;
+                const resp = await HttpGetJson(`/s/?q=${currentSearchQuery}&limit=${SEARCH_POSTS_PAGE_SIZE + 1}&offset=${searchPostsOffset}`);
+                if (resp[0] !== 200 || !resp[1]) return;
+                let posts: any[] = resp[1].posts || [];
+                searchPostsHasMore = resp[1].hasMorePosts || false;
+                const newCards: HTMLDivElement[] = [];
+                const existingCount = searchPostsDiv.children.length;
+                for (let i = 0; i < posts.length; i++) {
+                    posts[i].author = "Loading...";
+                    posts[i].avatarSrc = "/static/image/avatar.png";
+                    let postDiv = await CreatePostCard(posts[i]);
+                    if ((existingCount + i) % 2 === 0) {
+                        postDiv.classList.add("shaded");
                     }
-                });
-            });
-            await Promise.all(profilePromises);
+                    newCards.push(postDiv);
+                    searchPostsDiv.appendChild(postDiv);
+                }
+                searchPostsOffset += posts.length;
+                if (searchPostsHasMore) {
+                    setupSearchPostsObserver(searchPostsDiv);
+                }
+                await hydrateCards(newCards, posts);
+            } catch (error) {
+                console.error("Error loading more search posts:", error);
+            } finally {
+                searchPostsLoading = false;
+            }
+        }
+        let searchPostsObserver: IntersectionObserver | null = null;
+        function setupSearchPostsObserver(searchPostsDiv: HTMLElement) {
+            if (searchPostsObserver) {
+                searchPostsObserver.disconnect();
+            }
+            searchPostsObserver = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting && searchPostsHasMore && !searchPostsLoading) {
+                        loadMoreSearchPosts().then();
+                    }
+                }
+            }, {rootMargin: "100px"});
+            const lastPost = searchPostsDiv.lastElementChild;
+            if (lastPost) {
+                searchPostsObserver.observe(lastPost);
+            }
         }
 
         /* --- Searching debounce functions --- */
@@ -489,7 +591,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             DOM.searchClearBtn.style.display = hasValue ? "flex" : "none";
             handleSearch().then();
         };
-        const debounceHandler = debounce(handleInput, 2000);
+        const debounceHandler = debounce(handleInput, 400);
         ["keyup", "cut", "paste"].forEach(event => DOM.searchInput.addEventListener(event, debounceHandler, false));
         DOM.searchInput.addEventListener("input", () => {
             const hasValue = DOM.searchInput.value.length > 0;
@@ -500,6 +602,14 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             DOM.searchClearBtn.style.display = "none";
             DOM.resultsDiv.replaceChildren();
             DOM.resultsDiv.style.display = "none";
+            if (searchPostsObserver) {
+                searchPostsObserver.disconnect();
+                searchPostsObserver = null;
+            }
+            searchPostsOffset = 0;
+            searchPostsHasMore = false;
+            searchPostsLoading = false;
+            currentSearchQuery = "";
             if (DOM.followersFeedDiv.children.length > 0) {
                 DOM.followersFeedSection.style.display = "block";
             }

@@ -525,26 +525,26 @@ func (db *Database) GetPost(txHash string, blockchain string) map[string]interfa
 }
 
 // --- Search Functions --- //
-func (db *Database) SearchGetPosts(query string) []map[string]interface{} {
+func (db *Database) SearchGetPosts(query string, limit int, offset int) []map[string]interface{} {
 	var posts []map[string]interface{}
 	switch db.Engine {
 	case "mysql":
-		posts = db.mysql.SearchGetPosts(query)
+		posts = db.mysql.SearchGetPosts(query, limit, offset)
 		return posts
 	case "sqlite":
-		posts = db.sqlite.SearchGetPosts(query)
+		posts = db.sqlite.SearchGetPosts(query, limit, offset)
 		return posts
 	}
 	return nil
 }
-func (db *Database) SearchGetProfiles(query string) []map[string]interface{} {
+func (db *Database) SearchGetProfiles(query string, limit int, offset int) []map[string]interface{} {
 	var profiles []map[string]interface{}
 	switch db.Engine {
 	case "mysql":
-		profiles = db.mysql.SearchGetProfiles(query)
+		profiles = db.mysql.SearchGetProfiles(query, limit, offset)
 		return profiles
 	case "sqlite":
-		profiles = db.sqlite.SearchGetProfiles(query)
+		profiles = db.sqlite.SearchGetProfiles(query, limit, offset)
 		return profiles
 	}
 	return nil

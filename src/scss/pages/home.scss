@@ -116,6 +116,31 @@
   color: map.get(global.$colors, "text");
   font-size: 1.1em;
 }
+.searchSectionLabel {
+  color: map.get(global.$colors, "text");
+  font-weight: 600;
+  font-size: 1.1em;
+  margin-bottom: 0.75em;
+  padding-left: 0.5em;
+  border-left: 3px solid map.get(global.$colors, "quaternary");
+}
+.loadMoreBtn {
+  width: 100%;
+  padding: 10px;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  background-color: map.get(global.$colors, "secondary");
+  border: 1px solid map.get(global.$colors, "border");
+  border-radius: 8px;
+  text-align: center;
+  color: map.get(global.$colors, "text");
+  cursor: pointer;
+  font-size: 1em;
+  transition: background-color 0.2s ease;
+  &:hover {
+    background-color: map.get(global.$colors, "tertiary");
+  }
+}
 #discoverSection {
   width: 100%;
   padding-top: 1.5em;

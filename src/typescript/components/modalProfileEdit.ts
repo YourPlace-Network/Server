@@ -141,17 +141,16 @@ export async function showProfileEditModal() {
             let file = DOM.inputBanner.files![0];
             DOM.bannerPreview.src = URL.createObjectURL(file);
             let result = await UploadFile(file, DOM.csrfToken.value);
-            // File upload responses contain arrays now. response[1].data[i] is one file data object. Look in files.go
-            if (result[0] == 200) {
-                if (result[1].status == "success") {
-                    try {
-                        let success = await WalletSetBanner("ipfs://" + result[1].cid);
-                        if (success) hideModalAndShowToast();
-                    } catch (e) {
-                        LogError("Failed to set banner" + e);
-                    }
+            if (result[0] == 200 && result[1].status == "success" && result[1].data && result[1].data.length > 0) {
+                try {
+                    let success = await WalletSetBanner("ipfs://" + result[1].data[0].cid);
+                    if (success) hideModalAndShowToast();
+                    return;
+                } catch (e) {
+                    LogError("Failed to set banner: " + e);
                 }
             }
+            LogError("Failed to upload banner: " + result[1].status);
         }
         async function updateName() {
             let name = DOM.inputUsername.value;

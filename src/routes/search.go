@@ -5,6 +5,7 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/security"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -23,8 +24,8 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 	})
 	router.GET("/s", func(c *gin.Context) {
 		query := c.Query("q")
-		if len(query) == 0 {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "no query provided"})
+		if len(query) < 3 {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "query too short"})
 			return
 		}
 		if len(query) > 250 {
@@ -38,9 +39,19 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "query only contains invalid characters - cut it out, buster"})
 			return
 		}
+		limitStr := c.DefaultQuery("limit", "26")
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 || limit > 26 {
+			limit = 26
+		}
+		offsetStr := c.DefaultQuery("offset", "0")
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			offset = 0
+		}
 		tokens := strings.Fields(noWhitespace)
 		var address string
-		if tokens[0] == "profile:" { // profile specific search to demonstrate tokenization
+		if tokens[0] == "profile:" {
 			valid, chain := security.IsValidENSName(tokens[1])
 			if valid {
 				var err error
@@ -56,36 +67,57 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 			} else {
 				profile = tokens[1]
 			}
-			results := database.SearchGetProfiles(profile)
-			c.SecureJSON(http.StatusOK, gin.H{"results": results})
+			results := database.SearchGetProfiles(profile, 50, 0)
+			c.SecureJSON(http.StatusOK, gin.H{"profiles": results, "posts": []map[string]interface{}{}, "hasMorePosts": false})
 			return
-		} else {
-			valid, chain := security.IsValidENSName(printableQuery)
-			if valid {
-				address, _ = blockchain2.WalletGetAddress(chain, printableQuery, _blockchain)
+		}
+		valid, chain := security.IsValidENSName(printableQuery)
+		if valid {
+			address, _ = blockchain2.WalletGetAddress(chain, printableQuery, _blockchain)
+		}
+		profileQuery := printableQuery
+		if address != "" {
+			profileQuery = address
+		}
+		posts := database.SearchGetPosts(printableQuery, limit, offset)
+		hasMorePosts := len(posts) >= limit
+		if hasMorePosts {
+			posts = posts[:limit-1]
+		}
+		profiles := database.SearchGetProfiles(profileQuery, 50, 0)
+		seen := make(map[string]bool)
+		var dedupedProfiles []map[string]interface{}
+		for _, p := range profiles {
+			key := p["blockchain"].(string) + p["address"].(string)
+			if !seen[key] {
+				seen[key] = true
+				dedupedProfiles = append(dedupedProfiles, p)
 			}
-			profileQuery := printableQuery
-			if address != "" {
-				profileQuery = address
-			}
-			posts := database.SearchGetPosts(printableQuery)
-			profiles := database.SearchGetProfiles(profileQuery)
-			ensSuffixes := []string{".algo", ".base.eth", ".eth"}
-			if !strings.Contains(printableQuery, ".") {
-				for _, suffix := range ensSuffixes {
-					ensName := strings.ToLower(printableQuery) + suffix
-					valid, chain := security.IsValidENSName(ensName)
-					if valid {
-						ensAddress, err := blockchain2.WalletGetAddress(chain, ensName, _blockchain)
-						if err == nil && ensAddress != "" {
-							ensProfiles := database.SearchGetProfiles(ensAddress)
-							profiles = append(profiles, ensProfiles...)
+		}
+		ensSuffixes := []string{".algo", ".base.eth", ".eth"}
+		if !strings.Contains(printableQuery, ".") {
+			for _, suffix := range ensSuffixes {
+				ensName := strings.ToLower(printableQuery) + suffix
+				valid, chain := security.IsValidENSName(ensName)
+				if valid {
+					ensAddress, err := blockchain2.WalletGetAddress(chain, ensName, _blockchain)
+					if err == nil && ensAddress != "" {
+						ensProfiles := database.SearchGetProfiles(ensAddress, 50, 0)
+						for _, ep := range ensProfiles {
+							key := ep["blockchain"].(string) + ep["address"].(string)
+							if !seen[key] {
+								seen[key] = true
+								dedupedProfiles = append(dedupedProfiles, ep)
+							}
 						}
 					}
 				}
 			}
-			results := append(posts, profiles...)
-			c.SecureJSON(http.StatusOK, gin.H{"results": results})
 		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"profiles":     dedupedProfiles,
+			"posts":        posts,
+			"hasMorePosts": hasMorePosts,
+		})
 	})
 }
