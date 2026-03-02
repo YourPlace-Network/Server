@@ -134,7 +134,7 @@ You may opt out of non-essential data collection through the Application setting
 
 ## 12. GOVERNING LAW
 
-These Terms and any disputes arising out of or related to these Terms or the Application shall be governed by and construed in accordance with the laws of the Cayman Islands, without regard to its conflict of law principles.
+These Terms and any disputes arising out of or related to these Terms or the Application shall be governed by and construed in accordance with the laws of the United States, without regard to its conflict of law principles.
 
 ## 13. CHANGES TO TERMS
 

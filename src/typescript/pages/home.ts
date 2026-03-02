@@ -31,11 +31,8 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
             discoverSection: document.getElementById("discoverSection")! as HTMLDivElement,
             discoverRandomRow: document.getElementById("discoverRandomRow")! as HTMLDivElement,
-            discoverRandomLabel: document.getElementById("discoverRandomLabel")! as HTMLHeadingElement,
             discoverFollowersRow: document.getElementById("discoverFollowersRow")! as HTMLDivElement,
-            discoverFollowersLabel: document.getElementById("discoverFollowersLabel")! as HTMLHeadingElement,
             discoverPostsRow: document.getElementById("discoverPostsRow")! as HTMLDivElement,
-            discoverPostsLabel: document.getElementById("discoverPostsLabel")! as HTMLHeadingElement,
             feedRefreshBtn: document.getElementById("feedRefreshBtn")! as HTMLElement,
         }
         const FEED_PAGE_SIZE = 5;
@@ -227,11 +224,8 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 }
                 const data = resp[1];
                 await populateDiscoverRow(DOM.discoverRandomRow, data.random || []);
-                DOM.discoverRandomLabel.style.visibility = "visible";
                 await populateDiscoverRow(DOM.discoverFollowersRow, data.byFollowers || []);
-                DOM.discoverFollowersLabel.style.visibility = "visible";
                 await populateDiscoverRow(DOM.discoverPostsRow, data.byPosts || []);
-                DOM.discoverPostsLabel.style.visibility = "visible";
             } catch (error) {
                 console.error("Error loading discover profiles:", error);
             }

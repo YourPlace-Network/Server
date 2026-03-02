@@ -1,7 +1,7 @@
 https://github.com/elizaOS/agent-twitter-client
 
-1. Create Twitter Developer Account - https://developer.twitter.com/en/portal/dashboard
-2. Create Twitter "Project"
+1. Create X.com Developer Account - https://developer.twitter.com/en/portal/dashboard
+2. Create X.com "Project"
 3. Add "YourPlace" as an App under the Project
 4. Navigate to "Keys and Tokens" and generate the following:
     - API Key

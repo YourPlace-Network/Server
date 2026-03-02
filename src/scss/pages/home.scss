@@ -189,3 +189,48 @@
     opacity: 1;
   }
 }
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.15; }
+}
+.skeletonCard {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0.4em;
+  background-color: map.get(global.$colors, "secondary");
+  border: 1px solid map.get(global.$colors, "primary");
+  border-radius: 0.5em;
+  height: 100%;
+}
+.skeletonAvatar {
+  width: 2.5em;
+  height: 2.5em;
+  border-radius: 0.3em;
+  background-color: map.get(global.$colors, "primary");
+  flex-shrink: 0;
+  margin-right: 0.4em;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+.skeletonIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  min-width: 0;
+  flex: 1;
+}
+.skeletonName {
+  height: 0.9em;
+  width: 70%;
+  border-radius: 0.2em;
+  background-color: map.get(global.$colors, "primary");
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+.skeletonAddress {
+  height: 0.7em;
+  width: 50%;
+  border-radius: 0.2em;
+  background-color: map.get(global.$colors, "primary");
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
