@@ -455,7 +455,7 @@ export async function preloadTinyMCE() {
             const editor = (window as any).tinymce.get("addPostText");
             if (editor) {
                 const sanitized = XSSSanitizeValue(draft);
-                editor.setContent(`<p>${sanitized}</p>`);
+                editor.setContent(`<p>${sanitized.replace(/^ /, "&nbsp;")}</p>`);
             }
         }
         DOM.addPostButton.addEventListener("click", showModal);
