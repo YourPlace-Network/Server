@@ -111,11 +111,9 @@ func (ethereum *Ethereum) init(database *db.Database, gateway bool) {
 		core.LogError("Could not connect to Ethereum HTTPS RPC: " + err.Error())
 		return
 	}
-	defer rpcClient.Close()
 	ethereum.RpcClient = rpcClient
 	ethereum.EarliestBlock = EthereumGetEarliestBlock()
 	ethClient := ethclient.NewClient(ethereum.RpcClient)
-	defer ethClient.Close()
 	ethereum.EthClient = ethClient
 }
 func (ethereum *Ethereum) GetBalance(address string) (big.Int, error) {

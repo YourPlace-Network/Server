@@ -97,11 +97,9 @@ func (base *Base) init(database *db.Database, gateway bool) {
 		core.LogError("Could not connect to Base HTTPS RPC: " + err.Error())
 		return
 	}
-	defer rpcClient.Close()
 	base.RpcClient = rpcClient
 	base.EarliestBlock = BaseGetEarliestBlock() // Earliest block where YourPlace existed on-chain
 	ethClient := ethclient.NewClient(base.RpcClient)
-	defer ethClient.Close()
 	base.EthClient = ethClient
 }
 func (base *Base) GetBalance(address string) (big.Int, error) {
