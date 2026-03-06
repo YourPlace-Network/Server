@@ -146,6 +146,10 @@ func (base *Base) GetENSAddresses(name string) ([]string, error) {
 	if err != nil {
 		return nil, core.LogWarningReturn("Could not get Base ENS address: " + err.Error())
 	}
+	if address == (common.Address{}) {
+		core.LogDebug("Base.GetENSAddresses(): " + name + " resolved to zero address, treating as not found")
+		return nil, nil
+	}
 	return []string{address.Hex()}, nil
 }
 func (base *Base) GetBlockTimestamp(blockNumber *big.Int) uint64 {

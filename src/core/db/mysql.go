@@ -1009,10 +1009,13 @@ func (db *MySQL) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
 	var unionParts []string
 	for _, _blockchain := range core.ValidNetworks {
-		unionParts = append(unionParts, fmt.Sprintf("SELECT address, blockchain FROM onchain_%s_meta", _blockchain))
-		unionParts = append(unionParts, fmt.Sprintf("SELECT followeeAddress, followeeBlockchain FROM onchain_%s_follow", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, blockchain FROM onchain_%s_comment", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT followeeAddress AS address, followeeBlockchain AS blockchain FROM onchain_%s_follow", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT followerAddress AS address, followerBlockchain AS blockchain FROM onchain_%s_follow", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, blockchain FROM onchain_%s_post", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, blockchain FROM onchain_%s_reaction", _blockchain))
 	}
-	sqlQuery := fmt.Sprintf("SELECT address, blockchain FROM (%s) t ORDER BY RAND() LIMIT ?", strings.Join(unionParts, " UNION "))
+	sqlQuery := fmt.Sprintf("SELECT address, blockchain FROM (%s) t GROUP BY address, blockchain ORDER BY RAND() LIMIT ?", strings.Join(unionParts, " UNION ALL "))
 	rows, err := db.runParamSQLSelect(sqlQuery, limit)
 	if err != nil {
 		core.LogDebug("Could not get random profiles from database: " + err.Error())

@@ -165,7 +165,12 @@ func (ethereum *Ethereum) GetPriceUSD() float64 {
 	return price
 }
 func (ethereum *Ethereum) GetENSAddresses(name string) ([]string, error) {
+	core.LogDebug("Ethereum.GetENSAddresses(): Resolving ENS name: " + name)
+	if ethereum.EthClient == nil {
+		return nil, core.LogErrorReturn("Ethereum.GetENSAddresses(): EthClient is nil")
+	}
 	resolverAddr := common.HexToAddress(ethereum.EnsResolverAddress)
+	core.LogDebug("Ethereum.GetENSAddresses(): Using resolver: " + resolverAddr.Hex())
 	resolver, err := ens.NewResolverAt(ethereum.EthClient, name, resolverAddr)
 	if err != nil {
 		return nil, core.LogErrorReturn("Could not get Ethereum ENS resolver: " + err.Error())
@@ -174,7 +179,25 @@ func (ethereum *Ethereum) GetENSAddresses(name string) ([]string, error) {
 	if err != nil {
 		return nil, core.LogWarningReturn("Could not get Ethereum ENS address: " + err.Error())
 	}
-	return []string{address.Hex()}, nil
+	if address != (common.Address{}) {
+		core.LogDebug("Ethereum.GetENSAddresses(): Resolved " + name + " -> " + address.Hex())
+		return []string{address.Hex()}, nil
+	}
+	core.LogDebug("Ethereum.GetENSAddresses(): " + name + " has no linked address, looking up owner")
+	registry, err := ens.NewRegistry(ethereum.EthClient)
+	if err != nil {
+		return nil, core.LogErrorReturn("Ethereum.GetENSAddresses(): Could not get ENS registry: " + err.Error())
+	}
+	owner, err := registry.Owner(name)
+	if err != nil {
+		return nil, core.LogWarningReturn("Ethereum.GetENSAddresses(): Could not get owner for " + name + ": " + err.Error())
+	}
+	if owner == (common.Address{}) {
+		core.LogDebug("Ethereum.GetENSAddresses(): " + name + " has no owner, treating as not found")
+		return nil, nil
+	}
+	core.LogDebug("Ethereum.GetENSAddresses(): Resolved " + name + " -> " + owner.Hex() + " (owner)")
+	return []string{owner.Hex()}, nil
 }
 func (ethereum *Ethereum) GetENSName(address string) (string, error) {
 	core.LogDebug("Ethereum.GetENSName(): Getting ENS name for address: " + address)

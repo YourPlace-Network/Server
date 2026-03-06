@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -61,6 +62,9 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 					return
 				}
 			}
+			if address != "" {
+				database.OnchainMN(chain, address, tokens[1], uint64(time.Now().Unix()))
+			}
 			var profile string
 			if address != "" {
 				profile = address
@@ -74,6 +78,9 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 		valid, chain := security.IsValidENSName(printableQuery)
 		if valid {
 			address, _ = blockchain2.WalletGetAddress(chain, printableQuery, _blockchain)
+		}
+		if address != "" {
+			database.OnchainMN(chain, address, printableQuery, uint64(time.Now().Unix()))
 		}
 		profileQuery := printableQuery
 		if address != "" {
@@ -102,6 +109,7 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 				if valid {
 					ensAddress, err := blockchain2.WalletGetAddress(chain, ensName, _blockchain)
 					if err == nil && ensAddress != "" {
+						database.OnchainMN(chain, ensAddress, ensName, uint64(time.Now().Unix()))
 						ensProfiles := database.SearchGetProfiles(ensAddress, 50, 0)
 						for _, ep := range ensProfiles {
 							key := ep["blockchain"].(string) + ep["address"].(string)
