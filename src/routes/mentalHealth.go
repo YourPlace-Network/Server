@@ -1136,4 +1136,5 @@ var mentalHealthTips = []string{
 	"Being a \"people pleaser\" isn't being a good person. It's just being too afraid of conflict to have an actual opinion",
 	"Every time you replace \"this is hard\" with \"what's the first step?\" you shift brain activity from your amygdala (fear) to your prefrontal cortex (problem solving)",
 	"The devil speaks in inversion. The anti-fascists are the fascists. The anti-racists are the racists. The fact-checkers are the propagandists. Once you understand this, the world make much more sense",
+	"The highest form of intelligence is metacognition - the ability to think about your own thinking. This is what allows you to learn and grow, and to avoid being manipulated by others. It allows you to question your own reactions, interrupt emotional reflexes, and to update beliefs instead of defending them",
 }
