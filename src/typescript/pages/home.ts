@@ -384,7 +384,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 algoTxIdPostPromise = HttpGetJson("/post/data/algorand/" + algoQuery);
             }
             const [resp, algoTxIdResp] = await Promise.all([
-                HttpGetJson(`/s/?q=${query}&limit=${SEARCH_POSTS_PAGE_SIZE + 1}&offset=0`),
+                HttpGetJson(`/s?q=${query}&limit=${SEARCH_POSTS_PAGE_SIZE + 1}&offset=0`),
                 algoTxIdPostPromise
             ]);
             DOM.resultsDiv.replaceChildren();
@@ -406,25 +406,26 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             if (IsValidAlgoAddress(algoQuery)) {
                 profiles.unshift({resultType: "profile", blockchain: "algorand", address: algoQuery});
             }
-            if (profiles.length === 0 && !query.includes(".")) {
-                let ensQuery = query.toLowerCase().trim();
-                if (!ensQuery.endsWith(".base.eth")) {
-                    ensQuery = ensQuery + ".base.eth";
-                }
-                let ethEnsQuery = query.toLowerCase().trim();
-                if (ethEnsQuery.endsWith(".base.eth")) {
-                    ethEnsQuery = "";
-                } else if (!ethEnsQuery.endsWith(".eth")) {
-                    ethEnsQuery = ethEnsQuery + ".eth";
-                }
-                let nfdQuery = query.toLowerCase().trim();
-                if (!nfdQuery.endsWith(".algo")) {
-                    nfdQuery = nfdQuery + ".algo";
+            if (profiles.length === 0) {
+                let lowerQuery = query.toLowerCase().trim();
+                let ensQuery = "";
+                let ethEnsQuery = "";
+                let nfdQuery = "";
+                if (lowerQuery.endsWith(".base.eth")) {
+                    ensQuery = lowerQuery;
+                } else if (lowerQuery.endsWith(".eth")) {
+                    ethEnsQuery = lowerQuery;
+                } else if (lowerQuery.endsWith(".algo")) {
+                    nfdQuery = lowerQuery;
+                } else if (!lowerQuery.includes(".")) {
+                    ensQuery = lowerQuery + ".base.eth";
+                    ethEnsQuery = lowerQuery + ".eth";
+                    nfdQuery = lowerQuery + ".algo";
                 }
                 const [ensAddress, ethEnsAddress, nfdAddress] = await Promise.all([
-                    baseGetEnsAddress(ensQuery),
+                    ensQuery !== "" ? baseGetEnsAddress(ensQuery) : Promise.resolve(""),
                     ethEnsQuery !== "" ? ethereumGetEnsAddress(ethEnsQuery) : Promise.resolve(""),
-                    algoGetNfdAddress(nfdQuery)
+                    nfdQuery !== "" ? algoGetNfdAddress(nfdQuery) : Promise.resolve("")
                 ]);
                 if (nfdAddress && nfdAddress !== "") {
                     profiles.unshift({resultType: "profile", blockchain: "algorand", address: nfdAddress});
@@ -517,7 +518,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             try {
                 let searchPostsDiv = document.getElementById("searchPostsDiv");
                 if (!searchPostsDiv) return;
-                const resp = await HttpGetJson(`/s/?q=${currentSearchQuery}&limit=${SEARCH_POSTS_PAGE_SIZE + 1}&offset=${searchPostsOffset}`);
+                const resp = await HttpGetJson(`/s?q=${currentSearchQuery}&limit=${SEARCH_POSTS_PAGE_SIZE + 1}&offset=${searchPostsOffset}`);
                 if (resp[0] !== 200 || !resp[1]) return;
                 let posts: any[] = resp[1].posts || [];
                 searchPostsHasMore = resp[1].hasMorePosts || false;
