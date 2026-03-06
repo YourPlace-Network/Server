@@ -744,6 +744,15 @@ func (db *Database) ProfileUpdateEnsData(address string, blockchain string, name
 		db.sqlite.ProfileUpdateEnsData(address, blockchain, name, avatar)
 	}
 }
+func (db *Database) ProfileIsEnsDataFresh(address string, blockchain string) bool {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileIsEnsDataFresh(address, blockchain)
+	case "sqlite":
+		return db.sqlite.ProfileIsEnsDataFresh(address, blockchain)
+	}
+	return false
+}
 func (db *Database) ProfileGetEnsName(address string, blockchain string) string {
 	switch db.Engine {
 	case "mysql":

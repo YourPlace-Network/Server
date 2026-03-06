@@ -84,17 +84,16 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 				isGuest = false
 			}
 		}
+		if !database.ProfileIsEnsDataFresh(addressParam, blockchainParam) {
+			ensName, _ := blockchain2.WalletGetName(blockchainParam, addressParam, _blockchain)
+			ensAvatar, _ := blockchain2.WalletGetAvatar(blockchainParam, addressParam, _blockchain)
+			database.ProfileUpdateEnsData(addressParam, blockchainParam, ensName, ensAvatar)
+		}
 		profileName := database.ProfileGetName(addressParam, blockchainParam)
 		profileDescription := database.ProfileGetDescription(addressParam, blockchainParam)
 		profileAvatar := database.ProfileGetAvatar(addressParam, blockchainParam)
 		if profileAvatar == "" {
 			profileAvatar = database.ProfileGetEnsAvatar(addressParam, blockchainParam)
-		}
-		if profileAvatar == "" {
-			onChainAvatar, err := blockchain2.WalletGetAvatar(blockchainParam, addressParam, _blockchain)
-			if err == nil && onChainAvatar != "" {
-				profileAvatar = onChainAvatar
-			}
 		}
 		profileColorsJSON := database.ProfileGetColors(addressParam, blockchainParam)
 		var profileColors map[string]string
@@ -104,9 +103,6 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		displayName := profileName
 		if displayName == "" {
 			displayName = database.ProfileGetEnsName(addressParam, blockchainParam)
-		}
-		if displayName == "" {
-			displayName, _ = blockchain2.WalletGetName(blockchainParam, addressParam, _blockchain)
 		}
 		if displayName == "" {
 			displayName = addressParam[:6] + "..." + addressParam[len(addressParam)-4:]

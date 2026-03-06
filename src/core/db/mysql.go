@@ -850,10 +850,20 @@ func (db *MySQL) ProfileGetAddressesWithMissingEnsData(blockchain string) []stri
 	}
 	return addresses
 }
+func (db *MySQL) ProfileIsEnsDataFresh(address string, blockchain string) bool {
+	staleThreshold := time.Now().Unix() - (7 * 24 * 60 * 60)
+	query := fmt.Sprintf("SELECT ensNameTimestamp FROM onchain_%s_meta WHERE address = ? AND blockchain = ? AND ensNameTimestamp > ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain, staleThreshold)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	return rows.Next()
+}
 func (db *MySQL) ProfileUpdateEnsData(address string, blockchain string, name string, avatar string) {
 	now := time.Now().Unix()
-	query := fmt.Sprintf("UPDATE onchain_%s_meta SET ensName = ?, ensAvatar = ?, ensNameTimestamp = ?, ensAvatarTimestamp = ? WHERE address = ?", blockchain)
-	_, err := db.runParamSQLUpdate(query, name, avatar, now, now, address)
+	query := fmt.Sprintf("INSERT INTO onchain_%s_meta (blockchain, address, ensName, ensAvatar, ensNameTimestamp, ensAvatarTimestamp) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE ensName = VALUES(ensName), ensAvatar = VALUES(ensAvatar), ensNameTimestamp = VALUES(ensNameTimestamp), ensAvatarTimestamp = VALUES(ensAvatarTimestamp)", blockchain)
+	_, err := db.runParamSQLUpdate(query, blockchain, address, name, avatar, now, now)
 	if err != nil {
 		core.LogDebug("Could not update ENS data: " + err.Error())
 	}
