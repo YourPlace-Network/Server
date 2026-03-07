@@ -248,7 +248,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		// Base-specific tables
 		"base_indexer_jobs":     "CREATE TABLE IF NOT EXISTS base_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
 		"onchain_base_post":     "CREATE TABLE IF NOT EXISTS onchain_base_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (blockchain TEXT, address TEXT, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName TEXT DEFAULT '', location TEXT DEFAULT '', name TEXT DEFAULT '', server TEXT DEFAULT '', vertical TEXT DEFAULT '', website TEXT DEFAULT '', addressTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, blockchainTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, ensAvatarTimestamp INTEGER DEFAULT 0, ensNameTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (blockchain TEXT, address TEXT, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot INTEGER DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName TEXT DEFAULT '', location TEXT DEFAULT '', name TEXT DEFAULT '', nsfw INTEGER DEFAULT 0, server TEXT DEFAULT '', vertical TEXT DEFAULT '', website TEXT DEFAULT '', addressTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, blockchainTimestamp INTEGER DEFAULT 0, botTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, ensAvatarTimestamp INTEGER DEFAULT 0, ensNameTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, nsfwTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_base_block":    "CREATE TABLE IF NOT EXISTS onchain_base_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_base_follow":   "CREATE TABLE IF NOT EXISTS onchain_base_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_base_comment":  "CREATE TABLE IF NOT EXISTS onchain_base_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
@@ -256,7 +256,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		// Algorand-specific tables
 		"algorand_indexer_jobs":     "CREATE TABLE IF NOT EXISTS algorand_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
 		"onchain_algorand_post":     "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
-		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain TEXT, address TEXT, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName TEXT DEFAULT '', location TEXT DEFAULT '', name TEXT DEFAULT '', server TEXT DEFAULT '', vertical TEXT DEFAULT '', website TEXT DEFAULT '', addressTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, blockchainTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, ensAvatarTimestamp INTEGER DEFAULT 0, ensNameTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain TEXT, address TEXT, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot INTEGER DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName TEXT DEFAULT '', location TEXT DEFAULT '', name TEXT DEFAULT '', nsfw INTEGER DEFAULT 0, server TEXT DEFAULT '', vertical TEXT DEFAULT '', website TEXT DEFAULT '', addressTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, blockchainTimestamp INTEGER DEFAULT 0, botTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, ensAvatarTimestamp INTEGER DEFAULT 0, ensNameTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, nsfwTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_algorand_block":    "CREATE TABLE IF NOT EXISTS onchain_algorand_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_algorand_follow":   "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_algorand_comment":  "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
@@ -266,7 +266,7 @@ func (db *SQLite) createTables(ctx context.Context) error {
 		"onchain_ethereum_block":    "CREATE TABLE IF NOT EXISTS onchain_ethereum_block (txHash TEXT, blockchain TEXT, blockerAddress TEXT, blockerBlockchain TEXT, blockeeAddress TEXT, blockeeBlockchain TEXT, key TEXT, value TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_ethereum_comment":  "CREATE TABLE IF NOT EXISTS onchain_ethereum_comment (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
 		"onchain_ethereum_follow":   "CREATE TABLE IF NOT EXISTS onchain_ethereum_follow (txHash TEXT, blockchain TEXT, followerAddress TEXT, followerBlockchain TEXT, followeeAddress TEXT, followeeBlockchain TEXT, timestamp INTEGER DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_ethereum_meta":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_meta (blockchain TEXT, address TEXT, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName TEXT DEFAULT '', location TEXT DEFAULT '', name TEXT DEFAULT '', server TEXT DEFAULT '', vertical TEXT DEFAULT '', website TEXT DEFAULT '', addressTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, blockchainTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, ensAvatarTimestamp INTEGER DEFAULT 0, ensNameTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_ethereum_meta":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_meta (blockchain TEXT, address TEXT, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot INTEGER DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName TEXT DEFAULT '', location TEXT DEFAULT '', name TEXT DEFAULT '', nsfw INTEGER DEFAULT 0, server TEXT DEFAULT '', vertical TEXT DEFAULT '', website TEXT DEFAULT '', addressTimestamp INTEGER DEFAULT 0, avatarTimestamp INTEGER DEFAULT 0, bannerTimestamp INTEGER DEFAULT 0, blockchainTimestamp INTEGER DEFAULT 0, botTimestamp INTEGER DEFAULT 0, colorsTimestamp INTEGER DEFAULT 0, descriptionTimestamp INTEGER DEFAULT 0, ensAvatarTimestamp INTEGER DEFAULT 0, ensNameTimestamp INTEGER DEFAULT 0, locationTimestamp INTEGER DEFAULT 0, nameTimestamp INTEGER DEFAULT 0, nsfwTimestamp INTEGER DEFAULT 0, serverTimestamp INTEGER DEFAULT 0, verticalTimestamp INTEGER DEFAULT 0, websiteTimestamp INTEGER DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_ethereum_post":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
 		"onchain_ethereum_reaction": "CREATE TABLE IF NOT EXISTS onchain_ethereum_reaction (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', targetTxHash TEXT DEFAULT '', targetType TEXT DEFAULT 'post', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 	}
@@ -1361,6 +1361,44 @@ func (db *SQLite) ProfileGetWebsite(address string, blockchain string) string {
 	}
 	return ""
 }
+func (db *SQLite) ProfileGetBot(address string, blockchain string) bool {
+	query := fmt.Sprintf("SELECT bot FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	if err != nil {
+		core.LogDebug("Could not get profile bot from database: " + err.Error())
+		return false
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var bot int
+		err = rows.Scan(&bot)
+		if err != nil {
+			core.LogDebug("Could not parse database rows for profile bot: " + err.Error())
+			return false
+		}
+		return bot == 1
+	}
+	return false
+}
+func (db *SQLite) ProfileGetNsfw(address string, blockchain string) bool {
+	query := fmt.Sprintf("SELECT nsfw FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	if err != nil {
+		core.LogDebug("Could not get profile nsfw from database: " + err.Error())
+		return false
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var nsfw int
+		err = rows.Scan(&nsfw)
+		if err != nil {
+			core.LogDebug("Could not parse database rows for profile nsfw: " + err.Error())
+			return false
+		}
+		return nsfw == 1
+	}
+	return false
+}
 func (db *SQLite) ProfileGetVertical(address string, blockchain string) string {
 	query := fmt.Sprintf("SELECT vertical FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
 	rows, err := db.runParamSQLSelect(query, address, blockchain)
@@ -2394,6 +2432,30 @@ func (db *SQLite) OnchainMB(blockchain string, address string, banner string, ti
 	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, banner, bannerTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET banner = excluded.banner, bannerTimestamp = excluded.bannerTimestamp WHERE excluded.bannerTimestamp > bannerTimestamp"
 	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, blockchain, address, banner, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainMBot(blockchain string, address string, bot bool, timestamp uint64) {
+	botInt := 0
+	if bot {
+		botInt = 1
+	}
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, bot, botTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET bot = excluded.bot, botTimestamp = excluded.botTimestamp WHERE excluded.botTimestamp > botTimestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	_, err := db.runParamSQLUpdate(query, blockchain, address, botInt, int64(timestamp))
+	if err != nil {
+		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
+	}
+}
+func (db *SQLite) OnchainMNsfw(blockchain string, address string, nsfw bool, timestamp uint64) {
+	nsfwInt := 0
+	if nsfw {
+		nsfwInt = 1
+	}
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, nsfw, nsfwTimestamp) VALUES (?, ?, ?, ?) ON CONFLICT (blockchain, address) DO UPDATE SET nsfw = excluded.nsfw, nsfwTimestamp = excluded.nsfwTimestamp WHERE excluded.nsfwTimestamp > nsfwTimestamp"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	_, err := db.runParamSQLUpdate(query, blockchain, address, nsfwInt, int64(timestamp))
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}

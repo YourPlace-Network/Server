@@ -360,6 +360,14 @@ export async function localWalletEthereumSetName(name: string): Promise<string |
     const jsonData = YP.metadataName(name);
     return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
 }
+export async function localWalletEthereumSetBot(bot: boolean): Promise<string | undefined> {
+    const jsonData = YP.metadataBot(bot);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function localWalletEthereumSetNsfw(nsfw: boolean): Promise<string | undefined> {
+    const jsonData = YP.metadataNsfw(nsfw);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
 export async function localWalletEthereumSetVertical(vertical: string): Promise<string | undefined> {
     const jsonData = YP.metadataVertical(vertical);
     return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);

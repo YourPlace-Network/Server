@@ -5,6 +5,12 @@ export let YP = {
         }
         return `yp/1/e:${JSON.stringify(payload)}`
     },
+    metadataBot: function(bot: boolean): string {
+        const payload = {
+            bot: bot
+        }
+        return `yp/1/mbot:${JSON.stringify(payload)}`
+    },
     metadataAvatar: function(url: string): string {
         const payload = {
             a: url
@@ -40,6 +46,12 @@ export let YP = {
             w: website
         }
         return `yp/1/mw:${JSON.stringify(payload)}`
+    },
+    metadataNsfw: function(nsfw: boolean): string {
+        const payload = {
+            nsfw: nsfw
+        }
+        return `yp/1/mnsfw:${JSON.stringify(payload)}`
     },
     metadataName: function(name: string): string {
         const payload = {

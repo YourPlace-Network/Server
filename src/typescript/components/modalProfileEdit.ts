@@ -2,7 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalProfileEdit.scss";
 import {LogError, LogInfo} from "../util/log";
 import {UploadFile} from "../util/files";
-import {WalletSetAvatar, WalletSetBanner, WalletSetColors, WalletSetDescription, WalletSetLocation, WalletSetName, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
+import {WalletSetAvatar, WalletSetBanner, WalletSetBot, WalletSetColors, WalletSetDescription, WalletSetLocation, WalletSetName, WalletSetNsfw, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
 import DOMPurify from "dompurify";
 import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
@@ -60,10 +60,12 @@ export async function showProfileEditModal() {
             avatarPreview: document.getElementById("avatarPreview")! as HTMLImageElement,
             bannerLabel: document.querySelector('label[for="inputBanner"]') as HTMLLabelElement,
             bannerPreview: document.getElementById("bannerPreview")! as HTMLImageElement,
+            btnBotSave: document.getElementById("btnBotSave")! as HTMLButtonElement,
             btnColorsReset: document.getElementById("btnColorsReset")! as HTMLButtonElement,
             btnColorsSave: document.getElementById("btnColorsSave")! as HTMLButtonElement,
             btnDescriptionSave: document.getElementById("btnDescriptionSave")! as HTMLButtonElement,
             btnLocationSave: document.getElementById("btnLocationSave")! as HTMLButtonElement,
+            btnNsfwSave: document.getElementById("btnNsfwSave")! as HTMLButtonElement,
             btnUsernameSave: document.getElementById("btnUsernameSave")! as HTMLButtonElement,
             btnVerticalSave: document.getElementById("btnVerticalSave")! as HTMLButtonElement,
             btnWebsiteSave: document.getElementById("btnWebsiteSave")! as HTMLButtonElement,
@@ -78,8 +80,10 @@ export async function showProfileEditModal() {
             injectedBlockchain: document.getElementById("injectedBlockchain") as HTMLInputElement,
             inputAvatar: document.getElementById("inputAvatar")! as HTMLInputElement,
             inputBanner: document.getElementById("inputBanner")! as HTMLInputElement,
+            inputBot: document.getElementById("inputBot")! as HTMLInputElement,
             inputDescription: document.getElementById("inputDescription")! as HTMLTextAreaElement,
             inputLocation: document.getElementById("inputLocation")! as HTMLInputElement,
+            inputNsfw: document.getElementById("inputNsfw")! as HTMLInputElement,
             inputUsername: document.getElementById("inputUsername")! as HTMLInputElement,
             inputVertical: document.getElementById("inputVertical")! as HTMLSelectElement,
             inputWebsite: document.getElementById("inputWebsite")! as HTMLInputElement,
@@ -123,6 +127,15 @@ export async function showProfileEditModal() {
             getModalInstance().hide();
         }
 
+        async function updateBot() {
+            let bot = DOM.inputBot.checked;
+            try {
+                let success = await WalletSetBot(bot);
+                if (success) hideModalAndShowToast();
+            } catch (e) {
+                LogError("Failed to set bot flag" + e);
+            }
+        }
         async function updateAvatar() {
             let file = DOM.inputAvatar.files![0];
             let result = await UploadFile(file, DOM.csrfToken.value); // send file to server
@@ -168,6 +181,15 @@ export async function showProfileEditModal() {
                 if (success) hideModalAndShowToast();
             } catch (e) {
                 LogError("Failed to set description" + e);
+            }
+        }
+        async function updateNsfw() {
+            let nsfw = DOM.inputNsfw.checked;
+            try {
+                let success = await WalletSetNsfw(nsfw);
+                if (success) hideModalAndShowToast();
+            } catch (e) {
+                LogError("Failed to set nsfw flag" + e);
             }
         }
         async function updateLocation() {
@@ -300,9 +322,11 @@ export async function showProfileEditModal() {
                 document.activeElement.blur();
             }
         });
-        DOM.btnUsernameSave.addEventListener("click", updateName);
+        DOM.btnBotSave.addEventListener("click", updateBot);
         DOM.btnDescriptionSave.addEventListener("click", updateDescription);
         DOM.btnLocationSave.addEventListener("click", updateLocation);
+        DOM.btnNsfwSave.addEventListener("click", updateNsfw);
+        DOM.btnUsernameSave.addEventListener("click", updateName);
         DOM.btnVerticalSave.addEventListener("click", updateVertical);
         DOM.btnWebsiteSave.addEventListener("click", updateWebsite);
         for (const input of colorInputs) {

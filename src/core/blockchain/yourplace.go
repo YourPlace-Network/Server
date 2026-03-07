@@ -24,7 +24,7 @@ func isValidYourPlacePayload(payload string) (bool, int, string, map[string]inte
 		return false, 0, "", nil
 	}
 	actionCode := matches[2]
-	if !security.RegexMatch(`^[a-z]{1,4}$`, actionCode) {
+	if !security.RegexMatch(`^[a-z]{1,5}$`, actionCode) {
 		core.LogDebug("Invalid YourPlace action code")
 		return false, 0, "", nil
 	}
@@ -270,6 +270,32 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 					}
 					_Database.OnchainMC(blockchain, fromAddress, string(colorsJSON), timestamp)
 				}
+				break
+			case "bot":
+				botRaw, ok1 := payloadObject["bot"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required bot field")
+					break
+				}
+				botVal, ok2 := botRaw.(bool)
+				if !ok2 {
+					core.LogDebug("Metadata action bot field is not a boolean")
+					break
+				}
+				_Database.OnchainMBot(blockchain, fromAddress, botVal, timestamp)
+				break
+			case "nsfw":
+				nsfwRaw, ok1 := payloadObject["nsfw"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required nsfw field")
+					break
+				}
+				nsfwVal, ok2 := nsfwRaw.(bool)
+				if !ok2 {
+					core.LogDebug("Metadata action nsfw field is not a boolean")
+					break
+				}
+				_Database.OnchainMNsfw(blockchain, fromAddress, nsfwVal, timestamp)
 				break
 			case "v":
 				vertical, ok1 := payloadObject["v"]

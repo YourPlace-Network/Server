@@ -264,6 +264,14 @@ export async function ethereumSetName(name: string) {
     let jsonData = YP.metadataName(name);
     return await ethereumTxn(mainnetEth.burnAddress, jsonData);
 }
+export async function ethereumSetBot(bot: boolean) {
+    let jsonData = YP.metadataBot(bot);
+    return await ethereumTxn(mainnetEth.burnAddress, jsonData);
+}
+export async function ethereumSetNsfw(nsfw: boolean) {
+    let jsonData = YP.metadataNsfw(nsfw);
+    return await ethereumTxn(mainnetEth.burnAddress, jsonData);
+}
 export async function ethereumSetVertical(vertical: string) {
     let jsonData = YP.metadataVertical(vertical);
     return await ethereumTxn(mainnetEth.burnAddress, jsonData);

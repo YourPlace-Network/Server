@@ -7,7 +7,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 6
+const SchemaVersion = 7
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -29,6 +29,7 @@ var migrations = []Migration{
 	{Version: 4, Description: "Add oEmbed cache table for X.com embeds", Up: migrateV4},
 	{Version: 5, Description: "Add cached ENS/NFD name and avatar columns to meta tables", Up: migrateV5},
 	{Version: 6, Description: "Add Ethereum blockchain tables", Up: migrateV6},
+	{Version: 7, Description: "Add bot and nsfw flags to meta tables", Up: migrateV7},
 }
 
 // --- Migration Functions --- //
@@ -111,6 +112,33 @@ func migrateV6(db *SQLite) error {
 	}
 	for _, createStatement := range tables {
 		if _, err := db.database.Exec(createStatement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func migrateV7(db *SQLite) error {
+	columns := []struct {
+		table  string
+		column string
+		def    string
+	}{
+		{"onchain_algorand_meta", "bot", "INTEGER DEFAULT 0"},
+		{"onchain_algorand_meta", "botTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_algorand_meta", "nsfw", "INTEGER DEFAULT 0"},
+		{"onchain_algorand_meta", "nsfwTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_base_meta", "bot", "INTEGER DEFAULT 0"},
+		{"onchain_base_meta", "botTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_base_meta", "nsfw", "INTEGER DEFAULT 0"},
+		{"onchain_base_meta", "nsfwTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_ethereum_meta", "bot", "INTEGER DEFAULT 0"},
+		{"onchain_ethereum_meta", "botTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_ethereum_meta", "nsfw", "INTEGER DEFAULT 0"},
+		{"onchain_ethereum_meta", "nsfwTimestamp", "INTEGER DEFAULT 0"},
+	}
+	for _, col := range columns {
+		if err := db.migrateAddColumn(col.table, col.column, col.def); err != nil {
 			return err
 		}
 	}

@@ -442,6 +442,14 @@ export async function baseSetName(name: string) {
     let jsonData = YP.metadataName(name);
     return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
+export async function baseSetBot(bot: boolean) {
+    let jsonData = YP.metadataBot(bot);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function baseSetNsfw(nsfw: boolean) {
+    let jsonData = YP.metadataNsfw(nsfw);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
 export async function baseSetVertical(vertical: string) {
     let jsonData = YP.metadataVertical(vertical);
     return await baseTxn(mainnetBase.burnAddress, jsonData);

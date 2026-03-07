@@ -259,6 +259,22 @@ export async function algoSetLocation(location: string): Promise<boolean> {
     await algoSubmitTxn(txn);
     return true;
 }
+export async function algoSetBot(bot: boolean): Promise<boolean> {
+    let address = GetAddress()!;
+    let payload = YP.metadataBot(bot);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
+export async function algoSetNsfw(nsfw: boolean): Promise<boolean> {
+    let address = GetAddress()!;
+    let payload = YP.metadataNsfw(nsfw);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
 export async function algoSetVertical(vertical: string): Promise<boolean> {
     if (vertical == "" || vertical == null) return false;
     let address = GetAddress()!;

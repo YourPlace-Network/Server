@@ -19,10 +19,12 @@ import {
     algoMintCollectible,
     algoReconnectSession,
     algoSetBanner,
+    algoSetBot,
     algoSetColors,
     algoSetDescription,
     algoSetLocation,
     algoSetName,
+    algoSetNsfw,
     algoSetVertical,
     algoSetWebsite,
     algoSubmitComment,
@@ -51,10 +53,12 @@ import {
     baseMintCollectible,
     baseSetAvatar,
     baseSetBanner,
+    baseSetBot,
     baseSetColors,
     baseSetDescription,
     baseSetLocation,
     baseSetName,
+    baseSetNsfw,
     baseSetVertical,
     baseSetWebsite,
     baseSubmitComment,
@@ -83,10 +87,12 @@ import {
     ethereumMintCollectible,
     ethereumSetAvatar,
     ethereumSetBanner,
+    ethereumSetBot,
     ethereumSetColors,
     ethereumSetDescription,
     ethereumSetLocation,
     ethereumSetName,
+    ethereumSetNsfw,
     ethereumSetVertical,
     ethereumSetWebsite,
     ethereumSubmitComment,
@@ -113,10 +119,12 @@ import {
     localWalletEthereumReconnect,
     localWalletEthereumSetAvatar,
     localWalletEthereumSetBanner,
+    localWalletEthereumSetBot,
     localWalletEthereumSetColors,
     localWalletEthereumSetDescription,
     localWalletEthereumSetLocation,
     localWalletEthereumSetName,
+    localWalletEthereumSetNsfw,
     localWalletEthereumSetVertical,
     localWalletEthereumSetWebsite,
     localWalletEthereumSubmitComment,
@@ -401,11 +409,7 @@ export async function ReconnectWallet() {
 export function GetAddress() {
     let address = localStorage.getItem("accountAddress");
     if (address !== null) {
-        let wallet = GetWallet();
-        if (wallet === "pera") {
-            return address.toUpperCase();
-        }
-        return address.toLowerCase();
+        return address;
     }
     return null;
 }
@@ -543,11 +547,10 @@ export function SetWallet(wallet: string) {
     }
 }
 export function SetAddress(address: string) {
-    let lowerAddress = address.toLowerCase();
     if (address === "") {
         localStorage.removeItem("accountAddress");
     } else {
-        localStorage.setItem("accountAddress", lowerAddress);
+        localStorage.setItem("accountAddress", address);
     }
 }
 export function SetChain(chain: string) {
@@ -634,6 +637,34 @@ export async function WalletSetLocation(location: string): Promise<boolean> {
             return !!await ethereumSetLocation(location);
         case "pera":
             return await algoSetLocation(location);
+    }
+    return false;
+}
+export async function WalletSetBot(bot: boolean): Promise<boolean> {
+    let walletSelection = GetWallet()!;
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetBot(bot);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetBot(bot);
+        case "metamaskethereum":
+            return !!await ethereumSetBot(bot);
+        case "pera":
+            return await algoSetBot(bot);
+    }
+    return false;
+}
+export async function WalletSetNsfw(nsfw: boolean): Promise<boolean> {
+    let walletSelection = GetWallet()!;
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetNsfw(nsfw);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetNsfw(nsfw);
+        case "metamaskethereum":
+            return !!await ethereumSetNsfw(nsfw);
+        case "pera":
+            return await algoSetNsfw(nsfw);
     }
     return false;
 }

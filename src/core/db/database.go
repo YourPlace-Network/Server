@@ -440,12 +440,28 @@ func (db *Database) OnchainMA(blockchain string, address string, avatar string, 
 		db.sqlite.OnchainMA(blockchain, address, avatar, timestamp)
 	}
 }
+func (db *Database) OnchainMBot(blockchain string, address string, bot bool, timestamp uint64) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMBot(blockchain, address, bot, timestamp)
+	case "sqlite":
+		db.sqlite.OnchainMBot(blockchain, address, bot, timestamp)
+	}
+}
 func (db *Database) OnchainMB(blockchain string, address string, banner string, timestamp uint64) {
 	switch db.Engine {
 	case "mysql":
 		db.mysql.OnchainMB(blockchain, address, banner, timestamp)
 	case "sqlite":
 		db.sqlite.OnchainMB(blockchain, address, banner, timestamp)
+	}
+}
+func (db *Database) OnchainMNsfw(blockchain string, address string, nsfw bool, timestamp uint64) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMNsfw(blockchain, address, nsfw, timestamp)
+	case "sqlite":
+		db.sqlite.OnchainMNsfw(blockchain, address, nsfw, timestamp)
 	}
 }
 func (db *Database) OnchainMV(blockchain string, address string, vertical string, timestamp uint64) {
@@ -668,6 +684,24 @@ func (db *Database) ProfileGetWebsite(address string, blockchain string) string 
 		website = db.sqlite.ProfileGetWebsite(address, blockchain)
 	}
 	return website
+}
+func (db *Database) ProfileGetBot(address string, blockchain string) bool {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileGetBot(address, blockchain)
+	case "sqlite":
+		return db.sqlite.ProfileGetBot(address, blockchain)
+	}
+	return false
+}
+func (db *Database) ProfileGetNsfw(address string, blockchain string) bool {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileGetNsfw(address, blockchain)
+	case "sqlite":
+		return db.sqlite.ProfileGetNsfw(address, blockchain)
+	}
+	return false
 }
 func (db *Database) ProfileGetVertical(address string, blockchain string) string {
 	var vertical string

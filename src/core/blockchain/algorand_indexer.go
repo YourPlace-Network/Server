@@ -635,6 +635,26 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 			}
 		case 'm': // Metadata Actions
 			switch actionPostfix {
+			case "bot":
+				botRaw, ok1 := payloadObject["bot"]
+				if !ok1 {
+					return
+				}
+				botVal, ok2 := botRaw.(bool)
+				if !ok2 {
+					return
+				}
+				_AlgoDatabase.OnchainMBot(blockchain, fromAddr, botVal, timestamp)
+			case "nsfw":
+				nsfwRaw, ok1 := payloadObject["nsfw"]
+				if !ok1 {
+					return
+				}
+				nsfwVal, ok2 := nsfwRaw.(bool)
+				if !ok2 {
+					return
+				}
+				_AlgoDatabase.OnchainMNsfw(blockchain, fromAddr, nsfwVal, timestamp)
 			case "n":
 				name, ok1 := payloadObject["n"]
 				if !ok1 {
