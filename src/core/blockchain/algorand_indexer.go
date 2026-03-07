@@ -644,6 +644,9 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				if !ok2 {
 					return
 				}
+				if !botVal {
+					return
+				}
 				_AlgoDatabase.OnchainMBot(blockchain, fromAddr, botVal, timestamp)
 			case "nsfw":
 				nsfwRaw, ok1 := payloadObject["nsfw"]
@@ -652,6 +655,9 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				}
 				nsfwVal, ok2 := nsfwRaw.(bool)
 				if !ok2 {
+					return
+				}
+				if !nsfwVal {
 					return
 				}
 				_AlgoDatabase.OnchainMNsfw(blockchain, fromAddr, nsfwVal, timestamp)

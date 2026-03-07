@@ -6,6 +6,7 @@ import {WalletSetAvatar, WalletSetBanner, WalletSetBot, WalletSetColors, WalletS
 import DOMPurify from "dompurify";
 import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
+import {ShowModalYesNoHTML} from "./modalYesNo";
 
 export async function showProfileEditModal() {
     let DOM = {
@@ -60,12 +61,10 @@ export async function showProfileEditModal() {
             avatarPreview: document.getElementById("avatarPreview")! as HTMLImageElement,
             bannerLabel: document.querySelector('label[for="inputBanner"]') as HTMLLabelElement,
             bannerPreview: document.getElementById("bannerPreview")! as HTMLImageElement,
-            btnBotSave: document.getElementById("btnBotSave")! as HTMLButtonElement,
             btnColorsReset: document.getElementById("btnColorsReset")! as HTMLButtonElement,
             btnColorsSave: document.getElementById("btnColorsSave")! as HTMLButtonElement,
             btnDescriptionSave: document.getElementById("btnDescriptionSave")! as HTMLButtonElement,
             btnLocationSave: document.getElementById("btnLocationSave")! as HTMLButtonElement,
-            btnNsfwSave: document.getElementById("btnNsfwSave")! as HTMLButtonElement,
             btnUsernameSave: document.getElementById("btnUsernameSave")! as HTMLButtonElement,
             btnVerticalSave: document.getElementById("btnVerticalSave")! as HTMLButtonElement,
             btnWebsiteSave: document.getElementById("btnWebsiteSave")! as HTMLButtonElement,
@@ -77,6 +76,7 @@ export async function showProfileEditModal() {
             colorText: document.getElementById("colorText")! as HTMLInputElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
             gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement,
+            injectedAddress: document.getElementById("injectedAddress") as HTMLInputElement,
             injectedBlockchain: document.getElementById("injectedBlockchain") as HTMLInputElement,
             inputAvatar: document.getElementById("inputAvatar")! as HTMLInputElement,
             inputBanner: document.getElementById("inputBanner")! as HTMLInputElement,
@@ -128,11 +128,25 @@ export async function showProfileEditModal() {
         }
 
         async function updateBot() {
-            let bot = DOM.inputBot.checked;
+            if (!DOM.inputBot.checked) {
+                DOM.inputBot.checked = true;
+                return;
+            }
+            getModalInstance().hide();
+            let confirmed = await ShowModalYesNoHTML("<span class=\"account-flag-confirm\">Flag this account as a Bot?<br>This action is permanent and cannot be undone.</span>");
+            if (!confirmed) {
+                DOM.inputBot.checked = false;
+                getModalInstance().show();
+                return;
+            }
             try {
-                let success = await WalletSetBot(bot);
-                if (success) hideModalAndShowToast();
+                let success = await WalletSetBot(true);
+                if (success) {
+                    DOM.inputBot.disabled = true;
+                    hideModalAndShowToast();
+                }
             } catch (e) {
+                DOM.inputBot.checked = false;
                 LogError("Failed to set bot flag" + e);
             }
         }
@@ -184,11 +198,25 @@ export async function showProfileEditModal() {
             }
         }
         async function updateNsfw() {
-            let nsfw = DOM.inputNsfw.checked;
+            if (!DOM.inputNsfw.checked) {
+                DOM.inputNsfw.checked = true;
+                return;
+            }
+            getModalInstance().hide();
+            let confirmed = await ShowModalYesNoHTML("<span class=\"account-flag-confirm\">Flag this account as NSFW?<br>This action is permanent and cannot be undone.</span>");
+            if (!confirmed) {
+                DOM.inputNsfw.checked = false;
+                getModalInstance().show();
+                return;
+            }
             try {
-                let success = await WalletSetNsfw(nsfw);
-                if (success) hideModalAndShowToast();
+                let success = await WalletSetNsfw(true);
+                if (success) {
+                    DOM.inputNsfw.disabled = true;
+                    hideModalAndShowToast();
+                }
             } catch (e) {
+                DOM.inputNsfw.checked = false;
                 LogError("Failed to set nsfw flag" + e);
             }
         }
@@ -271,6 +299,27 @@ export async function showProfileEditModal() {
                 LogError("Failed to save colors: " + e);
             }
         }
+        async function loadAccountFlags() {
+            if (!DOM.injectedAddress || !DOM.injectedBlockchain) return;
+            let address = DOM.injectedAddress.value;
+            let blockchain = DOM.injectedBlockchain.value;
+            if (!address || !blockchain) return;
+            try {
+                let [botRes, nsfwRes] = await Promise.all([
+                    fetch(`/profile/bot/${blockchain}/${address}`).then(r => r.json()),
+                    fetch(`/profile/nsfw/${blockchain}/${address}`).then(r => r.json()),
+                ]);
+                let botEnabled = botRes.bot === 1 || botRes.bot === true;
+                let nsfwEnabled = nsfwRes.nsfw === 1 || nsfwRes.nsfw === true;
+                DOM.inputBot.checked = botEnabled;
+                DOM.inputBot.disabled = botEnabled;
+                DOM.inputNsfw.checked = nsfwEnabled;
+                DOM.inputNsfw.disabled = nsfwEnabled;
+            } catch (e) {
+                LogError("Failed to load account flags: " + e);
+            }
+        }
+        DOM.modalProfileEdit.addEventListener("shown.bs.modal", loadAccountFlags);
         initColorPickers();
 
         if (DOM.avatarLabel) {
@@ -322,10 +371,10 @@ export async function showProfileEditModal() {
                 document.activeElement.blur();
             }
         });
-        DOM.btnBotSave.addEventListener("click", updateBot);
+        DOM.inputBot.addEventListener("change", updateBot);
+        DOM.inputNsfw.addEventListener("change", updateNsfw);
         DOM.btnDescriptionSave.addEventListener("click", updateDescription);
         DOM.btnLocationSave.addEventListener("click", updateLocation);
-        DOM.btnNsfwSave.addEventListener("click", updateNsfw);
         DOM.btnUsernameSave.addEventListener("click", updateName);
         DOM.btnVerticalSave.addEventListener("click", updateVertical);
         DOM.btnWebsiteSave.addEventListener("click", updateWebsite);

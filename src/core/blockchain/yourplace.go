@@ -282,6 +282,10 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 					core.LogDebug("Metadata action bot field is not a boolean")
 					break
 				}
+				if !botVal {
+					core.LogDebug("Metadata action bot flag is a one-way door, ignoring false value")
+					break
+				}
 				_Database.OnchainMBot(blockchain, fromAddress, botVal, timestamp)
 				break
 			case "nsfw":
@@ -293,6 +297,10 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 				nsfwVal, ok2 := nsfwRaw.(bool)
 				if !ok2 {
 					core.LogDebug("Metadata action nsfw field is not a boolean")
+					break
+				}
+				if !nsfwVal {
+					core.LogDebug("Metadata action nsfw flag is a one-way door, ignoring false value")
 					break
 				}
 				_Database.OnchainMNsfw(blockchain, fromAddress, nsfwVal, timestamp)

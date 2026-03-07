@@ -5,6 +5,7 @@ import "../components/addPost";
 import {preloadTinyMCE} from "../components/addPost";
 import "../components/mintNFT";
 import "../components/modalDialog";
+import "../components/modalYesNo";
 import "../components/scrollTop";
 import "../components/menu";
 import {LogError, LogInfo} from "../util/log";

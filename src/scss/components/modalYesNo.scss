@@ -6,9 +6,9 @@
 }
 #modalYesButton {
   width: 5em;
-  background-color: global.$success
+  --yp-quaternary: var(--yp-success);
 }
 #modalNoButton {
   width: 5em;
-  background-color: global.$danger
+  --yp-quaternary: var(--yp-danger);
 }
