@@ -524,17 +524,16 @@ export function WalletGetExplorerTxLink(tx: string, blockchain?: string) {
 }
 export function WalletGetYourPlaceAddressLink(address: string) {
     let chain = GetChain();
-    let host = window.location.host;
     if (chain == "algorand") {
-        return `${host}/p/algorand/${address}`;
+        return `/p/algorand/${address}`;
     } else if (chain == "base") {
-        return `${host}/p/base/${address}`;
+        return `/p/base/${address}`;
     } else if (chain == "ethereum") {
-        return `${host}/p/ethereum/${address}`;
+        return `/p/ethereum/${address}`;
     } else if (chain == "solana") {
-        return `${host}/p/solana/${address}`;
+        return `/p/solana/${address}`;
     } else {
-        return `${host}/p/${address}`;
+        return `/p/${address}`;
     }
 }
 

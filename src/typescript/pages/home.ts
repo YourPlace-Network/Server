@@ -5,7 +5,8 @@ import "../../scss/components/scrollTop.scss";
 import "../components/addPost";
 import {preloadTinyMCE} from "../components/addPost";
 import "../components/menu";
-import {CreatePostCard, CreateProfileCard} from "../util/domFactory";
+import {CreatePostCard} from "../util/domFactory";
+import {CreateProfileCard, FetchAndUpdateProfileCard} from "../components/profileCard";
 import {HttpGetJson} from "../util/network";
 import {IsValidAlgoAddress, IsValidAlgoTxId, XSSSanitizeUrl} from "../util/security";
 import {WalletGetAvatar, WalletGetCachedAvatar, WalletGetCachedName, WalletGetDescription, WalletGetName, GetAddress, GetChain} from "../util/blockchain/wallet";
@@ -234,37 +235,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 profile.description = "";
                 const profileCard = await CreateProfileCard(profile);
                 col.appendChild(profileCard);
-                fetchAndUpdateProfileCard(profileCard, profile.blockchain, profile.address);
-            }
-        }
-        async function fetchAndUpdateProfileCard(profileCard: HTMLDivElement, blockchain: string, address: string) {
-            let name: string | null = await WalletGetName(blockchain, address);
-            let avatarStr: string | null = await getIpfsAvatarUrl(blockchain, address);
-            if (!avatarStr || avatarStr === "") {
-                avatarStr = await WalletGetAvatar(blockchain, address);
-            }
-            let description: string | null = await WalletGetDescription(blockchain, address);
-            const nameDiv = profileCard.querySelector('.profileCardName') as HTMLDivElement;
-            const avatarImg = profileCard.querySelector('img.profileCardAvatar') as HTMLImageElement;
-            const descriptionDiv = profileCard.querySelector('.profileCardDescription') as HTMLDivElement;
-            if (nameDiv) nameDiv.textContent = name || "Anonymous";
-            if (descriptionDiv) descriptionDiv.textContent = description || "";
-            if (avatarImg) {
-                const defaultPath = "/static/image/avatar.png";
-                if (avatarStr) {
-                    let avatarSrc = avatarStr;
-                    if (avatarSrc.startsWith("ipfs://")) {
-                        avatarSrc = CIDToSubdomainURL(avatarSrc) || defaultPath;
-                    }
-                    const avatarUrl = XSSSanitizeUrl(avatarSrc);
-                    avatarImg.onerror = () => {
-                        avatarImg.src = defaultPath;
-                        avatarImg.onerror = null;
-                    };
-                    avatarImg.src = avatarUrl;
-                } else {
-                    avatarImg.src = defaultPath;
-                }
+                FetchAndUpdateProfileCard(profileCard, profile.blockchain, profile.address);
             }
         }
         function updateCardAvatar(element: HTMLImageElement, avatarStr: string | null) {
@@ -284,9 +255,9 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 element.src = defaultPath;
             }
         }
-        async function hydrateCards(cards: HTMLDivElement[], results: any[]) {
-            const profileCardMap = new Map<string, HTMLDivElement[]>();
-            const postCardMap = new Map<string, HTMLDivElement[]>();
+        async function hydrateCards(cards: HTMLElement[], results: any[]) {
+            const profileCardMap = new Map<string, HTMLElement[]>();
+            const postCardMap = new Map<string, HTMLElement[]>();
             for (const card of cards) {
                 const profileAddr = card.querySelector('.profileCardAddressInput') as HTMLInputElement;
                 const profileChain = card.querySelector('.profileCardBlockchain') as HTMLInputElement;
@@ -314,14 +285,14 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             }
             const profilePromises = uniqueAuthors.map(async (author) => {
                 const key = author.blockchain + author.address;
-                let name: string | null = await WalletGetName(author.blockchain, author.address);
-                let avatarStr: string | null = await getIpfsAvatarUrl(author.blockchain, author.address);
+                const [name, ipfsAvatar, description] = await Promise.all([
+                    WalletGetName(author.blockchain, author.address),
+                    getIpfsAvatarUrl(author.blockchain, author.address),
+                    author.isProfile ? WalletGetDescription(author.blockchain, author.address) : Promise.resolve(null)
+                ]);
+                let avatarStr = ipfsAvatar;
                 if (!avatarStr || avatarStr === "") {
                     avatarStr = await WalletGetAvatar(author.blockchain, author.address);
-                }
-                let description: string | null = null;
-                if (author.isProfile) {
-                    description = await WalletGetDescription(author.blockchain, author.address);
                 }
                 const pCards = profileCardMap.get(key);
                 if (pCards) {
@@ -451,7 +422,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 DOM.resultsDiv.appendChild(noResultsDiv);
                 return;
             }
-            const allCards: HTMLDivElement[] = [];
+            const allCards: HTMLElement[] = [];
             const allResults: any[] = [];
             if (profiles.length > 0) {
                 let profilesLabel = document.createElement("div");
@@ -522,7 +493,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 if (resp[0] !== 200 || !resp[1]) return;
                 let posts: any[] = resp[1].posts || [];
                 searchPostsHasMore = resp[1].hasMorePosts || false;
-                const newCards: HTMLDivElement[] = [];
+                const newCards: HTMLElement[] = [];
                 const existingCount = searchPostsDiv.children.length;
                 for (let i = 0; i < posts.length; i++) {
                     posts[i].author = "Loading...";

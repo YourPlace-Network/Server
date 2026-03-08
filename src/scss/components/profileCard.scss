@@ -1,6 +1,10 @@
 @use "sass:map";
 @use "../global";
 
+a.profileCard {
+  color: inherit;
+  text-decoration: none;
+}
 .profileCard {
   position: relative;
   width: 100%;

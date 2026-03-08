@@ -1,6 +1,5 @@
 import "../../scss/components/collectibleCard.scss";
 import "../../scss/components/postCard.scss";
-import "../../scss/components/profileCard.scss";
 import "../../scss/components/imageLoader.scss";
 import {ShowAddCommentUI} from "../components/addComment";
 import {CreateCommentThread} from "../components/commentThread";
@@ -521,61 +520,6 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> { /
     ProcessPostContentForPreviews(postTextDiv);
     return postDiv;
 }
-export async function CreateProfileCard (profileData: any): Promise<HTMLDivElement>{
-    let profileDiv = document.createElement("div") as HTMLDivElement;
-    let avatarDiv = document.createElement("div") as HTMLDivElement; // append to profile div 1st
-    let identityDiv = document.createElement("div") as HTMLDivElement; //append to profile div 2nd
-    let avatarImg = document.createElement("img") as HTMLImageElement; // append to avatar div
-    let nameDiv = document.createElement("div") as HTMLDivElement; // append to identity div 1st
-    let addressDiv = document.createElement("div") as HTMLDivElement; // append to identity div 2nd
-    let addressInput = document.createElement("input") as HTMLInputElement;
-    let descriptionDiv = document.createElement("div") as HTMLDivElement; //append to profile div 3rd
-    let profileBlockchain = document.createElement("input") as HTMLInputElement;
-
-    // adding attributes to elements
-    profileDiv.classList.add("clickable");
-    profileDiv.classList.add("profileCard");
-    profileDiv.addEventListener("click", () => {
-        window.location.href = "/p/" + profileData.blockchain + "/" + profileData.address;
-    });
-    avatarDiv.classList.add("profileCardAvatar");
-    avatarImg.classList.add("profileCardAvatar");
-    avatarImg.crossOrigin = "anonymous";
-    avatarImg.referrerPolicy = "no-referrer";
-    let profileAvatarSrc = profileData.avatarSrc;
-    if (profileAvatarSrc && profileAvatarSrc.startsWith("ipfs://")) {
-        const converted = CIDToSubdomainURL(profileAvatarSrc);
-        profileAvatarSrc = converted || "/static/image/avatar.png";
-    }
-    avatarImg.src = XSSSanitizeUrl(profileAvatarSrc || "/static/image/avatar.png");
-    nameDiv.classList.add("profileCardName");
-    nameDiv.textContent = profileData.name || "Anonymous";
-    addressDiv.classList.add("profileCardAddress");
-    const addr = profileData.address;
-    addressDiv.textContent = addr.length > 12 ? addr.slice(0, 6) + "..." + addr.slice(-4) : addr;
-    addressInput.type = "hidden";
-    addressInput.classList.add("profileCardAddressInput");
-    addressInput.value = XSSSanitizeValue(profileData.address);
-    descriptionDiv.classList.add("profileCardDescription");
-    descriptionDiv.textContent = profileData.description || "";
-    processTextWithTags(descriptionDiv);
-    profileBlockchain.type = "hidden";
-    profileBlockchain.classList.add("profileCardBlockchain");
-    profileBlockchain.value = XSSSanitizeValue(profileData.blockchain);
-
-    // defining each element's relationship to the others
-    profileDiv.appendChild(profileBlockchain);
-    profileDiv.appendChild(addressInput)
-    profileDiv.appendChild(avatarDiv);
-    profileDiv.appendChild(identityDiv);
-    profileDiv.appendChild(descriptionDiv);
-    avatarDiv.appendChild(avatarImg);
-    identityDiv.classList.add("profileCardIdentity");
-    identityDiv.appendChild(nameDiv);
-    identityDiv.appendChild(addressDiv);
-    return profileDiv
-}
-
 // --- Media Embed Functions --- //
 function createImageEmbed(url: string): HTMLElement | null {
     const imageRegex = /^https:\/\/.*\.(jpg|jpeg|gif|webp|png|svg)$/i;
@@ -892,62 +836,54 @@ async function grid4Attachments(attachments: HTMLElement[]): Promise<HTMLDivElem
 }
 async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchain: string, txHash: string): Promise<void> {
     try {
-        const counts = await FetchReactionCounts(blockchain, txHash);
-        if (counts) {
-            const address = GetAddress();
-            let userEmojiReaction: string | null = null;
-            let userHasCommented = false;
-            let userReaction: string | null = null;
-            if (address) {
-                const [userReactions, hasCommented] = await Promise.all([
-                    FetchUserReaction(blockchain, txHash, address),
-                    FetchUserHasCommented(blockchain, txHash, address)
-                ]);
-                if (userReactions) {
-                    userReaction = userReactions.reaction;
-                    userEmojiReaction = userReactions.emojiReaction;
-                }
-                userHasCommented = hasCommented;
+        const address = GetAddress();
+        const [counts, userReactions, hasCommented] = await Promise.all([
+            FetchReactionCounts(blockchain, txHash),
+            address ? FetchUserReaction(blockchain, txHash, address) : Promise.resolve(null),
+            address ? FetchUserHasCommented(blockchain, txHash, address) : Promise.resolve(false)
+        ]);
+        if (!counts) return;
+        const userEmojiReaction = userReactions?.emojiReaction || null;
+        const userHasCommented = hasCommented;
+        const userReaction = userReactions?.reaction || null;
+        const commentControl = controlsBar.querySelector(".postControlItem.comment");
+        const dislikeControl = controlsBar.querySelector(".postControlItem.dislike");
+        const likeControl = controlsBar.querySelector(".postControlItem.like");
+        const reactControl = controlsBar.querySelector(".postControlItem.react");
+        if (commentControl && userHasCommented) {
+            commentControl.classList.add("active");
+        }
+        if (likeControl) {
+            const countSpan = likeControl.querySelector(".count");
+            if (countSpan) {
+                countSpan.textContent = counts.likes > 0 ? counts.likes.toString() : "";
             }
-            const commentControl = controlsBar.querySelector(".postControlItem.comment");
-            const dislikeControl = controlsBar.querySelector(".postControlItem.dislike");
-            const likeControl = controlsBar.querySelector(".postControlItem.like");
-            const reactControl = controlsBar.querySelector(".postControlItem.react");
-            if (commentControl && userHasCommented) {
-                commentControl.classList.add("active");
+            if (userReaction === "like") {
+                likeControl.classList.add("active");
             }
-            if (likeControl) {
-                const countSpan = likeControl.querySelector(".count");
-                if (countSpan) {
-                    countSpan.textContent = counts.likes > 0 ? counts.likes.toString() : "";
-                }
-                if (userReaction === "like") {
-                    likeControl.classList.add("active");
-                }
+        }
+        if (dislikeControl) {
+            const countSpan = dislikeControl.querySelector(".count");
+            if (countSpan) {
+                countSpan.textContent = counts.dislikes > 0 ? counts.dislikes.toString() : "";
             }
-            if (dislikeControl) {
-                const countSpan = dislikeControl.querySelector(".count");
-                if (countSpan) {
-                    countSpan.textContent = counts.dislikes > 0 ? counts.dislikes.toString() : "";
-                }
-                if (userReaction === "dislike") {
-                    dislikeControl.classList.add("active");
+            if (userReaction === "dislike") {
+                dislikeControl.classList.add("active");
+            }
+        }
+        if (reactControl) {
+            let emojiCount = 0;
+            if (counts.emoji) {
+                for (const count of Object.values(counts.emoji)) {
+                    emojiCount += count;
                 }
             }
-            if (reactControl) {
-                let emojiCount = 0;
-                if (counts.emoji) {
-                    for (const count of Object.values(counts.emoji)) {
-                        emojiCount += count;
-                    }
-                }
-                const countSpan = reactControl.querySelector(".count");
-                if (countSpan) {
-                    countSpan.textContent = emojiCount > 0 ? emojiCount.toString() : "";
-                }
-                if (userEmojiReaction) {
-                    reactControl.classList.add("active");
-                }
+            const countSpan = reactControl.querySelector(".count");
+            if (countSpan) {
+                countSpan.textContent = emojiCount > 0 ? emojiCount.toString() : "";
+            }
+            if (userEmojiReaction) {
+                reactControl.classList.add("active");
             }
         }
     } catch (e) {
