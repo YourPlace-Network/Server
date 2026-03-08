@@ -77,6 +77,20 @@
   height: 2.5em;
   width: 5em;
 }
+@media (max-width: 704px) {
+  #htmlMenu {
+    width: 2.8em;
+    height: 2.8em;
+  }
+  .hamburger-icon {
+    width: 1.6em;
+    height: 1.8em;
+    padding: 0.2em 0;
+  }
+  .hamburger-line {
+    flex: 0 0 3px;
+  }
+}
 @media (max-width: 576px) {
   .menuItemDiv {
     font-size: 1.5em;

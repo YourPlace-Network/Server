@@ -38,6 +38,7 @@ interface TipData {
         }
         function emergency() {
             ShowDialogModalHTML(
+                "<div class='emergencyModal'>" +
                 "If you are having an Emergency call:" +
                 "<br>&emsp;<a href='tel:911' class='obviousLink'>911 <i class='bi bi-telephone-outbound-fill'></i></a> (Americas)" +
                 "<br>&emsp;<a href='tel:112' class='obviousLink'>112 <i class='bi bi-telephone-outbound-fill'></i></a> (Europe, Asia, Africa)" +
@@ -52,7 +53,8 @@ interface TipData {
                 "<br>&emsp;<b>Veterans Crisis Line:</b> <a href='tel:18002738255' class='obviousLink'>1-800-273-8255 <i class='bi bi-telephone-outbound-fill'></i></a> Press 1" +
                 "<hr />" +
                 "If you need general mental help, you can find more at the NIMH:" +
-                "<br>&emsp;<a href='https://www.nimh.nih.gov/health/find-help' class='obviousLink' target='_blank'>NIMH Find Help <i class='bi bi-box-arrow-up-right'></i></a>"
+                "<br>&emsp;<a href='https://www.nimh.nih.gov/health/find-help' class='obviousLink' target='_blank'>NIMH Find Help <i class='bi bi-box-arrow-up-right'></i></a>" +
+                "</div>"
             );
         }
         function findTipByHash(hash: string): TipData | null {

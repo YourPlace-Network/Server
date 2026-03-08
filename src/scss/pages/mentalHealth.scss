@@ -27,6 +27,11 @@ i.mentalHealthBtnIcon {
 #emergencyBtn {
   margin-left: calc(50% - 8em);
 }
+.emergencyModal {
+  display: block;
+  text-align: left;
+  width: 100%;
+}
 .obviousLink {
   color: #545eff;
   text-decoration: underline;
