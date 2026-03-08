@@ -7,7 +7,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 7
+const SchemaVersion = 8
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -30,6 +30,7 @@ var migrations = []Migration{
 	{Version: 5, Description: "Add cached ENS/NFD name and avatar columns to meta tables", Up: migrateV5},
 	{Version: 6, Description: "Add Ethereum blockchain tables", Up: migrateV6},
 	{Version: 7, Description: "Add bot and nsfw flags to meta tables", Up: migrateV7},
+	{Version: 8, Description: "Add user notifications and notification seen tables", Up: migrateV8},
 }
 
 // --- Migration Functions --- //
@@ -139,6 +140,27 @@ func migrateV7(db *SQLite) error {
 	}
 	for _, col := range columns {
 		if err := db.migrateAddColumn(col.table, col.column, col.def); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func migrateV8(db *SQLite) error {
+	tables := []string{
+		"CREATE TABLE IF NOT EXISTS user_notifications (id TEXT PRIMARY KEY, userAddress TEXT, userBlockchain TEXT, fromAddress TEXT, fromBlockchain TEXT, type TEXT, targetTxHash TEXT DEFAULT '', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, dismissed INTEGER DEFAULT 0)",
+		"CREATE TABLE IF NOT EXISTS user_notification_seen (userAddress TEXT, userBlockchain TEXT, lastSeenAt INTEGER DEFAULT 0, PRIMARY KEY (userAddress, userBlockchain))",
+	}
+	for _, createStatement := range tables {
+		if _, err := db.database.Exec(createStatement); err != nil {
+			return err
+		}
+	}
+	indexes := []string{
+		"CREATE INDEX IF NOT EXISTS idx_user_notifications_user ON user_notifications (userAddress, userBlockchain)",
+		"CREATE INDEX IF NOT EXISTS idx_user_notifications_timestamp ON user_notifications (timestamp)",
+	}
+	for _, idx := range indexes {
+		if _, err := db.database.Exec(idx); err != nil {
 			return err
 		}
 	}

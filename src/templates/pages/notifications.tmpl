@@ -1,0 +1,31 @@
+{{template "header" .}}
+<body class="body">
+    {{template "modalDialog" .}}
+    <div class="container-fluid">
+        <div class="row" id="row1">
+            <div class="col-sm-1"></div>
+            <div class="col-sm-10">
+                <div id="notificationsHeader">
+                    <h2 class="pageHeader">Notifications</h2>
+                    <button class="btn btn-primary" id="clearAllBtn">Clear All</button>
+                </div>
+                <div id="notificationsDiv"></div>
+                <div id="notificationsEmpty" style="display: none;">
+                    <p class="notificationsEmptyText">No notifications</p>
+                </div>
+            </div>
+            <div class="col-sm-1">
+                {{template "scrollTop" .}}
+                {{template "htmlMenu" .}}
+                {{template "toast" .}}
+            </div>
+        </div>
+    </div>
+    {{template "footer" .}}
+    <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
+    <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">
+    <input type="hidden" id="userAddress" value="{{ .userAddress }}">
+    <input type="hidden" id="userBlockchain" value="{{ .userBlockchain }}">
+    <input type="hidden" id="gatewayMode" value="{{ .gatewayMode }}">
+</body>
+</html>

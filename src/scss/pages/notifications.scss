@@ -1,0 +1,23 @@
+@use "sass:map";
+@use "../global";
+
+#notificationsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1em;
+}
+#clearAllBtn {
+  height: 2.5em;
+}
+#notificationsDiv {
+  border: 1px solid var(--yp-secondary);
+  border-radius: 0.5em;
+  overflow: hidden;
+}
+.notificationsEmptyText {
+  text-align: center;
+  opacity: 0.6;
+  margin-top: 2em;
+  font-size: 1.1em;
+}

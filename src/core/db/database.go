@@ -833,6 +833,67 @@ func (db *Database) NotificationGetActive() []map[string]string {
 	return nil
 }
 
+// --- User Notifications --- //
+func (db *Database) UserNotificationClearAll(userAddress string, userBlockchain string) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.UserNotificationClearAll(userAddress, userBlockchain)
+	case "sqlite":
+		db.sqlite.UserNotificationClearAll(userAddress, userBlockchain)
+	}
+}
+func (db *Database) UserNotificationCleanup() {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.UserNotificationCleanup()
+	case "sqlite":
+		db.sqlite.UserNotificationCleanup()
+	}
+}
+func (db *Database) UserNotificationDismiss(id string) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.UserNotificationDismiss(id)
+	case "sqlite":
+		db.sqlite.UserNotificationDismiss(id)
+	}
+}
+func (db *Database) UserNotificationGet(userAddress string, userBlockchain string, limit int, offset int) []map[string]string {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.UserNotificationGet(userAddress, userBlockchain, limit, offset)
+	case "sqlite":
+		return db.sqlite.UserNotificationGet(userAddress, userBlockchain, limit, offset)
+	}
+	return nil
+}
+func (db *Database) UserNotificationGetCount(userAddress string, userBlockchain string, since uint64) int64 {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.UserNotificationGetCount(userAddress, userBlockchain, since)
+	case "sqlite":
+		return db.sqlite.UserNotificationGetCount(userAddress, userBlockchain, since)
+	}
+	return 0
+}
+func (db *Database) UserNotificationGetSeen(userAddress string, userBlockchain string) uint64 {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.UserNotificationGetSeen(userAddress, userBlockchain)
+	case "sqlite":
+		return db.sqlite.UserNotificationGetSeen(userAddress, userBlockchain)
+	}
+	return 0
+}
+func (db *Database) UserNotificationUpdateSeen(userAddress string, userBlockchain string, timestamp uint64) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.UserNotificationUpdateSeen(userAddress, userBlockchain, timestamp)
+	case "sqlite":
+		db.sqlite.UserNotificationUpdateSeen(userAddress, userBlockchain, timestamp)
+	}
+}
+
 // --- oEmbed Cache Functions --- //
 func (db *Database) OEmbedCacheGet(url string) (string, int64) {
 	switch db.Engine {

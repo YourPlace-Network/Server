@@ -19,6 +19,7 @@ export default {
         logout: "./pages/logout.ts",
         mentalHealth: "./pages/mentalHealth.ts",
         notFound: "./pages/notFound.ts",
+        notifications: "./pages/notifications.ts",
         post: "./pages/post.ts",
         profile: "./pages/profile.ts",
         settings: "./pages/settings.ts",

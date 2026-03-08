@@ -1,17 +1,18 @@
 package routes
 
 import (
+	"YourPlace/src/core"
 	"YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/host"
+	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
-
-// Types of notifications: system, user
 
 type Notification struct {
 	UID         string `json:"uid"`
@@ -19,8 +20,17 @@ type Notification struct {
 	Message     string `json:"message"`
 	Dismissable bool   `json:"dismissable"`
 }
+type UserNotification struct {
+	ID             string `json:"id"`
+	FromAddress    string `json:"fromAddress"`
+	FromBlockchain string `json:"fromBlockchain"`
+	ReactionType   string `json:"reactionType"`
+	TargetTxHash   string `json:"targetTxHash"`
+	Timestamp      string `json:"timestamp"`
+	Type           string `json:"type"`
+}
 
-func NotificationRoutes(router *gin.Engine, database *db.Database, gateway bool) {
+func NotificationRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, gateway bool) {
 	router.GET("/notification", func(c *gin.Context) {
 		notifications := GetAllNotifications(database, gateway)
 		c.SecureJSON(http.StatusOK, gin.H{"notifications": notifications})
@@ -49,6 +59,110 @@ func NotificationRoutes(router *gin.Engine, database *db.Database, gateway bool)
 		database.NotificationDismiss(uid)
 		c.SecureJSON(http.StatusOK, gin.H{"status": "dismissed"})
 	})
+	router.GET("/notifications", func(c *gin.Context) {
+		token := middleware.GetCSRFToken(c)
+		authenticated := false
+		userAddress := ""
+		userBlockchain := ""
+		authCookie, err := c.Request.Cookie("yp_auth")
+		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
+			authenticated = true
+			userAddress, _ = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
+			userBlockchain, _ = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
+		}
+		c.HTML(http.StatusOK, "src/templates/pages/notifications.tmpl", gin.H{
+			"title":                 title,
+			"pageName":              "notifications",
+			"csrfToken":             token,
+			"isCookieAuthenticated": authenticated,
+			"gatewayMode":           gateway,
+			"userAddress":           userAddress,
+			"userBlockchain":        userBlockchain,
+		})
+	})
+	router.GET("/notifications/count", func(c *gin.Context) {
+		userAddress, userBlockchain := getAuthenticatedUser(c, cryptoSeed, database)
+		if userAddress == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"count": 0})
+			return
+		}
+		lastSeen := database.UserNotificationGetSeen(userAddress, userBlockchain)
+		count := database.UserNotificationGetCount(userAddress, userBlockchain, lastSeen)
+		c.SecureJSON(http.StatusOK, gin.H{"count": count})
+	})
+	router.GET("/notifications/data", func(c *gin.Context) {
+		userAddress, userBlockchain := getAuthenticatedUser(c, cryptoSeed, database)
+		if userAddress == "" {
+			c.SecureJSON(http.StatusOK, gin.H{"notifications": []UserNotification{}})
+			return
+		}
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "25"))
+		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+		if limit > 100 {
+			limit = 100
+		}
+		if offset > 1000 {
+			offset = 1000
+		}
+		dbNotifs := database.UserNotificationGet(userAddress, userBlockchain, limit, offset)
+		var notifications []UserNotification
+		for _, n := range dbNotifs {
+			notifications = append(notifications, UserNotification{
+				ID:             n["id"],
+				FromAddress:    n["fromAddress"],
+				FromBlockchain: n["fromBlockchain"],
+				ReactionType:   n["reactionType"],
+				TargetTxHash:   n["targetTxHash"],
+				Timestamp:      n["timestamp"],
+				Type:           n["type"],
+			})
+		}
+		if notifications == nil {
+			notifications = []UserNotification{}
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"notifications": notifications})
+	})
+	router.POST("/notifications/clear", func(c *gin.Context) {
+		userAddress, userBlockchain := getAuthenticatedUser(c, cryptoSeed, database)
+		if userAddress == "" {
+			c.SecureJSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+			return
+		}
+		database.UserNotificationClearAll(userAddress, userBlockchain)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "cleared"})
+	})
+	router.POST("/notifications/dismiss/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		if id == "" {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "Missing notification ID"})
+			return
+		}
+		userAddress, _ := getAuthenticatedUser(c, cryptoSeed, database)
+		if userAddress == "" {
+			c.SecureJSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+			return
+		}
+		database.UserNotificationDismiss(id)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "dismissed"})
+	})
+	router.POST("/notifications/seen", func(c *gin.Context) {
+		userAddress, userBlockchain := getAuthenticatedUser(c, cryptoSeed, database)
+		if userAddress == "" {
+			c.SecureJSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+			return
+		}
+		database.UserNotificationUpdateSeen(userAddress, userBlockchain, core.GetTimestamp())
+		c.SecureJSON(http.StatusOK, gin.H{"status": "updated"})
+	})
+}
+func getAuthenticatedUser(c *gin.Context, cryptoSeed []byte, database *db.Database) (string, string) {
+	authCookie, err := c.Request.Cookie("yp_auth")
+	if err != nil || !security.ValidateCookie(authCookie, cryptoSeed, database) {
+		return "", ""
+	}
+	address, _ := security.GetCookieValue(authCookie, cryptoSeed, "address", database)
+	chain, _ := security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
+	return address, chain
 }
 func GetAllNotifications(database *db.Database, gateway bool) []Notification {
 	var notifications []Notification
@@ -88,9 +202,5 @@ func getSystemNotifications(database *db.Database) []Notification {
 			Dismissable: true,
 		})
 	}
-	return notifications
-}
-func getUserNotifications(database *db.Database, chain string, address string) []Notification {
-	var notifications []Notification
 	return notifications
 }

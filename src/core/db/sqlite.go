@@ -234,17 +234,19 @@ func (db *SQLite) createTables(ctx context.Context) error {
 	*/
 	// Tables schema map - keep at LATEST schema version
 	tables := map[string]string{
-		"meta":          "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
-		"settings":      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
-		"files":         "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
-		"file_txn_hash": "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT, blockchain TEXT, PRIMARY KEY (fileUUID, txHash, blockchain))",
-		"auth_nonce":    "CREATE TABLE IF NOT EXISTS auth_nonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
-		"auth_expired":  "CREATE TABLE IF NOT EXISTS auth_expired (uuid TEXT PRIMARY KEY, status TEXT)",
-		"login_nonce":   "CREATE TABLE IF NOT EXISTS login_nonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
-		"csrf_tokens":   "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
-		"notifications": "CREATE TABLE IF NOT EXISTS notifications (uid TEXT PRIMARY KEY, message TEXT, timestamp INTEGER DEFAULT 0)",
-		"oembed_cache":  "CREATE TABLE IF NOT EXISTS oembed_cache (url TEXT PRIMARY KEY, data TEXT DEFAULT '', fetchedAt INTEGER DEFAULT 0)",
-		"wallets":       "CREATE TABLE IF NOT EXISTS wallets (publicKey TEXT, blockchain TEXT, address TEXT, encryptedPrivateKey TEXT, isDefault INTEGER DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
+		"meta":                   "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
+		"settings":               "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
+		"files":                  "CREATE TABLE IF NOT EXISTS files (fileUUID TEXT PRIMARY KEY, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, cid TEXT, fileURL TEXT, source TEXT)",
+		"file_txn_hash":          "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID TEXT, txHash TEXT, blockchain TEXT, PRIMARY KEY (fileUUID, txHash, blockchain))",
+		"auth_nonce":             "CREATE TABLE IF NOT EXISTS auth_nonce (nonce TEXT PRIMARY KEY, status TEXT, timestamp INTEGER)",
+		"auth_expired":           "CREATE TABLE IF NOT EXISTS auth_expired (uuid TEXT PRIMARY KEY, status TEXT)",
+		"login_nonce":            "CREATE TABLE IF NOT EXISTS login_nonce (nonce TEXT PRIMARY KEY, domain TEXT, expiration INTEGER, nonceHash TEXT)",
+		"csrf_tokens":            "CREATE TABLE IF NOT EXISTS csrf_tokens (token TEXT PRIMARY KEY, expiration INTEGER)",
+		"notifications":          "CREATE TABLE IF NOT EXISTS notifications (uid TEXT PRIMARY KEY, message TEXT, timestamp INTEGER DEFAULT 0)",
+		"user_notification_seen": "CREATE TABLE IF NOT EXISTS user_notification_seen (userAddress TEXT, userBlockchain TEXT, lastSeenAt INTEGER DEFAULT 0, PRIMARY KEY (userAddress, userBlockchain))",
+		"user_notifications":     "CREATE TABLE IF NOT EXISTS user_notifications (id TEXT PRIMARY KEY, userAddress TEXT, userBlockchain TEXT, fromAddress TEXT, fromBlockchain TEXT, type TEXT, targetTxHash TEXT DEFAULT '', reactionType TEXT DEFAULT '', timestamp INTEGER DEFAULT 0, dismissed INTEGER DEFAULT 0)",
+		"oembed_cache":           "CREATE TABLE IF NOT EXISTS oembed_cache (url TEXT PRIMARY KEY, data TEXT DEFAULT '', fetchedAt INTEGER DEFAULT 0)",
+		"wallets":                "CREATE TABLE IF NOT EXISTS wallets (publicKey TEXT, blockchain TEXT, address TEXT, encryptedPrivateKey TEXT, isDefault INTEGER DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
 		// Base-specific tables
 		"base_indexer_jobs":     "CREATE TABLE IF NOT EXISTS base_indexer_jobs (uuid TEXT PRIMARY KEY, blockchain TEXT, headBlock INTEGER, status TEXT, tailBlock INTEGER, timestamp INTEGER, rps INTEGER DEFAULT 0)",
 		"onchain_base_post":     "CREATE TABLE IF NOT EXISTS onchain_base_post (txHash TEXT, blockchain TEXT, fromAddress TEXT DEFAULT '', parentTxHash TEXT DEFAULT '', amount REAL DEFAULT 0, timestamp INTEGER DEFAULT 0, data TEXT DEFAULT '', PRIMARY KEY(txHash, blockchain))",
@@ -2253,12 +2255,36 @@ func (db *SQLite) IndexerResetJobs(blockchain string) {
 }
 
 // --- Onchain Tokenized --- //
+func (db *SQLite) getPostAuthor(blockchain string, txHash string) (string, string) {
+	queryFmt := "SELECT fromAddress, blockchain FROM onchain_%s_post WHERE txHash = ? AND blockchain = ? LIMIT 1"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
+	if err != nil {
+		return "", ""
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var fromAddress, chain string
+		if err := rows.Scan(&fromAddress, &chain); err != nil {
+			return "", ""
+		}
+		return fromAddress, chain
+	}
+	return "", ""
+}
 func (db *SQLite) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
 	queryFmt := "INSERT INTO onchain_%s_comment (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
 	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
+	}
+	if parentTxHash != "" {
+		postAuthor, postBlockchain := db.getPostAuthor(blockchain, parentTxHash)
+		if postAuthor != "" && postAuthor != fromAddr {
+			notifID := "comment_" + txHash + "_" + blockchain
+			db.UserNotificationInsert(notifID, postAuthor, postBlockchain, fromAddr, blockchain, "comment", parentTxHash, "", timestamp)
+		}
 	}
 }
 func (db *SQLite) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
@@ -2277,6 +2303,13 @@ func (db *SQLite) OnchainCA(txHash string, blockchain string, fromAddr string, p
 	if rowsAffected == 0 {
 		core.LogDebug("Duplicate comment detected, aborting entry")
 		return
+	}
+	if parentTxHash != "" {
+		postAuthor, postBlockchain := db.getPostAuthor(blockchain, parentTxHash)
+		if postAuthor != "" && postAuthor != fromAddr {
+			notifID := "comment_" + txHash + "_" + blockchain
+			db.UserNotificationInsert(notifID, postAuthor, postBlockchain, fromAddr, blockchain, "comment", parentTxHash, "", timestamp)
+		}
 	}
 	for _, attachment := range attachments {
 		fileURL := attachment.FileURL
@@ -2342,6 +2375,13 @@ func (db *SQLite) OnchainR(txHash string, blockchain string, fromAddr string, ta
 	if err != nil {
 		core.LogDebug("Could not tokenize the reaction in the database: " + err.Error())
 	}
+	if targetTxHash != "" {
+		postAuthor, postBlockchain := db.getPostAuthor(blockchain, targetTxHash)
+		if postAuthor != "" && postAuthor != fromAddr {
+			notifID := "reaction_" + txHash + "_" + blockchain
+			db.UserNotificationInsert(notifID, postAuthor, postBlockchain, fromAddr, blockchain, "reaction", targetTxHash, reactionType, timestamp)
+		}
+	}
 }
 func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
 	queryFmt := "INSERT INTO onchain_%s_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, blockchain) DO NOTHING"
@@ -2349,6 +2389,13 @@ func (db *SQLite) OnchainP(txHash string, blockchain string, fromAddr string, pa
 	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the post in the database: " + err.Error())
+	}
+	if parentTxHash != "" {
+		postAuthor, postBlockchain := db.getPostAuthor(blockchain, parentTxHash)
+		if postAuthor != "" && postAuthor != fromAddr {
+			notifID := "repost_" + txHash + "_" + blockchain
+			db.UserNotificationInsert(notifID, postAuthor, postBlockchain, fromAddr, blockchain, "repost", parentTxHash, "", timestamp)
+		}
 	}
 }
 func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
@@ -2367,6 +2414,13 @@ func (db *SQLite) OnchainPA(txHash string, blockchain string, fromAddr string, p
 	if rowsAffected == 0 {
 		core.LogDebug("Duplicate post detected, aborting entry")
 		return
+	}
+	if parentTxHash != "" {
+		postAuthor, postBlockchain := db.getPostAuthor(blockchain, parentTxHash)
+		if postAuthor != "" && postAuthor != fromAddr {
+			notifID := "repost_" + txHash + "_" + blockchain
+			db.UserNotificationInsert(notifID, postAuthor, postBlockchain, fromAddr, blockchain, "repost", parentTxHash, "", timestamp)
+		}
 	}
 	for _, attachment := range attachments {
 		fileURL := attachment.FileURL
@@ -2519,6 +2573,10 @@ func (db *SQLite) OnchainF(txHash string, blockchain string, followerAddress str
 	_, err = db.runParamSQLUpdate(query, txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the follow in the database: " + err.Error())
+	}
+	if followeeAddress != "" && followerAddress != followeeAddress {
+		notifID := "follow_" + txHash + "_" + blockchain
+		db.UserNotificationInsert(notifID, followeeAddress, followeeBlockchain, followerAddress, followerBlockchain, "follow", "", "", timestamp)
 	}
 }
 func (db *SQLite) OnchainFU(txHash string, blockchain string, followerAddress string, followerBlockchain string, followeeAddress string, followeeBlockchain string, timestamp uint64) {
@@ -2902,6 +2960,105 @@ func (db *SQLite) NotificationGetActive() []map[string]string {
 		notifications = append(notifications, map[string]string{"uid": uid, "message": message})
 	}
 	return notifications
+}
+
+// --- User Notifications --- //
+func (db *SQLite) UserNotificationInsert(id string, userAddress string, userBlockchain string, fromAddress string, fromBlockchain string, notifType string, targetTxHash string, reactionType string, timestamp uint64) {
+	_, err := db.runParamSQLUpdate("INSERT INTO user_notifications (id, userAddress, userBlockchain, fromAddress, fromBlockchain, type, targetTxHash, reactionType, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING", id, userAddress, userBlockchain, fromAddress, fromBlockchain, notifType, targetTxHash, reactionType, timestamp)
+	if err != nil {
+		core.LogDebug("Could not insert user notification: " + err.Error())
+	}
+}
+func (db *SQLite) UserNotificationClearAll(userAddress string, userBlockchain string) {
+	_, err := db.runParamSQLUpdate("UPDATE user_notifications SET dismissed = 1 WHERE userAddress = ? AND userBlockchain = ? AND dismissed = 0", userAddress, userBlockchain)
+	if err != nil {
+		core.LogDebug("Could not clear all user notifications: " + err.Error())
+	}
+}
+func (db *SQLite) UserNotificationCleanup() {
+	cutoff := core.TimestampMinusDays(core.GetTimestamp(), 30)
+	_, err := db.runParamSQLUpdate("DELETE FROM user_notifications WHERE timestamp < ?", cutoff)
+	if err != nil {
+		core.LogDebug("Could not clean up old user notifications: " + err.Error())
+	}
+	_, err = db.runParamSQLUpdate("DELETE FROM user_notification_seen WHERE lastSeenAt < ?", cutoff)
+	if err != nil {
+		core.LogDebug("Could not clean up old user notification seen: " + err.Error())
+	}
+}
+func (db *SQLite) UserNotificationDismiss(id string) {
+	_, err := db.runParamSQLUpdate("UPDATE user_notifications SET dismissed = 1 WHERE id = ?", id)
+	if err != nil {
+		core.LogDebug("Could not dismiss user notification: " + err.Error())
+	}
+}
+func (db *SQLite) UserNotificationGet(userAddress string, userBlockchain string, limit int, offset int) []map[string]string {
+	cutoff := core.TimestampMinusDays(core.GetTimestamp(), 30)
+	rows, err := db.runParamSQLSelect("SELECT id, fromAddress, fromBlockchain, type, targetTxHash, reactionType, timestamp FROM user_notifications WHERE userAddress = ? AND userBlockchain = ? AND dismissed = 0 AND timestamp >= ? ORDER BY timestamp DESC LIMIT ? OFFSET ?", userAddress, userBlockchain, cutoff, limit, offset)
+	if err != nil {
+		core.LogDebug("Could not get user notifications: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	var notifications []map[string]string
+	for rows.Next() {
+		var id, fromAddress, fromBlockchain, notifType, targetTxHash, reactionType string
+		var timestamp int64
+		if err := rows.Scan(&id, &fromAddress, &fromBlockchain, &notifType, &targetTxHash, &reactionType, &timestamp); err != nil {
+			core.LogDebug("Could not scan user notification row: " + err.Error())
+			continue
+		}
+		notifications = append(notifications, map[string]string{
+			"id": id, "fromAddress": fromAddress, "fromBlockchain": fromBlockchain,
+			"type": notifType, "targetTxHash": targetTxHash, "reactionType": reactionType,
+			"timestamp": fmt.Sprintf("%d", timestamp),
+		})
+	}
+	return notifications
+}
+func (db *SQLite) UserNotificationGetCount(userAddress string, userBlockchain string, since uint64) int64 {
+	cutoff := core.TimestampMinusDays(core.GetTimestamp(), 30)
+	effectiveSince := since
+	if cutoff > effectiveSince {
+		effectiveSince = cutoff
+	}
+	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM user_notifications WHERE userAddress = ? AND userBlockchain = ? AND dismissed = 0 AND timestamp >= ?", userAddress, userBlockchain, effectiveSince)
+	if err != nil {
+		core.LogDebug("Could not get user notification count: " + err.Error())
+		return 0
+	}
+	defer rows.Close()
+	var count int64
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			core.LogDebug("Could not scan user notification count: " + err.Error())
+			return 0
+		}
+	}
+	return count
+}
+func (db *SQLite) UserNotificationGetSeen(userAddress string, userBlockchain string) uint64 {
+	rows, err := db.runParamSQLSelect("SELECT lastSeenAt FROM user_notification_seen WHERE userAddress = ? AND userBlockchain = ?", userAddress, userBlockchain)
+	if err != nil {
+		core.LogDebug("Could not get user notification seen: " + err.Error())
+		return 0
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var lastSeenAt uint64
+		if err := rows.Scan(&lastSeenAt); err != nil {
+			core.LogDebug("Could not scan user notification seen: " + err.Error())
+			return 0
+		}
+		return lastSeenAt
+	}
+	return 0
+}
+func (db *SQLite) UserNotificationUpdateSeen(userAddress string, userBlockchain string, timestamp uint64) {
+	_, err := db.runParamSQLUpdate("INSERT INTO user_notification_seen (userAddress, userBlockchain, lastSeenAt) VALUES (?, ?, ?) ON CONFLICT (userAddress, userBlockchain) DO UPDATE SET lastSeenAt = excluded.lastSeenAt", userAddress, userBlockchain, timestamp)
+	if err != nil {
+		core.LogDebug("Could not update user notification seen: " + err.Error())
+	}
 }
 
 // --- oEmbed Cache Functions --- //

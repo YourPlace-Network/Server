@@ -462,7 +462,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 		routes.MentalHealthRoutes(router, title, database, cryptoSeed, gateway)
 		routes.SearchRoutes(router, database, _blockchain)
 		routes.ServicesRoutes(router, database, _blockchain)
-		routes.NotificationRoutes(router, database, gateway)
+		routes.NotificationRoutes(router, title, database, cryptoSeed, gateway)
 		routes.WalletRoutes(router, title, database, cryptoSeed, gateway)
 		if debug {
 			routes.TestRoutes(router, title, gateway)
@@ -605,6 +605,10 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain2.Blockchain) {
 	// ------- Identity Resolution ------- //
 	c.AddFunc("@every 3h", func() {
 		blockchain2.WalletResolveIdentities(database, _blockchain)
+	})
+	// ------- Notification Cleanup ------- //
+	c.AddFunc("@every 30m", func() {
+		database.UserNotificationCleanup()
 	})
 	// --- Start Cron --- //
 	c.Start()
