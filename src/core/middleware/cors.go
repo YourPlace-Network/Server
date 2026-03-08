@@ -31,11 +31,16 @@ func CORSMiddleware(gateway bool, gatewayOrigin string) gin.HandlerFunc {
 				allowedOrigins = append(allowedOrigins, "http://"+gatewayOrigin)
 			}
 			originAllowed := false
-			for _, allowed := range allowedOrigins {
-				if origin == allowed {
-					c.Header("Access-Control-Allow-Origin", origin)
-					originAllowed = true
-					break
+			if strings.HasPrefix(origin, "chrome-extension://") {
+				c.Header("Access-Control-Allow-Origin", origin)
+				originAllowed = true
+			} else {
+				for _, allowed := range allowedOrigins {
+					if origin == allowed {
+						c.Header("Access-Control-Allow-Origin", origin)
+						originAllowed = true
+						break
+					}
 				}
 			}
 			if !originAllowed && origin != "" {
