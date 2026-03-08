@@ -515,8 +515,12 @@ ul.ellipsesMenu {
   background: var(--yp-secondary);
   border-radius: 1em;
   cursor: pointer;
-  &:hover, &.selected {
-    background: var(--yp-tertiary);
+  &:hover {
+    background: var(--yp-quaternary);
+  }
+  &.selected {
+    background: var(--yp-quaternary);
+    outline: 2px solid var(--yp-text);
   }
   .emoji {
     font-size: 1.2em;

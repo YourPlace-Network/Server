@@ -142,6 +142,14 @@ function updateReactControlIcon(reactControl: Element, emoji: string): void {
         reactControl.insertBefore(emojiSpan, reactControl.firstChild);
     }
 }
+function getTotalEmojiCount(counts: ReactionCounts): number {
+    if (!counts || !counts.emoji) return 0;
+    let total = 0;
+    for (const c of Object.values(counts.emoji)) {
+        total += c;
+    }
+    return total;
+}
 function updateCount(element: HTMLElement, newCount: number): void {
     const countSpan = element.querySelector(".count");
     if (countSpan) {
@@ -207,8 +215,10 @@ export async function FetchUserReaction(blockchain: string, txHash: string, addr
 let activeReactionsPopup: HTMLElement | null = null;
 function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockchain: string, targetType: string): void {
     if (activeReactionsPopup) {
+        const wasForSameTarget = activeReactionsPopup.dataset.txhash === txHash;
         activeReactionsPopup.remove();
         activeReactionsPopup = null;
+        if (wasForSameTarget) return;
     }
     const popup = document.createElement("div");
     popup.classList.add("reactionsPopup");
@@ -237,8 +247,13 @@ function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockcha
                 if (controlsBar) {
                     const reactControl = controlsBar.querySelector(".react");
                     if (reactControl) {
+                        const hadReaction = reactControl.classList.contains("active");
                         reactControl.classList.add("active");
                         updateReactControlIcon(reactControl, emoji);
+                        if (!hadReaction) {
+                            const currentCount = parseInt(reactControl.querySelector(".count")?.textContent || "0", 10);
+                            updateCount(reactControl as HTMLElement, currentCount + 1);
+                        }
                     }
                 }
                 if (activeReactionsPopup) {
@@ -261,6 +276,7 @@ function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockcha
     popup.style.position = "absolute";
     popup.style.left = `${rect.left + scrollX}px`;
     popup.style.top = `${rect.bottom + scrollY + 5}px`;
+    popup.dataset.txhash = txHash;
     document.body.appendChild(popup);
     activeReactionsPopup = popup;
     const closeOnOutsideClick = (e: MouseEvent) => {
@@ -308,13 +324,17 @@ async function loadExistingReactions(container: HTMLElement, txHash: string, blo
                     return;
                 }
                 await WalletSubmitEmojiReaction(txHash, targetType, emoji);
+                container.querySelectorAll(".reactionChip.selected").forEach(el => el.classList.remove("selected"));
                 chip.classList.add("selected");
                 const controlsBar = document.querySelector(`.postControlsBar[data-txhash="${txHash}"][data-blockchain="${blockchain}"]`);
                 if (controlsBar) {
                     const reactControl = controlsBar.querySelector(".react");
                     if (reactControl) {
+                        const hadReaction = reactControl.classList.contains("active");
                         reactControl.classList.add("active");
                         updateReactControlIcon(reactControl, emoji);
+                        const total = getTotalEmojiCount(counts);
+                        updateCount(reactControl as HTMLElement, hadReaction ? total : total + 1);
                     }
                 }
             });
