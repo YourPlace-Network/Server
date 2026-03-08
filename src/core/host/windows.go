@@ -381,37 +381,34 @@ func RunShellCommandNoWaitEnv(command string, env []string) {
 		core.LogWarn("Could not start command: " + _command + "\n" + err.Error())
 	}
 }
-func RunAsSpecificUser(user *user.User, exePath string) error {
-	taskName := "YourPlaceRestart_" + strconv.FormatInt(time.Now().Unix(), 10)
-	cmd := exec.Command("schtasks", "/create", "/f",
-		"/tn", taskName,
-		"/tr", exePath,
-		"/sc", "once",
-		"/st", "00:00",
-		"/ru", user.Username,
-		"/rl", "LIMITED")
-	if err := cmd.Run(); err != nil {
+func RunAsUser(runAs *user.User, exePath string) error {
+	if runAs != nil {
+		taskName := "YourPlaceRestart_" + strconv.FormatInt(time.Now().Unix(), 10)
+		cmd := exec.Command("schtasks", "/create", "/f",
+			"/tn", taskName,
+			"/tr", exePath,
+			"/sc", "once",
+			"/st", "00:00",
+			"/ru", runAs.Username,
+			"/rl", "LIMITED")
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+		cmd = exec.Command("schtasks", "/run", "/tn", taskName)
+		err := cmd.Run()
+		go func() {
+			time.Sleep(5 * time.Second)
+			err := exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run()
+			if err != nil {
+				fmt.Println("could not delete task: " + taskName + ": " + err.Error())
+			}
+		}()
 		return err
 	}
-	cmd = exec.Command("schtasks", "/run", "/tn", taskName)
-	err := cmd.Run()
-	go func() {
-		time.Sleep(5 * time.Second)
-		err := exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run()
-		if err != nil {
-			fmt.Println("could not delete task: " + taskName + ": " + err.Error())
-		}
-	}()
-	return err
-}
-func RunAsUser(exePath string) error {
-	// Run an EXE with drop privileges - this function must be run as admin
-	// Initialize COM in MTA mode
 	if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err != nil {
 		return fmt.Errorf("CoInitializeEx failed: %v", err)
 	}
 	defer ole.CoUninitialize()
-	// Create TaskScheduler object
 	unknown, err := oleutil.CreateObject("Schedule.Service")
 	if err != nil {
 		return fmt.Errorf("failed to create Schedule.Service object: %v", err)
@@ -421,32 +418,26 @@ func RunAsUser(exePath string) error {
 		return fmt.Errorf("failed to get IDispatch interface: %v", err)
 	}
 	defer scheduler.Release()
-	// Connect to Task Scheduler
 	if _, err := oleutil.CallMethod(scheduler, "Connect"); err != nil {
 		return fmt.Errorf("failed to connect to task scheduler: %v", err)
 	}
-	// Get root folder
 	rootFolder, err := oleutil.CallMethod(scheduler, "GetFolder", "\\")
 	if err != nil {
 		return fmt.Errorf("failed to get root folder: %v", err)
 	}
 	defer rootFolder.ToIDispatch().Release()
-	// Create task definition
 	taskDef, err := oleutil.CallMethod(scheduler, "NewTask", 0)
 	if err != nil {
 		return fmt.Errorf("failed to create task definition: %v", err)
 	}
 	defer taskDef.ToIDispatch().Release()
-	// Get task settings
 	settings := oleutil.MustGetProperty(taskDef.ToIDispatch(), "Settings").ToIDispatch()
 	defer settings.Release()
-	// Configure settings
 	oleutil.MustPutProperty(settings, "Hidden", true)
 	oleutil.MustPutProperty(settings, "StartWhenAvailable", true)
 	oleutil.MustPutProperty(settings, "DisallowStartIfOnBatteries", false)
 	oleutil.MustPutProperty(settings, "StopIfGoingOnBatteries", false)
 	oleutil.MustPutProperty(settings, "ExecutionTimeLimit", "PT0S")
-	// Create action
 	actions := oleutil.MustGetProperty(taskDef.ToIDispatch(), "Actions").ToIDispatch()
 	defer actions.Release()
 	action, err := oleutil.CallMethod(actions, "Create", 0) // 0 = TASK_ACTION_EXEC
@@ -455,27 +446,21 @@ func RunAsUser(exePath string) error {
 	}
 	actionDisp := action.ToIDispatch()
 	defer actionDisp.Release()
-	// Set action properties
 	oleutil.MustPutProperty(actionDisp, "Path", exePath)
-	// Generate unique task name
 	taskName := fmt.Sprintf("UserTask_%d", syscall.Getpid())
-	// Register the task - running as current user with highest privileges
 	_, err = oleutil.CallMethod(rootFolder.ToIDispatch(), "RegisterTaskDefinition", taskName, taskDef.ToIDispatch(), 6, nil, nil, 3, "")
 	if err != nil {
 		return fmt.Errorf("failed to register task: %v", err)
 	}
-	// Get the registered task
 	task, err := oleutil.CallMethod(rootFolder.ToIDispatch(), "GetTask", taskName)
 	if err != nil {
 		return fmt.Errorf("failed to get registered task: %v", err)
 	}
 	defer task.ToIDispatch().Release()
-	// Run the task
 	_, err = oleutil.CallMethod(task.ToIDispatch(), "Run", nil)
 	if err != nil {
 		return fmt.Errorf("failed to run task: %v", err)
 	}
-	// Delete the task
 	_, err = oleutil.CallMethod(rootFolder.ToIDispatch(), "DeleteTask", taskName, 0)
 	if err != nil {
 		return fmt.Errorf("failed to delete task: %v", err)

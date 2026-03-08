@@ -18,6 +18,10 @@
 }
 @media(max-width: 704px) {
   .scrollTop {
+    width: 2.2em;
+    height: 2.2em;
+    border-right-width: 15px;
+    border-bottom-width: 15px;
     z-index: 1000;
   }
 }

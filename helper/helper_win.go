@@ -119,7 +119,7 @@ func main() {
 	c := cron.New(cron.WithSeconds())
 	c.AddFunc("@every 5m", func() { // ETH price updater
 		execPath := host.GetInstallDir() + "YourPlace" + host.BinaryExtension
-		err := host.RunAsUser(execPath)
+		err := host.RunAsUser(nil, execPath)
 		if err != nil {
 			LogError("Failed to start YourPlace: " + err.Error())
 		}
@@ -377,7 +377,7 @@ func restart() bool {
 	time.Sleep(2 * time.Second)
 	// Restart YourPlace executable
 	for attempt := 1; attempt <= 10; attempt++ {
-		err := host.RunAsSpecificUser(user, execPath)
+		err := host.RunAsUser(user, execPath)
 		if err != nil {
 			LogDebug("Failed to start YourPlace: " + err.Error())
 			time.Sleep(1 * time.Second)

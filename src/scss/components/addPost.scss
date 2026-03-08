@@ -164,6 +164,8 @@
 }
 @media(max-width: 704px) {
   #addPostButton {
+    width: 2.8em;
+    height: 2.8em;
     border: 2px solid map.get(global.$colors, "tertiary");
     z-index: 1000;
   }
