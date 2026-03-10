@@ -9,6 +9,10 @@
   width: 3.7em;
   background: var(--yp-quaternary);
   z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 .hamburger-icon {
   display: flex;
@@ -81,14 +85,15 @@
   #htmlMenu {
     width: 2.8em;
     height: 2.8em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
   }
   .hamburger-icon {
     width: 1.6em;
     height: 1.8em;
     padding: 0.2em 0;
-  }
-  .hamburger-line {
-    flex: 0 0 3px;
   }
 }
 @media (max-width: 576px) {

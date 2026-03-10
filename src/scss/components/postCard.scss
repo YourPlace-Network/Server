@@ -512,12 +512,9 @@ ul.ellipsesMenu {
   align-items: center;
   gap: 0.25em;
   padding: 0.25em 0.5em;
-  background: var(--yp-secondary);
+  background: transparent;
   border-radius: 1em;
   cursor: pointer;
-  &:hover {
-    background: var(--yp-quaternary);
-  }
   &.selected {
     background: var(--yp-quaternary);
     outline: 2px solid var(--yp-text);
