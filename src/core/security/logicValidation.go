@@ -238,6 +238,14 @@ func IsValidAddress(payload string, blockchain string) bool {
 	core.LogError("Invalid blockchain")
 	return false
 }
+func IsValidAddressAnyChain(payload string) bool {
+	for _, blockchain := range core.ValidNetworks {
+		if IsValidAddress(payload, blockchain) {
+			return true
+		}
+	}
+	return false
+}
 func IsValidAlgoAddress(payload string) bool {
 	_, err := _algotypes.DecodeAddress(payload)
 	if err != nil {

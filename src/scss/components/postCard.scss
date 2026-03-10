@@ -516,8 +516,7 @@ ul.ellipsesMenu {
   border-radius: 1em;
   cursor: pointer;
   &.selected {
-    background: var(--yp-quaternary);
-    outline: 2px solid var(--yp-text);
+    background: rgba(255, 255, 255, 0.1);
   }
   .emoji {
     font-size: 1.2em;

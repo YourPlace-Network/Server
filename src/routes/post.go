@@ -98,7 +98,7 @@ func PostRoutes(router *gin.Engine, database *db.Database, title string) {
 		post["commentCount"] = commentCount
 		post["emojiCount"] = emojiCount
 		userAddress := c.Query("address")
-		if userAddress != "" && security.IsValidAddress(userAddress, blockchain) {
+		if userAddress != "" && security.IsValidAddressAnyChain(userAddress) {
 			userReactions := database.GetUserReactions(txHash, blockchain, userAddress)
 			if userReactions["likeDislike"] != "" {
 				post["userReaction"] = userReactions["likeDislike"]

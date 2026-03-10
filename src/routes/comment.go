@@ -72,7 +72,7 @@ func getUserHasCommented(database *db.Database) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction hash"})
 			return
 		}
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddressAnyChain(address) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}

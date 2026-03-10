@@ -3,7 +3,7 @@ import "../../scss/components/postCard.scss";
 import "../../scss/components/imageLoader.scss";
 import {ShowAddCommentUI} from "../components/addComment";
 import {CreateCommentThread} from "../components/commentThread";
-import {CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented, FetchUserReaction} from "../components/postControls";
+import {CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented} from "../components/postControls";
 import {ProcessPostContentForPreviews} from "../components/postPreviewCard";
 import {XcomOEmbedCard} from "../components/xcomOEmbedCard";
 import {GetAddress} from "./blockchain/wallet";
@@ -837,20 +837,18 @@ async function grid4Attachments(attachments: HTMLElement[]): Promise<HTMLDivElem
 async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchain: string, txHash: string): Promise<void> {
     try {
         const address = GetAddress();
-        const [counts, userReactions, hasCommented] = await Promise.all([
-            FetchReactionCounts(blockchain, txHash),
-            address ? FetchUserReaction(blockchain, txHash, address) : Promise.resolve(null),
+        const [counts, hasCommented] = await Promise.all([
+            FetchReactionCounts(blockchain, txHash, address || undefined),
             address ? FetchUserHasCommented(blockchain, txHash, address) : Promise.resolve(false)
         ]);
         if (!counts) return;
-        const userEmojiReaction = userReactions?.emojiReaction || null;
-        const userHasCommented = hasCommented;
-        const userReaction = userReactions?.reaction || null;
+        const userEmojiReaction = counts.userEmojiReaction || null;
+        const userReaction = counts.userReaction || null;
         const commentControl = controlsBar.querySelector(".postControlItem.comment");
         const dislikeControl = controlsBar.querySelector(".postControlItem.dislike");
         const likeControl = controlsBar.querySelector(".postControlItem.like");
         const reactControl = controlsBar.querySelector(".postControlItem.react");
-        if (commentControl && userHasCommented) {
+        if (commentControl && hasCommented) {
             commentControl.classList.add("active");
         }
         if (likeControl) {
@@ -874,7 +872,7 @@ async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchai
         if (reactControl) {
             let emojiCount = 0;
             if (counts.emoji) {
-                for (const count of Object.values(counts.emoji)) {
+                for (const count of Object.values(counts.emoji) as number[]) {
                     emojiCount += count;
                 }
             }
@@ -884,6 +882,17 @@ async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchai
             }
             if (userEmojiReaction) {
                 reactControl.classList.add("active");
+                const existingEmoji = reactControl.querySelector(".reactEmoji");
+                const existingIcon = reactControl.querySelector("i.bi");
+                if (existingIcon) existingIcon.remove();
+                if (existingEmoji) {
+                    existingEmoji.textContent = userEmojiReaction;
+                } else {
+                    const emojiSpan = document.createElement("span");
+                    emojiSpan.classList.add("reactEmoji");
+                    emojiSpan.textContent = userEmojiReaction;
+                    reactControl.insertBefore(emojiSpan, reactControl.firstChild);
+                }
             }
         }
     } catch (e) {

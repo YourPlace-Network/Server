@@ -23,8 +23,7 @@
   width: 100%;
 }
 #searchInput {
-  padding: 12px;
-  padding-right: 45px;
+  padding: 12px 45px 12px 12px;
   width: 100%;
   border-radius: 1em;
   background-color: map.get(global.$colors, "tertiary");

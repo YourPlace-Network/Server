@@ -33,6 +33,12 @@ func getReactions(database *db.Database) gin.HandlerFunc {
 				"emoji":    map[string]int64{},
 			}
 		}
+		address := c.Query("address")
+		if address != "" && security.IsValidAddressAnyChain(address) {
+			userReactions := database.GetUserReactions(txHash, blockchain, address)
+			reactions["userReaction"] = userReactions["likeDislike"]
+			reactions["userEmojiReaction"] = userReactions["emoji"]
+		}
 		c.JSON(http.StatusOK, reactions)
 	}
 }
@@ -49,7 +55,7 @@ func getUserReaction(database *db.Database) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction hash"})
 			return
 		}
-		if !security.IsValidAddress(address, blockchain) {
+		if !security.IsValidAddressAnyChain(address) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
 			return
 		}

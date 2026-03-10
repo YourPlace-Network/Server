@@ -2680,15 +2680,21 @@ func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int,
 	return comments
 }
 func (db *SQLite) GetCommentCount(targetTxHash string, blockchain string) int64 {
-	queryFmt := `WITH RECURSIVE descendants AS (
-		SELECT txHash FROM onchain_%s_comment WHERE parentTxHash = ? AND blockchain = ?
-		UNION ALL
-		SELECT c.txHash FROM onchain_%s_comment c
-		INNER JOIN descendants d ON c.parentTxHash = d.txHash AND c.blockchain = ?
-	)
-	SELECT COUNT(*) FROM descendants`
-	query := fmt.Sprintf(queryFmt, blockchain, blockchain)
-	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, blockchain)
+	var unionParts []string
+	for _, chain := range core.ValidNetworks {
+		unionParts = append(unionParts, fmt.Sprintf("SELECT txHash, parentTxHash FROM onchain_%s_comment", chain))
+	}
+	allComments := strings.Join(unionParts, " UNION ALL ")
+	query := fmt.Sprintf(`WITH RECURSIVE
+		all_comments AS (%s),
+		descendants AS (
+			SELECT txHash FROM all_comments WHERE parentTxHash = ?
+			UNION ALL
+			SELECT c.txHash FROM all_comments c
+			INNER JOIN descendants d ON c.parentTxHash = d.txHash
+		)
+		SELECT COUNT(*) FROM descendants`, allComments)
+	rows, err := db.runParamSQLSelect(query, targetTxHash)
 	if err != nil {
 		return 0
 	}
@@ -2700,9 +2706,14 @@ func (db *SQLite) GetCommentCount(targetTxHash string, blockchain string) int64 
 	return count
 }
 func (db *SQLite) HasUserCommented(parentTxHash string, blockchain string, address string) bool {
-	queryFmt := "SELECT COUNT(*) FROM onchain_%s_comment WHERE parentTxHash = ? AND blockchain = ? AND fromAddress = ? LIMIT 1"
-	query := fmt.Sprintf(queryFmt, blockchain)
-	rows, err := db.runParamSQLSelect(query, parentTxHash, blockchain, address)
+	var unionParts []string
+	var params []interface{}
+	for _, chain := range core.ValidNetworks {
+		unionParts = append(unionParts, fmt.Sprintf("SELECT 1 FROM onchain_%s_comment WHERE parentTxHash = ? AND fromAddress = ?", chain))
+		params = append(params, parentTxHash, address)
+	}
+	query := fmt.Sprintf("SELECT COUNT(*) FROM (%s) LIMIT 1", strings.Join(unionParts, " UNION ALL "))
+	rows, err := db.runParamSQLSelect(query, params...)
 	if err != nil {
 		return false
 	}
@@ -2721,19 +2732,14 @@ func (db *SQLite) GetReactionCounts(targetTxHash string, blockchain string) map[
 		"dislikes": int64(0),
 		"emoji":    map[string]int64{},
 	}
-	queryFmt := `SELECT reactionType, COUNT(*) as count FROM (
-		SELECT fromAddress, reactionType,
-			ROW_NUMBER() OVER (
-				PARTITION BY fromAddress,
-					CASE WHEN reactionType IN ('like', 'dislike') THEN 'vote' ELSE 'emoji' END
-				ORDER BY timestamp DESC
-			) as rn
-		FROM onchain_%s_reaction
-		WHERE targetTxHash = ? AND blockchain = ?
-	) WHERE rn = 1
-	GROUP BY reactionType`
-	query := fmt.Sprintf(queryFmt, blockchain)
-	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain)
+	var unionParts []string
+	var params []interface{}
+	for _, chain := range core.ValidNetworks {
+		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress, reactionType FROM onchain_%s_reaction WHERE targetTxHash = ?", chain))
+		params = append(params, targetTxHash)
+	}
+	query := fmt.Sprintf("SELECT reactionType, COUNT(DISTINCT fromAddress) as count FROM (%s) GROUP BY reactionType", strings.Join(unionParts, " UNION ALL "))
+	rows, err := db.runParamSQLSelect(query, params...)
 	if err != nil {
 		core.LogDebug("Could not get reaction counts: " + err.Error())
 		return result
@@ -2776,17 +2782,21 @@ func (db *SQLite) GetUserReaction(targetTxHash string, blockchain string, fromAd
 }
 func (db *SQLite) GetUserReactions(targetTxHash string, blockchain string, fromAddress string) map[string]string {
 	result := map[string]string{"likeDislike": "", "emoji": ""}
-	queryFmt := `SELECT reactionType FROM (
+	var unionParts []string
+	var params []interface{}
+	for _, chain := range core.ValidNetworks {
+		unionParts = append(unionParts, fmt.Sprintf("SELECT reactionType, timestamp FROM onchain_%s_reaction WHERE targetTxHash = ? AND fromAddress = ?", chain))
+		params = append(params, targetTxHash, fromAddress)
+	}
+	query := fmt.Sprintf(`SELECT reactionType FROM (
 		SELECT reactionType,
 			ROW_NUMBER() OVER (
 				PARTITION BY CASE WHEN reactionType IN ('like', 'dislike') THEN 'vote' ELSE 'emoji' END
 				ORDER BY timestamp DESC
 			) as rn
-		FROM onchain_%s_reaction
-		WHERE targetTxHash = ? AND blockchain = ? AND fromAddress = ?
-	) WHERE rn = 1`
-	query := fmt.Sprintf(queryFmt, blockchain)
-	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, fromAddress)
+		FROM (%s)
+	) WHERE rn = 1`, strings.Join(unionParts, " UNION ALL "))
+	rows, err := db.runParamSQLSelect(query, params...)
 	if err != nil {
 		return result
 	}

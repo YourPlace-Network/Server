@@ -1,7 +1,7 @@
-import { GetAddress, GetChain, WalletSubmitDislike, WalletSubmitEmojiReaction, WalletSubmitLike } from "../util/blockchain/wallet";
+import { GetAddress, WalletSubmitDislike, WalletSubmitEmojiReaction, WalletSubmitLike } from "../util/blockchain/wallet";
 import { HttpGetJson } from "../util/network";
+import { createEmojiPicker } from "../util/emojiPicker";
 import { ShowDialogModal } from "./modalDialog";
-import { createEmojiPicker, closeEmojiPicker } from "../util/emojiPicker";
 
 export interface PostControlsOptions {
     blockchain: string;
@@ -18,15 +18,13 @@ export interface PostControlsOptions {
     userReaction?: string | null;
 }
 export interface ReactionCounts {
-    likes: number;
     dislikes: number;
     emoji: { [key: string]: number };
+    likes: number;
+    userEmojiReaction?: string | null;
     userReaction?: string | null;
 }
-export interface UserReactions {
-    reaction: string | null;
-    emojiReaction: string | null;
-}
+
 export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElement {
     const controlsBar = document.createElement("div");
     controlsBar.classList.add("postControlsBar");
@@ -176,9 +174,13 @@ export function UpdateReactionCounts(controlsBar: HTMLDivElement, counts: Reacti
         }
     }
 }
-export async function FetchReactionCounts(blockchain: string, txHash: string): Promise<ReactionCounts | null> {
+export async function FetchReactionCounts(blockchain: string, txHash: string, address?: string): Promise<ReactionCounts | null> {
     try {
-        const response = await HttpGetJson(`/reactions/${blockchain}/${txHash}`);
+        let url = `/reactions/${blockchain}/${txHash}`;
+        if (address) {
+            url += `?address=${encodeURIComponent(address)}`;
+        }
+        const response = await HttpGetJson(url);
         if (response[0] === 200 && response[1]) {
             return response[1] as ReactionCounts;
         }
@@ -198,20 +200,7 @@ export async function FetchUserHasCommented(blockchain: string, txHash: string, 
     }
     return false;
 }
-export async function FetchUserReaction(blockchain: string, txHash: string, address: string): Promise<UserReactions | null> {
-    try {
-        const response = await HttpGetJson(`/reactions/${blockchain}/${txHash}/user/${address}`);
-        if (response[0] === 200 && response[1]) {
-            return {
-                reaction: response[1].reaction || null,
-                emojiReaction: response[1].emojiReaction || null
-            };
-        }
-    } catch (e) {
-        console.error("Failed to fetch user reaction:", e);
-    }
-    return null;
-}
+
 let activeReactionsPopup: HTMLElement | null = null;
 function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockchain: string, targetType: string): void {
     if (activeReactionsPopup) {
@@ -291,16 +280,10 @@ function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockcha
     }, 100);
 }
 async function loadExistingReactions(container: HTMLElement, txHash: string, blockchain: string, targetType: string): Promise<void> {
-    const counts = await FetchReactionCounts(blockchain, txHash);
-    if (!counts || !counts.emoji) return;
     const address = GetAddress();
-    let userEmojiReaction: string | null = null;
-    if (address) {
-        const userReactions = await FetchUserReaction(blockchain, txHash, address);
-        if (userReactions) {
-            userEmojiReaction = userReactions.emojiReaction;
-        }
-    }
+    const counts = await FetchReactionCounts(blockchain, txHash, address || undefined);
+    if (!counts || !counts.emoji) return;
+    const userEmojiReaction = counts.userEmojiReaction || null;
     container.innerHTML = "";
     for (const [emoji, count] of Object.entries(counts.emoji)) {
         if (count > 0) {
