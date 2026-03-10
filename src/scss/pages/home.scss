@@ -65,14 +65,14 @@
   width: 100%;
   padding-top: 1em;
 }
-@media (max-width: 600px) {
+@media (max-width: 550px) {
   #bannerImg {
-    padding-top: 20px;
+    padding-top: 70px;
     padding-bottom: 30px;
   }
 }
 #subtitleText {
-  font-size: 2em;
+  font-size: clamp(1em, 4vw, 2em);
   font-weight: bold;
   color: map.get(global.$colors, "quaternary");
 }
