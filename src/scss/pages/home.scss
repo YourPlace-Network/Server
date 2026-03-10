@@ -1,29 +1,18 @@
 @use "sass:map";
 @use "../global.scss";
 
-#alphaImg {
-  width: 300px;
-  height: 70px;
-  transform: rotate(-30deg);
-  z-index: 150;
-  position: absolute;
-  opacity: 50%;
-  right: calc(50% + 50px);
-}
 #logoDiv {
   width: 100%;
-  display: inline-block;
-  justify-content: center;
   text-align: center;
 }
 #bannerImg {
-  display: inline;
-  position: relative;
+  display: block;
   max-width: 80%;
   min-width: 50%;
   width: 500px;
-  padding-top: 30px;
-  padding-bottom: 10px;
+  margin: -5% auto -5%;
+  padding-top: 45px;
+  padding-bottom: 50px;
 }
 #searchDiv {
   width: 100%;
@@ -78,7 +67,6 @@
 }
 @media (max-width: 600px) {
   #bannerImg {
-    margin-right: 80px;
     padding-top: 20px;
     padding-bottom: 30px;
   }
