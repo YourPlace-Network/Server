@@ -260,7 +260,7 @@ func main() {
 				gatewayMintEnabled = true
 				database.MetaUpdateValue("gatewayMintEnabled", "true")
 				if pinningType == "pinata" {
-					pinningService.GroupID = "28c594ac-da63-4ba7-95b0-495af7c605c1"
+					pinningService.GroupID = os.Getenv("PINATA_NFT_GROUP")
 					database.MetaUpdateValue("pinataGroupID", pinningService.GroupID)
 				}
 				core.LogDebug("Gateway NFT minting enabled with " + pinningType + " pinning service")
