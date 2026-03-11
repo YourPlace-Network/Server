@@ -86,6 +86,7 @@ declare global {
         let copiedTooltip: any;
         let isFollowing = false;
         let lastPostsHash = "";
+        let postsEverLoaded = false;
         let postsHasMore = true;
         let postsLoading = false;
         let displayCollectiblesCallId = 0;
@@ -126,8 +127,9 @@ declare global {
             await renderProfileAddress(requestedAddress);
             // Phase 2: Load profile data in background
             const profileDataPromise = HttpGetJson(`/profile/data/${requestedBlockchain}/${requestedAddress}`);
-            // Phase 3: Load posts in parallel (non-blocking)
-            const postsPromise = displayPosts(requestedBlockchain, requestedAddress);
+            // Phase 3: Load posts in parallel (non-blocking) - skip if navigating directly to collectibles
+            const skipPosts = window.location.hash === "#collection";
+            const postsPromise = skipPosts ? Promise.resolve() : displayPosts(requestedBlockchain, requestedAddress);
             // Handle profile data response
             try {
                 const response = await profileDataPromise;
@@ -144,6 +146,7 @@ declare global {
             await renderGuestView();
         }
         async function displayPosts(blockchain: string, address: string) {
+            postsEverLoaded = true;
             postsOffset = 0;
             postsHasMore = true;
             let result = await FetchPosts(blockchain, address, POSTS_PAGE_SIZE + 1, 0);
@@ -268,8 +271,21 @@ declare global {
         async function displayCollectibles(blockchain: string, address: string) {
             const callId = ++displayCollectiblesCallId;
             DOM.contentDiv.querySelectorAll(".collectibleGrid").forEach(g => g.remove());
+            DOM.contentDiv.querySelectorAll(".collectibleLoading").forEach(g => g.remove());
+            DOM.emptyContentDivPlaceHolder.style.display = "none";
+            let loadingDiv = document.createElement("div");
+            loadingDiv.className = "collectibleLoading";
+            let spinner = document.createElement("div");
+            spinner.classList.add("spinner-border", "text-primary");
+            spinner.setAttribute("role", "status");
+            loadingDiv.appendChild(spinner);
+            let loadingText = document.createElement("span");
+            loadingText.textContent = "Loading Collectibles";
+            loadingDiv.appendChild(loadingText);
+            DOM.contentDiv.appendChild(loadingDiv);
             const collectibles = await WalletGetCollectibles(address, blockchain);
             if (callId !== displayCollectiblesCallId) return;
+            DOM.contentDiv.querySelectorAll(".collectibleLoading").forEach(g => g.remove());
             if (collectibles.length === 0) {
                 DOM.emptyContentDivPlaceHolder.style.display = "flex";
                 DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
@@ -318,13 +334,17 @@ declare global {
             DOM.btnCollectible.classList.remove("active");
             const existingGrid = DOM.contentDiv.querySelector(".collectibleGrid");
             if (existingGrid) existingGrid.remove();
-            const postCards = DOM.contentDiv.querySelectorAll(".postCard");
-            postCards.forEach(p => (p as HTMLElement).style.display = "");
             DOM.emptyContentDivPlaceHolder.classList.add("clickable");
             DOM.emptyContentDivPlaceHolder.style.cursor = "";
             DOM.mintNFTButton.style.display = "none";
             DOM.addPostButton.style.display = "";
-            renderGuestView();
+            if (!postsEverLoaded) {
+                displayPosts(DOM.injectedBlockchain.value, DOM.injectedAddress.value).then(() => renderGuestView());
+            } else {
+                const postCards = DOM.contentDiv.querySelectorAll(".postCard");
+                postCards.forEach(p => (p as HTMLElement).style.display = "");
+                renderGuestView();
+            }
         }
 
         // --------- Profile Data Helpers --------- //

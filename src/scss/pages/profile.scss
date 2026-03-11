@@ -303,6 +303,13 @@ input[type="file"] {
   }
 }
 @media(max-width: 704px) {
+  #mintNFTButton {
+    width: 2.8em;
+    height: 2.8em;
+  }
+  .mintNFTIcon {
+    font-size: 1.2em;
+  }
   .navBtnTxt {
     display: none;
   }

@@ -40,7 +40,7 @@ import {LogError} from "../util/log";
         function resetForm() {
             DOM.mintNFTName.value = "";
             DOM.mintNFTDescription.value = "";
-            DOM.mintNFTRoyalty.value = "5";
+            DOM.mintNFTRoyalty.value = "0";
             DOM.mintNFTFileInput.value = "";
             DOM.mintNFTPreviewDiv.innerHTML = "";
             uploadedFileCid = "";
@@ -131,7 +131,7 @@ import {LogError} from "../util/log";
                     mediaCidStr = mediaCid.toString();
                 }
                 const description = DOM.mintNFTDescription.value.trim();
-                const royalty = parseInt(DOM.mintNFTRoyalty.value) || 5;
+                const royalty = parseInt(DOM.mintNFTRoyalty.value) || 0;
                 const metadata = {
                     name: name,
                     description: description,

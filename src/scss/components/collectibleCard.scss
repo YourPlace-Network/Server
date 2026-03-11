@@ -72,6 +72,14 @@
 .collectibleSendBtn {
   right: 0.5em;
 }
+.collectibleLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75em;
+  padding: 3em 0;
+  filter: brightness(70%);
+}
 @media(max-width: 575px) {
   .collectibleGrid {
     grid-template-columns: repeat(2, 1fr);
