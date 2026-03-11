@@ -166,7 +166,7 @@ import {LogError} from "../util/log";
                 const unitName = name.substring(0, 8).toUpperCase().replace(/[^A-Z0-9]/g, "");
                 const success = await WalletMintCollectible(metadataUri, name, unitName);
                 if (success) {
-                    ShowToast("Collectible created!");
+                    ShowToast("Your NFT has been minted<br>Please wait for it to spread through the network");
                     mintModal.hide();
                     resetForm();
                     if ((window as any).CollectibleMintCallback) {

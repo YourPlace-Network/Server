@@ -79,21 +79,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-@media(max-width: 800px) {
-  #profileName {
-    max-width: 16em;
-  }
-}
-@media(max-width: 700px) {
-  #profileName {
-    max-width: 12em;
-  }
-}
-@media(max-width: 600px) {
-  #profileName {
-    max-width: 9em;
-  }
-}
 #rowDescription {
   z-index: 20;
   height: 2.5em;
@@ -305,8 +290,11 @@ input[type="file"] {
   object-fit: fill;
   object-position: center;
 }
-// --------- Lower Resolution Tweaks ---------- //
+// --------- Lower Screen Width Styles ---------- //
 @media(max-width: 800px) {
+  #profileName {
+    max-width: 16em;
+  }
   #profileEditBtn {
     margin-top: -50px;
   }
@@ -319,12 +307,9 @@ input[type="file"] {
     display: none;
   }
 }
-@media(max-width: 575px) {
-  .navBtnTxt {
-    display: inline;
-  }
-  .navBtn {
-    margin-bottom: 0.5em;
+@media(max-width: 700px) {
+  #profileName {
+    max-width: 12em;
   }
 }
 @media(max-width: 600px) {
@@ -341,6 +326,17 @@ input[type="file"] {
   }
   #editBtnLabel, #followBtnLabel {
     display: none;
+  }
+  #profileName {
+    max-width: 9em;
+  }
+}
+@media(max-width: 575px) {
+  .navBtnTxt {
+    display: inline;
+  }
+  .navBtn {
+    margin-bottom: 0.5em;
   }
 }
 @media(max-width: 500px) {

@@ -137,7 +137,7 @@ export function XSSSanitizeOEmbed(payload: string): string {
 }
 export function XSSSanitizeTextUrl(payload: string): string {
     const config = {
-        ALLOWED_TAGS: ["a"],
+        ALLOWED_TAGS: ["a", "br"],
         ALLOWED_ATTR: ["href", "target", "class"],
         ADD_ATTR: ["target"],
         SANITIZE_DOM: true,
