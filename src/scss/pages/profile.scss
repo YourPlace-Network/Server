@@ -15,7 +15,7 @@
   position: static;
 }
 #profileBannerDiv {
-  height: 13em;
+  height: 210px;
   overflow: hidden;
 }
 #profileBanner {
@@ -371,6 +371,9 @@ input[type="file"] {
   .metaPair {
     width: 50%;
     margin-bottom: 0.5em;
+  }
+  #rowDescription {
+    padding-top: 50px;
   }
 }
 @media(max-width: 400px) {
