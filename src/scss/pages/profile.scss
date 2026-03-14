@@ -379,32 +379,32 @@ input[type="file"] {
     padding-top: 50px;
   }
 }
-@media(max-width: 400px) {
-  #profileAvatar {
-    margin-top: 0;
-  }
-  #nameDiv {
-    margin-top: -50px;
-    transform: translateX(-5em);
-  }
-  #profileName {
-    margin-left: 5em;
-    text-align: center;
-  }
-  #profileDescription {
-    margin-top: -2em;
-  }
-  #addressDiv {
-    transform: translateX(-6.5em);
-  }
-}
-@media(max-width: 300px) {
-  #profileName {
-    margin-left: 0;
-    text-align: left;
-    transform: translateX(-1em);
-  }
-  #profileDescription {
-    margin-top: -1.5em;
-  }
-}
+//@media(max-width: 400px) {
+//  #profileAvatar {
+//    margin-top: 0;
+//  }
+//  #nameDiv {
+//    margin-top: -50px;
+//    transform: translateX(-5em);
+//  }
+//  #profileName {
+//    margin-left: 5em;
+//    text-align: center;
+//  }
+//  #profileDescription {
+//    margin-top: -2em;
+//  }
+//  #addressDiv {
+//    transform: translateX(-6.5em);
+//  }
+//}
+//@media(max-width: 300px) {
+//  #profileName {
+//    margin-left: 0;
+//    text-align: left;
+//    transform: translateX(-1em);
+//  }
+//  #profileDescription {
+//    margin-top: -1.5em;
+//  }
+//}
