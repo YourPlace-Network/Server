@@ -52,9 +52,11 @@ import {LogError} from "../util/log";
                 window.location.href = "/login";
                 return;
             }
-            if (isGatewayMode() && !isGatewayMintEnabled()) {
+            if (isGatewayMode()) {
                 ShowDialogModalHTML(
-                    "To create a collectible, you need to host your own YourPlace server.<br><br>" +
+                    "<b>Coming Soon!</b><br><br>" +
+                    "Minting collectibles on the gateway is not yet available.<br><br>" +
+                    "In the meantime, you can mint by hosting your own YourPlace server.<br>" +
                     '<a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer">Download YourPlace</a>'
                 );
                 return;
@@ -65,12 +67,8 @@ import {LogError} from "../util/log";
         DOM.mintNFTFileInput.addEventListener("change", async () => {
             const files = DOM.mintNFTFileInput.files;
             if (!files || files.length === 0) return;
-            if (isGatewayMode() && !isGatewayMintEnabled()) {
+            if (isGatewayMode()) {
                 DOM.mintNFTFileInput.value = "";
-                ShowDialogModalHTML(
-                    "To create a collectible, you need to host your own YourPlace server.<br><br>" +
-                    '<a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer">Download YourPlace</a>'
-                );
                 return;
             }
             const file = files[0];
