@@ -25,6 +25,7 @@ import {IsValidBaseAddress, IsValidURL} from "../security";
 import {Sleep} from "../time";
 import {PersistentCache} from "../cache";
 import {setOnchainKitConfig} from "@coinbase/onchainkit";
+import { Attribution } from "ox/erc8021"
 
 // ---------- Global Variables ---------- //
 export const mainnetBase = {
@@ -132,6 +133,7 @@ const metadataYourPlace = {
         "https://yourplace.network/static/image/yourplace-logo.png"
     ],
     throttle: 500, // milliseconds
+    baseBuilderCode: "bc_w72oslhy",
 }
 let baseInit = false;
 let viemClient: any;
@@ -149,6 +151,9 @@ const ensAddressCache = new PersistentCache("base_ens_address");
 async function initBaseWallet() {
     if (baseInit) { return; }
     try {
+        const BASE_DATA_SUFFIX = Attribution.toDataSuffix({
+            codes: [metadataYourPlace.baseBuilderCode],
+        });
         viemClient = createPublicClient({
             chain: viemBase,
             transport: viemHttp(mainnetBase.rpcUrl!),
@@ -173,6 +178,7 @@ async function initBaseWallet() {
                 storage: window.localStorage,
             }),
             ssr: true,
+            dataSuffix: BASE_DATA_SUFFIX,
         });
         setOnchainKitConfig({
             chain: viemBase,
