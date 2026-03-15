@@ -363,7 +363,7 @@ func PostServerRun(database *db.Database) {
 		database.MetaUpdateValue("ypPortOpen", "true")
 	}
 	// Gateway mode: trigger snapshot catch-up on first run
-	if gateway {
+	if gateway && os.Getenv("YOURPLACE_GATEWAY_CATCHUP") == "true" {
 		lastCatchUpStr := database.MetaGetValue("indexerCatchUpLastRun_base")
 		if lastCatchUpStr == "" {
 			core.LogInfo("Gateway first run detected - triggering Base snapshot catch-up")
