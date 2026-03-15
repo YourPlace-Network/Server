@@ -55,7 +55,6 @@ import {Sleep} from "../util/time";
             retestPortsBtn: document.getElementById("retestPortsBtn")! as HTMLButtonElement,
             ipfsPinningURL: document.getElementById("ipfsPinningURL")! as HTMLInputElement,
             ipfsPinningKey: document.getElementById("ipfsPinningKey")! as HTMLInputElement,
-            pinataLI: document.getElementById("pinataLI")! as HTMLLIElement,
             saveIpfsPinningBtn: document.getElementById("saveIpfsPinningBtn")! as HTMLButtonElement,
             removeIpfsPinningBtn: document.getElementById("removeIpfsPinningBtn")! as HTMLButtonElement,
             ipfsGatewayURL: document.getElementById("ipfsGatewayURL")! as HTMLInputElement,
@@ -1546,11 +1545,6 @@ import {Sleep} from "../util/time";
         DOM.indexerRunCheckbox!.addEventListener("change", setIndexerRunning);
         DOM.indexerOnBatteryCheckbox!.addEventListener("change", setIndexerOnBattery);
         DOM.retestPortsBtn!.addEventListener("click", getNetworkPorts);
-        DOM.pinataLI!.addEventListener("click", function(e) {
-            DOM.ipfsPinningURL.value = "https://api.pinata.cloud/psa";
-            DOM.ipfsPinningKey.value = "";
-            ShowDialogModalHTML("Please create an account and an <b>API Key</b> from <a href='https://app.pinata.cloud/' target='_blank'>Pinata here</a><br><br>Then add your <b>JWT (secret access token)</b> to the IPFS Pinning settings page<br><br>Ensure your key has admin and write all privileges");
-        });
         DOM.saveIpfsPinningBtn.addEventListener("click", setIPFSPinning);
         DOM.removeIpfsPinningBtn.addEventListener("click", setRemoveIPFSPinning);
         DOM.ipfsPinningKey.addEventListener("focus", function() {

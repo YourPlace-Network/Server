@@ -443,109 +443,63 @@ func RestartIPFS() {
 	}
 }
 
-const pinataAPIURL = "https://api.pinata.cloud"
-const pinataUploadsURL = "https://uploads.pinata.cloud"
-
 type PinningService struct {
-	GroupID string
-	Key     string
-	Type    string
-	URL     string
+	Key  string
+	Type string
+	URL  string
 }
 
 func PinningServiceGenerateUploadAuth(ps *PinningService) (map[string]string, error) {
-	if ps.Type == "ipfs" {
-		return map[string]string{
-			"type":      "ipfs",
-			"uploadUrl": ps.URL + "/api/v0/add",
-			"key":       ps.Key,
-		}, nil
-	}
-	now := time.Now().Unix()
-	expires := int64(300)
-	signBody := fmt.Sprintf(`{"date":%d,"expires":%d}`, now, expires)
-	if ps.GroupID != "" {
-		signBody = fmt.Sprintf(`{"date":%d,"expires":%d,"group_id":"%s"}`, now, expires, ps.GroupID)
-	}
-	client := &http.Client{Timeout: 15 * time.Second}
-	req, err := http.NewRequest("POST", pinataUploadsURL+"/v3/files/sign", strings.NewReader(signBody))
+	token, err := generateUploadToken(ps.Key)
 	if err != nil {
-		return nil, _core.LogErrorReturn("Could not create Pinata sign request: " + err.Error())
-	}
-	req.Header.Set("Authorization", "Bearer "+ps.Key)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, _core.LogErrorReturn("Could not get Pinata signed URL: " + err.Error())
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, _core.LogErrorReturn("Could not read Pinata sign response: " + err.Error())
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, _core.LogErrorReturn("Pinata sign returned status " + strconv.Itoa(resp.StatusCode) + ": " + string(body))
-	}
-	var signResult struct {
-		Data string `json:"data"`
-	}
-	if err = json.Unmarshal(body, &signResult); err != nil {
-		return nil, _core.LogErrorReturn("Could not parse Pinata sign response: " + err.Error())
-	}
-	if signResult.Data == "" {
-		return nil, _core.LogErrorReturn("Pinata sign returned empty URL")
+		return nil, _core.LogErrorReturn("Could not generate upload token: " + err.Error())
 	}
 	return map[string]string{
-		"type":      "pinata",
-		"uploadUrl": signResult.Data,
+		"type":      "yourplace",
+		"uploadUrl": ps.URL + "/files/ipfs/nft/add",
+		"key":       token,
 	}, nil
 }
-
 func PinningServiceInit(pinningType string, pinningURL string, key string) (*PinningService, error) {
-	if pinningType != "pinata" && pinningType != "ipfs" {
-		return nil, _core.LogErrorReturn("Invalid pinning service type: " + pinningType + " (must be 'pinata' or 'ipfs')")
+	if pinningType != "yourplace" {
+		return nil, _core.LogErrorReturn("Invalid pinning service type: " + pinningType + " (must be 'yourplace')")
+	}
+	pinningURL = strings.TrimRight(pinningURL, "/")
+	if !security.IsValidURL(pinningURL) {
+		return nil, _core.LogErrorReturn("Invalid pinning service URL: " + pinningURL)
+	}
+	token, err := generateUploadToken(key)
+	if err != nil {
+		return nil, _core.LogErrorReturn("Could not generate health check token: " + err.Error())
 	}
 	client := &http.Client{Timeout: 15 * time.Second}
-	if pinningType == "pinata" {
-		req, err := http.NewRequest("GET", pinataAPIURL+"/data/testAuthentication", nil)
-		if err != nil {
-			return nil, _core.LogErrorReturn("Could not create Pinata auth test request: " + err.Error())
-		}
-		req.Header.Set("Authorization", "Bearer "+key)
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, _core.LogErrorReturn("Pinata health check failed: " + err.Error())
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, _core.LogErrorReturn("Pinata auth test returned status " + strconv.Itoa(resp.StatusCode) + ": " + string(body))
-		}
-	} else {
-		pinningURL = strings.TrimRight(pinningURL, "/")
-		if !security.IsValidURL(pinningURL) {
-			return nil, _core.LogErrorReturn("Invalid pinning service URL: " + pinningURL)
-		}
-		req, err := http.NewRequest("POST", pinningURL+"/api/v0/id", nil)
-		if err != nil {
-			return nil, _core.LogErrorReturn("Could not create IPFS node ID request: " + err.Error())
-		}
-		req.Header.Set("Authorization", "Bearer "+key)
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, _core.LogErrorReturn("IPFS node health check failed: " + err.Error())
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return nil, _core.LogErrorReturn("IPFS node ID returned status " + strconv.Itoa(resp.StatusCode))
-		}
+	req, err := http.NewRequest("POST", pinningURL+"/files/ipfs/id", nil)
+	if err != nil {
+		return nil, _core.LogErrorReturn("Could not create pinning service health check request: " + err.Error())
 	}
-	_core.LogDebug("Pinning service '" + pinningType + "' validated successfully")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, _core.LogErrorReturn("Pinning service health check failed: " + err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, _core.LogErrorReturn("Pinning service health check returned status " + strconv.Itoa(resp.StatusCode))
+	}
+	_core.LogDebug("Pinning service 'yourplace' validated successfully")
 	return &PinningService{
 		Key:  key,
 		Type: pinningType,
 		URL:  pinningURL,
 	}, nil
+}
+
+func generateUploadToken(secret string) (string, error) {
+	tokenBytes := security.RandomBytes(16)
+	timestamp := time.Now().Unix()
+	payload := fmt.Sprintf("%s:%d", security.Base64EncodeBytes(tokenBytes), timestamp)
+	signature := security.HMAC([]byte(payload), []byte(secret))
+	return fmt.Sprintf("%s.%s", payload, security.Base64Encode(signature)), nil
 }
 
 func UpdateBadBits(database *db.Database) {

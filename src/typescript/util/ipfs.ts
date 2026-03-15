@@ -303,10 +303,8 @@ export async function UploadToIPFSService(file: File, csrfToken: string): Promis
     const auth = await GetNFTUploadAuth(csrfToken);
     if (!auth) return null;
     try {
-        if (auth.type === "pinata") {
-            return await uploadToPinata(file, auth.uploadUrl);
-        } else if (auth.type === "ipfs") {
-            return await uploadToIPFSNode(file, auth.uploadUrl, auth.key);
+        if (auth.type === "yourplace") {
+            return await uploadToYourPlace(file, auth.uploadUrl, auth.key);
         }
         LogDebug("Unknown pinning service type: " + auth.type);
         return null;
@@ -315,7 +313,7 @@ export async function UploadToIPFSService(file: File, csrfToken: string): Promis
         return null;
     }
 }
-async function uploadToIPFSNode(file: File, url: string, key: string): Promise<string | null> {
+async function uploadToYourPlace(file: File, url: string, key: string): Promise<string | null> {
     const formData = new FormData();
     formData.append("file", file);
     const response = await fetch(url, {
@@ -324,33 +322,14 @@ async function uploadToIPFSNode(file: File, url: string, key: string): Promise<s
         body: formData,
     });
     if (!response.ok) {
-        LogDebug("IPFS node upload failed with status: " + response.status);
+        LogDebug("YourPlace pinning upload failed with status: " + response.status);
         return null;
     }
     const result = await response.json();
     if (result.Hash && IsValidIpfsCid(result.Hash)) {
         return result.Hash;
     }
-    LogDebug("IPFS node upload returned invalid response");
-    return null;
-}
-async function uploadToPinata(file: File, signedUrl: string): Promise<string | null> {
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await fetch(signedUrl, {
-        method: "POST",
-        body: formData,
-    });
-    if (!response.ok) {
-        LogDebug("Pinata upload failed with status: " + response.status);
-        return null;
-    }
-    const result = await response.json();
-    const cid = result.data?.cid || result.IpfsHash;
-    if (cid && IsValidIpfsCid(cid)) {
-        return cid;
-    }
-    LogDebug("Pinata upload returned invalid response");
+    LogDebug("YourPlace pinning upload returned invalid response");
     return null;
 }
 async function iterableToBlobArray(asyncIterable: AsyncIterable<Uint8Array>): Promise<BlobPart[]> {
