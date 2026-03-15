@@ -116,10 +116,12 @@ func SetupRoutes(router *gin.Engine, database *db.Database, title string, favico
 
 // ---------- Installer Functions ----------- //
 func IsInstalled(database *db.Database) bool {
-	dbPath := host.GetDataDir() + host.PathSeparator + "yourplace.sqlite.db"
-	if !host.DoesExist(dbPath) {
-		core.LogDebug("Could not find DB path: " + dbPath)
-		return false
+	if database.Engine == "sqlite" {
+		dbPath := host.GetDataDir() + host.PathSeparator + "yourplace.sqlite.db"
+		if !host.DoesExist(dbPath) {
+			core.LogDebug("Could not find DB path: " + dbPath)
+			return false
+		}
 	}
 	installedValue := database.MetaGetValue("installedDate")
 	if len(installedValue) == 0 {
