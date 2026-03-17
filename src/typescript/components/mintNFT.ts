@@ -3,7 +3,6 @@ import "../../scss/components/mintNFT.scss";
 import {GetWallet, WalletMintCollectible} from "../util/blockchain/wallet";
 import {UploadFile} from "../util/files";
 import {AddFileToIPFS, UploadToIPFSService} from "../util/ipfs";
-import {ShowDialogModalHTML} from "./modalDialog";
 import {ShowToast} from "./toast";
 import {LogError} from "../util/log";
 
@@ -13,7 +12,6 @@ import {LogError} from "../util/log";
         let DOM = {
             csrfToken: document.getElementById("csrfToken") as HTMLInputElement,
             gatewayMintEnabled: document.getElementById("gatewayMintEnabled") as HTMLInputElement,
-            gatewayMode: document.getElementById("gatewayModeMintNFT") as HTMLInputElement,
             mintNFTButton: document.getElementById("mintNFTButton")! as HTMLButtonElement,
             mintNFTDescription: document.getElementById("mintNFTDescription")! as HTMLTextAreaElement,
             mintNFTFileInput: document.getElementById("mintNFTFileInput")! as HTMLInputElement,
@@ -30,13 +28,6 @@ import {LogError} from "../util/log";
         function isGatewayMintEnabled(): boolean {
             return DOM.gatewayMintEnabled?.value === "true";
         }
-        function isLocalhost(): boolean {
-            const hostname = window.location.hostname;
-            return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
-        }
-        function isGatewayMode(): boolean {
-            return DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost() && !isGatewayMintEnabled();
-        }
         function resetForm() {
             DOM.mintNFTName.value = "";
             DOM.mintNFTDescription.value = "";
@@ -52,25 +43,12 @@ import {LogError} from "../util/log";
                 window.location.href = "/login";
                 return;
             }
-            if (isGatewayMode()) {
-                ShowDialogModalHTML(
-                    "<b>Coming Soon!</b><br><br>" +
-                    "Minting collectibles on the gateway is not yet available.<br><br>" +
-                    "In the meantime, you can mint by hosting your own YourPlace server.<br>" +
-                    '<a href="https://yourplace.network/download" target="_blank" rel="noopener noreferrer">Download YourPlace</a>'
-                );
-                return;
-            }
             resetForm();
             mintModal.show();
         }
         DOM.mintNFTFileInput.addEventListener("change", async () => {
             const files = DOM.mintNFTFileInput.files;
             if (!files || files.length === 0) return;
-            if (isGatewayMode()) {
-                DOM.mintNFTFileInput.value = "";
-                return;
-            }
             const file = files[0];
             const csrfToken = DOM.csrfToken ? DOM.csrfToken.value : "";
             if (isGatewayMintEnabled()) {
