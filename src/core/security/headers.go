@@ -39,7 +39,7 @@ func Headers(port int) gin.HandlerFunc {
 				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
 				"media-src 'self' data: https://*; "+
 				"font-src 'self' https://fonts.gstatic.com data:; "+
-				"connect-src 'self' data: https://* wss://*:* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // this must wildcard all TLS connections to allow for P2P traffic
+				"connect-src 'self' data: https://*:* wss://*:* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // this must wildcard all TLS connections to allow for P2P traffic
 				"frame-src https://*; "+
 				"base-uri 'self'; "+
 				"form-action 'self'; "+
