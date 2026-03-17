@@ -35,7 +35,7 @@ import {LogError} from "../util/log";
             return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
         }
         function isGatewayMode(): boolean {
-            return DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost();
+            return DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost() && !isGatewayMintEnabled();
         }
         function resetForm() {
             DOM.mintNFTName.value = "";
