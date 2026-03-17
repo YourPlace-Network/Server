@@ -503,7 +503,7 @@ func generateUploadToken(secret string) (string, error) {
 	tokenBytes := security.RandomBytes(16)
 	timestamp := time.Now().Unix()
 	payload := fmt.Sprintf("%s:%d", security.Base64EncodeBytes(tokenBytes), timestamp)
-	signature := security.HMAC([]byte(payload), secretBytes)
+	signature := security.HMAC(secretBytes, []byte(payload))
 	return fmt.Sprintf("%s.%s", payload, security.Base64Encode(signature)), nil
 }
 
