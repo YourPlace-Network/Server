@@ -6,6 +6,7 @@ import (
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/security"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -495,10 +496,14 @@ func PinningServiceInit(pinningType string, pinningURL string, key string) (*Pin
 }
 
 func generateUploadToken(secret string) (string, error) {
+	secretBytes, err := hex.DecodeString(secret)
+	if err != nil {
+		return "", fmt.Errorf("invalid hex secret: %w", err)
+	}
 	tokenBytes := security.RandomBytes(16)
 	timestamp := time.Now().Unix()
 	payload := fmt.Sprintf("%s:%d", security.Base64EncodeBytes(tokenBytes), timestamp)
-	signature := security.HMAC([]byte(payload), []byte(secret))
+	signature := security.HMAC([]byte(payload), secretBytes)
 	return fmt.Sprintf("%s.%s", payload, security.Base64Encode(signature)), nil
 }
 
