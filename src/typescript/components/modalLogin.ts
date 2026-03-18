@@ -40,7 +40,9 @@ export function ConfigureModalLoginForLocalWallet(hasLocalWallet: boolean) {
     function main() {
         ReconnectWallet().then();
         basePrefetchLoginNonce().then();
-        modal = new window.bootstrap.Modal("#loginModal", {});
+        const loginModalEl = document.getElementById("loginModal");
+        if (!loginModalEl) return;
+        modal = new window.bootstrap.Modal(loginModalEl, {});
         DOM = {
             coinbaseWalletBtn: document.getElementById("coinbaseWalletBtn")! as HTMLButtonElement,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
