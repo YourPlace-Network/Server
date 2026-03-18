@@ -3,6 +3,7 @@ import "../../scss/components/mintNFT.scss";
 import {GetWallet, WalletMintCollectible} from "../util/blockchain/wallet";
 import {UploadFile} from "../util/files";
 import {AddFileToIPFS, UploadToIPFSService} from "../util/ipfs";
+import {ShowDialogModalHTML} from "./modalDialog";
 import {ShowToast} from "./toast";
 import {LogError} from "../util/log";
 
