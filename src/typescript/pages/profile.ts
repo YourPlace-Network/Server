@@ -316,9 +316,7 @@ declare global {
             history.replaceState(null, "", window.location.pathname + "#collection");
             DOM.btnCollectible.classList.add("active");
             DOM.btnPosts.classList.remove("active");
-            const postCards = DOM.contentDiv.querySelectorAll(".postCard");
-            postCards.forEach(p => (p as HTMLElement).style.display = "none");
-            DOM.emptyContentDivPlaceHolder.style.display = "none";
+            Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
             DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
             DOM.emptyContentDivPlaceHolder.style.cursor = "default";
             DOM.addPostButton.style.display = "none";

@@ -29,7 +29,8 @@ func isValidYourPlacePayload(payload string) (bool, int, string, map[string]inte
 		return false, 0, "", nil
 	}
 	var payloadObject map[string]interface{}
-	err = json.Unmarshal([]byte(matches[3]), &payloadObject) // unmarshal the payload object
+	decoder := json.NewDecoder(strings.NewReader(matches[3]))
+	err = decoder.Decode(&payloadObject)
 	if err != nil {
 		core.LogDebug("Could not unmarshal YourPlace transaction payload into an object")
 		return false, 0, "", nil
