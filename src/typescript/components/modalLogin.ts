@@ -151,7 +151,11 @@ export function ConfigureModalLoginForLocalWallet(hasLocalWallet: boolean) {
                 HideModalLogin();
                 let status = await ConnectWallet(wallet);
                 if (status !== "success") {
-                    ShowDialogModal(status);
+                    if (status.includes("Empty address")) {
+                        ShowModalLogin();
+                    } else {
+                        ShowDialogModal(status);
+                    }
                     return;
                 }
                 if (window.location.pathname !== "/setup") {

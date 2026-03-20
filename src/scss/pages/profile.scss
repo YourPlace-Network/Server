@@ -205,7 +205,11 @@
   margin-left: 5px;
   margin-right: 5px;
   &.active {
-    border-bottom: 2px solid var(--yp-quaternary);
+    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.3);
+    transform: translateY(1px);
+    background-color: var(--yp-quaternary);
+    color: var(--yp-primary);
+    opacity: 0.6;
   }
 }
 #mintNFTButton {
