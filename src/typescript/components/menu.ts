@@ -119,7 +119,7 @@ declare global {
                 toggleAvatarBtn().then();
                 toggleLoginBtn().then();
                 DOM.bsOffcanvas.show();
-            }, 500);
+            }, 300);
         });
         DOM.htmlMenu.addEventListener("mouseleave", () => {
             if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
