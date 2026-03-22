@@ -132,6 +132,16 @@
   width: 100%;
   padding-top: 1.5em;
 }
+#discoverRandomRefreshBtn {
+  font-size: 0.8em;
+  opacity: 0.6;
+  margin-left: 0.5em;
+  transition: opacity 0.2s ease, transform 0.3s ease;
+  &:hover {
+    opacity: 1;
+    transform: rotate(45deg);
+  }
+}
 .discoverRow {
   margin-bottom: 1.5em;
 }

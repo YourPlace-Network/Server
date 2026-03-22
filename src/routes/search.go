@@ -13,6 +13,12 @@ import (
 )
 
 func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain) {
+	router.GET("/discover/random", func(c *gin.Context) {
+		randomProfiles := database.DiscoverGetRandomProfiles(5)
+		c.SecureJSON(http.StatusOK, gin.H{
+			"random": randomProfiles,
+		})
+	})
 	router.GET("/discover", func(c *gin.Context) {
 		randomProfiles := database.DiscoverGetRandomProfiles(5)
 		topByFollowers := database.DiscoverGetTopByFollowers(5)

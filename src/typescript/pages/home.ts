@@ -31,6 +31,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             followersFeedSection: document.getElementById("followersFeedSection")! as HTMLDivElement,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
             discoverSection: document.getElementById("discoverSection")! as HTMLDivElement,
+            discoverRandomRefreshBtn: document.getElementById("discoverRandomRefreshBtn")! as HTMLElement,
             discoverRandomRow: document.getElementById("discoverRandomRow")! as HTMLDivElement,
             discoverFollowersRow: document.getElementById("discoverFollowersRow")! as HTMLDivElement,
             discoverPostsRow: document.getElementById("discoverPostsRow")! as HTMLDivElement,
@@ -222,6 +223,18 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 await populateDiscoverRow(DOM.discoverPostsRow, data.byPosts || []);
             } catch (error) {
                 console.error("Error loading discover profiles:", error);
+            }
+        }
+        async function loadRandomProfiles() {
+            try {
+                let resp = await HttpGetJson("/discover/random");
+                if (resp[0] !== 200) {
+                    console.error("Failed to load random profiles:", resp[0], resp[1]);
+                    return;
+                }
+                await populateDiscoverRow(DOM.discoverRandomRow, resp[1].random || []);
+            } catch (error) {
+                console.error("Error loading random profiles:", error);
             }
         }
         async function populateDiscoverRow(rowElement: HTMLDivElement, profiles: any[]) {
@@ -569,6 +582,9 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 DOM.followersFeedSection.style.display = "block";
             }
             DOM.discoverSection.style.display = "block";
+        });
+        DOM.discoverRandomRefreshBtn.addEventListener("click", () => {
+            loadRandomProfiles().then();
         });
         DOM.feedRefreshBtn.addEventListener("click", () => {
             loadFollowersFeed("initial").then();

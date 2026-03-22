@@ -114,7 +114,7 @@ declare global {
             }
             await updateProfile();
             ShowNotifications().then(); // Load notifications in background - don't block profile loading
-            copiedTooltip = new window.bootstrap.Tooltip(DOM.profileAddressCopy, {title: "Copied", trigger: "manual", placement: "right"});
+            copiedTooltip = new window.bootstrap.Tooltip(DOM.profileAddressCopy, {title: "Copy", trigger: "hover", placement: "right"});
         }
         async function updateProfile() { // "main" method for loading the profile and it's data
             let requestedAddress = DOM.injectedAddress.value;
@@ -771,10 +771,12 @@ declare global {
                 return
             }
             navigator.clipboard.writeText(address).then();
+            copiedTooltip.setContent({".tooltip-inner": "Copied"});
             copiedTooltip.show();
             setTimeout(() => {
                 copiedTooltip.hide();
-            }, 1000);
+                copiedTooltip.setContent({".tooltip-inner": "Copy"});
+            }, 1500);
         });
         DOM.followBtn.addEventListener("click", async function() {
             if (!GetWallet()) {
