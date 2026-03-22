@@ -6,7 +6,7 @@ import {LogError, LogInfo} from "../log";
 import {YP} from "../../services/yourplace";
 import {mainnetBase} from "./base";
 import {YP_NFT_CONTRACT_ADDRESS, YP_NFT_CONTRACT_ABI} from "./base";
-import {ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
+import {IsInsufficientFundsError, OnRampFiat} from "./wallet";
 import {CIDToSubdomainURL} from "../ipfs";
 import type {CollectibleData} from "./wallet";
 
@@ -239,16 +239,8 @@ export async function localWalletEthereumTxn(dest: string, payload: string): Pro
         LogInfo("localWalletEthereumTxn: Transaction sent, hash: " + tx.hash);
         return tx.hash;
     } catch (error: any) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(wallet.address, "base"); return undefined; }
         LogError("localWalletEthereumTxn failed: " + error);
-        if (error?.code === "INSUFFICIENT_FUNDS") {
-            const address = wallet.address;
-            const addressesParam = encodeURIComponent(JSON.stringify({[address]: ["base"]}));
-            const fundUrl = `https://pay.coinbase.com/?appId=yourplace&addresses=${addressesParam}&defaultNetwork=base&defaultAsset=ETH`;
-            ShowDialogModalHTMLUnsafe(
-                `Your wallet doesn't have enough ETH to pay for transaction fees on the Base network.<br><br>` +
-                `<a href="${fundUrl}" target="_blank" rel="noopener noreferrer">Click here to add funds via Coinbase</a>`
-            );
-        }
         return undefined;
     }
 }
@@ -263,6 +255,7 @@ export async function localWalletEthereumBurnCollectible(tokenId: bigint): Promi
         await contract.burn(tokenId);
         return true;
     } catch (error) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(wallet.address, "base"); return false; }
         LogError("localWalletEthereumBurnCollectible failed: " + error);
         return false;
     }
@@ -314,6 +307,7 @@ export async function localWalletEthereumMintCollectible(metadataUri: string): P
         const tx = await contract.mint(metadataUri, {value: 100000000000000n});
         return tx.hash;
     } catch (error) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(wallet.address, "base"); return undefined; }
         LogError("localWalletEthereumMintCollectible failed: " + error);
         return undefined;
     }
@@ -328,6 +322,7 @@ export async function localWalletEthereumTransferCollectible(tokenId: bigint, to
         await contract.safeTransferFrom(wallet.address, toAddress, tokenId);
         return true;
     } catch (error) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(wallet.address, "base"); return false; }
         LogError("localWalletEthereumTransferCollectible failed: " + error);
         return false;
     }

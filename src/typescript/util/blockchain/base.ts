@@ -1,4 +1,4 @@
-import {DisconnectWallet, GetAddress} from "./wallet";
+import {DisconnectWallet, GetAddress, IsInsufficientFundsError, OnRampFiat} from "./wallet";
 import type {CollectibleData} from "./wallet";
 import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
@@ -408,6 +408,7 @@ export async function baseTxn(dest: string, payload: string) {
         LogInfo("baseTxn: Transaction sent successfully, hash: " + txHash);
         return txHash;
     } catch (error: unknown) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(address, "base"); return; }
         if (error instanceof Error) {
             LogError("baseTxn failed: " + error.message);
             if (error.stack) {
@@ -612,6 +613,7 @@ export async function baseBurnCollectible(tokenId: bigint): Promise<boolean> {
         });
         return true;
     } catch (error) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(GetAddress()!, "base"); return false; }
         LogError("baseBurnCollectible failed: " + error);
         return false;
     }
@@ -711,6 +713,7 @@ export async function baseMintCollectible(metadataUri: string): Promise<string |
         });
         return txHash;
     } catch (error) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(GetAddress()!, "base"); return undefined; }
         LogError("baseMintCollectible failed: " + error);
         return undefined;
     }
@@ -740,6 +743,7 @@ export async function baseTransferCollectible(tokenId: bigint, toAddress: string
         });
         return true;
     } catch (error) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(GetAddress()!, "base"); return false; }
         LogError("baseTransferCollectible failed: " + error);
         return false;
     }

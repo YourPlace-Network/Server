@@ -1,4 +1,4 @@
-import {DisconnectWallet, GetAddress} from "./wallet";
+import {DisconnectWallet, GetAddress, IsInsufficientFundsError, OnRampFiat} from "./wallet";
 import type {CollectibleData} from "./wallet";
 import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
@@ -232,6 +232,7 @@ export async function ethereumTxn(dest: string, payload: string) {
         });
         return txHash;
     } catch (error: unknown) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(address, "ethereum"); return; }
         if (error instanceof Error) {
             LogError("ethereumTxn failed: " + error.message);
         } else {

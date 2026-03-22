@@ -4,7 +4,6 @@ for the application. This code is stateful using localstorage to keep a few valu
     "walletSelection" = text base name of the wallet selected by the user
     "accountAddress" = wallet address of the user
 */
-import {Transaction} from "algosdk";
 import {
     algoAuthLogin,
     algoBurnCollectible,
@@ -14,7 +13,6 @@ import {
     algoGetAvatar,
     algoGetCollectibles,
     algoGetName,
-    algoGetNfdAddress,
     algoGetTransferFeeEstimate,
     algoMintCollectible,
     algoReconnectSession,
@@ -143,7 +141,7 @@ import {CIDToSubdomainURL} from "../ipfs";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
-import {ShowDialogModal, ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
+import {ShowDialogModal, ShowDialogModalHTML, ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
 
 // ---------- Types ---------- //
 export interface CollectibleData {
@@ -1076,6 +1074,35 @@ export async function WalletTransferCollectible(tokenId: string, toAddress: stri
             return await algoTransferCollectible(Number(tokenId), toAddress);
     }
     return false;
+}
+
+// ---------- On-Ramp ---------- //
+export function IsInsufficientFundsError(error: any): boolean {
+    if (error?.code === "INSUFFICIENT_FUNDS") return true;
+    const msg = String(error).toLowerCase();
+    return msg.includes("insufficient funds") || msg.includes("overspend");
+}
+export function OnRampFiat(address: string, blockchain: string) {
+    document.querySelectorAll(".modal.show").forEach(el => {
+        const instance = window.bootstrap.Modal.getInstance(el);
+        if (instance) instance.hide();
+    });
+    document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
+    ShowDialogModalHTML(
+        "<div>" +
+            "<p>Your wallet has insufficient funds to complete this transaction.</p>" +
+            "<p>Please visit <a href='https://coinbase.com' target='_blank' rel='noopener noreferrer'>Coinbase.com</a> and fund your wallet address:</p>" +
+            "<p><code id='onRampAddress' style='word-break: break-all; cursor: pointer;'>" + address + "</code></p>" +
+        "</div>"
+    );
+    const addrEl = document.getElementById("onRampAddress");
+    if (addrEl) {
+        addrEl.addEventListener("click", () => {
+            navigator.clipboard.writeText(address);
+            addrEl.textContent = "Copied!";
+            setTimeout(() => { addrEl.textContent = address; }, 1500);
+        });
+    }
 }
 
 // ---------- Utility ---------- //

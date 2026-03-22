@@ -2,7 +2,7 @@ import {PeraWalletConnect} from "@perawallet/connect";
 import algosdk, {Algodv2, type CustomTokenHeader} from "algosdk";
 import {HideDialogModal, ShowDialogModalHTML} from "../../components/modalDialog";
 import {HttpGetJson, HttpPostJson} from "../network";
-import {DisconnectWallet, GetAddress, GetWallet, ReconnectWallet} from "./wallet";
+import {DisconnectWallet, GetAddress, GetWallet, IsInsufficientFundsError, OnRampFiat, ReconnectWallet} from "./wallet";
 import type {CollectibleData} from "./wallet";
 import {YP} from "../../services/yourplace";
 import {LogError, LogInfo} from "../log";
@@ -406,6 +406,7 @@ export async function algoBurnCollectible(assetId: number): Promise<boolean> {
         return true;
     } catch (error) {
         HideDialogModal();
+        if (IsInsufficientFundsError(error)) { OnRampFiat(GetAddress()!, "algorand"); return false; }
         LogError("algoBurnCollectible failed: " + error);
         return false;
     }
@@ -516,6 +517,7 @@ export async function algoMintCollectible(name: string, unitName: string, metada
         return true;
     } catch (error) {
         HideDialogModal();
+        if (IsInsufficientFundsError(error)) { OnRampFiat(GetAddress()!, "algorand"); return false; }
         LogError("algoMintCollectible failed: " + error);
         return false;
     }
@@ -547,6 +549,7 @@ export async function algoTransferCollectible(assetId: number, toAddress: string
         return true;
     } catch (error) {
         HideDialogModal();
+        if (IsInsufficientFundsError(error)) { OnRampFiat(GetAddress()!, "algorand"); return false; }
         LogError("algoTransferCollectible failed: " + error);
         return false;
     }
@@ -607,6 +610,7 @@ const algoSubmitTxn = async function (txn: any): Promise<string> {
         LogInfo("algoSubmitTxn: Transaction submitted, txID: " + response.txid);
         return response.txid;
     } catch (error) {
+        if (IsInsufficientFundsError(error)) { OnRampFiat(GetAddress()!, "algorand"); return ""; }
         LogError("algoSubmitTxn() error: " + error);
         return "";
     }
