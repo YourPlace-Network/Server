@@ -1,4 +1,4 @@
-import "bootstrap/dist/js/bootstrap.bundle";
+window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/menu.scss";
 import {DisconnectWallet, GetAddress, GetChain, WalletGetAvatar, WalletIsConnected} from "../util/blockchain/wallet";
 import {XSSSanitizeUrl} from "../util/security";
@@ -16,6 +16,7 @@ declare global {
 
     async function main() {
         let DOM = {
+            bsOffcanvas: new window.bootstrap.Offcanvas("#htmlMenuOffcanvas"),
             htmlMenu: document.getElementById("htmlMenu")! as HTMLButtonElement,
             offcanvas: document.querySelectorAll('.offcanvas')! as NodeListOf<Element>,
             menuLoginBtn: document.getElementById("menuLoginBtn")! as HTMLButtonElement,
@@ -102,6 +103,18 @@ declare global {
             await syncAuthState();
             toggleAvatarBtn().then();
             toggleLoginBtn().then();
+        });
+        let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+        DOM.htmlMenu.addEventListener("mouseenter", () => {
+            hoverTimeout = setTimeout(async () => {
+                await syncAuthState();
+                toggleAvatarBtn().then();
+                toggleLoginBtn().then();
+                DOM.bsOffcanvas.show();
+            }, 500);
+        });
+        DOM.htmlMenu.addEventListener("mouseleave", () => {
+            if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
         });
         DOM.htmlMenu.addEventListener("focusin", (e) => {
             //e.preventDefault();
