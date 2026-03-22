@@ -16,6 +16,7 @@ import {
     getConnections, getEnsAvatar, getEnsName,
     http as wagmiHttp,
     readContract,
+    sendTransaction,
     signMessage,
 } from "@wagmi/core";
 import {getName as ockGetName, getAvatar as ockGetAvatar, getAddress as ockGetAddress} from "@coinbase/onchainkit/identity";
@@ -390,20 +391,12 @@ export async function baseTxn(dest: string, payload: string) {
         }
         const connector = connections[0]?.connector;
         LogInfo("baseTxn: Using connector: " + connector?.name + ", address: " + address + ", dest: " + dest);
-        const provider = await connector?.getProvider() as { request: (args: { method: string; params: unknown[] }) => Promise<string> } | undefined;
-        if (!provider) {
-            LogError("baseTxn: Failed to get provider from connector");
-            return;
-        }
-        LogInfo("baseTxn: Got provider, sending transaction via eth_sendTransaction");
-        const txHash = await provider.request({
-            method: "eth_sendTransaction",
-            params: [{
-                from: address as `0x${string}`,
-                to: dest as `0x${string}`,
-                value: "0x0",
-                data: ethers.hexlify(Buffer.from(payload, "utf8")) as `0x${string}`,
-            }],
+        const txHash = await sendTransaction(wagmiConfig, {
+            account: address as `0x${string}`,
+            to: dest as `0x${string}`,
+            value: BigInt(0),
+            data: ethers.hexlify(Buffer.from(payload, "utf8")) as `0x${string}`,
+            connector: connector,
         });
         LogInfo("baseTxn: Transaction sent successfully, hash: " + txHash);
         return txHash;
