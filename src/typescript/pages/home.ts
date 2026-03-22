@@ -3,7 +3,6 @@ import "../../scss/pages/home.scss";
 import "../components/scrollTop";
 import "../../scss/components/scrollTop.scss";
 import "../components/addPost";
-import {preloadTinyMCE} from "../components/addPost";
 import "../components/menu";
 import {CreatePostCard} from "../util/domFactory";
 import {CreateProfileCard, FetchAndUpdateProfileCard} from "../components/profileCard";
@@ -615,7 +614,6 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
         ShowNotifications().then(); // Load notifications in background - don't block page loading
         loadFollowersFeed("initial").then();
         loadDiscoverProfiles().then();
-        preloadTinyMCE().then(); // Preload TinyMCE in background after page loads
         setInterval(() => {
             if (DOM.followersFeedSection.style.display !== "none") {
                 loadFollowersFeed("refresh").then();

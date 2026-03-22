@@ -2,7 +2,6 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/global.scss"
 import "../../scss/pages/profile.scss";
 import "../components/addPost";
-import {preloadTinyMCE} from "../components/addPost";
 import "../components/mintNFT";
 import "../components/modalDialog";
 import "../components/modalYesNo";
@@ -816,7 +815,6 @@ declare global {
             if (window.location.hash === "#collection") {
                 switchToCollectiblesTab();
             }
-            preloadTinyMCE();
             startAutoRefresh();
         });
     }

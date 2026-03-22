@@ -1,6 +1,7 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/menu.scss";
-import {DisconnectWallet, GetAddress, GetChain, WalletGetAvatar, WalletIsConnected} from "../util/blockchain/wallet";
+import {DisconnectWallet, GetAddress, GetChain, GetWallet, WalletGetAvatar, WalletIsConnected} from "../util/blockchain/wallet";
+import {hasLocalWalletEthereum, localWalletEthereumAuthLogin} from "../util/blockchain/localWallet";
 import {XSSSanitizeUrl} from "../util/security";
 import {getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
@@ -37,6 +38,13 @@ declare global {
             let isAuthenticated = DOM.isCookieAuthenticated && DOM.isCookieAuthenticated.value === "true";
             let walletConnected = await WalletIsConnected();
             if (!isAuthenticated && walletConnected) {
+                if (GetWallet() === "localwalletethereum" && hasLocalWalletEthereum()) {
+                    let result = await localWalletEthereumAuthLogin();
+                    if (result === "success") {
+                        DOM.isCookieAuthenticated!.value = "true";
+                        return;
+                    }
+                }
                 await DisconnectWallet();
             }
         }

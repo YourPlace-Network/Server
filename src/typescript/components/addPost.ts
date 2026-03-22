@@ -15,7 +15,7 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
 // TinyMCE will be lazy loaded when needed
 let tinymceModulePromise: Promise<any> | null = null;
 
-export async function preloadTinyMCE() {
+async function preloadTinyMCE() {
     if (tinymceModulePromise) return tinymceModulePromise;
     tinymceModulePromise = import("tinymce/tinymce");
     return tinymceModulePromise;
@@ -462,6 +462,7 @@ export async function preloadTinyMCE() {
         DOM.submitPostButton.addEventListener("click", submitPost);
         DOM.uploadFileButton.addEventListener("click", clickFileInput);
         DOM.fileInput.addEventListener("change", uploadFile);
+        preloadTinyMCE().then(() => initTinyMCE());
         document.addEventListener("focusin", (e) => {
             if (e.target instanceof Element && e.target.closest(".emojiPickerPopup, .tox-tinymce-aux, .moxman-window, .tam-assetmanager-root") !== null) {
                 e.stopImmediatePropagation();
