@@ -3,6 +3,13 @@ import "../../scss/components/postCard.scss";
 import DOMPurify from "dompurify";
 import {HttpGetJson} from "../util/network";
 
+export async function FetchComments(blockchain: string, address: string, limit: number, offset: number): Promise<{posts: any[], totalCount: number} | null> {
+    let resp = await HttpGetJson(`/posts/${blockchain}/${address}/comments?limit=${limit}&offset=${offset}`);
+    if (resp[0] === 200) {
+        return {posts: resp[1].posts || [], totalCount: resp[1].totalCount || 0};
+    }
+    return null;
+}
 export async function FetchPosts(blockchain: string, address: string, limit: number, offset: number): Promise<{posts: any[], totalCount: number} | null> {
     let resp = await HttpGetJson(`/posts/${blockchain}/${address}?limit=${limit}&offset=${offset}`);
     if (resp[0] === 200) {

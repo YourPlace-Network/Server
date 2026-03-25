@@ -37,6 +37,31 @@ func PostRoutes(router *gin.Engine, database *db.Database, title string) {
 		posts := database.ProfileGetPosts(address, blockchain, limit, offset)
 		c.SecureJSON(http.StatusOK, gin.H{"posts": posts, "totalCount": totalCount})
 	})
+	router.GET("/posts/:blockchain/:address/comments", func(c *gin.Context) {
+		blockchain := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchain) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid blockchain"})
+			return
+		}
+		address := c.Param("address")
+		if !security.IsValidAddress(address, blockchain) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address"})
+			return
+		}
+		limitStr := c.DefaultQuery("limit", "21")
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 || limit > 21 {
+			limit = 21
+		}
+		offsetStr := c.DefaultQuery("offset", "0")
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 || offset > 10000 {
+			offset = 0
+		}
+		totalCount := database.ProfileGetCommentCount(address, blockchain)
+		comments := database.ProfileGetComments(address, blockchain, limit, offset)
+		c.SecureJSON(http.StatusOK, gin.H{"posts": comments, "totalCount": totalCount})
+	})
 	router.GET("/post/:blockchain/:txHash", func(c *gin.Context) {
 		blockchain := c.Param("blockchain")
 		txHash := c.Param("txHash")

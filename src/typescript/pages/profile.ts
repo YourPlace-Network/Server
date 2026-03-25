@@ -10,7 +10,7 @@ import "../components/menu";
 import {LogError, LogInfo} from "../util/log";
 import {HttpGetJson} from "../util/network";
 import {showProfileEditModal} from "../components/modalProfileEdit";
-import {FetchPosts} from "../components/post";
+import {FetchComments, FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
 import {GetAddress, GetChain, GetWallet, IsValidAddress, WalletBurnCollectible, WalletFollowUser, WalletGetAvatar, WalletGetCollectibles, WalletGetDescription, WalletGetExplorerAddressLink, WalletGetName, WalletGetTransferFeeEstimate, WalletSendPostNudge, WalletTransferCollectible, WalletUnfollowUser} from "../util/blockchain/wallet";
 import type {CollectibleData} from "../util/blockchain/wallet";
@@ -81,14 +81,20 @@ declare global {
             profileBlockchainIcon: document.getElementById("profileBlockchainIcon")! as HTMLImageElement,
             profileBlockchainLink: document.getElementById("profileBlockchainLink")! as HTMLAnchorElement,
         }
-        let activeTab: "posts" | "collectibles" = "posts";
+        let activeTab: "posts" | "collectibles" | "comments" = "posts";
+        let commentsEverLoaded = false;
+        let commentsHasMore = true;
+        let commentsLoading = false;
+        let commentsObserver: IntersectionObserver | null = null;
+        let commentsOffset = 0;
         let copiedTooltip: any;
+        let displayCollectiblesCallId = 0;
         let isFollowing = false;
+        let lastCommentsHash = "";
         let lastPostsHash = "";
         let postsEverLoaded = false;
         let postsHasMore = true;
         let postsLoading = false;
-        let displayCollectiblesCallId = 0;
         let postsObserver: IntersectionObserver | null = null;
         let postsOffset = 0;
         let refreshIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -127,7 +133,7 @@ declare global {
             // Phase 2: Load profile data in background
             const profileDataPromise = HttpGetJson(`/profile/data/${requestedBlockchain}/${requestedAddress}`);
             // Phase 3: Load posts in parallel (non-blocking) - skip if navigating directly to collectibles
-            const skipPosts = window.location.hash === "#collection";
+            const skipPosts = window.location.hash === "#collection" || window.location.hash === "#comments";
             const postsPromise = skipPosts ? Promise.resolve() : displayPosts(requestedBlockchain, requestedAddress);
             // Handle profile data response
             try {
@@ -164,6 +170,7 @@ declare global {
             lastPostsHash = JSON.stringify(posts.map((p: any) => p.txHash));
             for (let i = 0; i < posts.length; i++) {
                 let postDiv = await CreatePostCard(posts[i]);
+                postDiv.setAttribute("data-tab", "posts");
                 DOM.contentDiv.appendChild(postDiv);
             }
             setupPostsObserver(blockchain, address);
@@ -184,6 +191,7 @@ declare global {
                 }
                 for (const post of posts) {
                     let postDiv = await CreatePostCard(post);
+                    postDiv.setAttribute("data-tab", "posts");
                     DOM.contentDiv.appendChild(postDiv);
                 }
                 postsOffset += posts.length;
@@ -209,6 +217,72 @@ declare global {
                 postsObserver.observe(lastPost);
             }
         }
+        // --------- Comment Functions --------- //
+        async function displayComments(blockchain: string, address: string) {
+            commentsEverLoaded = true;
+            commentsOffset = 0;
+            commentsHasMore = true;
+            let result = await FetchComments(blockchain, address, POSTS_PAGE_SIZE + 1, 0);
+            if (!result || result.posts.length === 0) {
+                lastCommentsHash = "";
+                return;
+            }
+            let comments = result.posts;
+            commentsHasMore = comments.length > POSTS_PAGE_SIZE;
+            if (commentsHasMore) {
+                comments = comments.slice(0, POSTS_PAGE_SIZE);
+            }
+            commentsOffset = comments.length;
+            lastCommentsHash = JSON.stringify(comments.map((c: any) => c.txHash));
+            for (let i = 0; i < comments.length; i++) {
+                let commentDiv = await CreatePostCard(comments[i]);
+                commentDiv.setAttribute("data-tab", "comments");
+                DOM.contentDiv.appendChild(commentDiv);
+            }
+            setupCommentsObserver(blockchain, address);
+        }
+        async function loadMoreComments(blockchain: string, address: string) {
+            if (commentsLoading || !commentsHasMore) return;
+            commentsLoading = true;
+            try {
+                let result = await FetchComments(blockchain, address, POSTS_PAGE_SIZE + 1, commentsOffset);
+                if (!result || result.posts.length === 0) {
+                    commentsHasMore = false;
+                    return;
+                }
+                let comments = result.posts;
+                commentsHasMore = comments.length > POSTS_PAGE_SIZE;
+                if (commentsHasMore) {
+                    comments = comments.slice(0, POSTS_PAGE_SIZE);
+                }
+                for (const comment of comments) {
+                    let commentDiv = await CreatePostCard(comment);
+                    commentDiv.setAttribute("data-tab", "comments");
+                    DOM.contentDiv.appendChild(commentDiv);
+                }
+                commentsOffset += comments.length;
+                setupCommentsObserver(blockchain, address);
+            } finally {
+                commentsLoading = false;
+            }
+        }
+        function setupCommentsObserver(blockchain: string, address: string) {
+            if (commentsObserver) {
+                commentsObserver.disconnect();
+            }
+            if (!commentsHasMore) return;
+            commentsObserver = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting && commentsHasMore && !commentsLoading) {
+                        loadMoreComments(blockchain, address).then();
+                    }
+                }
+            }, {rootMargin: "100px"});
+            const lastComment = DOM.contentDiv.lastElementChild;
+            if (lastComment) {
+                commentsObserver.observe(lastComment);
+            }
+        }
         async function refreshProfileData() {
             let requestedAddress = DOM.injectedAddress.value;
             let requestedBlockchain = DOM.injectedBlockchain.value;
@@ -221,7 +295,7 @@ declare global {
                     const profileData = profileResponse[1].profileData;
                     await renderProfileFromCache(profileData, requestedBlockchain, requestedAddress);
                 }
-                if (activeTab === "collectibles") return;
+                if (activeTab === "collectibles" || activeTab === "comments") return;
                 const result = await FetchPosts(requestedBlockchain, requestedAddress, POSTS_PAGE_SIZE + 1, 0);
                 if (result) {
                     DOM.postsNum.textContent = String(result.totalCount);
@@ -230,7 +304,7 @@ declare global {
                 const newPostsHash = posts.length > 0 ? JSON.stringify(posts.slice(0, POSTS_PAGE_SIZE).map((p: any) => p.txHash)) : "";
                 if (newPostsHash !== lastPostsHash) {
                     lastPostsHash = newPostsHash;
-                    const existingPosts = DOM.contentDiv.querySelectorAll('.postCard');
+                    const existingPosts = DOM.contentDiv.querySelectorAll('.postCard[data-tab="posts"]');
                     existingPosts.forEach(post => post.remove());
                     if (posts.length > 0) {
                         postsHasMore = posts.length > POSTS_PAGE_SIZE;
@@ -240,6 +314,7 @@ declare global {
                         postsOffset = posts.length;
                         for (let i = 0; i < posts.length; i++) {
                             let postDiv = await CreatePostCard(posts[i]);
+                            postDiv.setAttribute("data-tab", "posts");
                             DOM.contentDiv.appendChild(postDiv);
                         }
                         setupPostsObserver(requestedBlockchain, requestedAddress);
@@ -314,6 +389,7 @@ declare global {
             activeTab = "collectibles";
             history.replaceState(null, "", window.location.pathname + "#collection");
             DOM.btnCollectible.classList.add("active");
+            DOM.btnComments.classList.remove("active");
             DOM.btnPosts.classList.remove("active");
             Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
             DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
@@ -324,11 +400,31 @@ declare global {
             }
             displayCollectibles(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
         }
+        function switchToCommentsTab() {
+            activeTab = "comments";
+            history.replaceState(null, "", window.location.pathname + "#comments");
+            DOM.btnComments.classList.add("active");
+            DOM.btnCollectible.classList.remove("active");
+            DOM.btnPosts.classList.remove("active");
+            Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
+            DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
+            DOM.emptyContentDivPlaceHolder.style.cursor = "default";
+            DOM.addPostButton.style.display = "";
+            DOM.mintNFTButton.style.display = "none";
+            if (!commentsEverLoaded) {
+                displayComments(DOM.injectedBlockchain.value, DOM.injectedAddress.value).then(() => renderCommentsGuestView());
+            } else {
+                const commentCards = DOM.contentDiv.querySelectorAll('.postCard[data-tab="comments"]');
+                commentCards.forEach(c => (c as HTMLElement).style.display = "");
+                renderCommentsGuestView();
+            }
+        }
         function switchToPostsTab() {
             activeTab = "posts";
             history.replaceState(null, "", window.location.pathname);
             DOM.btnPosts.classList.add("active");
             DOM.btnCollectible.classList.remove("active");
+            DOM.btnComments.classList.remove("active");
             const existingGrid = DOM.contentDiv.querySelector(".collectibleGrid");
             if (existingGrid) existingGrid.remove();
             DOM.emptyContentDivPlaceHolder.classList.add("clickable");
@@ -338,7 +434,7 @@ declare global {
             if (!postsEverLoaded) {
                 displayPosts(DOM.injectedBlockchain.value, DOM.injectedAddress.value).then(() => renderGuestView());
             } else {
-                const postCards = DOM.contentDiv.querySelectorAll(".postCard");
+                const postCards = DOM.contentDiv.querySelectorAll('.postCard[data-tab="posts"]');
                 postCards.forEach(p => (p as HTMLElement).style.display = "");
                 renderGuestView();
             }
@@ -436,6 +532,21 @@ declare global {
                 DOM.emptyContentDivPlaceHolder.style.display = "none";
             } else {
                 DOM.emptyContentDivPlaceHolder.style.display = "flex";
+            }
+        }
+
+        function renderCommentsGuestView() {
+            const hasComments = DOM.contentDiv.querySelectorAll('.postCard[data-tab="comments"]').length > 0;
+            if (hasComments) {
+                DOM.emptyContentDivPlaceHolder.style.display = "none";
+            } else {
+                DOM.emptyContentDivPlaceHolder.style.display = "flex";
+                DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
+                DOM.emptyContentDivPlaceHolder.style.cursor = "default";
+                DOM.placeHolderIcon.classList.remove("bi-house-add", "bi-envelope-paper-heart", "bi-gem");
+                DOM.placeHolderIcon.classList.add("bi-chat-dots");
+                DOM.placeHolderH3.textContent = "No comments yet";
+                DOM.placeHolderP.textContent = "";
             }
         }
 
@@ -648,6 +759,9 @@ declare global {
         DOM.btnCollectible.addEventListener("click", function () {
             if (activeTab !== "collectibles") switchToCollectiblesTab();
         });
+        DOM.btnComments.addEventListener("click", function () {
+            if (activeTab !== "comments") switchToCommentsTab();
+        });
         DOM.btnPosts.addEventListener("click", function () {
             if (activeTab === "posts") {
                 window.location.href = "/p/";
@@ -814,6 +928,8 @@ declare global {
         init().then(() => {
             if (window.location.hash === "#collection") {
                 switchToCollectiblesTab();
+            } else if (window.location.hash === "#comments") {
+                switchToCommentsTab();
             }
             startAutoRefresh();
         });

@@ -785,6 +785,84 @@ func (db *MySQL) ProfileGetJoinedDate(address string, blockchain string) *int64 
 	}
 	return &joinedDate
 }
+func (db *MySQL) ProfileGetCommentCount(address string, blockchain string) int64 {
+	var count int64
+	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_comment WHERE fromAddress = ? AND blockchain = ? AND data IS NOT NULL", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	if err != nil {
+		core.LogDebug("Could not get comment count from database: " + err.Error())
+		return 0
+	}
+	defer rows.Close()
+	if rows.Next() {
+		err = rows.Scan(&count)
+		if err != nil {
+			core.LogDebug("Could not scan comment count: " + err.Error())
+			return 0
+		}
+	}
+	return count
+}
+func (db *MySQL) ProfileGetComments(address string, blockchain string, limit int, offset int) []map[string]interface{} {
+	var comments []map[string]interface{}
+	query := fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_%s_comment WHERE fromAddress = ? AND blockchain = ? AND data IS NOT NULL ORDER BY timestamp DESC LIMIT ? OFFSET ?", blockchain)
+	rowsComments, err := db.runParamSQLSelect(query, address, blockchain, limit, offset)
+	if err != nil {
+		core.LogDebug("Could not get user comments from database: " + err.Error())
+		return nil
+	}
+	if rowsComments == nil {
+		core.LogDebug("No comments found for address: " + address + " on blockchain: " + blockchain)
+		return nil
+	}
+	defer rowsComments.Close()
+	for rowsComments.Next() {
+		var timestamp uint64
+		var txHash, payload, parent string
+		var attachments [][]interface{}
+		err := rowsComments.Scan(&txHash, &parent, &timestamp, &payload)
+		if err != nil {
+			core.LogDebug("Could not scan database rows for user comments: " + err.Error())
+			return nil
+		}
+		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
+		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
+		if err != nil {
+			core.LogDebug("Could not get attachments for comment: " + err.Error())
+		} else if rowsAttachments != nil {
+			for rowsAttachments.Next() {
+				var mimeType string
+				var size uint64
+				var fileUrl string
+				var fileName string
+				err := rowsAttachments.Scan(&mimeType, &size, &fileUrl, &fileName)
+				if err != nil {
+					core.LogDebug("Could parse rows for comment attachment: " + err.Error())
+					break
+				}
+				attachment := []interface{}{fileUrl, mimeType, size, fileName}
+				attachments = append(attachments, attachment)
+			}
+			rowsAttachments.Close()
+		}
+		commentCount := db.GetCommentCount(txHash, blockchain)
+		comment := map[string]interface{}{
+			"resultType":   "profile comment",
+			"txHash":       txHash,
+			"parent":       parent,
+			"timestamp":    timestamp,
+			"payload":      payload,
+			"blockchain":   blockchain,
+			"address":      address,
+			"commentCount": commentCount,
+		}
+		if attachments != nil {
+			comment["attachments"] = attachments
+		}
+		comments = append(comments, comment)
+	}
+	return comments
+}
 func (db *MySQL) ProfileGetPostCount(address string, blockchain string) int64 {
 	var count int64
 	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_post WHERE fromAddress = ? AND blockchain = ? AND data IS NOT NULL", blockchain)

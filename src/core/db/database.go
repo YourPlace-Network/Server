@@ -604,6 +604,27 @@ func (db *Database) ProfileGetName(address string, blockchain string) string {
 	}
 	return name
 }
+func (db *Database) ProfileGetCommentCount(address string, blockchain string) int64 {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileGetCommentCount(address, blockchain)
+	case "sqlite":
+		return db.sqlite.ProfileGetCommentCount(address, blockchain)
+	}
+	return 0
+}
+func (db *Database) ProfileGetComments(address string, blockchain string, limit int, offset int) []map[string]interface{} {
+	var comments []map[string]interface{}
+	switch db.Engine {
+	case "mysql":
+		comments = db.mysql.ProfileGetComments(address, blockchain, limit, offset)
+		return comments
+	case "sqlite":
+		comments = db.sqlite.ProfileGetComments(address, blockchain, limit, offset)
+		return comments
+	}
+	return nil
+}
 func (db *Database) ProfileGetPostCount(address string, blockchain string) int64 {
 	switch db.Engine {
 	case "mysql":
