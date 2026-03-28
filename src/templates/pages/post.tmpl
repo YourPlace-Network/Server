@@ -10,13 +10,25 @@
                 <div id="postPageContainer">
                     <div id="postContainer"></div>
                     <div id="commentsSection">
-                        <h5 id="commentsHeader">Comments</h5>
-                        <div id="commentsContainer"></div>
-                        <div id="loadMoreComments" class="text-center" style="display: none;">
-                            <button class="btn btn-outline-secondary" id="loadMoreCommentsBtn">Load More</button>
+                        <div id="commentsSectionHeader">
+                            <h5 id="commentsHeader">Comments</h5>
+                            <div id="commentSortControl" class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="commentSortBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-sort-down"></i> Most Liked
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="commentSortBtn">
+                                    <li><a class="dropdown-item active" href="#" data-sort="likes">Most Liked</a></li>
+                                    <li><a class="dropdown-item" href="#" data-sort="dislikes">Most Disliked</a></li>
+                                    <li><a class="dropdown-item" href="#" data-sort="reactions">Most Reacted</a></li>
+                                    <li><a class="dropdown-item" href="#" data-sort="recent">Recent</a></li>
+                                </ul>
+                            </div>
                         </div>
+                        <div id="commentsContainer"></div>
                     </div>
                 </div>
+                {{template "scrollTop" .}}
+                {{template "addPost" .}}
             </div>
             <div class="col-lg-2"></div>
         </div>

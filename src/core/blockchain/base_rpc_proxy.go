@@ -37,6 +37,9 @@ var (
 const DefaultPublicBaseRPC = "https://mainnet.base.org"
 const DefaultPublicBaseRPCRateLimit = 5
 
+func GetBaseRPCProxy() *BaseRPCProxy {
+	return baseRPCProxy
+}
 func InitBaseRPCProxy(targetURL string, rateLimit int) *BaseRPCProxy {
 	baseRPCProxyOnce.Do(func() {
 		// Fallback to public RPC if no valid URL configured

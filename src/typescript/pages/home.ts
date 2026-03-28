@@ -4,7 +4,7 @@ import "../components/scrollTop";
 import "../../scss/components/scrollTop.scss";
 import "../components/addPost";
 import "../components/menu";
-import {CreatePostCard} from "../util/domFactory";
+import {CreatePostCard} from "../components/postCard";
 import {CreateProfileCard, FetchAndUpdateProfileCard} from "../components/profileCard";
 import {HttpGetJson} from "../util/network";
 import {IsValidAlgoAddress, IsValidAlgoTxId, XSSSanitizeUrl} from "../util/security";

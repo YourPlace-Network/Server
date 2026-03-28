@@ -1032,12 +1032,12 @@ func (db *Database) OnchainCA(txHash string, blockchain string, fromAddr string,
 		db.sqlite.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data, attachments)
 	}
 }
-func (db *Database) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
+func (db *Database) GetComments(parentTxHash string, blockchain string, limit int, offset int, sort string) []map[string]interface{} {
 	switch db.Engine {
 	case "mysql":
-		return db.mysql.GetComments(parentTxHash, blockchain, limit, offset)
+		return db.mysql.GetComments(parentTxHash, blockchain, limit, offset, sort)
 	case "sqlite":
-		return db.sqlite.GetComments(parentTxHash, blockchain, limit, offset)
+		return db.sqlite.GetComments(parentTxHash, blockchain, limit, offset, sort)
 	}
 	return nil
 }

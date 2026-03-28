@@ -649,6 +649,10 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		if payload.BaseURL == "default" {
 			database.SettingsUpdateValue("baseURL", blockchain2.DefaultBlockchainNodes["base"][0])
 			database.SettingsUpdateValue("baseThrottle", blockchain2.DefaultBlockchainNodes["base"][1])
+			if proxy := blockchain2.GetBaseRPCProxy(); proxy != nil {
+				defaultThrottle, _ := strconv.Atoi(blockchain2.DefaultBlockchainNodes["base"][1])
+				proxy.UpdateRateLimit(defaultThrottle)
+			}
 			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultBaseURL": blockchain2.DefaultBlockchainNodes["base"][0], "defaultBaseThrottle": blockchain2.DefaultBlockchainNodes["base"][1]})
 			return
 		}
@@ -721,6 +725,9 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		database.SettingsUpdateValue("baseThrottle", strconv.Itoa(payload.Throttle))
+		if proxy := blockchain2.GetBaseRPCProxy(); proxy != nil {
+			proxy.UpdateRateLimit(payload.Throttle)
+		}
 		blockchain2.BaseIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
@@ -858,6 +865,10 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		if payload.EthereumURL == "default" {
 			database.SettingsUpdateValue("ethereumURL", blockchain2.DefaultBlockchainNodes["ethereum"][0])
 			database.SettingsUpdateValue("ethereumThrottle", blockchain2.DefaultBlockchainNodes["ethereum"][1])
+			if proxy := blockchain2.GetEthereumRPCProxy(); proxy != nil {
+				defaultThrottle, _ := strconv.Atoi(blockchain2.DefaultBlockchainNodes["ethereum"][1])
+				proxy.UpdateRateLimit(defaultThrottle)
+			}
 			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "defaultEthereumURL": blockchain2.DefaultBlockchainNodes["ethereum"][0], "defaultEthereumThrottle": blockchain2.DefaultBlockchainNodes["ethereum"][1]})
 			return
 		}
@@ -889,6 +900,9 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		database.SettingsUpdateValue("ethereumThrottle", strconv.Itoa(payload.Throttle))
+		if proxy := blockchain2.GetEthereumRPCProxy(); proxy != nil {
+			proxy.UpdateRateLimit(payload.Throttle)
+		}
 		blockchain2.EthereumIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})

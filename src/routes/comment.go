@@ -36,7 +36,13 @@ func getComments(database *db.Database) gin.HandlerFunc {
 		if err != nil || offset < 0 || offset > 1000 { // Anti-DoS: max offset 1000 to prevent deep pagination abuse
 			offset = 0
 		}
-		comments := database.GetComments(txHash, blockchain, limit, offset)
+		sort := c.DefaultQuery("sort", "likes")
+		switch sort {
+		case "dislikes", "likes", "reactions", "recent":
+		default:
+			sort = "likes"
+		}
+		comments := database.GetComments(txHash, blockchain, limit, offset, sort)
 		if comments == nil {
 			comments = []map[string]interface{}{}
 		}

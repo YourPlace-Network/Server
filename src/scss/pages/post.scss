@@ -1,1 +1,63 @@
 @use "../global.scss";
+
+#postPageContainer {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1em 0;
+}
+#postContainer {
+    margin-bottom: 1em;
+}
+#commentsSection {
+    padding: 0 0.5em;
+}
+#commentsSectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75em;
+}
+#commentsHeader {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+#commentSortControl {
+    .btn {
+        font-size: 0.8em;
+        display: flex;
+        align-items: center;
+        gap: 0.3em;
+        color: var(--yp-text);
+        border-color: var(--yp-secondary);
+        &:hover, &:focus {
+            background-color: var(--yp-tertiary);
+        }
+    }
+    .dropdown-menu {
+        font-size: 0.85em;
+        background-color: var(--yp-tertiary);
+        border-color: var(--yp-secondary);
+    }
+    .dropdown-item {
+        color: var(--yp-text);
+        &:hover {
+            background-color: var(--yp-quaternary);
+        }
+        &.active {
+            background-color: var(--yp-quaternary);
+            color: var(--yp-text);
+            font-weight: 600;
+        }
+    }
+}
+.postPageEmpty {
+    text-align: center;
+    padding: 3em 1em;
+    opacity: 0.6;
+    i {
+        font-size: 2em;
+        display: block;
+        margin-bottom: 0.5em;
+    }
+}

@@ -32,6 +32,9 @@
   align-items: flex-start;
   border: 2px solid var(--yp-secondary);
 }
+.postCardClickable {
+  cursor: pointer;
+}
 .postCardAvatar {
   position: relative;
   padding: 0;
@@ -290,7 +293,10 @@ ul.ellipsesMenu {
 .commentToggle {
   cursor: pointer;
   user-select: none;
+  display: inline-flex;
+  align-items: center;
   .bi-chevron-down {
+    display: inline-block;
     transition: transform 0.2s;
   }
   &.collapsed .bi-chevron-down {

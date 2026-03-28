@@ -2709,8 +2709,19 @@ func (db *SQLite) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64
 }
 
 // --- Comment Functions --- //
-func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int, offset int) []map[string]interface{} {
+func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int, offset int, sort string) []map[string]interface{} {
 	var comments []map[string]interface{}
+	var orderBy string
+	switch sort {
+	case "dislikes":
+		orderBy = "dislikeCount DESC, c.timestamp DESC"
+	case "reactions":
+		orderBy = "(likeCount + dislikeCount) DESC, c.timestamp DESC"
+	case "recent":
+		orderBy = "c.timestamp DESC"
+	default:
+		orderBy = "likeCount DESC, c.timestamp DESC"
+	}
 	queryFmt := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.timestamp, c.data,
 		COALESCE(NULLIF(m.name, ''), NULLIF(m.ensName, ''), '') as author, COALESCE(NULLIF(m.avatar, ''), NULLIF(m.ensAvatar, ''), '') as avatarSrc,
 		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'like') as likeCount,
@@ -2719,9 +2730,9 @@ func (db *SQLite) GetComments(parentTxHash string, blockchain string, limit int,
 		FROM onchain_%s_comment c
 		LEFT JOIN onchain_%s_meta m ON c.fromAddress = m.address AND c.blockchain = m.blockchain
 		WHERE c.parentTxHash = ? AND c.blockchain = ?
-		ORDER BY likeCount DESC, c.timestamp DESC
+		ORDER BY %s
 		LIMIT ? OFFSET ?`
-	query := fmt.Sprintf(queryFmt, blockchain, blockchain, blockchain, blockchain, blockchain)
+	query := fmt.Sprintf(queryFmt, blockchain, blockchain, blockchain, blockchain, blockchain, orderBy)
 	rows, err := db.runParamSQLSelect(query, parentTxHash, blockchain, limit, offset)
 	if err != nil {
 		core.LogDebug("Could not get comments: " + err.Error())

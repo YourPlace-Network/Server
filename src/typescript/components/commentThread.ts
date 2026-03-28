@@ -9,21 +9,27 @@ import { formatTimestamp } from "../util/time";
 
 const MAX_INDENT_DEPTH = 4;
 const PAGE_SIZE = 5;
+export type CommentSort = "dislikes" | "likes" | "reactions" | "recent";
 export interface CommentThreadOptions {
     blockchain: string;
+    initialPage?: number;
     maxDepth?: number;
+    onPageChange?: (page: number) => void;
     parentTxHash: string;
+    sort?: CommentSort;
 }
 interface PaginationState {
     currentPage: number;
     hasMore: boolean;
     loading: boolean;
     pages: Comment[][];
+    sort: CommentSort;
 }
 
+const pageChangeCallbacks: WeakMap<HTMLElement, (page: number) => void> = new WeakMap();
 const paginationStates: WeakMap<HTMLElement, PaginationState> = new WeakMap();
 
-function createPaginationControls(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number): HTMLDivElement {
+function createPaginationControls(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, sort: CommentSort): HTMLDivElement {
     const controls = document.createElement("div");
     controls.classList.add("commentPaginationControls");
     const upArrow = document.createElement("button");
@@ -31,18 +37,18 @@ function createPaginationControls(container: HTMLElement, parentTxHash: string, 
     upArrow.innerHTML = '<i class="bi bi-chevron-up"></i>';
     upArrow.title = "Previous comments";
     upArrow.style.display = "none";
-    upArrow.addEventListener("click", () => navigatePage(container, parentTxHash, blockchain, depth, -1));
+    upArrow.addEventListener("click", () => navigatePage(container, parentTxHash, blockchain, depth, -1, sort));
     controls.appendChild(upArrow);
     const downArrow = document.createElement("button");
     downArrow.classList.add("commentPaginationBtn", "commentPaginationDown");
     downArrow.innerHTML = '<i class="bi bi-chevron-down"></i>';
     downArrow.title = "More comments";
     downArrow.style.display = "none";
-    downArrow.addEventListener("click", () => navigatePage(container, parentTxHash, blockchain, depth, 1));
+    downArrow.addEventListener("click", () => navigatePage(container, parentTxHash, blockchain, depth, 1, sort));
     controls.appendChild(downArrow);
     return controls;
 }
-async function createCommentElement(comment: Comment, depth: number, blockchain: string): Promise<HTMLDivElement> {
+async function createCommentElement(comment: Comment, depth: number, blockchain: string, sort: CommentSort): Promise<HTMLDivElement> {
     const commentDiv = document.createElement("div");
     commentDiv.classList.add("commentItem");
     commentDiv.dataset.address = comment.address;
@@ -67,7 +73,7 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
             chevron.classList.add("bi", "bi-chevron-down");
             toggleBtn.appendChild(chevron);
             toggleBtn.addEventListener("click", () => {
-                toggleReplies(commentDiv, comment.txHash, blockchain, depth + 1);
+                toggleReplies(commentDiv, comment.txHash, blockchain, depth + 1, sort);
             });
             headerDiv.appendChild(toggleBtn);
         }
@@ -150,7 +156,7 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
         initialDislikes: comment.dislikeCount,
         initialLikes: comment.likeCount,
         onCommentClick: () => {
-            toggleAddCommentUI(commentDiv, comment.txHash, blockchain);
+            toggleAddCommentUI(commentDiv, comment.txHash, blockchain, sort);
         },
         onRepostClick: () => {
             const postUrl = `/post/${comment.blockchain}/${comment.txHash}`;
@@ -168,27 +174,38 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
     commentDiv.appendChild(repliesDiv);
     return commentDiv;
 }
-async function loadCommentsPage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, page: number): Promise<void> {
+async function loadInitialPages(container: HTMLElement, parentTxHash: string, blockchain: string, sort: CommentSort, targetPage: number): Promise<void> {
+    for (let p = 0; p <= targetPage; p++) {
+        await loadCommentsPage(container, parentTxHash, blockchain, 0, p, sort);
+        const state = paginationStates.get(container);
+        if (state && !state.hasMore && p < targetPage) break;
+    }
+}
+async function loadCommentsPage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, page: number, sort: CommentSort): Promise<void> {
     let state = paginationStates.get(container);
     if (!state) {
-        state = { currentPage: 0, hasMore: true, loading: false, pages: [] };
+        state = { currentPage: 0, hasMore: true, loading: false, pages: [], sort };
         paginationStates.set(container, state);
     }
     if (state.loading) return;
     if (page < state.pages.length) {
-        await renderPage(container, parentTxHash, blockchain, depth, page);
+        await renderPage(container, parentTxHash, blockchain, depth, page, sort);
         return;
     }
     if (!state.hasMore) return;
     state.loading = true;
     try {
         const offset = state.pages.length * PAGE_SIZE;
-        const response = await HttpGetJson(`/comments/${blockchain}/${parentTxHash}?limit=${PAGE_SIZE}&offset=${offset}&sort=likes`);
+        const response = await HttpGetJson(`/comments/${blockchain}/${parentTxHash}?limit=${PAGE_SIZE}&offset=${offset}&sort=${sort}`);
         if (response[0] === 200 && response[1] && response[1].comments) {
             const comments = response[1].comments as Comment[];
-            state.pages.push(comments);
             state.hasMore = comments.length === PAGE_SIZE;
-            await renderPage(container, parentTxHash, blockchain, depth, page);
+            if (comments.length === 0) {
+                updatePaginationArrows(container, state);
+                return;
+            }
+            state.pages.push(comments);
+            await renderPage(container, parentTxHash, blockchain, depth, page, sort);
         }
     } catch (e) {
         console.error("Failed to load comments:", e);
@@ -196,38 +213,42 @@ async function loadCommentsPage(container: HTMLElement, parentTxHash: string, bl
         state.loading = false;
     }
 }
-async function navigatePage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, direction: number): Promise<void> {
+function updatePaginationArrows(container: HTMLElement, state: PaginationState): void {
+    const paginationControls = container.querySelector(".commentPaginationControls") as HTMLElement;
+    if (!paginationControls) return;
+    const upArrow = paginationControls.querySelector(".commentPaginationUp") as HTMLElement;
+    const downArrow = paginationControls.querySelector(".commentPaginationDown") as HTMLElement;
+    if (upArrow) {
+        upArrow.style.display = state.currentPage > 0 ? "flex" : "none";
+    }
+    if (downArrow) {
+        downArrow.style.display = state.hasMore || state.currentPage < state.pages.length - 1 ? "flex" : "none";
+    }
+}
+async function navigatePage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, direction: number, sort: CommentSort): Promise<void> {
     const state = paginationStates.get(container);
     if (!state) return;
     const newPage = state.currentPage + direction;
     if (newPage < 0) return;
-    await loadCommentsPage(container, parentTxHash, blockchain, depth, newPage);
+    await loadCommentsPage(container, parentTxHash, blockchain, depth, newPage, sort);
 }
-async function renderPage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, page: number): Promise<void> {
+async function renderPage(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, page: number, sort: CommentSort): Promise<void> {
     const state = paginationStates.get(container);
     if (!state || page >= state.pages.length) return;
     state.currentPage = page;
     const commentsContainer = container.querySelector(".commentsContainer") as HTMLElement;
-    const paginationControls = container.querySelector(".commentPaginationControls") as HTMLElement;
     if (!commentsContainer) return;
     commentsContainer.innerHTML = "";
     const comments = state.pages[page];
     for (const comment of comments) {
-        const commentElement = await createCommentElement(comment, depth, blockchain);
+        const commentElement = await createCommentElement(comment, depth, blockchain, sort);
         commentsContainer.appendChild(commentElement);
     }
-    if (paginationControls) {
-        const upArrow = paginationControls.querySelector(".commentPaginationUp") as HTMLElement;
-        const downArrow = paginationControls.querySelector(".commentPaginationDown") as HTMLElement;
-        if (upArrow) {
-            upArrow.style.display = page > 0 ? "flex" : "none";
-        }
-        if (downArrow) {
-            downArrow.style.display = state.hasMore || page < state.pages.length - 1 ? "flex" : "none";
-        }
-    }
+    updatePaginationArrows(container, state);
+    const callback = pageChangeCallbacks.get(container);
+    if (callback) callback(page);
 }
-function toggleAddCommentUI(commentDiv: HTMLElement, parentTxHash: string, blockchain: string): void {
+function toggleAddCommentUI(commentDiv: HTMLElement, parentTxHash: string, blockchain: string, sort: CommentSort): void {
     const container = commentDiv.querySelector(".addCommentContainer");
     const commentBtn = commentDiv.querySelector(".postControlItem.comment") as HTMLElement;
     const commentIcon = commentBtn?.querySelector("i") as HTMLElement | null;
@@ -249,13 +270,13 @@ function toggleAddCommentUI(commentDiv: HTMLElement, parentTxHash: string, block
                 paginationStates.delete(repliesDiv);
                 repliesDiv.innerHTML = "";
                 const depth = parseInt(commentDiv.dataset.depth || "0");
-                initializeRepliesContainer(repliesDiv, parentTxHash, blockchain, depth + 1);
+                initializeRepliesContainer(repliesDiv, parentTxHash, blockchain, depth + 1, sort);
             }
         }, commentBtn);
         container.appendChild(addCommentUI);
     }
 }
-function toggleReplies(commentDiv: HTMLElement, txHash: string, blockchain: string, depth: number): void {
+function toggleReplies(commentDiv: HTMLElement, txHash: string, blockchain: string, depth: number, sort: CommentSort): void {
     const toggle = commentDiv.querySelector(".commentToggle");
     const repliesDiv = commentDiv.querySelector(".commentReplies");
     if (!toggle || !repliesDiv) return;
@@ -264,21 +285,21 @@ function toggleReplies(commentDiv: HTMLElement, txHash: string, blockchain: stri
         toggle.classList.remove("collapsed");
         repliesDiv.classList.remove("collapsed");
         if (!repliesDiv.querySelector(".commentsContainer")) {
-            initializeRepliesContainer(repliesDiv as HTMLElement, txHash, blockchain, depth);
+            initializeRepliesContainer(repliesDiv as HTMLElement, txHash, blockchain, depth, sort);
         }
     } else {
         toggle.classList.add("collapsed");
         repliesDiv.classList.add("collapsed");
     }
 }
-function initializeRepliesContainer(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number): void {
+function initializeRepliesContainer(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, sort: CommentSort): void {
     container.innerHTML = "";
     const commentsContainer = document.createElement("div");
     commentsContainer.classList.add("commentsContainer");
     container.appendChild(commentsContainer);
-    const paginationControls = createPaginationControls(container, parentTxHash, blockchain, depth);
+    const paginationControls = createPaginationControls(container, parentTxHash, blockchain, depth, sort);
     container.appendChild(paginationControls);
-    loadCommentsPage(container, parentTxHash, blockchain, depth, 0);
+    loadCommentsPage(container, parentTxHash, blockchain, depth, 0, sort);
 }
 
 export function CollapseCommentThread(threadDiv: HTMLDivElement): void {
@@ -288,17 +309,23 @@ export function CollapseCommentThread(threadDiv: HTMLDivElement): void {
     });
 }
 export function CreateCommentThread(options: CommentThreadOptions): HTMLDivElement {
+    const initialPage = options.initialPage || 0;
+    const sort = options.sort || "likes";
     const threadDiv = document.createElement("div");
     threadDiv.classList.add("commentThread");
     threadDiv.dataset.blockchain = options.blockchain;
     threadDiv.dataset.maxdepth = (options.maxDepth || MAX_INDENT_DEPTH).toString();
     threadDiv.dataset.parenttxhash = options.parentTxHash;
+    threadDiv.dataset.sort = sort;
+    if (options.onPageChange) {
+        pageChangeCallbacks.set(threadDiv, options.onPageChange);
+    }
     const commentsContainer = document.createElement("div");
     commentsContainer.classList.add("commentsContainer");
     threadDiv.appendChild(commentsContainer);
-    const paginationControls = createPaginationControls(threadDiv, options.parentTxHash, options.blockchain, 0);
+    const paginationControls = createPaginationControls(threadDiv, options.parentTxHash, options.blockchain, 0, sort);
     threadDiv.appendChild(paginationControls);
-    loadCommentsPage(threadDiv, options.parentTxHash, options.blockchain, 0, 0);
+    loadInitialPages(threadDiv, options.parentTxHash, options.blockchain, sort, initialPage);
     return threadDiv;
 }
 export function ExpandCommentThread(threadDiv: HTMLDivElement): void {
@@ -307,9 +334,9 @@ export function ExpandCommentThread(threadDiv: HTMLDivElement): void {
         (toggle as HTMLElement).click();
     });
 }
-export async function FetchComments(blockchain: string, parentTxHash: string, limit: number = PAGE_SIZE, offset: number = 0): Promise<Comment[]> {
+export async function FetchComments(blockchain: string, parentTxHash: string, limit: number = PAGE_SIZE, offset: number = 0, sort: CommentSort = "likes"): Promise<Comment[]> {
     try {
-        const response = await HttpGetJson(`/comments/${blockchain}/${parentTxHash}?limit=${limit}&offset=${offset}&sort=likes`);
+        const response = await HttpGetJson(`/comments/${blockchain}/${parentTxHash}?limit=${limit}&offset=${offset}&sort=${sort}`);
         if (response[0] === 200 && response[1] && response[1].comments) {
             return response[1].comments as Comment[];
         }

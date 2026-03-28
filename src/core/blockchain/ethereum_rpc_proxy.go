@@ -37,6 +37,9 @@ var (
 const DefaultPublicEthereumRPC = "https://cloudflare-eth.com"
 const DefaultPublicEthereumRPCRateLimit = 5
 
+func GetEthereumRPCProxy() *EthereumRPCProxy {
+	return ethereumRPCProxy
+}
 func InitEthereumRPCProxy(targetURL string, rateLimit int) *EthereumRPCProxy {
 	ethereumRPCProxyOnce.Do(func() {
 		if targetURL == "" || strings.HasPrefix(targetURL, "/") {
