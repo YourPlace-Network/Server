@@ -9,124 +9,14 @@ import (
 	"YourPlace/src/core/security"
 	"YourPlace/src/core/services"
 	"encoding/json"
-	"html"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-var mediaLinkRegex = regexp.MustCompile(`<a[^>]*href="(https://(?:www\.)?(?:twitter\.com|x\.com)/[a-zA-Z0-9_]+/status/\d+/(?:photo|video)/\d+)"[^>]*>[^<]*</a>`)
-var tcoLinkRegex = regexp.MustCompile(`<a[^>]*href="(https://t\.co/[a-zA-Z0-9]+)"[^>]*>[^<]*</a>`)
-var xcomMediaUrlRegex = regexp.MustCompile(`/status/(\d+)/(?:photo|video)/`)
-var xcomUrlRegex = regexp.MustCompile(`^https://(?:www\.)?(twitter\.com|x\.com)/([a-zA-Z0-9_]+)/status/(\d+)/?(?:[?#].*)?$`)
-
-func unwrapTcoLinks(oembedResponse map[string]interface{}) {
-	htmlContent, ok := oembedResponse["html"].(string)
-	if !ok {
-		return
-	}
-	matches := tcoLinkRegex.FindAllStringSubmatch(htmlContent, -1)
-	for _, match := range matches {
-		fullTag := match[0]
-		tcoUrl := match[1]
-		resolved := network.HttpResolveRedirect(tcoUrl)
-		if resolved == tcoUrl {
-			continue
-		}
-		escaped := html.EscapeString(resolved)
-		newTag := `<a href="` + escaped + `">` + escaped + `</a>`
-		idx := strings.Index(htmlContent, fullTag)
-		if idx > 0 {
-			prefix := strings.TrimRight(htmlContent[:idx], " \t\n\r")
-			if len(prefix) > 0 && prefix[len(prefix)-1] != '>' {
-				newTag = "<br>" + newTag
-			}
-		}
-		htmlContent = strings.Replace(htmlContent, fullTag, newTag, 1)
-	}
-	oembedResponse["html"] = htmlContent
-}
-func resolveAuthorAvatar(oembedResponse map[string]interface{}, tweetUrl string) {
-	urlMatch := xcomUrlRegex.FindStringSubmatch(tweetUrl)
-	if urlMatch == nil {
-		return
-	}
-	statusId := urlMatch[3]
-	syndicationUrl := "https://cdn.syndication.twimg.com/tweet-result?id=" + statusId + "&token=0"
-	var syndicationData map[string]interface{}
-	err := network.HttpGetJson(syndicationUrl, &syndicationData)
-	if err != nil {
-		core.LogDebug("Could not fetch syndication data for avatar: " + err.Error())
-		return
-	}
-	user, ok := syndicationData["user"].(map[string]interface{})
-	if !ok {
-		return
-	}
-	avatarUrl, _ := user["profile_image_url_https"].(string)
-	if avatarUrl != "" && security.IsValidURL(avatarUrl) {
-		oembedResponse["author_avatar"] = avatarUrl
-	}
-}
-func resolveMediaLinks(oembedResponse map[string]interface{}) {
-	htmlContent, ok := oembedResponse["html"].(string)
-	if !ok {
-		return
-	}
-	matches := mediaLinkRegex.FindAllStringSubmatch(htmlContent, -1)
-	if len(matches) == 0 {
-		return
-	}
-	fetchedIds := make(map[string]bool)
-	var mediaUrls []map[string]string
-	for _, match := range matches {
-		fullTag := match[0]
-		mediaPageUrl := match[1]
-		htmlContent = strings.Replace(htmlContent, fullTag, "", 1)
-		idMatch := xcomMediaUrlRegex.FindStringSubmatch(mediaPageUrl)
-		if idMatch == nil {
-			continue
-		}
-		statusId := idMatch[1]
-		if fetchedIds[statusId] {
-			continue
-		}
-		fetchedIds[statusId] = true
-		syndicationUrl := "https://cdn.syndication.twimg.com/tweet-result?id=" + statusId + "&token=0"
-		var syndicationData map[string]interface{}
-		err := network.HttpGetJson(syndicationUrl, &syndicationData)
-		if err != nil {
-			core.LogDebug("Could not fetch syndication data for status " + statusId + ": " + err.Error())
-			continue
-		}
-		if mediaDetails, ok := syndicationData["mediaDetails"].([]interface{}); ok {
-			for _, item := range mediaDetails {
-				detail, ok := item.(map[string]interface{})
-				if !ok {
-					continue
-				}
-				if mediaType, _ := detail["type"].(string); mediaType == "photo" {
-					if imageUrl, _ := detail["media_url_https"].(string); imageUrl != "" && security.IsValidURL(imageUrl) {
-						mediaUrls = append(mediaUrls, map[string]string{"type": "photo", "url": imageUrl})
-					}
-				}
-			}
-		}
-		if video, ok := syndicationData["video"].(map[string]interface{}); ok {
-			if poster, _ := video["poster"].(string); poster != "" && security.IsValidURL(poster) {
-				mediaUrls = append(mediaUrls, map[string]string{"type": "video", "url": poster})
-			}
-		}
-	}
-	oembedResponse["html"] = htmlContent
-	if len(mediaUrls) > 0 {
-		oembedResponse["media_urls"] = mediaUrls
-	}
-}
 func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain) {
 	router.GET("/service/ai/ollamaEnabled", func(c *gin.Context) {
 		err := services.OllamaHealthCheck()
@@ -188,6 +78,71 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "spiciness": responseInt})
 		return
+	})
+	router.GET("/services/oembed", func(c *gin.Context) {
+		targetUrl := c.Query("url")
+		if targetUrl == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "URL parameter required"})
+			return
+		}
+		targetUrl = security.SanitizeNonPrintable(targetUrl)
+		if !security.IsValidURL(targetUrl) || !security.IsHttpsProtocol(targetUrl) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid URL"})
+			return
+		}
+		if network.XcomUrlRegex.MatchString(targetUrl) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Use /services/xcom/oembed for X.com URLs"})
+			return
+		}
+		parsed, err := url.Parse(targetUrl)
+		if err != nil || parsed.Host == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid URL"})
+			return
+		}
+		if security.IsPrivateHost(parsed.Hostname()) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid URL"})
+			return
+		}
+		cacheExpiry := int64(604800)
+		cachedData, fetchedAt := database.OEmbedCacheGet(targetUrl)
+		if cachedData != "" && (int64(core.GetTimestamp())-fetchedAt) < cacheExpiry {
+			var oembedData map[string]interface{}
+			if err := json.Unmarshal([]byte(cachedData), &oembedData); err == nil {
+				c.SecureJSON(http.StatusOK, oembedData)
+				return
+			}
+		}
+		pageHtml, err := network.HttpGet(targetUrl, 10)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadGateway, gin.H{"error": "Failed to fetch page"})
+			return
+		}
+		if len(pageHtml) > 100000 {
+			pageHtml = pageHtml[:100000]
+		}
+		var filtered map[string]interface{}
+		oembedEndpoint := network.FindOEmbedEndpoint(pageHtml)
+		if oembedEndpoint != "" && security.IsValidURL(oembedEndpoint) && security.IsHttpsProtocol(oembedEndpoint) {
+			oembedParsed, parseErr := url.Parse(oembedEndpoint)
+			if parseErr == nil && !security.IsPrivateHost(oembedParsed.Hostname()) {
+				var oembedResponse map[string]interface{}
+				if fetchErr := network.HttpGetJson(oembedEndpoint, &oembedResponse); fetchErr == nil {
+					filtered = network.FilterOEmbedResponse(oembedResponse)
+				}
+			}
+		}
+		if filtered == nil {
+			filtered = network.ParseOpenGraphTags(pageHtml)
+		}
+		if filtered == nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "No oEmbed or Open Graph data found"})
+			return
+		}
+		jsonData, err := json.Marshal(filtered)
+		if err == nil {
+			database.OEmbedCacheSet(targetUrl, string(jsonData))
+		}
+		c.SecureJSON(http.StatusOK, filtered)
 	})
 	router.POST("/services/xcom/post", func(c *gin.Context) {
 		type Payload struct {
@@ -283,7 +238,7 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 			return
 		}
 		tweetUrl = security.SanitizeNonPrintable(tweetUrl)
-		if !xcomUrlRegex.MatchString(tweetUrl) {
+		if !network.XcomUrlRegex.MatchString(tweetUrl) {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid X.com URL"})
 			return
 		}
@@ -306,10 +261,10 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch oEmbed data"})
 			return
 		}
-		unwrapTcoLinks(oembedResponse)
-		resolveAuthorAvatar(oembedResponse, tweetUrl)
-		resolveMediaLinks(oembedResponse)
-		urlMatch := xcomUrlRegex.FindStringSubmatch(tweetUrl)
+		network.UnwrapTcoLinks(oembedResponse)
+		network.ResolveAuthorAvatar(oembedResponse, tweetUrl)
+		network.ResolveMediaLinks(oembedResponse)
+		urlMatch := network.XcomUrlRegex.FindStringSubmatch(tweetUrl)
 		if urlMatch != nil {
 			originalUsername := urlMatch[2]
 			oembedResponse["author_name"] = originalUsername

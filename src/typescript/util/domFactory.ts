@@ -46,7 +46,7 @@ const tagPatterns: TagPattern[] = [
             if (sanitizedUrl === "#") return null;
             const link = document.createElement("a");
             link.href = sanitizedUrl;
-            link.textContent = url.replace(/^https:\/\/(www\.)?/, "");
+            link.textContent = url.replace(/^https:\/\/(www\.)?/, "").replace(/[?#].*$/, "");
             link.target = "_blank";
             link.rel = "noopener noreferrer";
             return link;

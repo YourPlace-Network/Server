@@ -160,12 +160,14 @@ i.bi {
   padding-top: 10px;
   padding-left: 45px;
 }
+#algoIndexerProgressDiv,
 #baseIndexerProgressDiv,
-#algoIndexerProgressDiv {
+#ethereumIndexerProgressDiv {
   margin-bottom: 0.5em;
 }
+#algoIndexerProgressCached,
 #baseIndexerProgressCached,
-#algoIndexerProgressCached {
+#ethereumIndexerProgressCached {
   background-color: global.$quaternary;
 }
 .indexerComplete {

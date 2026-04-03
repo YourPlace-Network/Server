@@ -3,6 +3,7 @@ import "../../scss/pages/mentalHealth.scss";
 import "../components/menu";
 import {ShowDialogModalHTML} from "../components/modalDialog";
 import {LogInfo} from "../util/log";
+import {XSSSanitizeTextUrl} from "../util/security";
 
 interface TipData {
     hash: string;
@@ -31,7 +32,7 @@ interface TipData {
 
         function displayTip(tip: TipData) {
             currentTip = tip;
-            DOM.tipDiv.innerHTML = tip.text;
+            DOM.tipDiv.innerHTML = XSSSanitizeTextUrl(tip.text);
             const url = new URL(window.location.href);
             url.searchParams.set("tip", tip.hash);
             history.replaceState(null, "", url.toString());

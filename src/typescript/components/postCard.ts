@@ -2,6 +2,7 @@ import "../../scss/components/imageLoader.scss";
 import "../../scss/components/postCard.scss";
 import { CreateCommentThread } from "./commentThread";
 import { CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented } from "./postControls";
+import { OEmbedCard } from "./oEmbedCard";
 import { ProcessPostContentForPreviews } from "./postPreviewCard";
 import { ShowAddCommentUI } from "./addComment";
 import { ShowModalMediaViewer } from "./modalMediaViewer";
@@ -706,6 +707,12 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
             const xcomEmbed = await XcomOEmbedCard(url);
             if (xcomEmbed) {
                 embedDiv.appendChild(xcomEmbed);
+                postText = postText.replace(url, "").trim();
+                continue;
+            }
+            const oembedCard = await OEmbedCard(url);
+            if (oembedCard) {
+                embedDiv.appendChild(oembedCard);
                 postText = postText.replace(url, "").trim();
                 continue;
             }

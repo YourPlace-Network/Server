@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -169,9 +170,24 @@ func IsIntBetween(start int, end int, payload int) bool {
 	}
 	return true
 }
-func IsPublicIP(ip string) bool {
-	// todo
+func IsPrivateHost(hostname string) bool {
+	ips, err := net.LookupIP(hostname)
+	if err != nil {
+		return true
+	}
+	for _, ip := range ips {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return true
+		}
+	}
 	return false
+}
+func IsPublicIP(ip string) bool {
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return false
+	}
+	return !parsed.IsLoopback() && !parsed.IsPrivate() && !parsed.IsLinkLocalUnicast() && !parsed.IsLinkLocalMulticast() && !parsed.IsUnspecified()
 }
 func IsSystemPort(port int) bool {
 	if IsIntBetween(0, 1023, port) {

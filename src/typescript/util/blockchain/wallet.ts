@@ -141,7 +141,7 @@ import {CIDToSubdomainURL} from "../ipfs";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
-import {ShowDialogModal, ShowDialogModalHTML, ShowDialogModalHTMLUnsafe} from "../../components/modalDialog";
+import {ShowDialogModal, ShowDialogModalHTML} from "../../components/modalDialog";
 
 // ---------- Types ---------- //
 export interface CollectibleData {
@@ -915,7 +915,7 @@ export async function WalletSendPostNudge(address: string) {
                 ShowDialogModal("Failed to send nudge - try again later");
                 break;
             }
-            ShowDialogModalHTMLUnsafe("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdBase) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
+            ShowDialogModalHTML("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdBase) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
             break;
         case "localwalletethereum":
             const txnIdLocal = await localWalletEthereumTxn(address, nudge);
@@ -923,7 +923,7 @@ export async function WalletSendPostNudge(address: string) {
                 ShowDialogModal("Failed to send nudge - try again later");
                 break;
             }
-            ShowDialogModalHTMLUnsafe("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdLocal) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
+            ShowDialogModalHTML("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdLocal) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
             break;
         case "metamaskethereum":
             const txnIdEth = await ethereumTxn(address, nudge);
@@ -931,7 +931,7 @@ export async function WalletSendPostNudge(address: string) {
                 ShowDialogModal("Failed to send nudge - try again later");
                 break;
             }
-            ShowDialogModalHTMLUnsafe("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdEth) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
+            ShowDialogModalHTML("We'll send them a note! Thanks<br><br><a href=\"" + WalletGetExplorerTxLink(txnIdEth) + "\" rel=\"noopener noreferrer\" target=\"_blank\">View Transaction</a>");
             break;
         case "pera":
             break;
