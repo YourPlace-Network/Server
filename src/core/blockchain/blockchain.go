@@ -111,7 +111,7 @@ func ResolveRPCUrl(rpcUrl string) string {
 	if gateway {
 		protocol = "https"
 	}
-	if gateway && port == "443" {
+	if gateway {
 		return protocol + "://" + domain + rpcUrl
 	}
 	return protocol + "://" + domain + ":" + port + rpcUrl

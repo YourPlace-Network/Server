@@ -125,10 +125,12 @@ func (base *Base) GetBlockNumber() (*big.Int, error) {
 			rpcError++
 			time.Sleep(1 * time.Second)
 			if rpcError >= 20 {
-				return &big.Int{}, core.LogWarningReturn("Could not get current Base block number. To many errors on RPC call")
+				base.reconnectRPC()
+				return &big.Int{}, core.LogWarningReturn("Could not get current Base block number. Too many errors on RPC call")
 			}
+		} else {
+			break
 		}
-		break
 	}
 	return result.ToInt(), nil
 }
@@ -223,6 +225,23 @@ func (base *Base) GetENSText(address string, key string) (string, error) {
 	}
 	text := baseResolveText(base, resolverAddr, node, key)
 	return text, nil
+}
+func (base *Base) reconnectRPC() {
+	core.LogDebug("[Base] Reconnecting RPC client")
+	if base.RpcClient != nil {
+		base.RpcClient.Close()
+	}
+	rpcUrl := ResolveRPCUrl(base.RpcUrl)
+	httpClient := &http.Client{
+		Transport: &loggingTransport{http.DefaultTransport},
+	}
+	rpcClient, err := rpc.DialOptions(context.Background(), rpcUrl, rpc.WithHTTPClient(httpClient))
+	if err != nil {
+		core.LogDebug("[Base] reconnectRPC(): Could not reconnect: " + err.Error())
+		return
+	}
+	base.RpcClient = rpcClient
+	base.EthClient = ethclient.NewClient(base.RpcClient)
 }
 
 /* Public Functions */

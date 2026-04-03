@@ -139,10 +139,12 @@ func (ethereum *Ethereum) GetBlockNumber() (*big.Int, error) {
 			rpcError++
 			time.Sleep(1 * time.Second)
 			if rpcError >= 20 {
+				ethereum.reconnectRPC()
 				return &big.Int{}, core.LogWarningReturn("Could not get current Ethereum block number. Too many errors on RPC call")
 			}
+		} else {
+			break
 		}
-		break
 	}
 	return result.ToInt(), nil
 }
@@ -256,6 +258,23 @@ func (ethereum *Ethereum) GetENSText(address string, key string) (string, error)
 	}
 	text := ethereumResolveText(ethereum, resolverAddr, node, key)
 	return text, nil
+}
+func (ethereum *Ethereum) reconnectRPC() {
+	core.LogDebug("[Ethereum] Reconnecting RPC client")
+	if ethereum.RpcClient != nil {
+		ethereum.RpcClient.Close()
+	}
+	rpcUrl := ResolveRPCUrl(ethereum.RpcUrl)
+	httpClient := &http.Client{
+		Transport: &loggingTransport{http.DefaultTransport},
+	}
+	rpcClient, err := rpc.DialOptions(context.Background(), rpcUrl, rpc.WithHTTPClient(httpClient))
+	if err != nil {
+		core.LogDebug("[Ethereum] reconnectRPC(): Could not reconnect: " + err.Error())
+		return
+	}
+	ethereum.RpcClient = rpcClient
+	ethereum.EthClient = ethclient.NewClient(ethereum.RpcClient)
 }
 
 /* Public Functions */

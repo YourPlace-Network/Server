@@ -1138,4 +1138,5 @@ var mentalHealthTips = []string{
 	"The devil speaks in inversion. The anti-fascists are the fascists. The anti-racists are the racists. The fact-checkers are the propagandists. Once you understand this, the world make much more sense",
 	"The highest form of intelligence is metacognition - the ability to think about your own thinking. This is what allows you to learn and grow, and to avoid being manipulated by others. It allows you to question your own reactions, interrupt emotional reflexes, and to update beliefs instead of defending them",
 	"Bureaucratization makes things uglier and more generic",
+	"When waiting at a train or bus station, keep your back against a wall. Don't let anyone get behind you",
 }
