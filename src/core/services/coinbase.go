@@ -150,17 +150,20 @@ func buildCDPJWT(keyName, uri string, now int64, privKey ed25519.PrivateKey) (st
 func parseCDPPrivateKey(keyStr string) (ed25519.PrivateKey, error) {
 	parts := strings.Split(keyStr, "/")
 	keyData := parts[len(parts)-1]
+	core.LogDebug(fmt.Sprintf("CDP key parsing: %d parts, last part length: %d chars", len(parts), len(keyData)))
 	decodings := []func(string) ([]byte, error){
 		base64.StdEncoding.DecodeString,
 		base64.RawStdEncoding.DecodeString,
 		base64.URLEncoding.DecodeString,
 		base64.RawURLEncoding.DecodeString,
 	}
-	for _, decode := range decodings {
+	for i, decode := range decodings {
 		decoded, err := decode(keyData)
 		if err != nil {
+			core.LogDebug(fmt.Sprintf("CDP key decode variant %d failed: %s", i, err.Error()))
 			continue
 		}
+		core.LogDebug(fmt.Sprintf("CDP key decode variant %d succeeded: %d bytes", i, len(decoded)))
 		if len(decoded) == ed25519.SeedSize {
 			return ed25519.NewKeyFromSeed(decoded), nil
 		}
