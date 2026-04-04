@@ -150,18 +150,23 @@ func buildCDPJWT(keyName, uri string, now int64, privKey ed25519.PrivateKey) (st
 func parseCDPPrivateKey(keyStr string) (ed25519.PrivateKey, error) {
 	parts := strings.Split(keyStr, "/")
 	keyData := parts[len(parts)-1]
-	decoded, err := base64.StdEncoding.DecodeString(keyData)
-	if err != nil {
-		decoded, err = base64.RawStdEncoding.DecodeString(keyData)
+	decodings := []func(string) ([]byte, error){
+		base64.StdEncoding.DecodeString,
+		base64.RawStdEncoding.DecodeString,
+		base64.URLEncoding.DecodeString,
+		base64.RawURLEncoding.DecodeString,
+	}
+	for _, decode := range decodings {
+		decoded, err := decode(keyData)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode key: %w", err)
+			continue
+		}
+		if len(decoded) == ed25519.SeedSize {
+			return ed25519.NewKeyFromSeed(decoded), nil
+		}
+		if len(decoded) == ed25519.PrivateKeySize {
+			return ed25519.PrivateKey(decoded), nil
 		}
 	}
-	if len(decoded) == ed25519.SeedSize {
-		return ed25519.NewKeyFromSeed(decoded), nil
-	}
-	if len(decoded) == ed25519.PrivateKeySize {
-		return ed25519.PrivateKey(decoded), nil
-	}
-	return nil, fmt.Errorf("invalid Ed25519 key length: got %d bytes, expected %d or %d", len(decoded), ed25519.SeedSize, ed25519.PrivateKeySize)
+	return nil, fmt.Errorf("failed to decode Ed25519 key from secret (tried all base64 variants)")
 }
