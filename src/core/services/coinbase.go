@@ -148,28 +148,31 @@ func buildCDPJWT(keyName, uri string, now int64, privKey ed25519.PrivateKey) (st
 	return signingInput + "." + sigB64, nil
 }
 func parseCDPPrivateKey(keyStr string) (ed25519.PrivateKey, error) {
+	candidates := []string{keyStr}
 	parts := strings.Split(keyStr, "/")
-	keyData := parts[len(parts)-1]
-	core.LogDebug(fmt.Sprintf("CDP key parsing: %d parts, last part length: %d chars", len(parts), len(keyData)))
+	if len(parts) > 1 {
+		candidates = append(candidates, parts[len(parts)-1])
+	}
 	decodings := []func(string) ([]byte, error){
 		base64.StdEncoding.DecodeString,
 		base64.RawStdEncoding.DecodeString,
 		base64.URLEncoding.DecodeString,
 		base64.RawURLEncoding.DecodeString,
 	}
-	for i, decode := range decodings {
-		decoded, err := decode(keyData)
-		if err != nil {
-			core.LogDebug(fmt.Sprintf("CDP key decode variant %d failed: %s", i, err.Error()))
-			continue
-		}
-		core.LogDebug(fmt.Sprintf("CDP key decode variant %d succeeded: %d bytes", i, len(decoded)))
-		if len(decoded) == ed25519.SeedSize {
-			return ed25519.NewKeyFromSeed(decoded), nil
-		}
-		if len(decoded) == ed25519.PrivateKeySize {
-			return ed25519.PrivateKey(decoded), nil
+	for _, candidate := range candidates {
+		for _, decode := range decodings {
+			decoded, err := decode(candidate)
+			if err != nil {
+				continue
+			}
+			core.LogDebug(fmt.Sprintf("CDP key decoded: %d bytes from %d char input", len(decoded), len(candidate)))
+			if len(decoded) == ed25519.SeedSize {
+				return ed25519.NewKeyFromSeed(decoded), nil
+			}
+			if len(decoded) == ed25519.PrivateKeySize {
+				return ed25519.PrivateKey(decoded), nil
+			}
 		}
 	}
-	return nil, fmt.Errorf("failed to decode Ed25519 key from secret (tried all base64 variants)")
+	return nil, fmt.Errorf("failed to decode Ed25519 key from secret (no valid 32 or 64 byte key found)")
 }
