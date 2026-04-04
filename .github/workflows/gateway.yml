@@ -89,6 +89,8 @@ jobs:
         CLOUDFLARE_CERT_KEY: ${{ secrets.CLOUDFLARE_CERT_KEY }}
         BASE_RPC_THROTTLE: ${{ vars.BASE_RPC_THROTTLE }}
         BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
+        CDP_ONRAMP_KEY_NAME: ${{ secrets.CDP_ONRAMP_KEY_NAME }}
+        CDP_ONRAMP_PRIVATE_KEY: ${{ secrets.CDP_ONRAMP_PRIVATE_KEY }}
         ETHEREUM_RPC_THROTTLE: ${{ vars.ETHEREUM_RPC_THROTTLE }}
         ETHEREUM_RPC_URL: ${{ secrets.ETHEREUM_RPC_URL }}
         GATEWAY_CATCHUP: ${{ vars.GATEWAY_CATCHUP }}

@@ -138,6 +138,7 @@ import {
 } from "./localWallet";
 import {PersistentCache} from "../cache";
 import {CIDToSubdomainURL} from "../ipfs";
+import {HttpPostJson} from "../network";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
@@ -1082,19 +1083,46 @@ export function IsInsufficientFundsError(error: any): boolean {
     const msg = String(error).toLowerCase();
     return msg.includes("insufficient funds") || msg.includes("overspend");
 }
+const coinbaseOnrampChains: Record<string, boolean> = {"base": true, "ethereum": true};
 export function OnRampFiat(address: string, blockchain: string) {
     document.querySelectorAll(".modal.show").forEach(el => {
         const instance = window.bootstrap.Modal.getInstance(el);
         if (instance) instance.hide();
     });
     document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
+    if (!coinbaseOnrampChains[blockchain]) {
+        showOnRampFallback(address);
+        return;
+    }
     ShowDialogModalHTML(
         "<div>" +
             "<p>Your wallet has insufficient funds to complete this transaction.</p>" +
-            "<p>Please visit <a href='https://coinbase.com' target='_blank' rel='noopener noreferrer'>Coinbase.com</a> and fund your wallet address:</p>" +
-            "<p><code id='onRampAddress' style='word-break: break-all; cursor: pointer;'>" + address + "</code></p>" +
+            "<button class='onramp-buy-btn' id='onRampBuyBtn'>Buy Crypto</button>" +
+            "<p><code id='onRampAddress' class='onRampAddress'>" + address + "</code></p>" +
         "</div>"
     );
+    bindOnRampAddressCopy(address);
+    const buyBtn = document.getElementById("onRampBuyBtn");
+    if (buyBtn) {
+        buyBtn.addEventListener("click", async () => {
+            buyBtn.textContent = "Loading...";
+            (buyBtn as HTMLButtonElement).disabled = true;
+            const csrfEl = document.getElementById("csrfToken") as HTMLInputElement | null;
+            const csrfToken = csrfEl?.value || "";
+            const [status, data] = await HttpPostJson("/services/coinbase/onramp/token", {blockchain}, csrfToken);
+            if (status === 200 && data?.token) {
+                window.open("https://pay.coinbase.com/buy/select-asset?sessionToken=" + encodeURIComponent(data.token), "_blank", "noopener,noreferrer");
+                buyBtn.textContent = "Buy Crypto";
+                (buyBtn as HTMLButtonElement).disabled = false;
+            } else if (status === 401) {
+                window.location.href = "/login";
+            } else {
+                showOnRampFallback(address);
+            }
+        });
+    }
+}
+function bindOnRampAddressCopy(address: string) {
     const addrEl = document.getElementById("onRampAddress");
     if (addrEl) {
         addrEl.addEventListener("click", () => {
@@ -1103,6 +1131,16 @@ export function OnRampFiat(address: string, blockchain: string) {
             setTimeout(() => { addrEl.textContent = address; }, 1500);
         });
     }
+}
+function showOnRampFallback(address: string) {
+    ShowDialogModalHTML(
+        "<div>" +
+            "<p>Your wallet has insufficient funds to complete this transaction.</p>" +
+            "<p>Please visit <a href='https://coinbase.com' target='_blank' rel='noopener noreferrer'>Coinbase.com</a> and fund your wallet address:</p>" +
+            "<p><code id='onRampAddress' class='onRampAddress'>" + address + "</code></p>" +
+        "</div>"
+    );
+    bindOnRampAddressCopy(address);
 }
 
 // ---------- Utility ---------- //

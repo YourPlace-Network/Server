@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain) {
+func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain, gateway bool) {
 	router.GET("/service/ai/ollamaEnabled", func(c *gin.Context) {
 		err := services.OllamaHealthCheck()
 		if err != nil {
@@ -298,5 +298,38 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 			database.ProfileUpdateEnsData(ownerAddress, "algorand", nfdName, avatar)
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"owner": ownerAddress, "name": name, "caAlgo": []string{ownerAddress}})
+	})
+	router.POST("/services/coinbase/onramp/token", func(c *gin.Context) {
+		if !gateway {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"status": "Not available"})
+			return
+		}
+		address, _ := c.Get("accountAddress")
+		addressStr, ok := address.(string)
+		if !ok || addressStr == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": "Unauthorized"})
+			return
+		}
+		type Payload struct {
+			Blockchain string `json:"blockchain"`
+		}
+		var payload Payload
+		if err := c.BindJSON(&payload); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid request"})
+			return
+		}
+		allowedBlockchains := map[string]bool{"base": true, "ethereum": true}
+		if !allowedBlockchains[payload.Blockchain] {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Unsupported blockchain"})
+			return
+		}
+		clientIP := c.ClientIP()
+		token, err := services.CoinbaseOnrampToken(addressStr, payload.Blockchain, clientIP)
+		if err != nil {
+			core.LogDebug("Coinbase onramp token error: " + err.Error())
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Failed to generate onramp token"})
+			return
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"token": token})
 	})
 }

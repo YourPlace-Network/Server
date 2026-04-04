@@ -5,4 +5,26 @@
     justify-content: center;
     min-height: 4rem;
     text-align: center;
+    .onRampAddress {
+        word-break: break-all;
+        cursor: pointer;
+    }
+    .onramp-buy-btn {
+        display: inline-block;
+        padding: 0.5rem 1.5rem;
+        margin: 0.5rem 0;
+        border: none;
+        border-radius: 0.5rem;
+        background-color: #0052ff;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+        &:hover {
+            background-color: #0040cc;
+        }
+        &:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+    }
 }
