@@ -1101,8 +1101,9 @@ export function OnRampFiat(address: string, blockchain: string) {
     ShowDialogModalHTML(
         "<div>" +
             "<p>Your wallet has insufficient funds to complete this transaction.</p>" +
-            "<button class='onramp-buy-btn' id='onRampBuyBtn'>Buy Crypto</button>" +
-            "<p><code id='onRampAddress' class='onRampAddress'>" + address + "</code><i class='bi bi-copy clickable onRampAddressCopy' id='onRampAddressCopy'></i></p>" +
+            "<button class='onramp-buy-btn' id='onRampBuyBtn'>Buy Crypto</button><br>" +
+            "<div>Address:</div>" +
+            "<div class='onRampAddressRow'><span id='onRampAddress' class='onRampAddress'>" + address + "</span><i class='bi bi-copy clickable onRampAddressCopy' id='onRampAddressCopy'></i></div>" +
         "</div>"
     );
     bindOnRampAddressCopy(address);
@@ -1157,7 +1158,7 @@ function showOnRampFallback(address: string) {
         "<div>" +
             "<p>Your wallet has insufficient funds to complete this transaction.</p>" +
             "<p>Please visit <a href='https://coinbase.com' target='_blank' rel='noopener noreferrer'>Coinbase.com</a> and fund your wallet address:</p>" +
-            "<p><code id='onRampAddress' class='onRampAddress'>" + address + "</code><i class='bi bi-copy clickable onRampAddressCopy' id='onRampAddressCopy'></i></p>" +
+            "<div class='onRampAddressRow'><span id='onRampAddress' class='onRampAddress'>" + address + "</span><i class='bi bi-copy clickable onRampAddressCopy' id='onRampAddressCopy'></i></div>" +
         "</div>"
     );
     bindOnRampAddressCopy(address);
