@@ -1100,8 +1100,12 @@ export function OnRampFiat(address: string, blockchain: string) {
     }
     ShowDialogModalHTML(
         "<div>" +
-            "<p>Your wallet has insufficient funds to complete this transaction.</p>" +
-            "<button class='onramp-buy-btn' id='onRampBuyBtn'>Buy Crypto</button><br>" +
+            "<p>Your wallet has insufficient funds to complete this transaction</p>" +
+            "<div class='onramp-buy-btn-wrap'>" +
+                "<div class='onramp-arrow onramp-arrow-right'></div>" +
+                "<button class='onramp-buy-btn' id='onRampBuyBtn'>Buy Crypto</button>" +
+                "<div class='onramp-arrow onramp-arrow-left'></div>" +
+            "</div>" +
             "<div>Address:</div>" +
             "<div class='onRampAddressRow'><span id='onRampAddress' class='onRampAddress'>" + address + "</span><i class='bi bi-copy clickable onRampAddressCopy' id='onRampAddressCopy'></i></div>" +
         "</div>"
