@@ -9,6 +9,17 @@
         word-break: break-all;
         cursor: pointer;
     }
+    .onRampAddressCopy {
+        margin-left: 0.4em;
+        vertical-align: middle;
+    }
+    a {
+        color: var(--yp-text);
+        text-decoration: underline;
+        &:hover {
+            color: var(--yp-link);
+        }
+    }
     .onramp-buy-btn {
         display: inline-block;
         padding: 0.5rem 1.5rem;

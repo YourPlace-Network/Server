@@ -1102,7 +1102,7 @@ export function OnRampFiat(address: string, blockchain: string) {
         "<div>" +
             "<p>Your wallet has insufficient funds to complete this transaction.</p>" +
             "<button class='onramp-buy-btn' id='onRampBuyBtn'>Buy Crypto</button>" +
-            "<p><code id='onRampAddress' class='onRampAddress'>" + address + "</code></p>" +
+            "<p><code id='onRampAddress' class='onRampAddress'>" + address + "</code><i class='bi bi-copy clickable onRampAddressCopy' id='onRampAddressCopy'></i></p>" +
         "</div>"
     );
     bindOnRampAddressCopy(address);
@@ -1138,13 +1138,26 @@ function bindOnRampAddressCopy(address: string) {
             setTimeout(() => { addrEl.textContent = address; }, 1500);
         });
     }
+    const copyEl = document.getElementById("onRampAddressCopy");
+    if (copyEl) {
+        const copyTooltip = new window.bootstrap.Tooltip(copyEl, {title: "Copy", trigger: "hover", placement: "right"});
+        copyEl.addEventListener("click", () => {
+            navigator.clipboard.writeText(address).then();
+            copyTooltip.setContent({".tooltip-inner": "Copied"});
+            copyTooltip.show();
+            setTimeout(() => {
+                copyTooltip.hide();
+                copyTooltip.setContent({".tooltip-inner": "Copy"});
+            }, 1500);
+        });
+    }
 }
 function showOnRampFallback(address: string) {
     ShowDialogModalHTML(
         "<div>" +
             "<p>Your wallet has insufficient funds to complete this transaction.</p>" +
             "<p>Please visit <a href='https://coinbase.com' target='_blank' rel='noopener noreferrer'>Coinbase.com</a> and fund your wallet address:</p>" +
-            "<p><code id='onRampAddress' class='onRampAddress'>" + address + "</code></p>" +
+            "<p><code id='onRampAddress' class='onRampAddress'>" + address + "</code><i class='bi bi-copy clickable onRampAddressCopy' id='onRampAddressCopy'></i></p>" +
         "</div>"
     );
     bindOnRampAddressCopy(address);

@@ -299,6 +299,18 @@ export async function showProfileEditModal() {
                 LogError("Failed to save colors: " + e);
             }
         }
+        async function withSaveSpinner(btn: HTMLButtonElement, fn: () => Promise<void>) {
+            const originalHTML = btn.innerHTML;
+            const originalWidth = btn.getBoundingClientRect().width;
+            btn.style.width = `${originalWidth}px`;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>`;
+            try {
+                await fn();
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.style.width = "";
+            }
+        }
         async function loadAccountFlags() {
             if (!DOM.injectedAddress || !DOM.injectedBlockchain) return;
             let address = DOM.injectedAddress.value;
@@ -373,11 +385,11 @@ export async function showProfileEditModal() {
         });
         DOM.inputBot.addEventListener("change", updateBot);
         DOM.inputNsfw.addEventListener("change", updateNsfw);
-        DOM.btnDescriptionSave.addEventListener("click", updateDescription);
-        DOM.btnLocationSave.addEventListener("click", updateLocation);
-        DOM.btnUsernameSave.addEventListener("click", updateName);
-        DOM.btnVerticalSave.addEventListener("click", updateVertical);
-        DOM.btnWebsiteSave.addEventListener("click", updateWebsite);
+        DOM.btnDescriptionSave.addEventListener("click", () => withSaveSpinner(DOM.btnDescriptionSave, updateDescription));
+        DOM.btnLocationSave.addEventListener("click", () => withSaveSpinner(DOM.btnLocationSave, updateLocation));
+        DOM.btnUsernameSave.addEventListener("click", () => withSaveSpinner(DOM.btnUsernameSave, updateName));
+        DOM.btnVerticalSave.addEventListener("click", () => withSaveSpinner(DOM.btnVerticalSave, updateVertical));
+        DOM.btnWebsiteSave.addEventListener("click", () => withSaveSpinner(DOM.btnWebsiteSave, updateWebsite));
         for (const input of colorInputs) {
             input.addEventListener("input", () => {
                 const key = input.dataset.colorKey;
@@ -385,6 +397,6 @@ export async function showProfileEditModal() {
             });
         }
         DOM.btnColorsReset.addEventListener("click", resetColors);
-        DOM.btnColorsSave.addEventListener("click", saveColors);
+        DOM.btnColorsSave.addEventListener("click", () => withSaveSpinner(DOM.btnColorsSave, saveColors));
     }
 })();
