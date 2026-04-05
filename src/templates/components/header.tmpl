@@ -8,28 +8,19 @@
     <meta name="name" content="{{.title}}" />
     <meta name="base:app_id" content="69b510ae68ed07045acf8dcc" />
     <title>{{.title}}</title>
-{{if .ogTitle}}
-    <meta property="og:title" content="{{.ogTitle}}" />{{end}}
-{{if .ogDescription}}
-    <meta property="og:description" content="{{.ogDescription}}" />
+{{if .ogTitle}}<meta property="og:title" content="{{.ogTitle}}" />{{end}}
+{{if .ogDescription}}<meta property="og:description" content="{{.ogDescription}}" />
     <meta name="description" content="{{.ogDescription}}" />{{end}}
-{{if .ogImage}}
-    <meta property="og:image" content="{{.ogImage}}" />{{end}}
-{{if .ogType}}
-    <meta property="og:type" content="{{.ogType}}" />{{end}}
-{{if .ogUrl}}
-    <meta property="og:url" content="{{.ogUrl}}" />{{end}}
+{{if .ogImage}}<meta property="og:image" content="{{.ogImage}}" />{{end}}
+{{if .ogType}}<meta property="og:type" content="{{.ogType}}" />{{end}}
+{{if .ogUrl}}<meta property="og:url" content="{{.ogUrl}}" />{{end}}
     <meta property="og:site_name" content="YourPlace" />
-{{if .ogTitle}}
-    <meta name="twitter:card" content="summary" />
+{{if .ogTitle}}<meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="@YourPlace_Inc" />
     <meta name="twitter:title" content="{{.ogTitle}}" />{{end}}
-{{if .ogDescription}}
-    <meta name="twitter:description" content="{{.ogDescription}}" />{{end}}
-{{if .ogImage}}
-    <meta name="twitter:image" content="{{.ogImage}}" />{{end}}
-{{if .ogUrl}}
-    <meta name="twitter:url" content="{{.ogUrl}}" />{{end}}
+{{if .ogDescription}}<meta name="twitter:description" content="{{.ogDescription}}" />{{end}}
+{{if .ogImage}}<meta name="twitter:image" content="{{.ogImage}}" />{{end}}
+{{if .ogUrl}}<meta name="twitter:url" content="{{.ogUrl}}" />{{end}}
     <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
     {{with asset "runtime.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
     {{with asset "vendors.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
