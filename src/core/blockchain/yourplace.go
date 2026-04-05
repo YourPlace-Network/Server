@@ -78,9 +78,9 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 		return
 	}
 
-	txHash := strings.ToLower(transaction["hash"].(string))
-	fromAddress := strings.ToLower(transaction["from"].(string))
-	toAddress := strings.ToLower(transaction["to"].(string))
+	txHash := transaction["hash"].(string)
+	fromAddress := transaction["from"].(string)
+	toAddress := transaction["to"].(string)
 	parentTxHash := ""
 	amountHexStr := transaction["value"].(string)[2:]
 	amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)

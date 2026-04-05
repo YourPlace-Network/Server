@@ -129,7 +129,7 @@ export function localWalletEthereumImport(walletJson: string): string {
             return "";
         }
         const wallet = new ethers.Wallet(data.privateKey);
-        if (wallet.address.toLowerCase() !== data.address.toLowerCase()) {
+        if (wallet.address !== data.address) {
             LogError("Invalid wallet backup file: private key does not match address");
             return "";
         }
@@ -167,7 +167,7 @@ export async function localWalletEthereumAuthLogin(): Promise<string> {
         LogError("CSRF token not found - localWalletEthereumAuthLogin()");
         return "csrf token not found";
     }
-    const address = wallet.address.toLowerCase();
+    const address = wallet.address;
     if (!IsValidBaseAddress(address)) {
         LogError("Invalid address in local wallet");
         return "invalid address";

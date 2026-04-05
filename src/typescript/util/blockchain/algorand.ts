@@ -142,10 +142,9 @@ export async function algoAuthLogin(address: string): Promise<string> {
     const nonce = response[1].nonce;
     const domain = response[1].domain;
     const issuedAt = response[1].issuedAt;
-    const addressUpper = address.toUpperCase();
     const siwaMessage = new SiwaMessage({
         domain: domain,
-        address: addressUpper,
+        address: address,
         statement: "Sign in with Algorand to YourPlace",
         uri: window.location.origin,
         version: "1",
@@ -159,12 +158,12 @@ export async function algoAuthLogin(address: string): Promise<string> {
         const suggestedParams = await algod.getTransactionParams().do();
         const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             suggestedParams: suggestedParams,
-            sender: addressUpper,
-            receiver: addressUpper,
+            sender: address,
+            receiver: address,
             amount: 0,
             note: new Uint8Array(Buffer.from(messageToSign)),
         });
-        const txnGroup = [{txn: txn, signers: [addressUpper]}];
+        const txnGroup = [{txn: txn, signers: [address]}];
         signedTxn = await peraWallet.signTransaction([txnGroup]);
     } catch (error) {
         LogError("Failed to sign SIWA transaction: " + error);
@@ -182,7 +181,7 @@ export async function algoAuthLogin(address: string): Promise<string> {
         message: messageToSign,
         signature: signature,
         encodedTransaction: encodedTransaction,
-        address: addressUpper,
+        address: address,
     };
     const loginResponse = await HttpPostJson("/login/wallet/pera", payload, csrfToken);
     if (loginResponse[0] == 200) {

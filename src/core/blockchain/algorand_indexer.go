@@ -521,9 +521,9 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 		core.LogDebug("[Algo] Could not decode YourPlace transaction: " + txID)
 		return
 	}
-	txHash := strings.ToLower(txID)
-	fromAddr := strings.ToUpper(fromAddress)
-	_ = strings.ToUpper(toAddress)
+	txHash := txID
+	fromAddr := fromAddress
+	_ = toAddress
 	parentTxHash := ""
 	actionPrefix := actionCode[0]
 	actionPostfix := actionCode[1:]

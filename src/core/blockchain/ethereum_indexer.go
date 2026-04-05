@@ -421,11 +421,11 @@ func ethereumIndexerPreflight(chainName string, _blockchain *Blockchain, _databa
 	return databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock
 }
 func ethereumDispatchTransaction(block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string, ethereum *Ethereum) int {
-	txHash := strings.ToLower(transaction["hash"].(string))
+	txHash := transaction["hash"].(string)
 	if transaction["to"] == nil {
 		return 1
 	}
-	toAddr := strings.ToLower(transaction["to"].(string))
+	toAddr := transaction["to"].(string)
 	if transaction["input"] == nil {
 		return 1
 	}

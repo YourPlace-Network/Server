@@ -118,7 +118,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid SIWE message"})
 			return
 		}
-		if !strings.EqualFold(message.GetAddress().Hex(), payload.Address) {
+		if message.GetAddress().Hex() != payload.Address {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Address mismatch"})
 			return
 		}
@@ -205,7 +205,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid SIWE message"})
 			return
 		}
-		if !strings.EqualFold(message.GetAddress().Hex(), payload.Address) {
+		if message.GetAddress().Hex() != payload.Address {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Address mismatch"})
 			return
 		}
@@ -268,7 +268,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid SIWE message"})
 			return
 		}
-		if !strings.EqualFold(message.GetAddress().Hex(), payload.Address) {
+		if message.GetAddress().Hex() != payload.Address {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Address mismatch"})
 			return
 		}
@@ -324,7 +324,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid SIWA message"})
 			return
 		}
-		if !strings.EqualFold(siwaMessage.Address, payload.Address) {
+		if siwaMessage.Address != payload.Address {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Address mismatch"})
 			return
 		}

@@ -73,6 +73,7 @@ func CoinbaseOnrampToken(address, blockchain, clientIP string) (string, error) {
 			{
 				"address":     address,
 				"blockchains": []string{blockchain},
+				"assets":      []string{"ETH"},
 			},
 		},
 		"clientIp": clientIP,

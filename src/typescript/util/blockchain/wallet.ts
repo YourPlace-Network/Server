@@ -1083,14 +1083,18 @@ export function IsInsufficientFundsError(error: any): boolean {
     const msg = String(error).toLowerCase();
     return msg.includes("insufficient funds") || msg.includes("overspend");
 }
-const coinbaseOnrampChains: Record<string, boolean> = {"base": true, "ethereum": true};
+const coinbaseOnrampChains: Record<string, {network: string; asset: string}> = {
+    "base": {network: "base", asset: "ETH"},
+    "ethereum": {network: "ethereum", asset: "ETH"},
+};
 export function OnRampFiat(address: string, blockchain: string) {
     document.querySelectorAll(".modal.show").forEach(el => {
         const instance = window.bootstrap.Modal.getInstance(el);
         if (instance) instance.hide();
     });
     document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
-    if (!coinbaseOnrampChains[blockchain]) {
+    const chainConfig = coinbaseOnrampChains[blockchain];
+    if (!chainConfig) {
         showOnRampFallback(address);
         return;
     }
@@ -1111,7 +1115,10 @@ export function OnRampFiat(address: string, blockchain: string) {
             const csrfToken = csrfEl?.value || "";
             const [status, data] = await HttpPostJson("/services/coinbase/onramp/token", {blockchain}, csrfToken);
             if (status === 200 && data?.token) {
-                window.open("https://pay.coinbase.com/buy/select-asset?sessionToken=" + encodeURIComponent(data.token), "_blank", "noopener,noreferrer");
+                const url = "https://pay.coinbase.com/buy/select-asset?sessionToken=" + encodeURIComponent(data.token) +
+                    "&defaultNetwork=" + encodeURIComponent(chainConfig.network) +
+                    "&defaultAsset=" + encodeURIComponent(chainConfig.asset);
+                window.open(url, "_blank", "noopener,noreferrer");
                 buyBtn.textContent = "Buy Crypto";
                 (buyBtn as HTMLButtonElement).disabled = false;
             } else if (status === 401) {

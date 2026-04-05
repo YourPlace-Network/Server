@@ -596,12 +596,12 @@ func dispatchTransaction(block map[string]interface{}, transaction map[string]in
 	// ret 0 == success == transaction was a YP txn and was processed
 	// ret 1 == skipped == transaction was not a YP txn
 	// ret 2 == expired == transaction is older than the cached history limit
-	txHash := strings.ToLower(transaction["hash"].(string))
-	//fromAddr := strings.ToLower(transaction["from"].(string))
+	txHash := transaction["hash"].(string)
+	//fromAddr := transaction["from"].(string)
 	if transaction["to"] == nil { // Skip transactions with no recipient
 		return 1
 	}
-	toAddr := strings.ToLower(transaction["to"].(string))
+	toAddr := transaction["to"].(string)
 	if transaction["input"] == nil { // Skip transactions with no data payload
 		return 1
 	}
