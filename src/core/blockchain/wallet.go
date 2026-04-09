@@ -110,6 +110,19 @@ func WalletGetBalance(blockchain string, address string, _blockchain *Blockchain
 	}
 	return val.(float64), nil
 }
+func WalletGetBalanceFormatted(blockchain string, address string, _blockchain *Blockchain) (float64, string) {
+	balanceRaw, _ := WalletGetBalance(blockchain, address, _blockchain)
+	if blockchain == "algorand" {
+		return balanceRaw / 1e6, "ALGO"
+	}
+	if blockchain == "base" {
+		return balanceRaw / 1e18, "ETH"
+	}
+	if blockchain == "ethereum" {
+		return balanceRaw / 1e18, "ETH"
+	}
+	return balanceRaw, ""
+}
 func WalletGetName(blockchain string, address string, _blockchain *Blockchain) (string, error) {
 	key := blockchain + ":name:" + address
 	val, _ := rpcDedup.Do(key, func() (interface{}, error) {

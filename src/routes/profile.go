@@ -169,6 +169,27 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "profileData": profileData})
 	})
+	router.GET("/profile/details/:blockchain/:address", func(c *gin.Context) {
+		blockchainParam := c.Param("blockchain")
+		if !security.IsValidBlockchain(blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
+			return
+		}
+		address := c.Param("address")
+		if !security.IsValidAddress(address, blockchainParam) {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
+			return
+		}
+		balance, symbol := blockchain2.WalletGetBalanceFormatted(blockchainParam, address, _blockchain)
+		priceUSD, _ := blockchain2.WalletGetPriceUSD(blockchainParam, _blockchain)
+		balanceUSD := balance * priceUSD
+		c.SecureJSON(http.StatusOK, gin.H{
+			"balance":    balance,
+			"balanceUSD": balanceUSD,
+			"priceUSD":   priceUSD,
+			"symbol":     symbol,
+		})
+	})
 	router.GET("/profile/name/:blockchain/:address", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchainParam) {

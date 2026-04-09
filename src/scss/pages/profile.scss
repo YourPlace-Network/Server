@@ -44,6 +44,8 @@
 #nameDiv {
   padding-top: 5px;
   margin-bottom: -0.5em;
+  position: relative;
+  z-index: 50;
 }
 #atSymbol {
   display: inline;

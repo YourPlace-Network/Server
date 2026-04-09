@@ -1,0 +1,28 @@
+{{define "modalProfileDetails"}}<div class="modal" id="modalProfileDetails" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body" id="modalProfileDetailsBody">
+                <div class="profileDetailRow">
+                    <span class="profileDetailLabel">Blockchain</span>
+                    <span class="profileDetailValue" id="profileDetailBlockchain">
+                        <img class="profileDetailIcon" id="profileDetailBlockchainIcon" src="" alt="">
+                        <span id="profileDetailBlockchainName"></span>
+                    </span>
+                </div>
+                <div class="profileDetailRow">
+                    <span class="profileDetailLabel">Balance</span>
+                    <span class="profileDetailValue" id="profileDetailBalance">--</span>
+                </div>
+                <div class="profileDetailRow">
+                    <span class="profileDetailLabel">USD Value</span>
+                    <span class="profileDetailValue" id="profileDetailBalanceUSD">--</span>
+                </div>
+                <div class="profileDetailRow" id="profileDetailEthosRow">
+                    <span class="profileDetailLabel">Ethos Score</span>
+                    <span class="profileDetailValue" id="profileDetailEthos">--</span>
+                </div>
+            </div>
+            <button type="button" class="btn btn-secondary yp-modal-btn" data-bs-dismiss="modal">Ok</button>
+        </div>
+    </div>
+</div>{{end}}

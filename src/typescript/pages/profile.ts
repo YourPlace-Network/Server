@@ -9,6 +9,7 @@ import "../components/scrollTop";
 import "../components/menu";
 import {LogError, LogInfo} from "../util/log";
 import {HttpGetJson} from "../util/network";
+import {ShowModalProfileDetails} from "../components/modalProfileDetails";
 import {showProfileEditModal} from "../components/modalProfileEdit";
 import {FetchComments, FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
@@ -877,6 +878,9 @@ declare global {
                 transferModal.show();
                 return;
             }
+        });
+        DOM.profileName.addEventListener("click", function () {
+            ShowModalProfileDetails(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
         });
         DOM.profileEditBtn.addEventListener("click", showProfileEditModal);
         DOM.profileAddressCopy.addEventListener("click", function () {

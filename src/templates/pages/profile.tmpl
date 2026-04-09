@@ -12,6 +12,7 @@
 {{template "modalProfileEdit" .}}
 {{template "modalMediaViewer" .}}
 {{template "modalMintNFT" .}}
+{{template "modalProfileDetails" .}}
 {{template "modalTransferNFT" .}}
 {{template "modalYesNo" .}}
     <div class="container-fluid" id="topContainer">
@@ -42,7 +43,7 @@
                         </button>
                         <div id="profileNameDiv">
                             {{/* <a href="#" id="profileNameLink"> */}}
-                                <div id="profileName">Anonymous</div><div id="profileNameDomain"></div>
+                                <div id="profileName" class="clickable">Anonymous</div><div id="profileNameDomain"></div>
                             {{/* </a> */}}
                         </div>
                     </div>
