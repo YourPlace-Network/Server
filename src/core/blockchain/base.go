@@ -139,20 +139,31 @@ func (base *Base) GetPriceUSD() float64 {
 	return price
 }
 func (base *Base) GetENSAddresses(name string) ([]string, error) {
+	core.LogDebug("Base.GetENSAddresses(): Resolving ENS name: " + name)
+	if base.EthClient == nil {
+		return nil, core.LogErrorReturn("Base.GetENSAddresses(): EthClient is nil")
+	}
 	resolverAddr := common.HexToAddress(base.EnsResolverAddress)
 	resolver, err := ens.NewResolverAt(base.EthClient, name, resolverAddr)
 	if err != nil {
-		return nil, core.LogErrorReturn("Could not get Base ENS resolver: " + err.Error())
+		core.LogDebug("Base.GetENSAddresses(): NewResolverAt failed for " + name + ": " + err.Error())
+	} else {
+		address, err := resolver.Address()
+		if err != nil {
+			core.LogDebug("Base.GetENSAddresses(): resolver.Address() failed for " + name + ": " + err.Error())
+		} else if address == (common.Address{}) {
+			core.LogDebug("Base.GetENSAddresses(): " + name + " resolved to zero address")
+		} else {
+			reverseName, _ := base.GetENSName(address.Hex())
+			if strings.EqualFold(reverseName, name) {
+				core.LogDebug("Base.GetENSAddresses(): Resolved " + name + " -> " + address.Hex())
+				return []string{address.Hex()}, nil
+			}
+			core.LogDebug("Base.GetENSAddresses(): " + name + " resolved to " + address.Hex() + " but reverse lookup returned '" + reverseName + "', skipping")
+		}
 	}
-	address, err := resolver.Address()
-	if err != nil {
-		return nil, core.LogWarningReturn("Could not get Base ENS address: " + err.Error())
-	}
-	if address == (common.Address{}) {
-		core.LogDebug("Base.GetENSAddresses(): " + name + " resolved to zero address, treating as not found")
-		return nil, nil
-	}
-	return []string{address.Hex()}, nil
+	core.LogDebug("Base.GetENSAddresses(): " + name + " could not be resolved server-side, deferring to frontend")
+	return nil, nil
 }
 func (base *Base) GetBlockTimestamp(blockNumber *big.Int) uint64 {
 	blockNumberHex := "0x" + blockNumber.Text(16)

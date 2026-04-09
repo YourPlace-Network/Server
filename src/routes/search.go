@@ -84,20 +84,33 @@ func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockc
 		valid, chain := security.IsValidENSName(printableQuery)
 		if valid {
 			address, _ = blockchain2.WalletGetAddress(chain, printableQuery, _blockchain)
-		}
-		if address != "" {
-			database.OnchainMN(chain, address, printableQuery, uint64(time.Now().Unix()))
-		}
-		profileQuery := printableQuery
-		if address != "" {
-			profileQuery = address
+			if address != "" {
+				database.OnchainMN(chain, address, printableQuery, uint64(time.Now().Unix()))
+			}
+			posts := database.SearchGetPosts(printableQuery, limit, offset)
+			hasMorePosts := len(posts) >= limit
+			if hasMorePosts {
+				posts = posts[:limit-1]
+			}
+			var profiles []map[string]interface{}
+			if address != "" {
+				profiles = database.SearchGetProfiles(address, 50, 0)
+			} else {
+				profiles = database.SearchGetProfiles(printableQuery, 50, 0)
+			}
+			c.SecureJSON(http.StatusOK, gin.H{
+				"profiles":     profiles,
+				"posts":        posts,
+				"hasMorePosts": hasMorePosts,
+			})
+			return
 		}
 		posts := database.SearchGetPosts(printableQuery, limit, offset)
 		hasMorePosts := len(posts) >= limit
 		if hasMorePosts {
 			posts = posts[:limit-1]
 		}
-		profiles := database.SearchGetProfiles(profileQuery, 50, 0)
+		profiles := database.SearchGetProfiles(printableQuery, 50, 0)
 		seen := make(map[string]bool)
 		var dedupedProfiles []map[string]interface{}
 		for _, p := range profiles {

@@ -1156,8 +1156,8 @@ func (db *MySQL) SearchGetProfiles(query string, limit int, offset int) []map[st
 	var unionParts []string
 	var params []interface{}
 	for _, _blockchain := range core.ValidNetworks {
-		unionParts = append(unionParts, fmt.Sprintf("SELECT address, blockchain FROM onchain_%s_meta WHERE address LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ?", _blockchain))
-		params = append(params, search, search, searchPrefix, searchPrefix+".eth", searchPrefix+".base.eth", searchPrefix+".algo")
+		unionParts = append(unionParts, fmt.Sprintf("SELECT address, blockchain FROM onchain_%s_meta WHERE address LIKE ? OR ensName LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ?", _blockchain))
+		params = append(params, search, search, search, searchPrefix, searchPrefix+".eth", searchPrefix+".base.eth", searchPrefix+".algo")
 	}
 	params = append(params, limit, offset)
 	sqlQuery := fmt.Sprintf("SELECT address, blockchain FROM (%s) t GROUP BY address, blockchain LIMIT ? OFFSET ?", strings.Join(unionParts, " UNION ALL "))

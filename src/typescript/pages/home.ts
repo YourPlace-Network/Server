@@ -558,7 +558,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             DOM.searchClearBtn.style.display = hasValue ? "flex" : "none";
             handleSearch().then();
         };
-        const debounceHandler = debounce(handleInput, 400);
+        const debounceHandler = debounce(handleInput, 700);
         ["keyup", "cut", "paste"].forEach(event => DOM.searchInput.addEventListener(event, debounceHandler, false));
         DOM.searchInput.addEventListener("input", () => {
             const hasValue = DOM.searchInput.value.length > 0;
