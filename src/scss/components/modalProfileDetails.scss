@@ -28,6 +28,17 @@
 .profileDetailValue {
     align-items: center;
     display: flex;
+    .spinner-border-sm {
+        height: 1em;
+        width: 1em;
+    }
+}
+#profileDetailEthos a {
+    color: var(--yp-text);
+    text-decoration: none;
+    &:hover {
+        text-decoration: underline;
+    }
 }
 #profileDetailEthosRow {
     display: none;

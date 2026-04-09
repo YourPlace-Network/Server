@@ -19,8 +19,9 @@ export function ShowModalProfileDetails(blockchain: string, address: string) {
         blockchainIcon.alt = blockchain;
     }
     blockchainName.textContent = blockchain.charAt(0).toUpperCase() + blockchain.slice(1);
-    balanceEl.textContent = "--";
-    balanceUSDEl.textContent = "--";
+    const spinner = '<span class="spinner-border spinner-border-sm"></span>';
+    balanceEl.innerHTML = spinner;
+    balanceUSDEl.innerHTML = spinner;
     ethosRow.style.display = "none";
     ethosEl.textContent = "--";
     const bsModal = new window.bootstrap.Modal(modal, {});
@@ -33,13 +34,22 @@ export function ShowModalProfileDetails(blockchain: string, address: string) {
             const symbol = data.symbol || "";
             balanceEl.textContent = (isNaN(balance) ? "0" : balance.toFixed(4)) + (symbol ? " " + symbol : "");
             balanceUSDEl.textContent = isNaN(balanceUSD) ? "$0.00" : "$" + balanceUSD.toFixed(2);
+        } else {
+            balanceEl.textContent = "--";
+            balanceUSDEl.textContent = "--";
         }
     });
     if (IsValidBaseAddress(address)) {
-        EthosGetScore(address).then((score) => {
-            if (score !== null) {
+        EthosGetScore(address).then((result) => {
+            if (result !== null) {
                 ethosRow.style.display = "flex";
-                ethosEl.textContent = score.toString();
+                const link = document.createElement("a");
+                link.href = "https://app.ethos.network/profile/" + encodeURIComponent(address);
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                link.textContent = result.score + " (" + result.label + ")";
+                ethosEl.textContent = "";
+                ethosEl.appendChild(link);
             }
         });
     }

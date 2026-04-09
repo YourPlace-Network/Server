@@ -1,8 +1,7 @@
 import {HttpGetJson, HttpPostJson} from "./network";
-import {GetPageRoute, IsMobileDevice} from "./miscellaneous";
+import {GetPageRoute} from "./miscellaneous";
 import {LogError} from "./log";
 import {ShowToastNotification} from "../components/toast";
-import {ShowDialogModal} from "../components/modalDialog";
 import "../../scss/components/notificationBell.scss";
 
 export interface Notification {
@@ -15,9 +14,6 @@ export interface Notification {
 let lastKnownCount = 0;
 
 export async function ShowNotifications() {
-    if (IsMobileDevice()) {
-        ShowDialogModal("Mobile support is experimental and very fragile. Please use a desktop browser for the best experience.");
-    }
     let notificationsResponse = await HttpGetJson("/notification");
     if (notificationsResponse[0] !== 200) {
         LogError("Could not fetch notifications");
