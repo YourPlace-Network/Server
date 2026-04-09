@@ -159,10 +159,10 @@ async function initBaseWallet() {
             chain: viemBase,
             transport: viemHttp(mainnetBase.rpcUrl!),
         });
-        /*const mainnetClient = createPublicClient({
+        const mainnetClient = createPublicClient({
             chain: viemMainnet,
             transport: viemHttp("/rpc/ethereum"),
-        });*/
+        });
         wagmiConfig = createConfig({
             chains: [wagmiBase],
             multiInjectedProviderDiscovery: false,
@@ -186,7 +186,7 @@ async function initBaseWallet() {
             rpcUrl: mainnetBase.rpcUrl!,
             defaultPublicClients: {
                 [viemBase.id]: viemClient,
-                //[viemMainnet.id]: mainnetClient,
+                [viemMainnet.id]: mainnetClient,
             },
         });
     } catch (e) {
