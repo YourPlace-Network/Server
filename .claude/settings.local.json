@@ -9,7 +9,9 @@
       "Bash(git merge:*)",
       "Bash(go doc:*)",
       "Bash(find:*)",
-      "WebFetch(domain:docs.cdp.coinbase.com)"
+      "WebFetch(domain:docs.cdp.coinbase.com)",
+      "Bash(file:*)",
+      "Bash(stat:*)"
     ],
     "deny": [],
     "ask": []

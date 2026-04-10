@@ -329,11 +329,6 @@ input[type="file"] {
   #bannerImg {
     width: 100%;
   }
-  #profileAvatar {
-    width: 30%;
-    height: auto;
-    aspect-ratio: 1 / 1;
-  }
   #editImg, #editImg {
     padding: 0;
   }
@@ -352,37 +347,15 @@ input[type="file"] {
     margin-bottom: 0.5em;
   }
 }
-@media(max-width: 500px) {
+@media(max-width: 420px) {
   #profileAvatar {
-    margin-top: 0;
-  }
-  #nameDiv {
-    margin-top: -30px;
-    padding-top: 0;
+    width: 6em;
+    height: 6em;
+    margin: 0.5em;
+    top: -3em;
   }
   #profileName {
-    margin-top: 0;
-  }
-  #profileDescription {
-    padding-top: 5.5em;
-  }
-  #profileStatsDiv {
-    flex-wrap: wrap;
-  }
-  .stat {
-    width: 50%;
-    margin-bottom: 0.5em;
-    padding-left: 1em;
-  }
-  #profileMeta {
-    flex-wrap: wrap;
-  }
-  .metaPair {
-    width: 50%;
-    margin-bottom: 0.5em;
-  }
-  #rowDescription {
-    padding-top: 50px;
+    max-width: 7em;
   }
 }
 //@media(max-width: 400px) {
