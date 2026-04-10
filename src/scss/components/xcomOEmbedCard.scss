@@ -83,3 +83,18 @@ img.xcomCardMedia {
 .xcomCardMediaContainer:hover .xcomCardPlayIcon {
   transform: translate(-50%, -50%) scale(1.2);
 }
+@media(max-width: 704px) {
+  .xcomCard {
+    padding: 0.3em;
+  }
+  .xcomCard .xcomCardAvatar {
+    width: 1.6em;
+    height: 1.6em;
+    margin: 0 0.3em 0.3em 0;
+  }
+  .xcomCardTextDiv {
+    padding-left: 1.9em;
+    transform: none;
+    margin-bottom: 0;
+  }
+}

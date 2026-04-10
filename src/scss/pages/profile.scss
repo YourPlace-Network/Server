@@ -326,10 +326,8 @@ input[type="file"] {
   .mintNFTIcon {
     font-size: 1.2em;
   }
-}
-@media(max-width: 700px) {
   #profileName {
-    max-width: 12em;
+    max-width: calc(100vw - 18em);
   }
 }
 @media(max-width: 600px) {
@@ -342,13 +340,13 @@ input[type="file"] {
   #editBtnLabel, #followBtnLabel {
     display: none;
   }
-  #profileName {
-    max-width: 9em;
-  }
 }
 @media(max-width: 575px) {
   .navBtn {
     margin-bottom: 0.5em;
+  }
+  #profileName {
+    max-width: calc(100vw - 13em);
   }
 }
 @media(max-width: 420px) {
@@ -359,35 +357,6 @@ input[type="file"] {
     top: -3em;
   }
   #profileName {
-    max-width: 7em;
+    max-width: calc(100vw - 10em);
   }
 }
-//@media(max-width: 400px) {
-//  #profileAvatar {
-//    margin-top: 0;
-//  }
-//  #nameDiv {
-//    margin-top: -50px;
-//    transform: translateX(-5em);
-//  }
-//  #profileName {
-//    margin-left: 5em;
-//    text-align: center;
-//  }
-//  #profileDescription {
-//    margin-top: -2em;
-//  }
-//  #addressDiv {
-//    transform: translateX(-6.5em);
-//  }
-//}
-//@media(max-width: 300px) {
-//  #profileName {
-//    margin-left: 0;
-//    text-align: left;
-//    transform: translateX(-1em);
-//  }
-//  #profileDescription {
-//    margin-top: -1.5em;
-//  }
-//}
