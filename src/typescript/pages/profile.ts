@@ -82,6 +82,7 @@ declare global {
             likesNum: document.getElementById("likesNum")! as HTMLDivElement,
             profileBlockchainIcon: document.getElementById("profileBlockchainIcon")! as HTMLImageElement,
             profileBlockchainLink: document.getElementById("profileBlockchainLink")! as HTMLAnchorElement,
+            profileButtonsDiv: document.getElementById("profileButtonsDiv")! as HTMLDivElement,
         }
         let activeTab: "posts" | "collectibles" | "comments" = "posts";
         let commentsEverLoaded = false;
@@ -757,6 +758,25 @@ declare global {
             return first + middle + end;
         }
 
+        function updateNavBtnLayout() {
+            DOM.profileButtonsDiv.classList.remove("iconOnly");
+            const navBtns = DOM.profileButtonsDiv.querySelectorAll<HTMLButtonElement>(".navBtn");
+            for (const btn of navBtns) {
+                if (btn.scrollWidth > btn.clientWidth + 1) {
+                    DOM.profileButtonsDiv.classList.add("iconOnly");
+                    return;
+                }
+            }
+        }
+        let navBtnLayoutRafId: number | null = null;
+        function scheduleNavBtnLayoutUpdate() {
+            if (navBtnLayoutRafId !== null) return;
+            navBtnLayoutRafId = requestAnimationFrame(() => {
+                navBtnLayoutRafId = null;
+                updateNavBtnLayout();
+            });
+        }
+
         // --------- Event Handlers --------- //
         DOM.btnCollectible.addEventListener("click", function () {
             if (activeTab !== "collectibles") switchToCollectiblesTab();
@@ -920,6 +940,8 @@ declare global {
             }
         });
 
+        window.addEventListener("resize", scheduleNavBtnLayoutUpdate);
+
         // Cleanup auto-refresh on page unload
         window.addEventListener("beforeunload", stopAutoRefresh);
         document.addEventListener("visibilitychange", () => {
@@ -937,6 +959,10 @@ declare global {
                 switchToCommentsTab();
             }
             startAutoRefresh();
+            updateNavBtnLayout();
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(() => updateNavBtnLayout());
+            }
         });
     }
 })();

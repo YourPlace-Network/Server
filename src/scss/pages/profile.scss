@@ -206,12 +206,22 @@
   height: 2.33em;
   margin-left: 5px;
   margin-right: 5px;
+  white-space: nowrap;
+  overflow: hidden;
   &.active {
     box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.3);
     transform: translateY(1px);
     background-color: var(--yp-quaternary);
     color: var(--yp-primary);
     opacity: 0.6;
+  }
+}
+#profileButtonsDiv.iconOnly {
+  .navBtnTxt {
+    display: none;
+  }
+  .navBtn.btn i.bi {
+    padding-right: 0;
   }
 }
 #mintNFTButton {
@@ -316,9 +326,6 @@ input[type="file"] {
   .mintNFTIcon {
     font-size: 1.2em;
   }
-  .navBtnTxt {
-    display: none;
-  }
 }
 @media(max-width: 700px) {
   #profileName {
@@ -340,9 +347,6 @@ input[type="file"] {
   }
 }
 @media(max-width: 575px) {
-  .navBtnTxt {
-    display: inline;
-  }
   .navBtn {
     margin-bottom: 0.5em;
   }
