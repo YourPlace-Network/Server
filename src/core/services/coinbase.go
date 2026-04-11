@@ -86,6 +86,7 @@ func CoinbaseOnrampToken(address, blockchain, clientIP string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
+	core.LogDebug("CDP onramp token payload: " + string(body))
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest(http.MethodPost, "https://api.developer.coinbase.com/onramp/v1/token", bytes.NewReader(body))
 	if err != nil {
