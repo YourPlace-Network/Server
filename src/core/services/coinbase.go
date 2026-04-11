@@ -58,6 +58,10 @@ func CoinbaseOnrampToken(address, blockchain, clientIP string) (string, error) {
 	if keyName == "" || privateKeyStr == "" {
 		return "", fmt.Errorf("CDP onramp credentials not configured")
 	}
+	if clientIP == "" {
+		return "", fmt.Errorf("clientIp is required for CDP onramp token request")
+	}
+	core.LogDebug("CDP onramp token request for " + address + " on " + blockchain + " from clientIp " + clientIP)
 	privKey, err := parseCDPPrivateKey(privateKeyStr)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse CDP private key: %w", err)

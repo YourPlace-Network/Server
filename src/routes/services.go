@@ -323,7 +323,15 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Unsupported blockchain"})
 			return
 		}
-		clientIP := c.ClientIP()
+		clientIP := strings.TrimSpace(c.GetHeader("CF-Connecting-IP"))
+		if clientIP == "" {
+			clientIP = c.ClientIP()
+		}
+		if clientIP == "" {
+			core.LogDebug("Coinbase onramp token rejected: could not determine client IP")
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Could not determine client IP"})
+			return
+		}
 		token, err := services.CoinbaseOnrampToken(addressStr, payload.Blockchain, clientIP)
 		if err != nil {
 			core.LogDebug("Coinbase onramp token error: " + err.Error())
