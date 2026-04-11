@@ -162,6 +162,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"followingCount": database.ProfileGetFollowingCount(address, blockchainParam),
 			"joinedDate":     database.ProfileGetJoinedDate(address, blockchainParam),
 			"location":       database.ProfileGetLocation(address, blockchainParam),
+			"musicEmbed":     database.ProfileGetMusicEmbed(address, blockchainParam),
 			"name":           database.ProfileGetName(address, blockchainParam),
 			"nsfw":           database.ProfileGetNsfw(address, blockchainParam),
 			"vertical":       database.ProfileGetVertical(address, blockchainParam),

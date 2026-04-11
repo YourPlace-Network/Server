@@ -22,6 +22,7 @@ import {CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util
 import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowDialogModalWithCallback} from "../components/modalDialog";
 import {ShowToast} from "../components/toast";
+import {IsValidSpotifyUrl, MountSpotifyEmbed} from "../services/spotify";
 
 declare global {
     interface Window {
@@ -62,9 +63,11 @@ declare global {
             profileNameDomain: document.getElementById("profileNameDomain")! as HTMLDivElement,
             profileEditBtn: document.getElementById("profileEditBtn")! as HTMLButtonElement,
             profileDescription: document.getElementById("profileDescription")! as HTMLDivElement,
+            musicEmbed: document.getElementById("musicEmbed")! as HTMLDivElement,
             profileLocation: document.getElementById("profileLocation")! as HTMLDivElement,
             profileVertical: document.getElementById("profileVertical")! as HTMLDivElement,
             profileWebsite: document.getElementById("profileWebsite")! as HTMLAnchorElement,
+            rowMusic: document.getElementById("rowMusic")! as HTMLDivElement,
             profileJoined: document.getElementById("profileJoined")! as HTMLDivElement,
             postAvatars: document.getElementsByClassName("postCardAvatar")! as HTMLCollectionOf<HTMLImageElement>,
             postsDiv: document.getElementsByClassName("postCard")! as HTMLCollectionOf<HTMLDivElement>,
@@ -475,6 +478,7 @@ declare global {
             await renderProfileAvatarFromData(blockchain, address);
             await renderProfileDescriptionFromData(profileData.description, blockchain, address);
             await renderProfileLocationFromData(profileData.location);
+            await renderProfileMusicEmbedFromData(profileData.musicEmbed);
             await renderProfileVerticalFromData(profileData.vertical);
             await renderProfileWebsiteFromData(profileData.website);
             await renderProfileJoinedDateFromData(profileData.joinedDate);
@@ -673,6 +677,22 @@ declare global {
                 DOM.profileVertical.parentElement?.classList.remove("hidden");
             } else {
                 DOM.profileVertical.parentElement?.classList.add("hidden");
+            }
+        }
+        async function renderProfileMusicEmbedFromData(musicUrl: string) {
+            const sanitized = XSSSanitizeValue(musicUrl || "");
+            DOM.musicEmbed.dataset.url = sanitized;
+            if (!sanitized) {
+                DOM.musicEmbed.innerHTML = "";
+                DOM.rowMusic.classList.add("hidden");
+                return;
+            }
+            if (IsValidSpotifyUrl(sanitized)) {
+                await MountSpotifyEmbed(DOM.musicEmbed, sanitized);
+                DOM.rowMusic.classList.remove("hidden");
+            } else {
+                DOM.musicEmbed.innerHTML = "";
+                DOM.rowMusic.classList.add("hidden");
             }
         }
         async function renderProfileWebsiteFromData(website: string) {

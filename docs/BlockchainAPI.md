@@ -65,6 +65,7 @@ Payload tags are special tags that the user can type themselves that exist in th
 - `yp/1/mbd:{"bd":"0000000000"}` - Update birth date (Unix timestamp) (to burn address) 🚢
 - `yp/1/ms:{"s":"12.34.56.78:42424"}` - Update server location (IP/DNS:PORT) (to burn address)
 - `yp/1/ml:{"l":"location"}` - Update user specified location (to burn address) 🚢
+- `yp/1/mm:{"m":"https://open.spotify.com/track/..."}` - Update music embed URL; provider (Spotify, etc.) detected from the URL (to burn address) 🚢
 - `yp/1/mw:{"w":"website"}` - Update user specified website (to burn address) 🚢
 - `yp/1/md:{"d":"description"}` - Update profile description (to burn address) 🚢
 - `yp/1/mao:{"ao":"true"}` = Set profile to adults only (to burn address)

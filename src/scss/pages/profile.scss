@@ -86,6 +86,20 @@
   height: 2.5em;
   margin-top: 0.5em;
 }
+#rowMusic {
+  margin-top: 0.5em;
+  &.hidden {
+    display: none;
+  }
+}
+#musicEmbed {
+  iframe {
+    display: block;
+    max-width: 100%;
+    border: 0;
+    border-radius: 12px;
+  }
+}
 #profileNameDomain {
   font-weight: normal;
   font-size-adjust: 0.4;

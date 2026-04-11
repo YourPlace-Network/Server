@@ -261,6 +261,10 @@ export async function ethereumSetLocation(location: string) {
     let jsonData = YP.metadataLocation(location);
     return await ethereumTxn(mainnetEth.burnAddress, jsonData);
 }
+export async function ethereumSetMusicEmbed(music: string) {
+    let jsonData = YP.metadataMusic(music);
+    return await ethereumTxn(mainnetEth.burnAddress, jsonData);
+}
 export async function ethereumSetName(name: string) {
     let jsonData = YP.metadataName(name);
     return await ethereumTxn(mainnetEth.burnAddress, jsonData);

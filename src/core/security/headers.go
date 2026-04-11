@@ -34,7 +34,7 @@ func Headers(port int) gin.HandlerFunc {
 		ipfsGatewayPort := strconv.Itoa(port + 2)
 		c.Header("Content-Security-Policy",
 			"default-src 'none'; "+
-				"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.bridge.walletconnect.org https://www.googletagmanager.com https://www.youtube-nocookie.com; "+ // unsafe-inline and unsafe-eval are due to bootstrap
+				"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.bridge.walletconnect.org https://*.spotifycdn.com https://open.spotify.com https://www.googletagmanager.com https://www.youtube-nocookie.com; "+ // unsafe-inline and unsafe-eval are due to bootstrap
 				"img-src 'self' https://* data: blob: http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // wildcard all HTTPS connections to allow for 3rd party image embeds
 				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
 				"media-src 'self' data: https://*; "+

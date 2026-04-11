@@ -434,6 +434,10 @@ export async function baseSetLocation(location: string) {
     let jsonData = YP.metadataLocation(location);
     return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
+export async function baseSetMusicEmbed(music: string) {
+    let jsonData = YP.metadataMusic(music);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
 export async function baseSetWebsite(website: string) {
     let jsonData = YP.metadataWebsite(website);
     return await baseTxn(mainnetBase.burnAddress, jsonData);

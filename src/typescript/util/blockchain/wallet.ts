@@ -21,6 +21,7 @@ import {
     algoSetColors,
     algoSetDescription,
     algoSetLocation,
+    algoSetMusicEmbed,
     algoSetName,
     algoSetNsfw,
     algoSetVertical,
@@ -55,6 +56,7 @@ import {
     baseSetColors,
     baseSetDescription,
     baseSetLocation,
+    baseSetMusicEmbed,
     baseSetName,
     baseSetNsfw,
     baseSetVertical,
@@ -89,6 +91,7 @@ import {
     ethereumSetColors,
     ethereumSetDescription,
     ethereumSetLocation,
+    ethereumSetMusicEmbed,
     ethereumSetName,
     ethereumSetNsfw,
     ethereumSetVertical,
@@ -121,6 +124,7 @@ import {
     localWalletEthereumSetColors,
     localWalletEthereumSetDescription,
     localWalletEthereumSetLocation,
+    localWalletEthereumSetMusicEmbed,
     localWalletEthereumSetName,
     localWalletEthereumSetNsfw,
     localWalletEthereumSetVertical,
@@ -677,6 +681,20 @@ export async function WalletSetVertical(vertical: string): Promise<boolean> {
             return !!await ethereumSetVertical(vertical);
         case "pera":
             return await algoSetVertical(vertical);
+    }
+    return false;
+}
+export async function WalletSetMusicEmbed(music: string): Promise<boolean> {
+    let walletSelection = GetWallet()!;
+    switch (walletSelection) {
+        case "cbwalletbase":
+            return !!await baseSetMusicEmbed(music);
+        case "localwalletethereum":
+            return !!await localWalletEthereumSetMusicEmbed(music);
+        case "metamaskethereum":
+            return !!await ethereumSetMusicEmbed(music);
+        case "pera":
+            return await algoSetMusicEmbed(music);
     }
     return false;
 }

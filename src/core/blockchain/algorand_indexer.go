@@ -738,6 +738,25 @@ func algoTokenizeYourPlaceTransaction(blockchain string, txID string, fromAddres
 				}
 				locationStr = security.SanitizeNonPrintable(locationStr)
 				_AlgoDatabase.OnchainML(blockchain, fromAddr, locationStr, timestamp)
+			case "m":
+				music, ok1 := payloadObject["m"]
+				if !ok1 {
+					return
+				}
+				musicStr, ok2 := music.(string)
+				if !ok2 {
+					return
+				}
+				musicStr = security.SanitizeNonPrintable(musicStr)
+				if musicStr == "" {
+					_AlgoDatabase.OnchainMM(blockchain, fromAddr, "", timestamp)
+					break
+				}
+				if valid, _ := services.IsValidSpotifyUri(musicStr); valid {
+					_AlgoDatabase.OnchainMM(blockchain, fromAddr, musicStr, timestamp)
+				} else {
+					core.LogDebug("Metadata music action URL is not a recognized provider")
+				}
 			case "w":
 				website, ok1 := payloadObject["w"]
 				if !ok1 {

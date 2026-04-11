@@ -480,6 +480,14 @@ func (db *Database) OnchainML(blockchain string, address string, location string
 		db.sqlite.OnchainML(blockchain, address, location, timestamp)
 	}
 }
+func (db *Database) OnchainMM(blockchain string, address string, music string, timestamp uint64) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainMM(blockchain, address, music, timestamp)
+	case "sqlite":
+		db.sqlite.OnchainMM(blockchain, address, music, timestamp)
+	}
+}
 func (db *Database) OnchainMW(blockchain string, address string, website string, timestamp uint64) {
 	switch db.Engine {
 	case "mysql":
@@ -695,6 +703,16 @@ func (db *Database) ProfileGetLocation(address string, blockchain string) string
 		location = db.sqlite.ProfileGetLocation(address, blockchain)
 	}
 	return location
+}
+func (db *Database) ProfileGetMusicEmbed(address string, blockchain string) string {
+	var musicEmbed string
+	switch db.Engine {
+	case "mysql":
+		musicEmbed = db.mysql.ProfileGetMusicEmbed(address, blockchain)
+	case "sqlite":
+		musicEmbed = db.sqlite.ProfileGetMusicEmbed(address, blockchain)
+	}
+	return musicEmbed
 }
 func (db *Database) ProfileGetWebsite(address string, blockchain string) string {
 	var website string

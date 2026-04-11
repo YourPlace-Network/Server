@@ -7,7 +7,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 8
+const SchemaVersion = 9
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -31,6 +31,7 @@ var migrations = []Migration{
 	{Version: 6, Description: "Add Ethereum blockchain tables", Up: migrateV6},
 	{Version: 7, Description: "Add bot and nsfw flags to meta tables", Up: migrateV7},
 	{Version: 8, Description: "Add user notifications and notification seen tables", Up: migrateV8},
+	{Version: 9, Description: "Add musicEmbed and musicEmbedTimestamp columns to meta tables", Up: migrateV9},
 }
 
 // --- Migration Functions --- //
@@ -161,6 +162,26 @@ func migrateV8(db *SQLite) error {
 	}
 	for _, idx := range indexes {
 		if _, err := db.database.Exec(idx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func migrateV9(db *SQLite) error {
+	columns := []struct {
+		table  string
+		column string
+		def    string
+	}{
+		{"onchain_algorand_meta", "musicEmbed", "TEXT DEFAULT ''"},
+		{"onchain_algorand_meta", "musicEmbedTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_base_meta", "musicEmbed", "TEXT DEFAULT ''"},
+		{"onchain_base_meta", "musicEmbedTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_ethereum_meta", "musicEmbed", "TEXT DEFAULT ''"},
+		{"onchain_ethereum_meta", "musicEmbedTimestamp", "INTEGER DEFAULT 0"},
+	}
+	for _, col := range columns {
+		if err := db.migrateAddColumn(col.table, col.column, col.def); err != nil {
 			return err
 		}
 	}

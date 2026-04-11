@@ -41,6 +41,12 @@ export let YP = {
         }
         return `yp/1/ml:${JSON.stringify(payload)}`
     },
+    metadataMusic: function(music: string): string {
+        const payload = {
+            m: music
+        }
+        return `yp/1/mm:${JSON.stringify(payload)}`
+    },
     metadataWebsite: function(website: string): string {
         const payload = {
             w: website

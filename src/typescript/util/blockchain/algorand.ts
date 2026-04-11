@@ -283,6 +283,15 @@ export async function algoSetVertical(vertical: string): Promise<boolean> {
     await algoSubmitTxn(txn);
     return true;
 }
+export async function algoSetMusicEmbed(music: string): Promise<boolean> {
+    if (music == null) return false;
+    let address = GetAddress()!;
+    let payload = YP.metadataMusic(music);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return false;
+    await algoSubmitTxn(txn);
+    return true;
+}
 export async function algoSetWebsite(website: string): Promise<boolean> {
     if (website == "" || website == null) return false;
     let address = GetAddress()!;

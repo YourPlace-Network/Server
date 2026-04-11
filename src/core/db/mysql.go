@@ -178,7 +178,7 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		// Base-specific tables
 		"base_indexer_jobs":     "CREATE TABLE IF NOT EXISTS base_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, blockchain VARCHAR(255), headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
 		"onchain_base_post":     "CREATE TABLE IF NOT EXISTS onchain_base_post (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
-		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (blockchain VARCHAR(255), address VARCHAR(255), avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (blockchain VARCHAR(255), address VARCHAR(255), avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_base_block":    "CREATE TABLE IF NOT EXISTS onchain_base_block (txHash VARCHAR(255), blockchain VARCHAR(255), blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_base_follow":   "CREATE TABLE IF NOT EXISTS onchain_base_follow (txHash VARCHAR(255), blockchain VARCHAR(255), followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_base_comment":  "CREATE TABLE IF NOT EXISTS onchain_base_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
@@ -186,7 +186,7 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		// Algorand-specific tables
 		"algorand_indexer_jobs":     "CREATE TABLE IF NOT EXISTS algorand_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, blockchain VARCHAR(255), headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
 		"onchain_algorand_post":     "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
-		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain VARCHAR(255), address VARCHAR(255), avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain VARCHAR(255), address VARCHAR(255), avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_algorand_block":    "CREATE TABLE IF NOT EXISTS onchain_algorand_block (txHash VARCHAR(255), blockchain VARCHAR(255), blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_algorand_follow":   "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash VARCHAR(255), blockchain VARCHAR(255), followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_algorand_comment":  "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
@@ -196,7 +196,7 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		"onchain_ethereum_block":    "CREATE TABLE IF NOT EXISTS onchain_ethereum_block (txHash VARCHAR(255), blockchain VARCHAR(255), blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
 		"onchain_ethereum_comment":  "CREATE TABLE IF NOT EXISTS onchain_ethereum_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
 		"onchain_ethereum_follow":   "CREATE TABLE IF NOT EXISTS onchain_ethereum_follow (txHash VARCHAR(255), blockchain VARCHAR(255), followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_ethereum_meta":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_meta (blockchain VARCHAR(255), address VARCHAR(255), avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
+		"onchain_ethereum_meta":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_meta (blockchain VARCHAR(255), address VARCHAR(255), avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
 		"onchain_ethereum_post":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_post (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
 		"onchain_ethereum_reaction": "CREATE TABLE IF NOT EXISTS onchain_ethereum_reaction (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
 	}
@@ -293,6 +293,12 @@ func (db *MySQL) RunMigrations() error {
 			return core.LogDebugReturn("MySQL migration v8 failed: " + err.Error())
 		}
 		db.setSchemaVersion(8)
+	}
+	if currentVersion < 9 {
+		if err := db.migrateV9MySQL(); err != nil {
+			return core.LogDebugReturn("MySQL migration v9 failed: " + err.Error())
+		}
+		db.setSchemaVersion(9)
 	}
 	core.LogDebug(fmt.Sprintf("MySQL: Database schema upgrade completed (now at version %d)", targetVersion))
 	return nil
@@ -402,6 +408,26 @@ func (db *MySQL) migrateV8MySQL() error {
 	}
 	for _, createStatement := range tables {
 		if _, err := db.database.Exec(createStatement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (db *MySQL) migrateV9MySQL() error {
+	columns := []struct {
+		table  string
+		column string
+		def    string
+	}{
+		{"onchain_algorand_meta", "musicEmbed", "VARCHAR(255) DEFAULT ''"},
+		{"onchain_algorand_meta", "musicEmbedTimestamp", "BIGINT DEFAULT 0"},
+		{"onchain_base_meta", "musicEmbed", "VARCHAR(255) DEFAULT ''"},
+		{"onchain_base_meta", "musicEmbedTimestamp", "BIGINT DEFAULT 0"},
+		{"onchain_ethereum_meta", "musicEmbed", "VARCHAR(255) DEFAULT ''"},
+		{"onchain_ethereum_meta", "musicEmbedTimestamp", "BIGINT DEFAULT 0"},
+	}
+	for _, col := range columns {
+		if err := db.migrateAddColumn(col.table, col.column, col.def); err != nil {
 			return err
 		}
 	}
@@ -654,6 +680,25 @@ func (db *MySQL) ProfileGetLocation(address string, blockchain string) string {
 			return ""
 		}
 		return location
+	}
+	return ""
+}
+func (db *MySQL) ProfileGetMusicEmbed(address string, blockchain string) string {
+	query := fmt.Sprintf("SELECT musicEmbed FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	if err != nil {
+		core.LogDebug("Could not get profile music embed from database: " + err.Error())
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var musicEmbed string
+		err = rows.Scan(&musicEmbed)
+		if err != nil {
+			core.LogDebug("Could not parse database rows for profile music embed: " + err.Error())
+			return ""
+		}
+		return musicEmbed
 	}
 	return ""
 }
@@ -1914,6 +1959,14 @@ func (db *MySQL) OnchainML(blockchain string, address string, location string, t
 	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, location, locationTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE location = IF(VALUES(locationTimestamp) > locationTimestamp, VALUES(location), location), locationTimestamp = IF(VALUES(locationTimestamp) > locationTimestamp, VALUES(locationTimestamp), locationTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
 	_, err := db.runParamSQLUpdate(query, blockchain, address, location, timestamp)
+	if err != nil {
+		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
+	}
+}
+func (db *MySQL) OnchainMM(blockchain string, address string, music string, timestamp uint64) {
+	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, musicEmbed, musicEmbedTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE musicEmbed = IF(VALUES(musicEmbedTimestamp) > musicEmbedTimestamp, VALUES(musicEmbed), musicEmbed), musicEmbedTimestamp = IF(VALUES(musicEmbedTimestamp) > musicEmbedTimestamp, VALUES(musicEmbedTimestamp), musicEmbedTimestamp)"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	_, err := db.runParamSQLUpdate(query, blockchain, address, music, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}

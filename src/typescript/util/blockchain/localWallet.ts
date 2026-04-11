@@ -347,6 +347,10 @@ export async function localWalletEthereumSetDescription(description: string): Pr
     const jsonData = YP.metadataDescription(description);
     return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
 }
+export async function localWalletEthereumSetMusicEmbed(music: string): Promise<string | undefined> {
+    const jsonData = YP.metadataMusic(music);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
 export async function localWalletEthereumSetLocation(location: string): Promise<string | undefined> {
     const jsonData = YP.metadataLocation(location);
     return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);

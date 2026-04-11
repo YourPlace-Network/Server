@@ -2,7 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalProfileEdit.scss";
 import {LogError, LogInfo} from "../util/log";
 import {UploadFile} from "../util/files";
-import {WalletSetAvatar, WalletSetBanner, WalletSetBot, WalletSetColors, WalletSetDescription, WalletSetLocation, WalletSetName, WalletSetNsfw, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
+import {WalletSetAvatar, WalletSetBanner, WalletSetBot, WalletSetColors, WalletSetDescription, WalletSetLocation, WalletSetMusicEmbed, WalletSetName, WalletSetNsfw, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
 import DOMPurify from "dompurify";
 import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
@@ -17,7 +17,9 @@ export async function showProfileEditModal() {
         inputDescription: document.getElementById("inputDescription")! as HTMLTextAreaElement,
         inputUsername: document.getElementById("inputUsername")! as HTMLInputElement,
         inputLocation: document.getElementById("inputLocation")! as HTMLInputElement,
+        inputMusicEmbed: document.getElementById("inputMusicEmbed")! as HTMLInputElement,
         inputWebsite: document.getElementById("inputWebsite")! as HTMLInputElement,
+        musicEmbed: document.getElementById("musicEmbed")! as HTMLDivElement,
         profileAvatar: document.getElementById("profileAvatar")! as HTMLImageElement,
         profileDescription: document.getElementById("profileDescription")! as HTMLDivElement,
         profileName: document.getElementById("profileName")! as HTMLDivElement,
@@ -44,6 +46,9 @@ export async function showProfileEditModal() {
     if (DOM.profileWebsite.innerText != "https://unknown") {
         DOM.inputWebsite.value = DOMPurify.sanitize(DOM.profileWebsite.innerText);
     }
+    if (DOM.musicEmbed && DOM.musicEmbed.dataset.url) {
+        DOM.inputMusicEmbed.value = DOMPurify.sanitize(DOM.musicEmbed.dataset.url);
+    }
     const modal = new window.bootstrap.Modal(DOM.modalProfileEdit, {});
     DOM.modalProfileEdit.addEventListener("shown.bs.modal", () => {
         let tooltipTriggerList = [].slice.call(DOM.modalProfileEdit.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -65,6 +70,7 @@ export async function showProfileEditModal() {
             btnColorsSave: document.getElementById("btnColorsSave")! as HTMLButtonElement,
             btnDescriptionSave: document.getElementById("btnDescriptionSave")! as HTMLButtonElement,
             btnLocationSave: document.getElementById("btnLocationSave")! as HTMLButtonElement,
+            btnMusicEmbedSave: document.getElementById("btnMusicEmbedSave")! as HTMLButtonElement,
             btnUsernameSave: document.getElementById("btnUsernameSave")! as HTMLButtonElement,
             btnVerticalSave: document.getElementById("btnVerticalSave")! as HTMLButtonElement,
             btnWebsiteSave: document.getElementById("btnWebsiteSave")! as HTMLButtonElement,
@@ -83,6 +89,7 @@ export async function showProfileEditModal() {
             inputBot: document.getElementById("inputBot")! as HTMLInputElement,
             inputDescription: document.getElementById("inputDescription")! as HTMLTextAreaElement,
             inputLocation: document.getElementById("inputLocation")! as HTMLInputElement,
+            inputMusicEmbed: document.getElementById("inputMusicEmbed")! as HTMLInputElement,
             inputNsfw: document.getElementById("inputNsfw")! as HTMLInputElement,
             inputUsername: document.getElementById("inputUsername")! as HTMLInputElement,
             inputVertical: document.getElementById("inputVertical")! as HTMLSelectElement,
@@ -227,6 +234,15 @@ export async function showProfileEditModal() {
                 if (success) hideModalAndShowToast();
             } catch (e) {
                 LogError("Failed to set location" + e);
+            }
+        }
+        async function updateMusicEmbed() {
+            let music = DOM.inputMusicEmbed.value;
+            try {
+                let success = await WalletSetMusicEmbed(music);
+                if (success) hideModalAndShowToast();
+            } catch (e) {
+                LogError("Failed to set music embed" + e);
             }
         }
         async function updateVertical() {
@@ -387,6 +403,7 @@ export async function showProfileEditModal() {
         DOM.inputNsfw.addEventListener("change", updateNsfw);
         DOM.btnDescriptionSave.addEventListener("click", () => withSaveSpinner(DOM.btnDescriptionSave, updateDescription));
         DOM.btnLocationSave.addEventListener("click", () => withSaveSpinner(DOM.btnLocationSave, updateLocation));
+        DOM.btnMusicEmbedSave.addEventListener("click", () => withSaveSpinner(DOM.btnMusicEmbedSave, updateMusicEmbed));
         DOM.btnUsernameSave.addEventListener("click", () => withSaveSpinner(DOM.btnUsernameSave, updateName));
         DOM.btnVerticalSave.addEventListener("click", () => withSaveSpinner(DOM.btnVerticalSave, updateVertical));
         DOM.btnWebsiteSave.addEventListener("click", () => withSaveSpinner(DOM.btnWebsiteSave, updateWebsite));

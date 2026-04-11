@@ -4,6 +4,7 @@ import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/security"
+	"YourPlace/src/core/services"
 	"encoding/hex"
 	"encoding/json"
 	"regexp"
@@ -334,6 +335,28 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 				}
 				locationStr = security.SanitizeNonPrintable(locationStr)
 				_Database.OnchainML(blockchain, fromAddress, locationStr, timestamp)
+				break
+			case "m":
+				music, ok1 := payloadObject["m"]
+				if !ok1 {
+					core.LogDebug("Metadata action missing required music field")
+					break
+				}
+				musicStr, ok2 := music.(string)
+				if !ok2 {
+					core.LogDebug("Metadata action music field is not a string")
+					break
+				}
+				musicStr = security.SanitizeNonPrintable(musicStr)
+				if musicStr == "" {
+					_Database.OnchainMM(blockchain, fromAddress, "", timestamp)
+					break
+				}
+				if valid, _ := services.IsValidSpotifyUri(musicStr); valid {
+					_Database.OnchainMM(blockchain, fromAddress, musicStr, timestamp)
+				} else {
+					core.LogDebug("Metadata music action URL is not a recognized provider")
+				}
 				break
 			case "w":
 				website, ok1 := payloadObject["w"]
