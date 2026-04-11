@@ -122,7 +122,14 @@ import {Sleep} from "../util/time";
             ethereumURL: document.getElementById("ethereumURL")! as HTMLInputElement,
             saveEthereumURLBtn: document.getElementById("saveEthereumURLBtn")! as HTMLButtonElement,
             collapseServices: document.getElementById("collapseServices")! as HTMLDivElement,
+            collapseSpotify: document.getElementById("collapseSpotify")! as HTMLDivElement,
             collapseXcom: document.getElementById("collapseXcom")! as HTMLDivElement,
+            helpSpotifyClientIdBtn: document.getElementById("helpSpotifyClientIdBtn")! as HTMLButtonElement,
+            removeSpotifyClientIdBtn: document.getElementById("removeSpotifyClientIdBtn")! as HTMLButtonElement,
+            saveSpotifyClientIdBtn: document.getElementById("saveSpotifyClientIdBtn")! as HTMLButtonElement,
+            spotifyClientId: document.getElementById("spotifyClientId")! as HTMLInputElement,
+            spotifyRedirectUri: document.getElementById("spotifyRedirectUri")! as HTMLInputElement,
+            spotifyStatusLight: document.getElementById("spotifyStatusLight")! as HTMLDivElement,
             removeXcomCredentialsBtn: document.getElementById("removeXcomCredentialsBtn")! as HTMLButtonElement,
             saveXcomCredentialsBtn: document.getElementById("saveXcomCredentialsBtn")! as HTMLButtonElement,
             testXcomCredentialsBtn: document.getElementById("testXcomCredentialsBtn")! as HTMLButtonElement,
@@ -1100,6 +1107,78 @@ import {Sleep} from "../util/time";
                 ShowDialogModal(response[1].status || "Failed to toggle TOR hidden service");
             }
         }
+        let spotifyEnvLocked = false;
+        async function getSpotifySettings() {
+            DOM.spotifyRedirectUri.value = window.location.origin + "/services/spotify/callback";
+            let response = await HttpGetJson("/settings/services/spotify/clientid");
+            if (response[0] === 200) {
+                spotifyEnvLocked = !!response[1].envLocked;
+                DOM.spotifyClientId.value = response[1].clientId || "";
+                if (spotifyEnvLocked) {
+                    DOM.spotifyClientId.disabled = true;
+                    DOM.saveSpotifyClientIdBtn.disabled = true;
+                    DOM.removeSpotifyClientIdBtn.disabled = true;
+                    DOM.spotifyClientId.placeholder = "Set via YOURPLACE_SPOTIFY_CLIENT_ID environment variable";
+                }
+                updateSpotifyStatusLight(!!DOM.spotifyClientId.value);
+            }
+        }
+        async function removeSpotifyClientId() {
+            let response = await HttpPostJson("/settings/services/spotify/clientid/remove", {}, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                DOM.spotifyClientId.value = "";
+                updateSpotifyStatusLight(false);
+                ShowSavedToast();
+            } else {
+                ShowDialogModal(response[1].status || "Failed to remove Spotify client ID");
+            }
+        }
+        async function saveSpotifyClientId() {
+            const clientId = DOM.spotifyClientId.value.trim();
+            if (!/^[a-f0-9]{32}$/.test(clientId)) {
+                ShowDialogModal("Invalid Spotify client ID format (expected 32-character hex string)");
+                return;
+            }
+            let response = await HttpPostJson("/settings/services/spotify/clientid", {clientId: clientId}, DOM.csrfToken.value);
+            if (response[0] === 200) {
+                updateSpotifyStatusLight(true);
+                ShowSavedToast();
+            } else {
+                ShowDialogModal(response[1].status || "Failed to save Spotify client ID");
+            }
+        }
+        function showSpotifyHelpModal() {
+            ShowDialogModalHTML(
+                "<b>Spotify Client ID Required</b><br><br>" +
+                "To enable full-track Spotify playback for profile visitors, you need to create a Spotify Developer app and copy its Client ID here.<br><br>" +
+                "<b>Steps:</b><br>" +
+                "1. Go to the <a href='https://developer.spotify.com/dashboard' target='_blank'>Spotify Developer Dashboard</a><br>" +
+                "2. Click <b>Create app</b><br>" +
+                "3. Set the <b>Redirect URI</b> to the value shown above<br>" +
+                "4. Under <b>APIs used</b>, select <b>Web API</b> and <b>Web Playback SDK</b><br>" +
+                "5. Copy the <b>Client ID</b> into the field above and click Save<br><br>" +
+                "Note: Client IDs are public and safe to share. No Client Secret is required because YourPlace uses the PKCE flow."
+            );
+        }
+        function updateSpotifyStatusLight(configured: boolean) {
+            let tooltip = DOM.spotifyStatusLight.getAttribute("data-bs-original-title") || DOM.spotifyStatusLight.getAttribute("data-bs-title");
+            let newTooltip = configured ? "Client ID configured" : "Client ID not configured";
+            if (configured) {
+                DOM.spotifyStatusLight.classList.remove("redLight");
+                DOM.spotifyStatusLight.classList.add("greenLight");
+            } else {
+                DOM.spotifyStatusLight.classList.remove("greenLight");
+                DOM.spotifyStatusLight.classList.add("redLight");
+            }
+            if (tooltip !== newTooltip) {
+                let bsTooltip = window.bootstrap.Tooltip.getInstance(DOM.spotifyStatusLight);
+                if (bsTooltip) {
+                    bsTooltip.setContent({".tooltip-inner": newTooltip});
+                }
+                DOM.spotifyStatusLight.setAttribute("data-bs-title", newTooltip);
+                DOM.spotifyStatusLight.setAttribute("data-bs-original-title", newTooltip);
+            }
+        }
         let xcomCredentialsValid = false;
         let xcomIsFreeTier = true;
         let xcomRateLimited = false;
@@ -1575,6 +1654,9 @@ import {Sleep} from "../util/time";
         DOM.ethereumIndexerRunCheckbox!.addEventListener("change", setEthereumIndexerRunning);
         DOM.ethereumThrottle!.addEventListener("change", setEthereumThrottle);
         DOM.saveEthereumURLBtn!.addEventListener("click", setEthereumURL);
+        DOM.saveSpotifyClientIdBtn.addEventListener("click", saveSpotifyClientId);
+        DOM.removeSpotifyClientIdBtn.addEventListener("click", removeSpotifyClientId);
+        DOM.helpSpotifyClientIdBtn.addEventListener("click", showSpotifyHelpModal);
         DOM.xcomCrossPostCheckbox.addEventListener("change", setXcomCrossPost);
         DOM.xcomFeedAggregationCheckbox.addEventListener("change", setXcomFeedAggregation);
         DOM.saveXcomCredentialsBtn.addEventListener("click", setXcomCredentials);
@@ -1643,6 +1725,9 @@ import {Sleep} from "../util/time";
         });
         DOM.collapseNetworking.addEventListener("show.bs.collapse", function() {
             getNetworkPorts().then();
+        });
+        DOM.collapseSpotify.addEventListener("show.bs.collapse", function() {
+            getSpotifySettings().then();
         });
         DOM.collapseXcom.addEventListener("show.bs.collapse", function() {
             getXcomCredentials().then();

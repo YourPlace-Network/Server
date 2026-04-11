@@ -153,6 +153,12 @@ You can also enable debug mode or disable the indexer by placing a `debug` or `n
 | `S3_ACCESS_KEY` | S3 access key (optional if using IAM role) |
 | `S3_SECRET_KEY` | S3 secret key (optional if using IAM role) |
 
+### Services
+
+| Variable | Description |
+|----------|-------------|
+| `YOURPLACE_SPOTIFY_CLIENT_ID` | Spotify Developer app Client ID used for the PKCE OAuth flow that lets profile visitors authenticate and play full tracks via the Web Playback SDK. When set, overrides the value configured in Settings → Services → Spotify. Create an app at [developer.spotify.com](https://developer.spotify.com/dashboard) and register `<your-origin>/services/spotify/callback` as the redirect URI. Not a secret — client IDs are public in OAuth. |
+
 ## Uninstalling
 
 YourPlace uses the standard OS interface such as add/remove programs. But there is also an "Uninstall" button in [Settings > Server Info](http://localhost:42424/settings#serverInfo) that starts the same workflow

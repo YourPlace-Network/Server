@@ -1,0 +1,161 @@
+@use "../global";
+
+#musicContainer {
+  align-items: stretch;
+  display: flex;
+  flex-direction: row;
+  gap: 0.75em;
+  #spotifyConnectPill {
+    align-items: center;
+    background-color: map-get(global.$colors, "secondary");
+    border: 1px solid map-get(global.$colors, "primary");
+    border-radius: 12px;
+    color: map-get(global.$colors, "text");
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 0.5em;
+    height: 152px;
+    justify-content: center;
+    padding: 0.75em;
+    transition: background-color 0.15s ease;
+    width: 110px;
+    &.hidden {
+      display: none;
+    }
+    &:hover {
+      background-color: map-get(global.$colors, "primary");
+    }
+    img {
+      height: 48px;
+      width: 48px;
+    }
+    span {
+      font-size: 0.85em;
+      text-align: center;
+    }
+  }
+  #musicEmbed {
+    flex-grow: 1;
+    min-width: 0;
+  }
+}
+#spotifyFullPlayer {
+  align-items: center;
+  background-color: map-get(global.$colors, "secondary");
+  border-radius: 12px;
+  color: map-get(global.$colors, "text");
+  display: flex;
+  flex-direction: row;
+  gap: 0.75em;
+  height: 152px;
+  overflow: hidden;
+  padding: 0.75em;
+  .spotifyAlbumArt {
+    border-radius: 6px;
+    flex-shrink: 0;
+    height: 128px;
+    width: 128px;
+  }
+  .spotifyTrackInfo {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: 0.5em;
+    min-width: 0;
+    .spotifyTrackName {
+      font-size: 1em;
+      font-weight: bold;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .spotifyTrackArtist {
+      color: map-get(global.$colors, "light");
+      font-size: 0.85em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .spotifyProgressRow {
+      align-items: center;
+      display: flex;
+      flex-direction: row;
+      gap: 0.5em;
+      .spotifyTimeCurrent, .spotifyTimeTotal {
+        color: map-get(global.$colors, "light");
+        font-size: 0.75em;
+        min-width: 2.5em;
+      }
+      .spotifyTimeTotal {
+        text-align: right;
+      }
+      .spotifyProgressBar {
+        background-color: map-get(global.$colors, "tertiary");
+        border-radius: 2px;
+        cursor: pointer;
+        flex-grow: 1;
+        height: 4px;
+        position: relative;
+        .spotifyProgressFill {
+          background-color: map-get(global.$colors, "text");
+          border-radius: 2px;
+          height: 100%;
+          width: 0%;
+        }
+      }
+    }
+    .spotifyControls {
+      align-items: center;
+      display: flex;
+      flex-direction: row;
+      gap: 0.75em;
+      .spotifyPlayPauseBtn, .spotifyDisconnectBtn {
+        background: none;
+        border: none;
+        color: map-get(global.$colors, "text");
+        cursor: pointer;
+        font-size: 1.25em;
+        padding: 0;
+        &:hover {
+          color: map-get(global.$colors, "link");
+        }
+      }
+      .spotifyDisconnectBtn {
+        font-size: 0.85em;
+        margin-left: auto;
+      }
+    }
+  }
+}
+@media(max-width: 704px) {
+  #musicContainer {
+    flex-direction: column;
+    #spotifyConnectPill {
+      align-self: center;
+      flex-direction: row;
+      gap: 0.5em;
+      height: auto;
+      order: 2;
+      padding: 0.5em 1em;
+      width: auto;
+      img {
+        height: 1.25em;
+        width: 1.25em;
+      }
+      span {
+        font-size: 1em;
+      }
+    }
+    #musicEmbed {
+      order: 1;
+    }
+  }
+  #spotifyFullPlayer {
+    .spotifyAlbumArt {
+      height: 96px;
+      width: 96px;
+    }
+  }
+}

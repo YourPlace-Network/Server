@@ -22,7 +22,7 @@ import {CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util
 import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowDialogModalWithCallback} from "../components/modalDialog";
 import {ShowToast} from "../components/toast";
-import {IsValidSpotifyUrl, MountSpotifyEmbed} from "../services/spotify";
+import {IsSpotifyConnected, IsValidSpotifyUrl, MountSpotifyConnectPill, MountSpotifyEmbed, MountSpotifyFullPlayer} from "../services/spotify";
 
 declare global {
     interface Window {
@@ -64,6 +64,7 @@ declare global {
             profileEditBtn: document.getElementById("profileEditBtn")! as HTMLButtonElement,
             profileDescription: document.getElementById("profileDescription")! as HTMLDivElement,
             musicEmbed: document.getElementById("musicEmbed")! as HTMLDivElement,
+            spotifyConnectPill: document.getElementById("spotifyConnectPill")! as HTMLButtonElement,
             profileLocation: document.getElementById("profileLocation")! as HTMLDivElement,
             profileVertical: document.getElementById("profileVertical")! as HTMLDivElement,
             profileWebsite: document.getElementById("profileWebsite")! as HTMLAnchorElement,
@@ -684,15 +685,31 @@ declare global {
             DOM.musicEmbed.dataset.url = sanitized;
             if (!sanitized) {
                 DOM.musicEmbed.innerHTML = "";
+                DOM.spotifyConnectPill.classList.add("hidden");
                 DOM.rowMusic.classList.add("hidden");
                 return;
             }
-            if (IsValidSpotifyUrl(sanitized)) {
-                await MountSpotifyEmbed(DOM.musicEmbed, sanitized);
-                DOM.rowMusic.classList.remove("hidden");
-            } else {
+            if (!IsValidSpotifyUrl(sanitized)) {
                 DOM.musicEmbed.innerHTML = "";
+                DOM.spotifyConnectPill.classList.add("hidden");
                 DOM.rowMusic.classList.add("hidden");
+                return;
+            }
+            DOM.rowMusic.classList.remove("hidden");
+            if (IsSpotifyConnected()) {
+                const upgraded = await MountSpotifyFullPlayer(DOM.musicEmbed, sanitized);
+                if (upgraded) {
+                    DOM.spotifyConnectPill.classList.add("hidden");
+                    return;
+                }
+            }
+            await MountSpotifyEmbed(DOM.musicEmbed, sanitized);
+            if (IsSpotifyConnected()) {
+                DOM.spotifyConnectPill.classList.add("hidden");
+            } else {
+                MountSpotifyConnectPill(DOM.spotifyConnectPill, () => {
+                    renderProfileMusicEmbedFromData(sanitized);
+                });
             }
         }
         async function renderProfileWebsiteFromData(website: string) {

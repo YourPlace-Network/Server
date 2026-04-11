@@ -348,6 +348,13 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"algodToken": algodToken,
 		})
 	})
+	router.GET("/settings/services/spotify/clientid", func(c *gin.Context) {
+		clientID := services.GetSpotifyClientID(database.SettingsGetValue("spotifyClientId"))
+		c.SecureJSON(http.StatusOK, gin.H{
+			"clientId":  clientID,
+			"envLocked": services.IsSpotifyClientIDEnvLocked(),
+		})
+	})
 	router.GET("/settings/services/xcom/settings", func(c *gin.Context) {
 		crossPostEnabled := database.SettingsGetValue("xcomCrossPostEnabled")
 		feedAggregationEnabled := database.SettingsGetValue("xcomFeedAggregationEnabled")
@@ -1299,6 +1306,36 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			database.SettingsUpdateValue("xcomFeedAggregationEnabled", "false")
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
+	})
+	router.POST("/settings/services/spotify/clientid", func(c *gin.Context) {
+		if services.IsSpotifyClientIDEnvLocked() {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Spotify client ID is set via environment variable and cannot be changed from the settings page"})
+			return
+		}
+		type Payload struct {
+			ClientID string `json:"clientId" required:"true"`
+		}
+		var payload Payload
+		err := c.BindJSON(&payload)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Spotify client ID JSON"})
+			return
+		}
+		clientID := security.SanitizeNonPrintable(payload.ClientID)
+		if !services.IsValidSpotifyClientID(clientID) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid Spotify client ID format (expected 32-character hex string)"})
+			return
+		}
+		database.SettingsUpdateValue("spotifyClientId", clientID)
+		c.SecureJSON(http.StatusOK, gin.H{"status": "Spotify client ID saved"})
+	})
+	router.POST("/settings/services/spotify/clientid/remove", func(c *gin.Context) {
+		if services.IsSpotifyClientIDEnvLocked() {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Spotify client ID is set via environment variable and cannot be removed from the settings page"})
+			return
+		}
+		database.SettingsUpdateValue("spotifyClientId", "")
+		c.SecureJSON(http.StatusOK, gin.H{"status": "Spotify client ID removed"})
 	})
 	router.POST("/settings/services/xcom/credentials", func(c *gin.Context) {
 		type Payload struct {

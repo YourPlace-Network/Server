@@ -450,7 +450,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 		routes.FilesRoutes(router, database, ipfs, port, gateway, pinningService)
 		routes.MentalHealthRoutes(router, title, database, cryptoSeed, gateway)
 		routes.SearchRoutes(router, database, _blockchain)
-		routes.ServicesRoutes(router, database, _blockchain, gateway)
+		routes.ServicesRoutes(router, title, database, _blockchain, gateway)
 		routes.NotificationRoutes(router, title, database, cryptoSeed, gateway)
 		routes.WalletRoutes(router, title, database, cryptoSeed, gateway)
 		//if debug {

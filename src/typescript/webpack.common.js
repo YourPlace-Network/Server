@@ -24,6 +24,7 @@ export default {
         profile: "./pages/profile.ts",
         settings: "./pages/settings.ts",
         setup: "./pages/setup.ts",
+        spotifyCallback: "./pages/spotifyCallback.ts",
         test: "./pages/test.ts",
         tinymce: "../scss/tinymce.scss",
     },

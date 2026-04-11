@@ -11,7 +11,8 @@
       "Bash(find:*)",
       "WebFetch(domain:docs.cdp.coinbase.com)",
       "Bash(file:*)",
-      "Bash(stat:*)"
+      "Bash(stat:*)",
+      "WebFetch(domain:developer.spotify.com)"
     ],
     "deny": [],
     "ask": []

@@ -98,6 +98,7 @@ jobs:
         YOURPLACE_IPFS_PINNING_TYPE: ${{ secrets.YOURPLACE_IPFS_PINNING_TYPE }}
         YOURPLACE_IPFS_PINNING_URL: ${{ secrets.YOURPLACE_IPFS_PINNING_URL }}
         YOURPLACE_ORIGIN: ${{ vars.YOURPLACE_ORIGIN }}
+        YOURPLACE_SPOTIFY_CLIENT_ID: ${{ vars.YOURPLACE_SPOTIFY_CLIENT_ID }}
       run: |
         chmod +x gateway/deploy.sh
         ./gateway/deploy.sh

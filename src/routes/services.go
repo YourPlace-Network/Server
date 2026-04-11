@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain, gateway bool) {
+func ServicesRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain2.Blockchain, gateway bool) {
 	router.GET("/service/ai/ollamaEnabled", func(c *gin.Context) {
 		err := services.OllamaHealthCheck()
 		if err != nil {
@@ -298,6 +298,18 @@ func ServicesRoutes(router *gin.Engine, database *db.Database, _blockchain *bloc
 			database.ProfileUpdateEnsData(ownerAddress, "algorand", nfdName, avatar)
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"owner": ownerAddress, "name": name, "caAlgo": []string{ownerAddress}})
+	})
+	router.GET("/services/spotify/callback", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "src/templates/pages/spotifyCallback.tmpl", gin.H{
+			"title":    title,
+			"pageName": "spotifyCallback",
+		})
+	})
+	router.GET("/services/spotify/clientid", func(c *gin.Context) {
+		clientID := services.GetSpotifyClientID(database.SettingsGetValue("spotifyClientId"))
+		c.SecureJSON(http.StatusOK, gin.H{
+			"clientId": clientID,
+		})
 	})
 	router.POST("/services/coinbase/onramp/token", func(c *gin.Context) {
 		if !gateway {
