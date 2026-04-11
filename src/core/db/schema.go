@@ -2,12 +2,14 @@ package db
 
 import (
 	"YourPlace/src/core"
+	"context"
 	"fmt"
+	"time"
 )
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 9
+const SchemaVersion = 10
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -32,6 +34,7 @@ var migrations = []Migration{
 	{Version: 7, Description: "Add bot and nsfw flags to meta tables", Up: migrateV7},
 	{Version: 8, Description: "Add user notifications and notification seen tables", Up: migrateV8},
 	{Version: 9, Description: "Add musicEmbed and musicEmbedTimestamp columns to meta tables", Up: migrateV9},
+	{Version: 10, Description: "Remove redundant blockchain column from chain-specific tables and drop legacy onchain_comment/onchain_reaction tables", Up: migrateV10},
 }
 
 // --- Migration Functions --- //
@@ -186,6 +189,47 @@ func migrateV9(db *SQLite) error {
 		}
 	}
 	return nil
+}
+func migrateV10(db *SQLite) error {
+	// Version 10 drops the redundant blockchain column from chain-specific tables.
+	// SQLite strategy: drop chain-specific tables and recreate them at the new schema;
+	// the indexer will re-populate them from on-chain data on next run.
+	// Also drops the legacy (and unused) generic onchain_comment / onchain_reaction tables.
+	tablesToDrop := []string{
+		"algorand_indexer_jobs",
+		"base_indexer_jobs",
+		"ethereum_indexer_jobs",
+		"onchain_algorand_block",
+		"onchain_algorand_comment",
+		"onchain_algorand_follow",
+		"onchain_algorand_meta",
+		"onchain_algorand_post",
+		"onchain_algorand_reaction",
+		"onchain_base_block",
+		"onchain_base_comment",
+		"onchain_base_follow",
+		"onchain_base_meta",
+		"onchain_base_post",
+		"onchain_base_reaction",
+		"onchain_comment",
+		"onchain_ethereum_block",
+		"onchain_ethereum_comment",
+		"onchain_ethereum_follow",
+		"onchain_ethereum_meta",
+		"onchain_ethereum_post",
+		"onchain_ethereum_reaction",
+		"onchain_reaction",
+	}
+	for _, table := range tablesToDrop {
+		if err := db.migrateDropTable(table); err != nil {
+			return err
+		}
+	}
+	// Recreate chain-specific tables at the new schema (no blockchain column).
+	// Legacy onchain_comment / onchain_reaction are not recreated.
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	return db.createTables(ctx)
 }
 
 // Example migration templates for future use:

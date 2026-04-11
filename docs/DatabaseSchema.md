@@ -54,9 +54,10 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **nonceHash** - TEXT
 
 ## Onchain Tables and Schema
-* **onchain_post** - Posts that a user creates
+Each supported blockchain (Base, Algorand, Ethereum) has its own set of chain-specific tables, prefixed with `onchain_<chain>_`. Because the blockchain is already encoded in the table name, the chain-specific tables do not carry a redundant `blockchain` column. The schemas below apply identically to each chain's variant (e.g. `onchain_base_post`, `onchain_algorand_post`, `onchain_ethereum_post`).
+
+* **onchain_\<chain\>_post** - Posts that a user creates
   * **txHash** - TEXT (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
   * **fromAddr** - TEXT
   * **toAddr** - TEXT
   * **parentTxHash** - TEXT
@@ -64,8 +65,7 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **timestamp** - INTEGER (Unix timestamp)
   * **data** - TEXT
   * **blockNumber** - INTEGER
-* **onchain_meta** - Metadata about profiles and their server
-  * **blockchain** - TEXT (Primary Key)
+* **onchain_\<chain\>_meta** - Metadata about profiles and their server
   * **address** - TEXT (Primary Key)
   * **name** - TEXT
   * **avatar** - TEXT
@@ -84,52 +84,32 @@ The YourPlace server uses an embedded database engine to store information in a 
   * **websiteTimestamp** - INTEGER (Unix timestamp)
   * **birthdateTimestamp** - INTEGER (Unix timestamp)
   * **serverTimestamp** - INTEGER (Unix timestamp)
-* **onchain_block** - Blocking and unblocking of content
-  * **txHash** - TEXT  (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
-  * **address** - TEXT
+* **onchain_\<chain\>_block** - Blocking and unblocking of content. Cross-chain blocking is supported via the per-row `blockerBlockchain` / `blockeeBlockchain` fields.
+  * **txHash** - TEXT (Primary Key)
+  * **blockerAddress** - TEXT
+  * **blockerBlockchain** - TEXT
+  * **blockeeAddress** - TEXT
+  * **blockeeBlockchain** - TEXT
   * **key** - TEXT
   * **value** - TEXT
   * **timestamp** - INTEGER (Unix timestamp)
-* **onchain_comment** - Comments on posts (Base/Ethereum)
+* **onchain_\<chain\>_comment** - Comments on posts
   * **txHash** - TEXT (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
   * **fromAddress** - TEXT
   * **parentTxHash** - TEXT
   * **parentType** - TEXT (post or comment)
   * **amount** - REAL
   * **timestamp** - INTEGER (Unix timestamp)
   * **data** - TEXT
-* **onchain_follow** - Following and unfollowing of profiles
+* **onchain_\<chain\>_follow** - Following and unfollowing of profiles. Cross-chain follows are supported via the per-row `followerBlockchain` / `followeeBlockchain` fields.
   * **txHash** - TEXT (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
   * **followerAddress** - TEXT
   * **followerBlockchain** - TEXT
   * **followeeAddress** - TEXT
   * **followeeBlockchain** - TEXT
   * **timestamp** - INTEGER (Unix timestamp)
-* **onchain_reaction** - Reactions on posts and comments (Base/Ethereum)
+* **onchain_\<chain\>_reaction** - Reactions on posts and comments
   * **txHash** - TEXT (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
-  * **fromAddress** - TEXT
-  * **targetTxHash** - TEXT
-  * **targetType** - TEXT (post or comment)
-  * **reactionType** - TEXT (like, dislike, or emoji character)
-  * **timestamp** - INTEGER (Unix timestamp)
-
-## Algorand-Specific Onchain Tables
-* **onchain_algorand_comment** - Comments on posts (Algorand)
-  * **txHash** - TEXT (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
-  * **fromAddress** - TEXT
-  * **parentTxHash** - TEXT
-  * **parentType** - TEXT (post or comment)
-  * **amount** - REAL
-  * **timestamp** - INTEGER (Unix timestamp)
-  * **data** - TEXT
-* **onchain_algorand_reaction** - Reactions on posts and comments (Algorand)
-  * **txHash** - TEXT (Primary Key)
-  * **blockchain** - TEXT (Primary Key)
   * **fromAddress** - TEXT
   * **targetTxHash** - TEXT
   * **targetType** - TEXT (post or comment)

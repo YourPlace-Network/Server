@@ -176,29 +176,29 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		"settings":               "CREATE TABLE IF NOT EXISTS settings (`key` VARCHAR(255) PRIMARY KEY, value BLOB)",
 		"wallets":                "CREATE TABLE IF NOT EXISTS wallets (publicKey VARCHAR(255), blockchain VARCHAR(255), address VARCHAR(255), encryptedPrivateKey BLOB, isDefault TINYINT DEFAULT 0, PRIMARY KEY (publicKey, blockchain))",
 		// Base-specific tables
-		"base_indexer_jobs":     "CREATE TABLE IF NOT EXISTS base_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, blockchain VARCHAR(255), headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
-		"onchain_base_post":     "CREATE TABLE IF NOT EXISTS onchain_base_post (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
-		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (blockchain VARCHAR(255), address VARCHAR(255), avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
-		"onchain_base_block":    "CREATE TABLE IF NOT EXISTS onchain_base_block (txHash VARCHAR(255), blockchain VARCHAR(255), blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_base_follow":   "CREATE TABLE IF NOT EXISTS onchain_base_follow (txHash VARCHAR(255), blockchain VARCHAR(255), followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_base_comment":  "CREATE TABLE IF NOT EXISTS onchain_base_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
-		"onchain_base_reaction": "CREATE TABLE IF NOT EXISTS onchain_base_reaction (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+		"base_indexer_jobs":     "CREATE TABLE IF NOT EXISTS base_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
+		"onchain_base_post":     "CREATE TABLE IF NOT EXISTS onchain_base_post (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
+		"onchain_base_meta":     "CREATE TABLE IF NOT EXISTS onchain_base_meta (address VARCHAR(255) PRIMARY KEY, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0)",
+		"onchain_base_block":    "CREATE TABLE IF NOT EXISTS onchain_base_block (txHash VARCHAR(255) PRIMARY KEY, blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0)",
+		"onchain_base_follow":   "CREATE TABLE IF NOT EXISTS onchain_base_follow (txHash VARCHAR(255) PRIMARY KEY, followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0)",
+		"onchain_base_comment":  "CREATE TABLE IF NOT EXISTS onchain_base_comment (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
+		"onchain_base_reaction": "CREATE TABLE IF NOT EXISTS onchain_base_reaction (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0)",
 		// Algorand-specific tables
-		"algorand_indexer_jobs":     "CREATE TABLE IF NOT EXISTS algorand_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, blockchain VARCHAR(255), headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
-		"onchain_algorand_post":     "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
-		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (blockchain VARCHAR(255), address VARCHAR(255), avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
-		"onchain_algorand_block":    "CREATE TABLE IF NOT EXISTS onchain_algorand_block (txHash VARCHAR(255), blockchain VARCHAR(255), blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_algorand_follow":   "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash VARCHAR(255), blockchain VARCHAR(255), followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_algorand_comment":  "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
-		"onchain_algorand_reaction": "CREATE TABLE IF NOT EXISTS onchain_algorand_reaction (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+		"algorand_indexer_jobs":     "CREATE TABLE IF NOT EXISTS algorand_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
+		"onchain_algorand_post":     "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
+		"onchain_algorand_meta":     "CREATE TABLE IF NOT EXISTS onchain_algorand_meta (address VARCHAR(255) PRIMARY KEY, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0)",
+		"onchain_algorand_block":    "CREATE TABLE IF NOT EXISTS onchain_algorand_block (txHash VARCHAR(255) PRIMARY KEY, blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0)",
+		"onchain_algorand_follow":   "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash VARCHAR(255) PRIMARY KEY, followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0)",
+		"onchain_algorand_comment":  "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
+		"onchain_algorand_reaction": "CREATE TABLE IF NOT EXISTS onchain_algorand_reaction (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0)",
 		// Ethereum-specific tables
-		"ethereum_indexer_jobs":     "CREATE TABLE IF NOT EXISTS ethereum_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, blockchain VARCHAR(255), headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
-		"onchain_ethereum_block":    "CREATE TABLE IF NOT EXISTS onchain_ethereum_block (txHash VARCHAR(255), blockchain VARCHAR(255), blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_ethereum_comment":  "CREATE TABLE IF NOT EXISTS onchain_ethereum_comment (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
-		"onchain_ethereum_follow":   "CREATE TABLE IF NOT EXISTS onchain_ethereum_follow (txHash VARCHAR(255), blockchain VARCHAR(255), followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, PRIMARY KEY (txHash, blockchain))",
-		"onchain_ethereum_meta":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_meta (blockchain VARCHAR(255), address VARCHAR(255), avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0, PRIMARY KEY(blockchain, address))",
-		"onchain_ethereum_post":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_post (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT, PRIMARY KEY(txHash, blockchain))",
-		"onchain_ethereum_reaction": "CREATE TABLE IF NOT EXISTS onchain_ethereum_reaction (txHash VARCHAR(255), blockchain VARCHAR(255), fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0, PRIMARY KEY(txHash, blockchain))",
+		"ethereum_indexer_jobs":     "CREATE TABLE IF NOT EXISTS ethereum_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
+		"onchain_ethereum_block":    "CREATE TABLE IF NOT EXISTS onchain_ethereum_block (txHash VARCHAR(255) PRIMARY KEY, blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0)",
+		"onchain_ethereum_comment":  "CREATE TABLE IF NOT EXISTS onchain_ethereum_comment (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
+		"onchain_ethereum_follow":   "CREATE TABLE IF NOT EXISTS onchain_ethereum_follow (txHash VARCHAR(255) PRIMARY KEY, followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0)",
+		"onchain_ethereum_meta":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_meta (address VARCHAR(255) PRIMARY KEY, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0)",
+		"onchain_ethereum_post":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_post (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
+		"onchain_ethereum_reaction": "CREATE TABLE IF NOT EXISTS onchain_ethereum_reaction (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0)",
 	}
 	for _, createStatement := range tables {
 		err := db.execWithRetry(ctx, createStatement, 3)
@@ -299,6 +299,12 @@ func (db *MySQL) RunMigrations() error {
 			return core.LogDebugReturn("MySQL migration v9 failed: " + err.Error())
 		}
 		db.setSchemaVersion(9)
+	}
+	if currentVersion < 10 {
+		if err := db.migrateV10MySQL(); err != nil {
+			return core.LogDebugReturn("MySQL migration v10 failed: " + err.Error())
+		}
+		db.setSchemaVersion(10)
 	}
 	core.LogDebug(fmt.Sprintf("MySQL: Database schema upgrade completed (now at version %d)", targetVersion))
 	return nil
@@ -431,6 +437,118 @@ func (db *MySQL) migrateV9MySQL() error {
 			return err
 		}
 	}
+	return nil
+}
+func (db *MySQL) migrateV10MySQL() error {
+	// Version 10 drops the redundant blockchain column from chain-specific tables.
+	// MySQL strategy: ALTER TABLE DROP PRIMARY KEY, DROP COLUMN blockchain, ADD PRIMARY KEY on the remaining column.
+	// Data is preserved. Also drops the legacy (unused) generic onchain_comment / onchain_reaction tables.
+	// Tables with composite PK (txHash, blockchain) → new PK is (txHash)
+	txHashPKTables := []string{
+		"onchain_algorand_block",
+		"onchain_algorand_comment",
+		"onchain_algorand_follow",
+		"onchain_algorand_post",
+		"onchain_algorand_reaction",
+		"onchain_base_block",
+		"onchain_base_comment",
+		"onchain_base_follow",
+		"onchain_base_post",
+		"onchain_base_reaction",
+		"onchain_ethereum_block",
+		"onchain_ethereum_comment",
+		"onchain_ethereum_follow",
+		"onchain_ethereum_post",
+		"onchain_ethereum_reaction",
+	}
+	for _, table := range txHashPKTables {
+		if err := db.migrateRepointPrimaryKey(table, "txHash"); err != nil {
+			return err
+		}
+	}
+	// Meta tables with composite PK (blockchain, address) → new PK is (address)
+	metaTables := []string{
+		"onchain_algorand_meta",
+		"onchain_base_meta",
+		"onchain_ethereum_meta",
+	}
+	for _, table := range metaTables {
+		if err := db.migrateRepointPrimaryKey(table, "address"); err != nil {
+			return err
+		}
+	}
+	// Indexer jobs tables have uuid as PK - just drop the blockchain column
+	indexerJobTables := []string{
+		"algorand_indexer_jobs",
+		"base_indexer_jobs",
+		"ethereum_indexer_jobs",
+	}
+	for _, table := range indexerJobTables {
+		if err := db.migrateDropColumn(table, "blockchain"); err != nil {
+			return err
+		}
+	}
+	// Drop legacy unused generic tables (never queried in the codebase)
+	legacyTables := []string{
+		"onchain_comment",
+		"onchain_reaction",
+	}
+	for _, table := range legacyTables {
+		if _, err := db.database.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", table)); err != nil {
+			return core.LogDebugReturn(fmt.Sprintf("MySQL: failed to drop legacy table %s: %s", table, err.Error()))
+		}
+		core.LogDebug(fmt.Sprintf("MySQL: Dropped legacy table %s", table))
+	}
+	return nil
+}
+func (db *MySQL) migrateDropColumn(table, column string) error {
+	query := fmt.Sprintf("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '%s' AND COLUMN_NAME = '%s'", table, column)
+	rows, err := db.database.Query(query)
+	if err != nil {
+		return core.LogDebugReturn("MySQL: failed to check column existence: " + err.Error())
+	}
+	defer rows.Close()
+	var count int
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return core.LogDebugReturn("MySQL: failed to scan column count: " + err.Error())
+		}
+	}
+	if count == 0 {
+		core.LogDebug(fmt.Sprintf("MySQL: Column %s.%s does not exist, skipping", table, column))
+		return nil
+	}
+	alterQuery := fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", table, column)
+	if _, err := db.database.Exec(alterQuery); err != nil {
+		return core.LogDebugReturn(fmt.Sprintf("MySQL: failed to drop column %s from %s: %s", column, table, err.Error()))
+	}
+	core.LogDebug(fmt.Sprintf("MySQL: Dropped column %s.%s", table, column))
+	return nil
+}
+func (db *MySQL) migrateRepointPrimaryKey(table, newPKColumn string) error {
+	// Check if the blockchain column exists (migration already applied if not)
+	checkQuery := fmt.Sprintf("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '%s' AND COLUMN_NAME = 'blockchain'", table)
+	rows, err := db.database.Query(checkQuery)
+	if err != nil {
+		return core.LogDebugReturn(fmt.Sprintf("MySQL: failed to check blockchain column on %s: %s", table, err.Error()))
+	}
+	var count int
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			rows.Close()
+			return core.LogDebugReturn("MySQL: failed to scan column count: " + err.Error())
+		}
+	}
+	rows.Close()
+	if count == 0 {
+		core.LogDebug(fmt.Sprintf("MySQL: %s already migrated (no blockchain column), skipping", table))
+		return nil
+	}
+	dropPK := fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY, DROP COLUMN blockchain, ADD PRIMARY KEY (%s)", table, newPKColumn)
+	if _, err := db.database.Exec(dropPK); err != nil {
+		return core.LogDebugReturn(fmt.Sprintf("MySQL: failed to repoint primary key on %s: %s", table, err.Error()))
+	}
+	core.LogDebug(fmt.Sprintf("MySQL: Repointed primary key on %s to (%s) and dropped blockchain column", table, newPKColumn))
 	return nil
 }
 func (db *MySQL) migrateAddColumn(table, column, definition string) error {
@@ -571,8 +689,8 @@ func (db *MySQL) SettingsDeleteValue(key string) error {
 
 // --- Profile --- //
 func (db *MySQL) ProfileGetName(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT name FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT name FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile name from database: " + err.Error())
 		return ""
@@ -589,8 +707,8 @@ func (db *MySQL) ProfileGetName(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetAvatar(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT avatar FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT avatar FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("could not get profile avatar from database: " + err.Error())
 		return ""
@@ -608,8 +726,8 @@ func (db *MySQL) ProfileGetAvatar(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetBanner(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT banner FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT banner FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile banner from database: " + err.Error())
 		return ""
@@ -627,8 +745,8 @@ func (db *MySQL) ProfileGetBanner(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetColors(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT COALESCE(colors, '') FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT COALESCE(colors, '') FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile colors from database: " + err.Error())
 		return ""
@@ -646,8 +764,8 @@ func (db *MySQL) ProfileGetColors(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetDescription(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT description FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT description FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile description from database: " + err.Error())
 		return ""
@@ -665,8 +783,8 @@ func (db *MySQL) ProfileGetDescription(address string, blockchain string) string
 	return ""
 }
 func (db *MySQL) ProfileGetLocation(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT location FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT location FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile location from database: " + err.Error())
 		return ""
@@ -684,8 +802,8 @@ func (db *MySQL) ProfileGetLocation(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetMusicEmbed(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT musicEmbed FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT musicEmbed FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile music embed from database: " + err.Error())
 		return ""
@@ -703,8 +821,8 @@ func (db *MySQL) ProfileGetMusicEmbed(address string, blockchain string) string 
 	return ""
 }
 func (db *MySQL) ProfileGetWebsite(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT website FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT website FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile website from database: " + err.Error())
 		return ""
@@ -722,8 +840,8 @@ func (db *MySQL) ProfileGetWebsite(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetBot(address string, blockchain string) bool {
-	query := fmt.Sprintf("SELECT bot FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT bot FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile bot from database: " + err.Error())
 		return false
@@ -741,8 +859,8 @@ func (db *MySQL) ProfileGetBot(address string, blockchain string) bool {
 	return false
 }
 func (db *MySQL) ProfileGetNsfw(address string, blockchain string) bool {
-	query := fmt.Sprintf("SELECT nsfw FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT nsfw FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile nsfw from database: " + err.Error())
 		return false
@@ -760,8 +878,8 @@ func (db *MySQL) ProfileGetNsfw(address string, blockchain string) bool {
 	return false
 }
 func (db *MySQL) ProfileGetVertical(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT vertical FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT vertical FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get profile vertical from database: " + err.Error())
 		return ""
@@ -782,8 +900,8 @@ func (db *MySQL) ProfileGetJoinedDate(address string, blockchain string) *int64 
 	var metaAge int64 = 0
 	var postAge int64 = 0
 	var joinedDate int64 = 0
-	query := fmt.Sprintf("SELECT COALESCE(MIN(CASE WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN verticalTimestamp > 0 THEN verticalTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp ELSE 0 END), 0) AS min_timestamp FROM onchain_%s_meta WHERE blockchain = ? AND address = ?", blockchain)
-	rowsmeta, err := db.runParamSQLSelect(query, blockchain, address)
+	query := fmt.Sprintf("SELECT COALESCE(MIN(CASE WHEN blockchainTimestamp > 0 THEN blockchainTimestamp WHEN addressTimestamp > 0 THEN addressTimestamp WHEN nameTimestamp > 0 THEN nameTimestamp WHEN avatarTimestamp > 0 THEN avatarTimestamp WHEN descriptionTimestamp > 0 THEN descriptionTimestamp WHEN locationTimestamp > 0 THEN locationTimestamp WHEN bannerTimestamp > 0 THEN bannerTimestamp WHEN websiteTimestamp > 0 THEN websiteTimestamp WHEN verticalTimestamp > 0 THEN verticalTimestamp WHEN serverTimestamp > 0 THEN serverTimestamp ELSE 0 END), 0) AS min_timestamp FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rowsmeta, err := db.runParamSQLSelect(query, address)
 	if err == nil {
 		if rowsmeta != nil {
 			defer rowsmeta.Close()
@@ -799,8 +917,8 @@ func (db *MySQL) ProfileGetJoinedDate(address string, blockchain string) *int64 
 		core.LogDebug("Could not parse database rows for profile joined date: " + err.Error())
 		return nil
 	}
-	query2 := fmt.Sprintf("SELECT timestamp FROM onchain_%s_post WHERE fromAddress = ? AND blockchain = ?", blockchain)
-	rowsposts, err := db.runParamSQLSelect(query2, address, blockchain)
+	query2 := fmt.Sprintf("SELECT timestamp FROM onchain_%s_post WHERE fromAddress = ?", blockchain)
+	rowsposts, err := db.runParamSQLSelect(query2, address)
 	if err == nil {
 		if rowsposts != nil {
 			defer rowsposts.Close()
@@ -832,8 +950,8 @@ func (db *MySQL) ProfileGetJoinedDate(address string, blockchain string) *int64 
 }
 func (db *MySQL) ProfileGetCommentCount(address string, blockchain string) int64 {
 	var count int64
-	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_comment WHERE fromAddress = ? AND blockchain = ? AND data IS NOT NULL", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_comment WHERE fromAddress = ? AND data IS NOT NULL", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get comment count from database: " + err.Error())
 		return 0
@@ -850,8 +968,8 @@ func (db *MySQL) ProfileGetCommentCount(address string, blockchain string) int64
 }
 func (db *MySQL) ProfileGetComments(address string, blockchain string, limit int, offset int) []map[string]interface{} {
 	var comments []map[string]interface{}
-	query := fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_%s_comment WHERE fromAddress = ? AND blockchain = ? AND data IS NOT NULL ORDER BY timestamp DESC LIMIT ? OFFSET ?", blockchain)
-	rowsComments, err := db.runParamSQLSelect(query, address, blockchain, limit, offset)
+	query := fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_%s_comment WHERE fromAddress = ? AND data IS NOT NULL ORDER BY timestamp DESC LIMIT ? OFFSET ?", blockchain)
+	rowsComments, err := db.runParamSQLSelect(query, address, limit, offset)
 	if err != nil {
 		core.LogDebug("Could not get user comments from database: " + err.Error())
 		return nil
@@ -910,8 +1028,8 @@ func (db *MySQL) ProfileGetComments(address string, blockchain string, limit int
 }
 func (db *MySQL) ProfileGetPostCount(address string, blockchain string) int64 {
 	var count int64
-	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_post WHERE fromAddress = ? AND blockchain = ? AND data IS NOT NULL", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM onchain_%s_post WHERE fromAddress = ? AND data IS NOT NULL", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		core.LogDebug("Could not get post count from database: " + err.Error())
 		return 0
@@ -928,8 +1046,8 @@ func (db *MySQL) ProfileGetPostCount(address string, blockchain string) int64 {
 }
 func (db *MySQL) ProfileGetPosts(address string, blockchain string, limit int, offset int) []map[string]interface{} {
 	var posts []map[string]interface{}
-	query := fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_%s_post WHERE fromAddress = ? AND blockchain = ? AND data IS NOT NULL ORDER BY timestamp DESC LIMIT ? OFFSET ?", blockchain)
-	rowsPosts, err := db.runParamSQLSelect(query, address, blockchain, limit, offset)
+	query := fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentTxHash, timestamp, data FROM onchain_%s_post WHERE fromAddress = ? AND data IS NOT NULL ORDER BY timestamp DESC LIMIT ? OFFSET ?", blockchain)
+	rowsPosts, err := db.runParamSQLSelect(query, address, limit, offset)
 	if err != nil {
 		core.LogDebug("Could not get user posts from database: " + err.Error())
 		return nil
@@ -1065,8 +1183,8 @@ func (db *MySQL) ProfileGetAddressesWithMissingEnsData(blockchain string) []stri
 }
 func (db *MySQL) ProfileIsEnsDataFresh(address string, blockchain string) bool {
 	staleThreshold := time.Now().Unix() - (7 * 24 * 60 * 60)
-	query := fmt.Sprintf("SELECT ensNameTimestamp FROM onchain_%s_meta WHERE address = ? AND blockchain = ? AND ensNameTimestamp > ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain, staleThreshold)
+	query := fmt.Sprintf("SELECT ensNameTimestamp FROM onchain_%s_meta WHERE address = ? AND ensNameTimestamp > ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address, staleThreshold)
 	if err != nil {
 		return false
 	}
@@ -1075,15 +1193,15 @@ func (db *MySQL) ProfileIsEnsDataFresh(address string, blockchain string) bool {
 }
 func (db *MySQL) ProfileUpdateEnsData(address string, blockchain string, name string, avatar string) {
 	now := time.Now().Unix()
-	query := fmt.Sprintf("INSERT INTO onchain_%s_meta (blockchain, address, ensName, ensAvatar, ensNameTimestamp, ensAvatarTimestamp) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE ensName = VALUES(ensName), ensAvatar = VALUES(ensAvatar), ensNameTimestamp = VALUES(ensNameTimestamp), ensAvatarTimestamp = VALUES(ensAvatarTimestamp)", blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, name, avatar, now, now)
+	query := fmt.Sprintf("INSERT INTO onchain_%s_meta (address, ensName, ensAvatar, ensNameTimestamp, ensAvatarTimestamp) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE ensName = VALUES(ensName), ensAvatar = VALUES(ensAvatar), ensNameTimestamp = VALUES(ensNameTimestamp), ensAvatarTimestamp = VALUES(ensAvatarTimestamp)", blockchain)
+	_, err := db.runParamSQLUpdate(query, address, name, avatar, now, now)
 	if err != nil {
 		core.LogDebug("Could not update ENS data: " + err.Error())
 	}
 }
 func (db *MySQL) ProfileGetEnsName(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT ensName FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT ensName FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		return ""
 	}
@@ -1098,8 +1216,8 @@ func (db *MySQL) ProfileGetEnsName(address string, blockchain string) string {
 	return ""
 }
 func (db *MySQL) ProfileGetEnsAvatar(address string, blockchain string) string {
-	query := fmt.Sprintf("SELECT ensAvatar FROM onchain_%s_meta WHERE address = ? AND blockchain = ?", blockchain)
-	rows, err := db.runParamSQLSelect(query, address, blockchain)
+	query := fmt.Sprintf("SELECT ensAvatar FROM onchain_%s_meta WHERE address = ?", blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
 	if err != nil {
 		return ""
 	}
@@ -1121,7 +1239,7 @@ func (db *MySQL) SearchGetPosts(query string, limit int, offset int) []map[strin
 	search := "%" + query + "%"
 	var params []interface{}
 	for _, _blockchain := range core.ValidNetworks {
-		unionParts = append(unionParts, fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentHash, timestamp, data, fromAddress, blockchain FROM onchain_%s_post WHERE LOWER(data) LIKE LOWER(?)", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT txHash, COALESCE(parentTxHash, '') as parentHash, timestamp, data, fromAddress, '%s' AS blockchain FROM onchain_%s_post WHERE LOWER(data) LIKE LOWER(?)", _blockchain, _blockchain))
 		params = append(params, search)
 	}
 	params = append(params, limit, offset)
@@ -1201,7 +1319,7 @@ func (db *MySQL) SearchGetProfiles(query string, limit int, offset int) []map[st
 	var unionParts []string
 	var params []interface{}
 	for _, _blockchain := range core.ValidNetworks {
-		unionParts = append(unionParts, fmt.Sprintf("SELECT address, blockchain FROM onchain_%s_meta WHERE address LIKE ? OR ensName LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ?", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT address, '%s' AS blockchain FROM onchain_%s_meta WHERE address LIKE ? OR ensName LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ? OR name LIKE ?", _blockchain, _blockchain))
 		params = append(params, search, search, search, searchPrefix, searchPrefix+".eth", searchPrefix+".base.eth", searchPrefix+".algo")
 	}
 	params = append(params, limit, offset)
@@ -1232,11 +1350,11 @@ func (db *MySQL) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
 	var unionParts []string
 	for _, _blockchain := range core.ValidNetworks {
-		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, blockchain FROM onchain_%s_comment", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, '%s' AS blockchain FROM onchain_%s_comment", _blockchain, _blockchain))
 		unionParts = append(unionParts, fmt.Sprintf("SELECT followeeAddress AS address, followeeBlockchain AS blockchain FROM onchain_%s_follow", _blockchain))
 		unionParts = append(unionParts, fmt.Sprintf("SELECT followerAddress AS address, followerBlockchain AS blockchain FROM onchain_%s_follow", _blockchain))
-		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, blockchain FROM onchain_%s_post", _blockchain))
-		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, blockchain FROM onchain_%s_reaction", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, '%s' AS blockchain FROM onchain_%s_post", _blockchain, _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, '%s' AS blockchain FROM onchain_%s_reaction", _blockchain, _blockchain))
 	}
 	sqlQuery := fmt.Sprintf("SELECT address, blockchain FROM (%s) t GROUP BY address, blockchain ORDER BY RAND() LIMIT ?", strings.Join(unionParts, " UNION ALL "))
 	rows, err := db.runParamSQLSelect(sqlQuery, limit)
@@ -1294,7 +1412,7 @@ func (db *MySQL) DiscoverGetTopByPosts(limit int) []map[string]interface{} {
 	var profiles []map[string]interface{}
 	var unionParts []string
 	for _, _blockchain := range core.ValidNetworks {
-		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress, blockchain FROM onchain_%s_post", _blockchain))
+		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress, '%s' AS blockchain FROM onchain_%s_post", _blockchain, _blockchain))
 	}
 	sqlQuery := fmt.Sprintf("SELECT fromAddress, blockchain, COUNT(*) as post_count FROM (%s) t GROUP BY fromAddress, blockchain ORDER BY post_count DESC LIMIT ?", strings.Join(unionParts, " UNION ALL "))
 	rows, err := db.runParamSQLSelect(sqlQuery, limit)
@@ -1492,18 +1610,18 @@ func (db *MySQL) GetFileHashFromUUID(uuid string) string {
 func (db *MySQL) IndexerCreateJob(uuid string, blockchain string) {
 	core.LogDebug("IndexerCreateJob(): " + uuid + " - " + blockchain)
 	timestamp := core.GetTimestamp()
-	queryFmt := "INSERT INTO %s_indexer_jobs (uuid, blockchain, headBlock, status, tailBlock, timestamp, rps) VALUES (?, ?, 0, 'pending', 0, ?, 0) ON DUPLICATE KEY UPDATE status = VALUES(status), tailBlock = VALUES(tailBlock), timestamp = VALUES(timestamp)"
+	queryFmt := "INSERT INTO %s_indexer_jobs (uuid, headBlock, status, tailBlock, timestamp, rps) VALUES (?, 0, 'pending', 0, ?, 0) ON DUPLICATE KEY UPDATE status = VALUES(status), tailBlock = VALUES(tailBlock), timestamp = VALUES(timestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
 	core.LogDebug("IndexerCreateJob(): " + query)
-	_, err := db.runParamSQLUpdate(query, uuid, blockchain, timestamp)
+	_, err := db.runParamSQLUpdate(query, uuid, timestamp)
 	if err != nil {
 		core.LogDebug("Could not create indexer job in the database: " + err.Error())
 	}
 }
 func (db *MySQL) IndexerGetJobUUID(blockchain string) string {
-	queryFmt := "SELECT uuid FROM %s_indexer_jobs WHERE blockchain = ?"
+	queryFmt := "SELECT uuid FROM %s_indexer_jobs"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	rows, err := db.runParamSQLSelect(query, blockchain)
+	rows, err := db.runParamSQLSelect(query)
 	if err != nil {
 		core.LogDebug("Could not get the indexer job UUID from the database: " + err.Error())
 		return ""
@@ -1646,29 +1764,29 @@ func (db *MySQL) IndexerUpdateJobSpeed(uuid string, speed uint64) {
 	}
 }
 func (db *MySQL) IndexerAddPost(txHash string, blockchain string, fromAddress string, toAddress string, parentTxHash string, amount uint64, timestamp uint64, data string, blockNumber uint64) {
-	queryFmt := "INSERT IGNORE INTO onchain_%s_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	queryFmt := "INSERT IGNORE INTO onchain_%s_post (txHash, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data)
+	_, err := db.runParamSQLUpdate(query, txHash, fromAddress, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not add a post from the indexer into the database: " + err.Error())
 	}
 }
 func (db *MySQL) IndexerResetJobs(blockchain string) {
-	queryFmt := "UPDATE %s_indexer_jobs SET status = 'pending', headBlock = 0, tailBlock = 0, timestamp = ? WHERE blockchain = ?"
+	queryFmt := "UPDATE %s_indexer_jobs SET status = 'pending', headBlock = 0, tailBlock = 0, timestamp = ?"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, core.GetTimestamp(), blockchain)
+	_, err := db.runParamSQLUpdate(query, core.GetTimestamp())
 	if err != nil {
 		core.LogDebug("Could not reset the indexer in the database: " + err.Error())
 	}
-	queryFmt = "DELETE FROM onchain_%s_post WHERE blockchain = ?"
+	queryFmt = "DELETE FROM onchain_%s_post"
 	query = fmt.Sprintf(queryFmt, blockchain)
-	_, err = db.runParamSQLUpdate(query, blockchain)
+	_, err = db.runParamSQLUpdate(query)
 	if err != nil {
 		core.LogDebug("Could not clear onchain_" + blockchain + "_post for " + blockchain + ": " + err.Error())
 	}
-	queryFmt = "DELETE FROM onchain_%s_meta WHERE blockchain = ?"
+	queryFmt = "DELETE FROM onchain_%s_meta"
 	query = fmt.Sprintf(queryFmt, blockchain)
-	_, err = db.runParamSQLUpdate(query, blockchain)
+	_, err = db.runParamSQLUpdate(query)
 	if err != nil {
 		core.LogDebug("Could not clear onchain_" + blockchain + "_meta for " + blockchain + ": " + err.Error())
 	}
@@ -1689,26 +1807,26 @@ func (db *MySQL) IndexerResetJobs(blockchain string) {
 
 // --- Onchain Tokenized --- //
 func (db *MySQL) getPostAuthor(blockchain string, txHash string) (string, string) {
-	queryFmt := "SELECT fromAddress, blockchain FROM onchain_%s_post WHERE txHash = ? AND blockchain = ? LIMIT 1"
+	queryFmt := "SELECT fromAddress FROM onchain_%s_post WHERE txHash = ? LIMIT 1"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
+	rows, err := db.runParamSQLSelect(query, txHash)
 	if err != nil {
 		return "", ""
 	}
 	defer rows.Close()
 	if rows.Next() {
-		var fromAddress, chain string
-		if err := rows.Scan(&fromAddress, &chain); err != nil {
+		var fromAddress string
+		if err := rows.Scan(&fromAddress); err != nil {
 			return "", ""
 		}
-		return fromAddress, chain
+		return fromAddress, blockchain
 	}
 	return "", ""
 }
 func (db *MySQL) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
-	queryFmt := "INSERT IGNORE INTO onchain_%s_comment (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	queryFmt := "INSERT IGNORE INTO onchain_%s_comment (txHash, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
+	_, err := db.runParamSQLUpdate(query, txHash, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
 	}
@@ -1721,9 +1839,9 @@ func (db *MySQL) OnchainC(txHash string, blockchain string, fromAddr string, par
 	}
 }
 func (db *MySQL) OnchainCA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
-	queryFmt := "INSERT IGNORE INTO onchain_%s_comment (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	queryFmt := "INSERT IGNORE INTO onchain_%s_comment (txHash, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
+	result, err := db.runParamSQLUpdate(query, txHash, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the comment in the database: " + err.Error())
 		return
@@ -1790,21 +1908,21 @@ func (db *MySQL) OnchainCA(txHash string, blockchain string, fromAddr string, pa
 }
 func (db *MySQL) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
 	if reactionType == "like" {
-		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND blockchain = ? AND reactionType = 'dislike'"
+		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND reactionType = 'dislike'"
 		deleteQuery := fmt.Sprintf(deleteQueryFmt, blockchain)
-		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash, blockchain)
+		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash)
 	} else if reactionType == "dislike" {
-		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND blockchain = ? AND reactionType = 'like'"
+		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND reactionType = 'like'"
 		deleteQuery := fmt.Sprintf(deleteQueryFmt, blockchain)
-		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash, blockchain)
+		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash)
 	} else {
-		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND blockchain = ? AND reactionType NOT IN ('like', 'dislike')"
+		deleteQueryFmt := "DELETE FROM onchain_%s_reaction WHERE fromAddress = ? AND targetTxHash = ? AND reactionType NOT IN ('like', 'dislike')"
 		deleteQuery := fmt.Sprintf(deleteQueryFmt, blockchain)
-		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash, blockchain)
+		_, _ = db.runParamSQLUpdate(deleteQuery, fromAddr, targetTxHash)
 	}
-	queryFmt := "INSERT IGNORE INTO onchain_%s_reaction (txHash, blockchain, fromAddress, targetTxHash, targetType, reactionType, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	queryFmt := "INSERT IGNORE INTO onchain_%s_reaction (txHash, fromAddress, targetTxHash, targetType, reactionType, timestamp) VALUES (?, ?, ?, ?, ?, ?)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, targetTxHash, targetType, reactionType, timestamp)
+	_, err := db.runParamSQLUpdate(query, txHash, fromAddr, targetTxHash, targetType, reactionType, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the reaction in the database: " + err.Error())
 	}
@@ -1817,9 +1935,9 @@ func (db *MySQL) OnchainR(txHash string, blockchain string, fromAddr string, tar
 	}
 }
 func (db *MySQL) OnchainP(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
-	queryFmt := "INSERT IGNORE INTO onchain_%s_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	queryFmt := "INSERT IGNORE INTO onchain_%s_post (txHash, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
+	_, err := db.runParamSQLUpdate(query, txHash, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the post in the database: " + err.Error())
 	}
@@ -1832,9 +1950,9 @@ func (db *MySQL) OnchainP(txHash string, blockchain string, fromAddr string, par
 	}
 }
 func (db *MySQL) OnchainPA(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string, attachments []Attachment) {
-	queryFmt := "INSERT IGNORE INTO onchain_%s_post (txHash, blockchain, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	queryFmt := "INSERT IGNORE INTO onchain_%s_post (txHash, fromAddress, parentTxHash, amount, timestamp, data) VALUES (?, ?, ?, ?, ?, ?)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	result, err := db.runParamSQLUpdate(query, txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data)
+	result, err := db.runParamSQLUpdate(query, txHash, fromAddr, parentTxHash, amount, timestamp, data)
 	if err != nil {
 		core.LogDebug("Could not tokenize the post in the database: " + err.Error())
 		return
@@ -1900,25 +2018,25 @@ func (db *MySQL) OnchainPA(txHash string, blockchain string, fromAddr string, pa
 	}
 }
 func (db *MySQL) OnchainMN(blockchain string, address string, name string, timestamp uint64) {
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, name, nameTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = IF(VALUES(nameTimestamp) > nameTimestamp, VALUES(name), name), nameTimestamp = IF(VALUES(nameTimestamp) > nameTimestamp, VALUES(nameTimestamp), nameTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, name, nameTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name = IF(VALUES(nameTimestamp) > nameTimestamp, VALUES(name), name), nameTimestamp = IF(VALUES(nameTimestamp) > nameTimestamp, VALUES(nameTimestamp), nameTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, name, timestamp)
+	_, err := db.runParamSQLUpdate(query, address, name, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *MySQL) OnchainMA(blockchain string, address string, avatar string, timestamp uint64) {
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, avatar, avatarTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE avatar = IF(VALUES(avatarTimestamp) > avatarTimestamp, VALUES(avatar), avatar), avatarTimestamp = IF(VALUES(avatarTimestamp) > avatarTimestamp, VALUES(avatarTimestamp), avatarTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, avatar, avatarTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE avatar = IF(VALUES(avatarTimestamp) > avatarTimestamp, VALUES(avatar), avatar), avatarTimestamp = IF(VALUES(avatarTimestamp) > avatarTimestamp, VALUES(avatarTimestamp), avatarTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, avatar, timestamp)
+	_, err := db.runParamSQLUpdate(query, address, avatar, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *MySQL) OnchainMB(blockchain string, address string, banner string, timestamp uint64) {
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, banner, bannerTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE banner = IF(VALUES(bannerTimestamp) > bannerTimestamp, VALUES(banner), banner), bannerTimestamp = IF(VALUES(bannerTimestamp) > bannerTimestamp, VALUES(bannerTimestamp), bannerTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, banner, bannerTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE banner = IF(VALUES(bannerTimestamp) > bannerTimestamp, VALUES(banner), banner), bannerTimestamp = IF(VALUES(bannerTimestamp) > bannerTimestamp, VALUES(bannerTimestamp), bannerTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, banner, timestamp)
+	_, err := db.runParamSQLUpdate(query, address, banner, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
@@ -1928,9 +2046,9 @@ func (db *MySQL) OnchainMBot(blockchain string, address string, bot bool, timest
 	if bot {
 		botInt = 1
 	}
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, bot, botTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE bot = IF(VALUES(botTimestamp) > botTimestamp, VALUES(bot), bot), botTimestamp = IF(VALUES(botTimestamp) > botTimestamp, VALUES(botTimestamp), botTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, bot, botTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE bot = IF(VALUES(botTimestamp) > botTimestamp, VALUES(bot), bot), botTimestamp = IF(VALUES(botTimestamp) > botTimestamp, VALUES(botTimestamp), botTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, botInt, int64(timestamp))
+	_, err := db.runParamSQLUpdate(query, address, botInt, int64(timestamp))
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
@@ -1940,57 +2058,57 @@ func (db *MySQL) OnchainMNsfw(blockchain string, address string, nsfw bool, time
 	if nsfw {
 		nsfwInt = 1
 	}
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, nsfw, nsfwTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE nsfw = IF(VALUES(nsfwTimestamp) > nsfwTimestamp, VALUES(nsfw), nsfw), nsfwTimestamp = IF(VALUES(nsfwTimestamp) > nsfwTimestamp, VALUES(nsfwTimestamp), nsfwTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, nsfw, nsfwTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE nsfw = IF(VALUES(nsfwTimestamp) > nsfwTimestamp, VALUES(nsfw), nsfw), nsfwTimestamp = IF(VALUES(nsfwTimestamp) > nsfwTimestamp, VALUES(nsfwTimestamp), nsfwTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, nsfwInt, int64(timestamp))
+	_, err := db.runParamSQLUpdate(query, address, nsfwInt, int64(timestamp))
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *MySQL) OnchainMV(blockchain string, address string, vertical string, timestamp uint64) {
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, vertical, verticalTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE vertical = IF(VALUES(verticalTimestamp) > verticalTimestamp, VALUES(vertical), vertical), verticalTimestamp = IF(VALUES(verticalTimestamp) > verticalTimestamp, VALUES(verticalTimestamp), verticalTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, vertical, verticalTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE vertical = IF(VALUES(verticalTimestamp) > verticalTimestamp, VALUES(vertical), vertical), verticalTimestamp = IF(VALUES(verticalTimestamp) > verticalTimestamp, VALUES(verticalTimestamp), verticalTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, vertical, int64(timestamp))
+	_, err := db.runParamSQLUpdate(query, address, vertical, int64(timestamp))
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *MySQL) OnchainML(blockchain string, address string, location string, timestamp uint64) {
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, location, locationTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE location = IF(VALUES(locationTimestamp) > locationTimestamp, VALUES(location), location), locationTimestamp = IF(VALUES(locationTimestamp) > locationTimestamp, VALUES(locationTimestamp), locationTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, location, locationTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE location = IF(VALUES(locationTimestamp) > locationTimestamp, VALUES(location), location), locationTimestamp = IF(VALUES(locationTimestamp) > locationTimestamp, VALUES(locationTimestamp), locationTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, location, timestamp)
+	_, err := db.runParamSQLUpdate(query, address, location, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *MySQL) OnchainMM(blockchain string, address string, music string, timestamp uint64) {
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, musicEmbed, musicEmbedTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE musicEmbed = IF(VALUES(musicEmbedTimestamp) > musicEmbedTimestamp, VALUES(musicEmbed), musicEmbed), musicEmbedTimestamp = IF(VALUES(musicEmbedTimestamp) > musicEmbedTimestamp, VALUES(musicEmbedTimestamp), musicEmbedTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, musicEmbed, musicEmbedTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE musicEmbed = IF(VALUES(musicEmbedTimestamp) > musicEmbedTimestamp, VALUES(musicEmbed), musicEmbed), musicEmbedTimestamp = IF(VALUES(musicEmbedTimestamp) > musicEmbedTimestamp, VALUES(musicEmbedTimestamp), musicEmbedTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, music, timestamp)
+	_, err := db.runParamSQLUpdate(query, address, music, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *MySQL) OnchainMW(blockchain string, address string, website string, timestamp uint64) {
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, website, websiteTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE website = IF(VALUES(websiteTimestamp) > websiteTimestamp, VALUES(website), website), websiteTimestamp = IF(VALUES(websiteTimestamp) > websiteTimestamp, VALUES(websiteTimestamp), websiteTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, website, websiteTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE website = IF(VALUES(websiteTimestamp) > websiteTimestamp, VALUES(website), website), websiteTimestamp = IF(VALUES(websiteTimestamp) > websiteTimestamp, VALUES(websiteTimestamp), websiteTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, website, timestamp)
+	_, err := db.runParamSQLUpdate(query, address, website, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
 }
 func (db *MySQL) OnchainMC(blockchain string, address string, colors string, timestamp uint64) {
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, colors, colorsTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE colors = IF(VALUES(colorsTimestamp) > colorsTimestamp, VALUES(colors), colors), colorsTimestamp = IF(VALUES(colorsTimestamp) > colorsTimestamp, VALUES(colorsTimestamp), colorsTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, colors, colorsTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE colors = IF(VALUES(colorsTimestamp) > colorsTimestamp, VALUES(colors), colors), colorsTimestamp = IF(VALUES(colorsTimestamp) > colorsTimestamp, VALUES(colorsTimestamp), colorsTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, colors, timestamp)
+	_, err := db.runParamSQLUpdate(query, address, colors, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta colors in the database: " + err.Error())
 	}
 }
 func (db *MySQL) OnchainMD(blockchain string, address string, description string, timestamp uint64) {
-	queryFmt := "INSERT INTO onchain_%s_meta (blockchain, address, description, descriptionTimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE description = IF(VALUES(descriptionTimestamp) > descriptionTimestamp, VALUES(description), description), descriptionTimestamp = IF(VALUES(descriptionTimestamp) > descriptionTimestamp, VALUES(descriptionTimestamp), descriptionTimestamp)"
+	queryFmt := "INSERT INTO onchain_%s_meta (address, description, descriptionTimestamp) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE description = IF(VALUES(descriptionTimestamp) > descriptionTimestamp, VALUES(description), description), descriptionTimestamp = IF(VALUES(descriptionTimestamp) > descriptionTimestamp, VALUES(descriptionTimestamp), descriptionTimestamp)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err := db.runParamSQLUpdate(query, blockchain, address, description, timestamp)
+	_, err := db.runParamSQLUpdate(query, address, description, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the meta in the database: " + err.Error())
 	}
@@ -2008,9 +2126,9 @@ func (db *MySQL) OnchainF(txHash string, blockchain string, followerAddress stri
 	if followExists {
 		return
 	}
-	queryFmt := "INSERT IGNORE INTO onchain_%s_follow (txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	queryFmt := "INSERT IGNORE INTO onchain_%s_follow (txHash, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp) VALUES (?, ?, ?, ?, ?, ?)"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	_, err = db.runParamSQLUpdate(query, txHash, blockchain, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
+	_, err = db.runParamSQLUpdate(query, txHash, followerAddress, followerBlockchain, followeeAddress, followeeBlockchain, timestamp)
 	if err != nil {
 		core.LogDebug("Could not tokenize the follow in the database: " + err.Error())
 	}
@@ -2041,9 +2159,9 @@ func (db *MySQL) OnchainFU(txHash string, blockchain string, followerAddress str
 	}
 }
 func (db *MySQL) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64) {
-	queryFmt := "DELETE FROM onchain_%s_post WHERE blockchain = ? AND timestamp < ?"
+	queryFmt := "DELETE FROM onchain_%s_post WHERE timestamp < ?"
 	query := fmt.Sprintf(queryFmt, blockchain)
-	result, err := db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
+	result, err := db.runParamSQLUpdate(query, cutoffTimestamp)
 	if err != nil {
 		core.LogDebug("Could not delete expired posts: " + err.Error())
 	} else if rows, _ := result.RowsAffected(); rows > 0 {
@@ -2057,9 +2175,9 @@ func (db *MySQL) OnchainDeleteExpired(blockchain string, cutoffTimestamp uint64)
 	} else if rows, _ := result.RowsAffected(); rows > 0 {
 		core.LogDebug("Deleted " + fmt.Sprintf("%d", rows) + " expired follows from " + blockchain)
 	}
-	queryFmt = "DELETE FROM onchain_%s_meta WHERE blockchain = ? AND blockchainTimestamp < ? AND blockchainTimestamp > 0"
+	queryFmt = "DELETE FROM onchain_%s_meta WHERE blockchainTimestamp < ? AND blockchainTimestamp > 0"
 	query = fmt.Sprintf(queryFmt, blockchain)
-	result, err = db.runParamSQLUpdate(query, blockchain, cutoffTimestamp)
+	result, err = db.runParamSQLUpdate(query, cutoffTimestamp)
 	if err != nil {
 		core.LogDebug("Could not delete expired metadata: " + err.Error())
 	} else if rows, _ := result.RowsAffected(); rows > 0 {
@@ -2081,18 +2199,18 @@ func (db *MySQL) GetComments(parentTxHash string, blockchain string, limit int, 
 	default:
 		orderBy = "likeCount DESC, c.timestamp DESC"
 	}
-	queryFmt := `SELECT c.txHash, c.blockchain, c.fromAddress, c.parentTxHash, c.timestamp, c.data,
+	queryFmt := `SELECT c.txHash, '%s' AS blockchain, c.fromAddress, c.parentTxHash, c.timestamp, c.data,
 		COALESCE(NULLIF(m.name, ''), NULLIF(m.ensName, ''), '') as author, COALESCE(NULLIF(m.avatar, ''), NULLIF(m.ensAvatar, ''), '') as avatarSrc,
-		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'like') as likeCount,
-		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.blockchain = c.blockchain AND r.reactionType = 'dislike') as dislikeCount,
-		(SELECT COUNT(*) FROM onchain_%s_comment c2 WHERE c2.parentTxHash = c.txHash AND c2.blockchain = c.blockchain) as replyCount
+		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.reactionType = 'like') as likeCount,
+		(SELECT COUNT(*) FROM onchain_%s_reaction r WHERE r.targetTxHash = c.txHash AND r.reactionType = 'dislike') as dislikeCount,
+		(SELECT COUNT(*) FROM onchain_%s_comment c2 WHERE c2.parentTxHash = c.txHash) as replyCount
 		FROM onchain_%s_comment c
-		LEFT JOIN onchain_%s_meta m ON c.fromAddress = m.address AND c.blockchain = m.blockchain
-		WHERE c.parentTxHash = ? AND c.blockchain = ?
+		LEFT JOIN onchain_%s_meta m ON c.fromAddress = m.address
+		WHERE c.parentTxHash = ?
 		ORDER BY %s
 		LIMIT ? OFFSET ?`
-	query := fmt.Sprintf(queryFmt, blockchain, blockchain, blockchain, blockchain, blockchain, orderBy)
-	rows, err := db.runParamSQLSelect(query, parentTxHash, blockchain, limit, offset)
+	query := fmt.Sprintf(queryFmt, blockchain, blockchain, blockchain, blockchain, blockchain, blockchain, orderBy)
+	rows, err := db.runParamSQLSelect(query, parentTxHash, limit, offset)
 	if err != nil {
 		core.LogDebug("Could not get comments: " + err.Error())
 		return comments
@@ -2214,10 +2332,10 @@ func (db *MySQL) GetReactionCounts(targetTxHash string, blockchain string) map[s
 }
 func (db *MySQL) GetUserReaction(targetTxHash string, blockchain string, fromAddress string) string {
 	queryFmt := `SELECT reactionType FROM onchain_%s_reaction
-		WHERE targetTxHash = ? AND blockchain = ? AND fromAddress = ?
+		WHERE targetTxHash = ? AND fromAddress = ?
 		ORDER BY timestamp DESC LIMIT 1`
 	query := fmt.Sprintf(queryFmt, blockchain)
-	rows, err := db.runParamSQLSelect(query, targetTxHash, blockchain, fromAddress)
+	rows, err := db.runParamSQLSelect(query, targetTxHash, fromAddress)
 	if err != nil {
 		return ""
 	}
@@ -2264,13 +2382,13 @@ func (db *MySQL) GetUserReactions(targetTxHash string, blockchain string, fromAd
 // --- Post Get Functions --- //
 func (db *MySQL) GetPost(txHash string, blockchain string) map[string]interface{} {
 	var post map[string]interface{}
-	queryFmt := `SELECT p.txHash, p.blockchain, p.fromAddress, p.parentTxHash, p.timestamp, p.data,
+	queryFmt := `SELECT p.txHash, '%s' AS blockchain, p.fromAddress, p.parentTxHash, p.timestamp, p.data,
 		COALESCE(NULLIF(m.name, ''), NULLIF(m.ensName, ''), '') as author, COALESCE(NULLIF(m.avatar, ''), NULLIF(m.ensAvatar, ''), '') as avatarSrc
 		FROM onchain_%s_post p
-		LEFT JOIN onchain_%s_meta m ON p.fromAddress = m.address AND p.blockchain = m.blockchain
-		WHERE p.txHash = ? AND p.blockchain = ?`
-	query := fmt.Sprintf(queryFmt, blockchain, blockchain)
-	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
+		LEFT JOIN onchain_%s_meta m ON p.fromAddress = m.address
+		WHERE p.txHash = ?`
+	query := fmt.Sprintf(queryFmt, blockchain, blockchain, blockchain)
+	rows, err := db.runParamSQLSelect(query, txHash)
 	if err != nil {
 		core.LogDebug("Could not get post: " + err.Error())
 		return post
@@ -2326,14 +2444,14 @@ func (db *MySQL) GetPostAttachments(txHash string, blockchain string) [][]interf
 // --- Followers Feed --- //
 func (db *MySQL) GetFollowersFeed(followerAddress string, followerBlockchain string, limit int, offset int) []map[string]interface{} {
 	var posts []map[string]interface{}
-	queryFmt := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, p.blockchain
+	queryFmt := `SELECT p.txHash, COALESCE(p.parentTxHash, '') as parentTxHash, p.timestamp, p.data, p.fromAddress, '%s' AS blockchain
 			  FROM onchain_%s_post p
-			  INNER JOIN onchain_%s_follow f ON p.fromAddress = f.followeeAddress AND p.blockchain = f.followeeBlockchain
+			  INNER JOIN onchain_%s_follow f ON p.fromAddress = f.followeeAddress AND f.followeeBlockchain = ?
 			  WHERE f.followerAddress = ? AND f.followerBlockchain = ? AND p.data IS NOT NULL
 			  ORDER BY p.timestamp DESC
 			  LIMIT ? OFFSET ?`
-	query := fmt.Sprintf(queryFmt, followerBlockchain, followerBlockchain)
-	rows, err := db.runParamSQLSelect(query, followerAddress, followerBlockchain, limit, offset)
+	query := fmt.Sprintf(queryFmt, followerBlockchain, followerBlockchain, followerBlockchain)
+	rows, err := db.runParamSQLSelect(query, followerBlockchain, followerAddress, followerBlockchain, limit, offset)
 	if err != nil {
 		core.LogDebug("Could not get followers feed from database: " + err.Error())
 		return nil
