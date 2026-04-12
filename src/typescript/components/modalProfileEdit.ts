@@ -1,6 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalProfileEdit.scss";
-import {LogError, LogInfo} from "../util/log";
+import {LogError} from "../util/log";
 import {UploadFile} from "../util/files";
 import {UploadAvatarToIPFSService} from "../util/ipfs";
 import {WalletSetAvatar, WalletSetBanner, WalletSetBot, WalletSetColors, WalletSetDescription, WalletSetLocation, WalletSetMusicEmbed, WalletSetName, WalletSetNsfw, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
@@ -120,7 +120,8 @@ export async function showProfileEditModal() {
             getModalInstance().hide();
         }
         function showGatewayBannerMessage() {
-            let message = "To change your banner, you need to <a href='https://yourplace.network/download' target='_blank'>download the YourPlace app</a> to host files yourself.";
+            let message = "To change your banner, you must:<br><br>";
+            message += "• <a href='https://yourplace.network/download' target='_blank'>Download the YourPlace app</a> to host files yourself<br><br>";
             DOM.modalProfileEdit.addEventListener("hidden.bs.modal", () => {
                 ShowDialogModalHTML(message);
             }, {once: true});
@@ -335,7 +336,7 @@ export async function showProfileEditModal() {
                 LogError("Failed to save colors: " + e);
             }
         }
-        async function withSaveSpinner(btn: HTMLButtonElement, fn: () => Promise<void>) {
+        async function withSaveSpinner(btn: HTMLElement, fn: () => Promise<void>) {
             const originalHTML = btn.innerHTML;
             const originalWidth = btn.getBoundingClientRect().width;
             btn.style.width = `${originalWidth}px`;
@@ -389,7 +390,11 @@ export async function showProfileEditModal() {
         DOM.inputAvatar.addEventListener("change", () => {
             let file = DOM.inputAvatar.files![0];
             DOM.avatarPreview.src = URL.createObjectURL(file);
-            updateAvatar().then();
+            if (DOM.avatarLabel) {
+                withSaveSpinner(DOM.avatarLabel, updateAvatar);
+            } else {
+                updateAvatar().then();
+            }
         })
         if (DOM.bannerLabel) {
             DOM.bannerLabel.addEventListener("click", (e) => {
