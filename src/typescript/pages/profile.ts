@@ -682,7 +682,12 @@ declare global {
         }
         async function renderProfileMusicEmbedFromData(musicUrl: string) {
             const sanitized = XSSSanitizeValue(musicUrl || "");
+            const previousUrl = DOM.musicEmbed.dataset.url || "";
+            const previousConnected = DOM.musicEmbed.dataset.spotifyConnected === "true";
+            const currentConnected = IsSpotifyConnected();
+            if (sanitized === previousUrl && previousConnected === currentConnected) return;
             DOM.musicEmbed.dataset.url = sanitized;
+            DOM.musicEmbed.dataset.spotifyConnected = currentConnected ? "true" : "false";
             if (!sanitized) {
                 DOM.musicEmbed.innerHTML = "";
                 DOM.spotifyConnectPill.classList.add("hidden");
@@ -696,7 +701,7 @@ declare global {
                 return;
             }
             DOM.rowMusic.classList.remove("hidden");
-            if (IsSpotifyConnected()) {
+            if (currentConnected) {
                 const upgraded = await MountSpotifyFullPlayer(DOM.musicEmbed, sanitized);
                 if (upgraded) {
                     DOM.spotifyConnectPill.classList.add("hidden");
@@ -704,10 +709,11 @@ declare global {
                 }
             }
             await MountSpotifyEmbed(DOM.musicEmbed, sanitized);
-            if (IsSpotifyConnected()) {
+            if (currentConnected) {
                 DOM.spotifyConnectPill.classList.add("hidden");
             } else {
                 MountSpotifyConnectPill(DOM.spotifyConnectPill, () => {
+                    DOM.musicEmbed.dataset.url = "";
                     renderProfileMusicEmbedFromData(sanitized);
                 });
             }

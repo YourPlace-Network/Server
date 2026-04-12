@@ -12,7 +12,8 @@
       "WebFetch(domain:docs.cdp.coinbase.com)",
       "Bash(file:*)",
       "Bash(stat:*)",
-      "WebFetch(domain:developer.spotify.com)"
+      "WebFetch(domain:developer.spotify.com)",
+      "WebFetch(domain:docs.xmtp.org)"
     ],
     "deny": [],
     "ask": []

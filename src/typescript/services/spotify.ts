@@ -1,5 +1,6 @@
 import "../../scss/components/spotify.scss";
 import {HttpGetJson} from "../util/network";
+import {LogDebug, LogError} from "../util/log";
 import {ShowToast} from "../components/toast";
 
 const SPOTIFY_API_URL = "https://api.spotify.com/v1";
@@ -31,6 +32,13 @@ export function DisconnectSpotify(): void {
     }
     activeDeviceId = "";
     premiumChecked = false;
+}
+export function GetSpotifyRedirectUri(): string {
+    let origin = window.location.origin;
+    if (origin.includes("://localhost")) {
+        origin = origin.replace("://localhost", "://127.0.0.1");
+    }
+    return origin + "/services/spotify/callback";
 }
 export async function GetSpotifyAccessToken(): Promise<string | null> {
     const token = localStorage.getItem(SPOTIFY_TOKEN_KEY);
@@ -78,24 +86,36 @@ export async function MountSpotifyEmbed(container: HTMLElement, spotifyUrl: stri
     });
 }
 export async function MountSpotifyFullPlayer(container: HTMLElement, spotifyUrl: string): Promise<boolean> {
+    LogDebug("MountSpotifyFullPlayer: start, url=" + spotifyUrl);
     const uri = IsValidSpotifyUrl(spotifyUrl);
-    if (!uri) return false;
+    if (!uri) {
+        LogDebug("MountSpotifyFullPlayer: bail - invalid spotify URL");
+        return false;
+    }
     const parts = uri.split(":");
-    if (parts.length !== 3 || parts[1] !== "track") return false;
-    const trackId = parts[2];
+    const type = parts[1];
+    const supportedTypes = ["album", "episode", "playlist", "show", "track"];
+    if (parts.length !== 3 || !supportedTypes.includes(type)) {
+        LogDebug("MountSpotifyFullPlayer: bail - unsupported URI type: " + type);
+        return false;
+    }
     if (!premiumChecked) {
+        LogDebug("MountSpotifyFullPlayer: checking premium status");
         const premium = await checkSpotifyPremium();
         premiumChecked = true;
+        LogDebug("MountSpotifyFullPlayer: premium=" + premium);
         if (!premium) {
             ShowToast("Spotify Premium is required for full-track playback");
             return false;
         }
     }
-    const meta = await fetchTrackMetadata(trackId);
-    if (!meta) return false;
     const Spotify = await loadSpotifySdk();
-    if (!Spotify) return false;
+    if (!Spotify) {
+        LogDebug("MountSpotifyFullPlayer: bail - Spotify SDK failed to load");
+        return false;
+    }
     if (!activePlayer) {
+        LogDebug("MountSpotifyFullPlayer: creating new Spotify.Player instance");
         activePlayer = new Spotify.Player({
             name: "YourPlace",
             getOAuthToken: (cb: (t: string) => void) => {
@@ -104,14 +124,32 @@ export async function MountSpotifyFullPlayer(container: HTMLElement, spotifyUrl:
             volume: 0.5,
         });
         activePlayer.addListener("ready", ({device_id}: {device_id: string}) => {
+            LogDebug("MountSpotifyFullPlayer: device ready, id=" + device_id);
             activeDeviceId = device_id;
         });
         activePlayer.addListener("not_ready", () => {
+            LogDebug("MountSpotifyFullPlayer: device not ready");
             activeDeviceId = "";
         });
-        activePlayer.addListener("authentication_error", () => { DisconnectSpotify(); });
-        activePlayer.addListener("account_error", () => { ShowToast("Spotify Premium is required"); });
+        activePlayer.addListener("initialization_error", ({message}: {message: string}) => {
+            LogDebug("MountSpotifyFullPlayer: initialization_error: " + message);
+        });
+        activePlayer.addListener("authentication_error", ({message}: {message: string}) => {
+            LogDebug("MountSpotifyFullPlayer: authentication_error: " + message);
+            if (message && message.toLowerCase().indexOf("scope") !== -1) {
+                logSpotifyWebPlaybackScopeError();
+            }
+            DisconnectSpotify();
+        });
+        activePlayer.addListener("account_error", ({message}: {message: string}) => {
+            LogDebug("MountSpotifyFullPlayer: account_error: " + message);
+            ShowToast("Spotify Premium is required");
+        });
+        activePlayer.addListener("playback_error", ({message}: {message: string}) => {
+            LogDebug("MountSpotifyFullPlayer: playback_error: " + message);
+        });
         const connected = await activePlayer.connect();
+        LogDebug("MountSpotifyFullPlayer: player.connect() returned " + connected);
         if (!connected) {
             activePlayer = null;
             return false;
@@ -122,29 +160,28 @@ export async function MountSpotifyFullPlayer(container: HTMLElement, spotifyUrl:
         await new Promise((r) => setTimeout(r, 100));
         waited += 100;
     }
-    if (!activeDeviceId) return false;
+    if (!activeDeviceId) {
+        LogDebug("MountSpotifyFullPlayer: bail - device never became ready within 5s");
+        return false;
+    }
+    LogDebug("MountSpotifyFullPlayer: device ready, rendering UI");
     container.innerHTML = "";
     const player = document.createElement("div");
     player.id = "spotifyFullPlayer";
-    const imgUrl = meta.album?.images?.[0]?.url || "";
-    const safeImgUrl = validateSpotifyImageUrl(imgUrl);
-    if (safeImgUrl) {
-        const img = document.createElement("img");
-        img.className = "spotifyAlbumArt";
-        img.src = safeImgUrl;
-        img.alt = "";
-        player.appendChild(img);
-    }
+    const img = document.createElement("img");
+    img.className = "spotifyAlbumArt";
+    img.src = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+    img.alt = "";
+    player.appendChild(img);
     const info = document.createElement("div");
     info.className = "spotifyTrackInfo";
     const name = document.createElement("div");
     name.className = "spotifyTrackName";
-    name.textContent = meta.name || "";
+    name.textContent = "Loading...";
     info.appendChild(name);
-    const artistNames = (meta.artists || []).map((a: any) => a.name).join(", ");
     const artist = document.createElement("div");
     artist.className = "spotifyTrackArtist";
-    artist.textContent = artistNames;
+    artist.textContent = "";
     info.appendChild(artist);
     const progressRow = document.createElement("div");
     progressRow.className = "spotifyProgressRow";
@@ -158,7 +195,7 @@ export async function MountSpotifyFullPlayer(container: HTMLElement, spotifyUrl:
     progressBar.appendChild(progressFill);
     const timeTotal = document.createElement("span");
     timeTotal.className = "spotifyTimeTotal";
-    timeTotal.textContent = formatTime(meta.duration_ms || 0);
+    timeTotal.textContent = "0:00";
     progressRow.appendChild(timeCurrent);
     progressRow.appendChild(progressBar);
     progressRow.appendChild(timeTotal);
@@ -178,11 +215,15 @@ export async function MountSpotifyFullPlayer(container: HTMLElement, spotifyUrl:
     info.appendChild(controls);
     player.appendChild(info);
     container.appendChild(player);
-    const playResp = await spotifyApi("PUT", "/me/player/play?device_id=" + encodeURIComponent(activeDeviceId), {uris: [uri]});
+    const playBody = (type === "track" || type === "episode") ? {uris: [uri]} : {context_uri: uri};
+    const playResp = await spotifyApi("PUT", "/me/player/play?device_id=" + encodeURIComponent(activeDeviceId), playBody);
     if (!playResp || (!playResp.ok && playResp.status !== 204)) {
+        LogDebug("MountSpotifyFullPlayer: bail - play request failed, status=" + (playResp ? playResp.status : "null"));
         container.innerHTML = "";
         return false;
     }
+    LogDebug("MountSpotifyFullPlayer: playback started successfully");
+    let currentTrackDuration = 0;
     playBtn.onclick = async () => {
         if (activePlayer) await activePlayer.togglePlay();
     };
@@ -191,20 +232,44 @@ export async function MountSpotifyFullPlayer(container: HTMLElement, spotifyUrl:
         window.location.reload();
     };
     progressBar.onclick = async (e) => {
+        if (currentTrackDuration <= 0) return;
         const rect = progressBar.getBoundingClientRect();
         const ratio = (e.clientX - rect.left) / rect.width;
-        const duration = meta.duration_ms || 0;
-        const pos = Math.floor(ratio * duration);
+        const pos = Math.floor(ratio * currentTrackDuration);
         if (activePlayer) await activePlayer.seek(pos);
     };
     const stateListener = (state: any) => {
         if (!state) return;
-        const pct = state.duration > 0 ? (state.position / state.duration) * 100 : 0;
+        const track = state.track_window?.current_track;
+        if (track) {
+            if (track.name && name.textContent !== track.name) {
+                name.textContent = track.name;
+            }
+            const artistNames = (track.artists || []).map((a: any) => a.name).join(", ");
+            if (artist.textContent !== artistNames) {
+                artist.textContent = artistNames;
+            }
+            const imgUrl = track.album?.images?.[0]?.url || "";
+            const safeImgUrl = validateSpotifyImageUrl(imgUrl);
+            if (safeImgUrl && img.src !== safeImgUrl) {
+                img.src = safeImgUrl;
+            }
+            if (track.duration_ms) {
+                currentTrackDuration = track.duration_ms;
+                timeTotal.textContent = formatTime(track.duration_ms);
+            }
+        }
+        const duration = state.duration || currentTrackDuration;
+        const pct = duration > 0 ? (state.position / duration) * 100 : 0;
         progressFill.style.width = pct + "%";
         timeCurrent.textContent = formatTime(state.position);
         playIcon.className = state.paused ? "bi bi-play-fill" : "bi bi-pause-fill";
     };
     activePlayer.addListener("player_state_changed", stateListener);
+    (async () => {
+        const s = await activePlayer.getCurrentState();
+        if (s) stateListener(s);
+    })();
     const positionTimer = setInterval(async () => {
         if (activePlayer) {
             const s = await activePlayer.getCurrentState();
@@ -231,7 +296,7 @@ export async function StartSpotifyAuth(): Promise<boolean> {
     const state = generateRandomString(32);
     sessionStorage.setItem(SPOTIFY_VERIFIER_KEY, verifier);
     sessionStorage.setItem(SPOTIFY_STATE_KEY, state);
-    const redirectUri = window.location.origin + "/services/spotify/callback";
+    const redirectUri = GetSpotifyRedirectUri();
     const authUrl = SPOTIFY_AUTH_URL +
         "?response_type=code" +
         "&client_id=" + encodeURIComponent(clientId) +
@@ -247,12 +312,19 @@ export async function StartSpotifyAuth(): Promise<boolean> {
     }
     return await new Promise<boolean>((resolve) => {
         let checker: ReturnType<typeof setInterval>;
-        const listener = async (ev: MessageEvent) => {
-            if (ev.origin !== window.location.origin) return;
-            if (!ev.data || ev.data.source !== "spotifyAuth") return;
-            window.removeEventListener("message", listener);
-            clearInterval(checker);
-            const {code, state: returnedState, error} = ev.data;
+        let messageListener: (ev: MessageEvent) => void;
+        let resolved = false;
+        const channel = new BroadcastChannel("yp_spotifyAuth");
+        const cleanup = () => {
+            try { channel.close(); } catch (_) {}
+            if (messageListener) window.removeEventListener("message", messageListener);
+            if (checker) clearInterval(checker);
+        };
+        const handleAuthResult = async (data: any) => {
+            if (resolved) return;
+            resolved = true;
+            cleanup();
+            const {code, state: returnedState, error} = data;
             const savedState = sessionStorage.getItem(SPOTIFY_STATE_KEY);
             const savedVerifier = sessionStorage.getItem(SPOTIFY_VERIFIER_KEY);
             sessionStorage.removeItem(SPOTIFY_STATE_KEY);
@@ -280,19 +352,36 @@ export async function StartSpotifyAuth(): Promise<boolean> {
                     resolve(false);
                     return;
                 }
-                const data = await resp.json();
-                persistTokens(data.access_token, data.refresh_token, data.expires_in);
+                const respData = await resp.json();
+                LogDebug("StartSpotifyAuth: token exchange granted scopes: " + (respData.scope || "(none)"));
+                const grantedScopes = (respData.scope || "").split(" ");
+                if (!grantedScopes.includes("streaming")) {
+                    logSpotifyWebPlaybackScopeError();
+                    resolve(false);
+                    return;
+                }
+                persistTokens(respData.access_token, respData.refresh_token, respData.expires_in);
                 resolve(true);
             } catch (_) {
                 ShowToast("Spotify login failed");
                 resolve(false);
             }
         };
-        window.addEventListener("message", listener);
+        channel.onmessage = (ev) => {
+            if (!ev.data || ev.data.source !== "spotifyAuth") return;
+            handleAuthResult(ev.data);
+        };
+        messageListener = (ev: MessageEvent) => {
+            if (!isAllowedCallbackOrigin(ev.origin)) return;
+            if (!ev.data || ev.data.source !== "spotifyAuth") return;
+            handleAuthResult(ev.data);
+        };
+        window.addEventListener("message", messageListener);
         checker = setInterval(() => {
             if (popup.closed) {
-                clearInterval(checker);
-                window.removeEventListener("message", listener);
+                if (resolved) return;
+                resolved = true;
+                cleanup();
                 resolve(false);
             }
         }, 500);
@@ -320,11 +409,6 @@ async function fetchClientId(): Promise<string | null> {
     if (!id) return null;
     return id;
 }
-async function fetchTrackMetadata(trackId: string): Promise<any | null> {
-    const resp = await spotifyApi("GET", "/tracks/" + encodeURIComponent(trackId));
-    if (!resp || !resp.ok) return null;
-    return await resp.json();
-}
 function formatTime(ms: number): string {
     const s = Math.floor(ms / 1000);
     const m = Math.floor(s / 60);
@@ -340,6 +424,21 @@ function generateRandomString(length: number): string {
         result += chars[random[i] % chars.length];
     }
     return result;
+}
+function isAllowedCallbackOrigin(origin: string): boolean {
+    let incoming: URL;
+    let self: URL;
+    try {
+        incoming = new URL(origin);
+        self = new URL(window.location.origin);
+    } catch (_) {
+        return false;
+    }
+    if (incoming.protocol !== self.protocol) return false;
+    if (incoming.port !== self.port) return false;
+    if (incoming.hostname === self.hostname) return true;
+    const loopback = ["localhost", "127.0.0.1"];
+    return loopback.includes(incoming.hostname) && loopback.includes(self.hostname);
 }
 function loadSpotifyIframeApi(): Promise<any> {
     if (iframeScriptPromise) return iframeScriptPromise;
@@ -375,6 +474,15 @@ async function loadSpotifySdk(): Promise<any> {
         document.head.appendChild(script);
     });
     return sdkScriptPromise;
+}
+function logSpotifyWebPlaybackScopeError(): void {
+    LogError(
+        "Spotify Web Playback SDK rejected the token. Most likely cause: your Spotify Developer app is in Development Mode and your Spotify account (even as the app owner) is not on the app's User Management allowlist. " +
+        "Fix: go to developer.spotify.com/dashboard, open your app, click 'User Management', add your Spotify display name and account email, save, then click Connect Spotify again. " +
+        "Other possible causes: (a) 'Web Playback SDK' not checked under 'APIs used' in the app settings; " +
+        "(b) stale user consent — revoke the app at https://www.spotify.com/account/apps/ and reconnect; " +
+        "(c) recent app config changes may take a few minutes to propagate."
+    );
 }
 function persistTokens(access: string, refresh: string, expiresInSeconds: number): void {
     localStorage.setItem(SPOTIFY_TOKEN_KEY, access);

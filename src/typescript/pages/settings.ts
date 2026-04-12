@@ -9,6 +9,7 @@ import {createPopper, type Instance} from "@popperjs/core";
 import {DisableDialogModalOkBtn, EnableDialogModalOkBtn, ShowDialogModal, ShowDialogModalHTML} from "../components/modalDialog";
 import {ShowModalYesNoHTML} from "../components/modalYesNo";
 import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
+import {GetSpotifyRedirectUri} from "../services/spotify";
 import {ShowSavedToast, ShowToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
 import {Sleep} from "../util/time";
@@ -1109,7 +1110,7 @@ import {Sleep} from "../util/time";
         }
         let spotifyEnvLocked = false;
         async function getSpotifySettings() {
-            DOM.spotifyRedirectUri.value = window.location.origin + "/services/spotify/callback";
+            DOM.spotifyRedirectUri.value = GetSpotifyRedirectUri();
             let response = await HttpGetJson("/settings/services/spotify/clientid");
             if (response[0] === 200) {
                 spotifyEnvLocked = !!response[1].envLocked;

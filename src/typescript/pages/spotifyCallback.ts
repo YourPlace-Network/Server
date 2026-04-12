@@ -2,22 +2,29 @@
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
 
     function main() {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        const state = params.get("state");
-        const error = params.get("error");
-        const messageDiv = document.getElementById("spotifyCallbackMessage");
-        if (!window.opener) {
-            if (messageDiv) messageDiv.textContent = "This page should be opened from the Spotify connect flow. You can close this window.";
+        if (window.location.hostname === "127.0.0.1") {
+            const normalized = window.location.protocol + "//localhost" +
+                (window.location.port ? ":" + window.location.port : "") +
+                window.location.pathname + window.location.search;
+            window.location.replace(normalized);
             return;
         }
+        const params = new URLSearchParams(window.location.search);
+        const payload = {
+            source: "spotifyAuth",
+            code: params.get("code"),
+            state: params.get("state"),
+            error: params.get("error"),
+        };
         try {
-            window.opener.postMessage({
-                source: "spotifyAuth",
-                code: code,
-                state: state,
-                error: error,
-            }, window.location.origin);
+            const channel = new BroadcastChannel("yp_spotifyAuth");
+            channel.postMessage(payload);
+            channel.close();
+        } catch (_) {}
+        try {
+            if (window.opener) {
+                window.opener.postMessage(payload, "*");
+            }
         } catch (_) {}
         window.close();
     }

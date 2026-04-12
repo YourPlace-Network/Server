@@ -37,10 +37,11 @@ func Headers(port int) gin.HandlerFunc {
 				"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.bridge.walletconnect.org https://*.spotifycdn.com https://open.spotify.com https://sdk.scdn.co https://www.googletagmanager.com https://www.youtube-nocookie.com; "+ // unsafe-inline and unsafe-eval are due to bootstrap
 				"img-src 'self' https://* data: blob: http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // wildcard all HTTPS connections to allow for 3rd party image embeds
 				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
-				"media-src 'self' data: https://*; "+
+				"media-src 'self' data: blob: https://*; "+ // blob: is required by Spotify Web Playback SDK for audio chunks
 				"font-src 'self' https://fonts.gstatic.com data:; "+
 				"connect-src 'self' data: https://*:* wss://*:* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // this must wildcard all TLS connections to allow for P2P traffic
 				"frame-src https://*; "+
+				"worker-src 'self' blob:; "+ // Spotify Web Playback SDK spawns blob: workers for audio decoding
 				"base-uri 'self'; "+
 				"form-action 'self'; "+
 				"object-src 'none'; ")
