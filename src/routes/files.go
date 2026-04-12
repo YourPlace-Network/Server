@@ -30,12 +30,24 @@ func FilesRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, 
 		return
 	})
 
+	router.POST("/files/avatar/sign", func(c *gin.Context) {
+		if pinningService == nil {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Avatar upload not available"})
+			return
+		}
+		auth, err := network.PinningServiceGenerateUploadAuth(pinningService, "/files/ipfs/avatar/add")
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Failed to generate upload credentials"})
+			return
+		}
+		c.SecureJSON(http.StatusOK, auth)
+	})
 	router.POST("/files/nft/sign", func(c *gin.Context) {
 		if pinningService == nil {
 			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "NFT minting not available"})
 			return
 		}
-		auth, err := network.PinningServiceGenerateUploadAuth(pinningService)
+		auth, err := network.PinningServiceGenerateUploadAuth(pinningService, "/files/ipfs/nft/add")
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Failed to generate upload credentials"})
 			return

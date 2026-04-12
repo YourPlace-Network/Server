@@ -154,6 +154,6 @@ YourPlace is a **distributed social media platform** built with a 4-tier layered
 - Don't always assume the user / developer is correct. If everything seems ok to you, it's fine to ask the user to re-test to validate if either of you is wrong.
 - In general, put variable declarations and type definitions near the top of the file, after imports and before any functions. This helps with readability and allows developers to quickly see the data structures being used in the file before diving into the logic of the functions. Only put variable declarations and type definitions further down in the file if they are very specific to a particular function or block of code and are not relevant to the rest of the file.
 - Research the codebase before editing. Never change code you haven't read.
-
+- When editing code, make sure that each line is properly indented relative to the surrounding code.
 
 

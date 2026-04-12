@@ -28,6 +28,14 @@ export async function AddFileToIPFS(fileUUID: string, csrfToken: string): Promis
     LogError("Failed to add file to IPFS: " + response[1].status);
     return null;
 }
+export async function GetAvatarUploadAuth(csrfToken: string): Promise<any> {
+    const response = await HttpPostJson("/files/avatar/sign", {}, csrfToken);
+    if (response[0] === 200) {
+        return response[1];
+    }
+    LogDebug("Failed to get avatar upload auth: " + (response[1].status || response[0]));
+    return null;
+}
 export async function GetNFTUploadAuth(csrfToken: string): Promise<any> {
     const response = await HttpPostJson("/files/nft/sign", {}, csrfToken);
     if (response[0] === 200) {
@@ -298,6 +306,20 @@ export async function getIpfsAvatarUrl(blockchain: string, address: string): Pro
 export function stringToCID(cid: string): CID {
     if (!IsValidIpfsCid(cid)) throw new Error("Invalid CID");
     return CID.parse(cid);
+}
+export async function UploadAvatarToIPFSService(file: File, csrfToken: string): Promise<string | null> {
+    const auth = await GetAvatarUploadAuth(csrfToken);
+    if (!auth) return null;
+    try {
+        if (auth.type === "yourplace") {
+            return await uploadToYourPlace(file, auth.uploadUrl, auth.key);
+        }
+        LogDebug("Unknown pinning service type: " + auth.type);
+        return null;
+    } catch (error) {
+        LogDebug("UploadAvatarToIPFSService failed: " + error);
+        return null;
+    }
 }
 export async function UploadToIPFSService(file: File, csrfToken: string): Promise<string | null> {
     const auth = await GetNFTUploadAuth(csrfToken);

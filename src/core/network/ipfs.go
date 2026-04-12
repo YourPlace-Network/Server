@@ -450,14 +450,14 @@ type PinningService struct {
 	URL  string
 }
 
-func PinningServiceGenerateUploadAuth(ps *PinningService) (map[string]string, error) {
+func PinningServiceGenerateUploadAuth(ps *PinningService, endpoint string) (map[string]string, error) {
 	token, err := generateUploadToken(ps.Key)
 	if err != nil {
 		return nil, _core.LogErrorReturn("Could not generate upload token: " + err.Error())
 	}
 	return map[string]string{
 		"type":      "yourplace",
-		"uploadUrl": ps.URL + "/files/ipfs/nft/add",
+		"uploadUrl": ps.URL + endpoint,
 		"key":       token,
 	}, nil
 }

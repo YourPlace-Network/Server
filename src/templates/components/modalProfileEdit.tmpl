@@ -5,6 +5,7 @@
                 <h5 class="modal-title" id="modalProfileEditTitle">Edit Profile</h5>
             </div>
             <div class="modal-body" id="modalProfileEditBody">
+                <input type="hidden" id="gatewayMintEnabled" value="{{ .gatewayMintEnabled }}">
                 <div id="editAvatar">
                     <label class="editLabel btn" for="inputAvatar">Upload Avatar</label>
                     <input type="file" class="form-control" id="inputAvatar" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"/>
@@ -19,31 +20,31 @@
                 <label class="editLabel" for="inputUsername">username</label><br>
                 <div class="input-group mb-3 edit-profile-single-line-input">
                     <input type="text" class="form-control editInput" id="inputUsername" placeholder="Change Username" maxlength="100">
-                    <button id="btnUsernameSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button">Save</button>
+                    <button id="btnUsernameSave" class="btn btn-secondary edit-profile-save-btn" type="button">Save</button>
                 </div>
 
                 <label class="editLabel" for="inputDescription">description</label>
                 <div class="position-relative" id="inputDescriptionDiv">
                     <textarea class="form-control editInput" id="inputDescription" placeholder="Add Description" maxlength="200"></textarea>
-                    <button id="btnDescriptionSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button">Save</button>
+                    <button id="btnDescriptionSave" class="btn btn-secondary edit-profile-save-btn" type="button">Save</button>
                 </div>
 
                 <label class="editLabel" for="inputLocation">location</label>
                 <div class="input-group mb-3 edit-profile-single-line-input">
                     <input type="text" class="form-control editInput" id="inputLocation" placeholder="Add Location" maxlength="50">
-                    <button id="btnLocationSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button">Save</button>
+                    <button id="btnLocationSave" class="btn btn-secondary edit-profile-save-btn" type="button">Save</button>
                 </div>
 
                 <label class="editLabel" for="inputWebsite">website</label>
                 <div class="input-group mb-3 edit-profile-single-line-input">
                     <input type="url" class="form-control editInput" id="inputWebsite" placeholder="Add Website" maxlength="100">
-                    <button id="btnWebsiteSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button">Save</button>
+                    <button id="btnWebsiteSave" class="btn btn-secondary edit-profile-save-btn" type="button">Save</button>
                 </div>
 
                 <label class="editLabel" for="inputMusicEmbed">music embed</label>
                 <div class="input-group mb-3 edit-profile-single-line-input">
                     <input type="url" class="form-control editInput" id="inputMusicEmbed" placeholder="Spotify track, playlist, album, episode, or show URL" maxlength="200">
-                    <button id="btnMusicEmbedSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button">Save</button>
+                    <button id="btnMusicEmbedSave" class="btn btn-secondary edit-profile-save-btn" type="button">Save</button>
                 </div>
 
                 <label class="editLabel" for="inputVertical">vertical</label>
@@ -92,7 +93,7 @@
                         <option value="travel">Travel</option>
                         <option value="other">Other</option>
                     </select>
-                    <button id="btnVerticalSave" class="btn btn-secondary edit-profile-save-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Save" type="button">Save</button>
+                    <button id="btnVerticalSave" class="btn btn-secondary edit-profile-save-btn" type="button">Save</button>
                 </div>
 
                 <label class="editLabel">account flags</label>

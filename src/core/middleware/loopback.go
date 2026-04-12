@@ -30,7 +30,7 @@ func LoopbackMiddleware(port int, gateway bool, gatewayMintEnabled bool) gin.Han
 	}
 	return func(c *gin.Context) {
 		requestPath := c.Request.RequestURI
-		if gateway && gatewayMintEnabled && c.Request.Method == "POST" && strings.HasPrefix(requestPath, "/files/nft/sign") {
+		if gateway && gatewayMintEnabled && c.Request.Method == "POST" && (strings.HasPrefix(requestPath, "/files/avatar/sign") || strings.HasPrefix(requestPath, "/files/nft/sign")) {
 			c.Next()
 			return
 		}

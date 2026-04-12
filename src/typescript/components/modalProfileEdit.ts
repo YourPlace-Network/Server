@@ -2,6 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalProfileEdit.scss";
 import {LogError, LogInfo} from "../util/log";
 import {UploadFile} from "../util/files";
+import {UploadAvatarToIPFSService} from "../util/ipfs";
 import {WalletSetAvatar, WalletSetBanner, WalletSetBot, WalletSetColors, WalletSetDescription, WalletSetLocation, WalletSetMusicEmbed, WalletSetName, WalletSetNsfw, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
 import DOMPurify from "dompurify";
 import {ShowToastWithDelay} from "./toast";
@@ -50,10 +51,6 @@ export async function showProfileEditModal() {
         DOM.inputMusicEmbed.value = DOMPurify.sanitize(DOM.musicEmbed.dataset.url);
     }
     const modal = new window.bootstrap.Modal(DOM.modalProfileEdit, {});
-    DOM.modalProfileEdit.addEventListener("shown.bs.modal", () => {
-        let tooltipTriggerList = [].slice.call(DOM.modalProfileEdit.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl: HTMLElement) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
-    }, {once: true});
     modal.show();
 }
 
@@ -81,6 +78,7 @@ export async function showProfileEditModal() {
             colorTertiary: document.getElementById("colorTertiary")! as HTMLInputElement,
             colorText: document.getElementById("colorText")! as HTMLInputElement,
             csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
+            gatewayMintEnabled: document.getElementById("gatewayMintEnabled") as HTMLInputElement,
             gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement,
             injectedAddress: document.getElementById("injectedAddress") as HTMLInputElement,
             injectedBlockchain: document.getElementById("injectedBlockchain") as HTMLInputElement,
@@ -109,6 +107,9 @@ export async function showProfileEditModal() {
             const hostname = window.location.hostname;
             const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
             return DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost;
+        }
+        function isGatewayUploadEnabled(): boolean {
+            return isGatewayMode() && DOM.gatewayMintEnabled?.value === "true";
         }
         function showGatewayAvatarMessage() {
             let message = "To change your avatar, you must:<br><br>";
@@ -158,8 +159,27 @@ export async function showProfileEditModal() {
             }
         }
         async function updateAvatar() {
+            const maxAvatarSize = 10 * 1024 * 1024; // 10 MB
             let file = DOM.inputAvatar.files![0];
-            let result = await UploadFile(file, DOM.csrfToken.value); // send file to server
+            if (file.size > maxAvatarSize) {
+                ShowDialogModalHTML("Avatar must be under 10 MB");
+                return;
+            }
+            if (isGatewayUploadEnabled()) {
+                const cid = await UploadAvatarToIPFSService(file, DOM.csrfToken.value);
+                if (cid) {
+                    try {
+                        let success = await WalletSetAvatar("ipfs://" + cid);
+                        if (success) hideModalAndShowToast();
+                        return;
+                    } catch (e) {
+                        LogError("Failed to set avatar: " + e);
+                    }
+                }
+                LogError("Failed to upload avatar to pinning service");
+                return;
+            }
+            let result = await UploadFile(file, DOM.csrfToken.value);
             if (result[0] == 200 && result[1].status == "success" && result[1].data && result[1].data.length > 0) {
                 try {
                     let success = await WalletSetAvatar("ipfs://" + result[1].data[0].cid);
@@ -352,7 +372,7 @@ export async function showProfileEditModal() {
 
         if (DOM.avatarLabel) {
             DOM.avatarLabel.addEventListener("click", (e) => {
-                if (isGatewayMode()) {
+                if (isGatewayMode() && !isGatewayUploadEnabled()) {
                     e.preventDefault();
                     e.stopPropagation();
                     showGatewayAvatarMessage();
@@ -360,14 +380,13 @@ export async function showProfileEditModal() {
             });
         }
         DOM.inputAvatar.addEventListener("click", (e) => {
-            if (isGatewayMode()) {
+            if (isGatewayMode() && !isGatewayUploadEnabled()) {
                 e.preventDefault();
                 e.stopPropagation();
                 showGatewayAvatarMessage();
             }
         });
         DOM.inputAvatar.addEventListener("change", () => {
-            if (isGatewayMode()) return;
             let file = DOM.inputAvatar.files![0];
             DOM.avatarPreview.src = URL.createObjectURL(file);
             updateAvatar().then();
