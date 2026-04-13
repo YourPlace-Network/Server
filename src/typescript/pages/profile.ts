@@ -682,9 +682,10 @@ declare global {
         }
         async function renderProfileMusicEmbedFromData(musicUrl: string) {
             const sanitized = XSSSanitizeValue(musicUrl || "");
+            const gatewayMode = IsGatewayMode();
             const previousUrl = DOM.musicEmbed.dataset.url || "";
             const previousConnected = DOM.musicEmbed.dataset.spotifyConnected === "true";
-            const currentConnected = IsSpotifyConnected();
+            const currentConnected = !gatewayMode && IsSpotifyConnected();
             if (sanitized === previousUrl && previousConnected === currentConnected) return;
             DOM.musicEmbed.dataset.url = sanitized;
             DOM.musicEmbed.dataset.spotifyConnected = currentConnected ? "true" : "false";
@@ -709,7 +710,7 @@ declare global {
                 }
             }
             await MountSpotifyEmbed(DOM.musicEmbed, sanitized);
-            if (currentConnected) {
+            if (currentConnected || gatewayMode) {
                 DOM.spotifyConnectPill.classList.add("hidden");
             } else {
                 MountSpotifyConnectPill(DOM.spotifyConnectPill, () => {

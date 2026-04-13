@@ -1,4 +1,9 @@
 @use "../global";
+.modalBodyLeft {
+    display: block;
+    text-align: left;
+    width: 100%;
+}
 #modalDialogContent {
     display: flex;
     align-items: center;

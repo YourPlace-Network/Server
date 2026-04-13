@@ -135,11 +135,7 @@ export async function MountSpotifyFullPlayer(container: HTMLElement, spotifyUrl:
             LogDebug("MountSpotifyFullPlayer: initialization_error: " + message);
         });
         activePlayer.addListener("authentication_error", ({message}: {message: string}) => {
-            LogDebug("MountSpotifyFullPlayer: authentication_error: " + message);
-            if (message && message.toLowerCase().indexOf("scope") !== -1) {
-                logSpotifyWebPlaybackScopeError();
-            }
-            DisconnectSpotify();
+            LogDebug("MountSpotifyFullPlayer: authentication_error (often spurious during SDK init; the SDK recovers on its own): " + message);
         });
         activePlayer.addListener("account_error", ({message}: {message: string}) => {
             LogDebug("MountSpotifyFullPlayer: account_error: " + message);
@@ -477,11 +473,7 @@ async function loadSpotifySdk(): Promise<any> {
 }
 function logSpotifyWebPlaybackScopeError(): void {
     LogError(
-        "Spotify Web Playback SDK rejected the token. Most likely cause: your Spotify Developer app is in Development Mode and your Spotify account (even as the app owner) is not on the app's User Management allowlist. " +
-        "Fix: go to developer.spotify.com/dashboard, open your app, click 'User Management', add your Spotify display name and account email, save, then click Connect Spotify again. " +
-        "Other possible causes: (a) 'Web Playback SDK' not checked under 'APIs used' in the app settings; " +
-        "(b) stale user consent — revoke the app at https://www.spotify.com/account/apps/ and reconnect; " +
-        "(c) recent app config changes may take a few minutes to propagate."
+        "Spotify OAuth token was issued without the 'streaming' scope. The Spotify Developer app probably does not have 'Web Playback SDK' checked under 'APIs used' at developer.spotify.com/dashboard. Enable it in the app settings, revoke the app at https://www.spotify.com/account/apps/, then click Connect Spotify again."
     );
 }
 function persistTokens(access: string, refresh: string, expiresInSeconds: number): void {

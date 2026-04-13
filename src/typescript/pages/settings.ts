@@ -13,6 +13,7 @@ import {GetSpotifyRedirectUri} from "../services/spotify";
 import {ShowSavedToast, ShowToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
 import {Sleep} from "../util/time";
+import {XSSSanitizeValue} from "../util/security";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -125,7 +126,7 @@ import {Sleep} from "../util/time";
             collapseServices: document.getElementById("collapseServices")! as HTMLDivElement,
             collapseSpotify: document.getElementById("collapseSpotify")! as HTMLDivElement,
             collapseXcom: document.getElementById("collapseXcom")! as HTMLDivElement,
-            helpSpotifyClientIdBtn: document.getElementById("helpSpotifyClientIdBtn")! as HTMLButtonElement,
+            helpSpotifyClientIdBtn: document.getElementById("helpSpotifyClientIdBtn")! as HTMLElement,
             removeSpotifyClientIdBtn: document.getElementById("removeSpotifyClientIdBtn")! as HTMLButtonElement,
             saveSpotifyClientIdBtn: document.getElementById("saveSpotifyClientIdBtn")! as HTMLButtonElement,
             spotifyClientId: document.getElementById("spotifyClientId")! as HTMLInputElement,
@@ -779,7 +780,7 @@ import {Sleep} from "../util/time";
                     }
                     break;
                 case "h":
-                    ShowDialogModalHTML("This Indexer Catch-Up feature will download a fully cached copy of YourPlace data that we've already downloaded from the blockchain. This prevents you from needing to traverse the whole chain, and allows Servers to quickly catch up to the latest data.<br><br>This will save you bandwidth and time, but can only be run once every 24 hours.<br><br>To stream YourPlace data in real-time, you will still need your own blockchain RPC server.");
+                    ShowDialogModalHTML("<div class='modalBodyLeft'>This Indexer Catch-Up feature will download a fully cached copy of YourPlace data that we've already downloaded from the blockchain. This prevents you from needing to traverse the whole chain, and allows Servers to quickly catch up to the latest data.<br><br>This will save you bandwidth and time, but can only be run once every 24 hours.<br><br>To stream YourPlace data in real-time, you will still need your own blockchain RPC server.</div>");
                     break;
             }
         }
@@ -847,7 +848,7 @@ import {Sleep} from "../util/time";
                     }
                     break;
                 case "h":
-                    ShowDialogModalHTML("This Indexer Catch-Up feature will download a fully cached copy of YourPlace data that we've already downloaded from the blockchain. This prevents you from needing to traverse the whole chain, and allows Servers to quickly catch up to the latest data.<br><br>This will save you bandwidth and time, but can only be run once every 24 hours.<br><br>To stream YourPlace data in real-time, you will still need your own blockchain RPC server.");
+                    ShowDialogModalHTML("<div class='modalBodyLeft'>This Indexer Catch-Up feature will download a fully cached copy of YourPlace data that we've already downloaded from the blockchain. This prevents you from needing to traverse the whole chain, and allows Servers to quickly catch up to the latest data.<br><br>This will save you bandwidth and time, but can only be run once every 24 hours.<br><br>To stream YourPlace data in real-time, you will still need your own blockchain RPC server.</div>");
                     break;
             }
         }
@@ -915,7 +916,7 @@ import {Sleep} from "../util/time";
                     }
                     break;
                 case "h":
-                    ShowDialogModalHTML("This Indexer Catch-Up feature will download a fully cached copy of YourPlace data that we've already downloaded from the blockchain. This prevents you from needing to traverse the whole chain, and allows Servers to quickly catch up to the latest data.<br><br>This will save you bandwidth and time, but can only be run once every 24 hours.<br><br>To stream YourPlace data in real-time, you will still need your own blockchain RPC server.");
+                    ShowDialogModalHTML("<div class='modalBodyLeft'>This Indexer Catch-Up feature will download a fully cached copy of YourPlace data that we've already downloaded from the blockchain. This prevents you from needing to traverse the whole chain, and allows Servers to quickly catch up to the latest data.<br><br>This will save you bandwidth and time, but can only be run once every 24 hours.<br><br>To stream YourPlace data in real-time, you will still need your own blockchain RPC server.</div>");
                     break;
             }
         }
@@ -1149,16 +1150,17 @@ import {Sleep} from "../util/time";
             }
         }
         function showSpotifyHelpModal() {
+            const redirectUri = XSSSanitizeValue(GetSpotifyRedirectUri());
             ShowDialogModalHTML(
-                "<b>Spotify Client ID Required</b><br><br>" +
-                "To enable full-track Spotify playback for profile visitors, you need to create a Spotify Developer app and copy its Client ID here.<br><br>" +
-                "<b>Steps:</b><br>" +
-                "1. Go to the <a href='https://developer.spotify.com/dashboard' target='_blank'>Spotify Developer Dashboard</a><br>" +
-                "2. Click <b>Create app</b><br>" +
-                "3. Set the <b>Redirect URI</b> to the value shown above<br>" +
-                "4. Under <b>APIs used</b>, select <b>Web API</b> and <b>Web Playback SDK</b><br>" +
-                "5. Copy the <b>Client ID</b> into the field above and click Save<br><br>" +
-                "Note: Client IDs are public and safe to share. No Client Secret is required because YourPlace uses the PKCE flow."
+                "<div class='modalBodyLeft'>" +
+                "<b>Spotify Full-Track Playback Setup</b><br><br>" +
+                "1. Create a new app in the <a href='https://developer.spotify.com/dashboard' target='_blank'>Spotify Developer Dashboard</a>.<br>" +
+                "2. Add <b>" + redirectUri + "</b> to your app's Redirect URIs list.<br>" +
+                "3. Under <b>APIs used</b>, enable <b>Web API</b> and <b>Web Playback SDK</b>.<br>" +
+                "4. Copy the app's <b>Client ID</b> into the field above and click Save.<br>" +
+                "5. Under <b>User Management</b>, add your own Spotify account name and email. You can whitelist up to 5 accounts total.<br><br>" +
+                "Requires <b>Spotify Premium</b> on both the app owner (you) and the listener. Free accounts fall back to the 30-second preview." +
+                "</div>"
             );
         }
         function updateSpotifyStatusLight(configured: boolean) {

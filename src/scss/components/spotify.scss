@@ -1,5 +1,11 @@
 @use "../global";
 
+.spotifyHelpIcon {
+  cursor: pointer;
+  &:hover {
+    color: map-get(global.$colors, "link");
+  }
+}
 #musicContainer {
   align-items: stretch;
   display: flex;
