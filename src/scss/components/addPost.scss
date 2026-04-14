@@ -95,6 +95,62 @@
   width: 100%;
   height: 7em;
 }
+#addPostLinkPreview {
+  width: 100%;
+  padding-top: 0.75em;
+}
+#addPostLinkPreview:empty {
+  display: none;
+}
+#addPostLinkPreview .postCardEmbedDiv {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+#addPostLinkPreview .postCardEmbedDiv {
+  gap: 0.75em;
+}
+#addPostLinkPreview .postCardEmbeddedImage {
+  padding: 0 0 1em 0;
+  max-width: 100%;
+  height: auto;
+  max-height: 25em;
+}
+#addPostLinkPreview .postCardEmbeddedIframe {
+  padding: 0 0 1em 0;
+  width: 100%;
+  max-width: 35em;
+  aspect-ratio: 16 / 9;
+}
+#addPostModal #addPostAvatarBtn {
+  position: absolute;
+  top: 1.4rem;
+  right: 1.5rem;
+  width: 36px;
+  height: 36px;
+  padding: 4px;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  z-index: 100;
+  display: block;
+  box-sizing: border-box;
+  line-height: 0;
+  background-color: map.get(global.$colors, "secondary");
+}
+#addPostModal #addPostAvatarBtn img {
+  width: 28px;
+  height: 28px;
+  border-radius: 0.375rem;
+  object-fit: cover;
+  display: block;
+}
+#addPostModal #addPostAvatarBtn:hover {
+  background-color: map.get(global.$colors, "primary");
+}
 .tinymce-spinner {
   display: none;
   position: absolute;

@@ -1,16 +1,17 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
-import {IsValidIpfsCid, XSSSanitizeValue} from "../util/security";
-import {GetWallet, WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
-import {ShowModalLogin} from "./modalLogin";
+import {IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
+import {GetAddress, GetChain, GetWallet, WalletGetAvatar, WalletGetName, WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {UploadFile} from "../util/files";
-import {AddFileToIPFS} from "../util/ipfs";
+import {AddFileToIPFS, getIpfsAvatarUrl} from "../util/ipfs";
 import {HttpPostJson} from "../util/network";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
 import {ShowToastWithDelay} from "./toast";
 import {ShowDialogModalHTML} from "./modalDialog";
 import {CreateAttachmentPreview} from "../util/domFactory";
+import {OEmbedCard} from "./oEmbedCard";
 import {XcomCrossPost, XcomIsCrossPostEnabled} from "../services/xcom";
+import {XcomOEmbedCard} from "./xcomOEmbedCard";
 import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
 // TinyMCE will be lazy loaded when needed
 let tinymceModulePromise: Promise<any> | null = null;
@@ -29,6 +30,7 @@ async function preloadTinyMCE() {
             addPostModal: document.getElementById("addPostModal")! as HTMLDivElement,
             addPostText: document.getElementById("addPostText")! as HTMLTextAreaElement,
             addPostButton: document.getElementById("addPostButton")! as HTMLButtonElement,
+            addPostLinkPreview: document.getElementById("addPostLinkPreview")! as HTMLDivElement,
             submitPostButton: document.getElementById("submitPostButton")! as HTMLButtonElement,
             uploadFileButton: document.getElementById("btnUploadFile")! as HTMLButtonElement,
             fileInput: document.getElementById("file")! as HTMLInputElement,
@@ -75,9 +77,194 @@ async function preloadTinyMCE() {
             size: string;
         }
         let binaryAttachments: fileData[] = [];
+        let linkPreviewRenderVersion = 0;
         let removedAttachments: string[] = [];
         let tinymceInitialized = false;
         let tinymceInitPromise: Promise<void> | null = null;
+
+        function formatUrlDisplayText(url: string): string {
+            return url.replace(/^https:\/\/(www\.)?/, "").replace(/[?#].*$/, "");
+        }
+        function createImageEmbed(url: string): HTMLImageElement | null {
+            const imageRegex = /^https:\/\/.*\.(jpg|jpeg|gif|webp|png|svg)$/i;
+            if (!imageRegex.test(url)) {
+                return null;
+            }
+            const image = document.createElement("img");
+            image.classList.add("postCardEmbeddedImage");
+            image.crossOrigin = "anonymous";
+            image.referrerPolicy = "no-referrer";
+            image.src = XSSSanitizeUrl(url);
+            return image;
+        }
+        function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
+            const youtubeRegex = /^https:\/\/((?:www\.)?youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&].*)?$/;
+            const match = url.match(youtubeRegex);
+            if (!match) {
+                return null;
+            }
+            const iframe = document.createElement("iframe");
+            iframe.classList.add("postCardEmbeddedIframe");
+            iframe.src = XSSSanitizeUrl(`https://www.youtube-nocookie.com/embed/${match[2]}`);
+            iframe.allow = "encrypted-media; picture-in-picture";
+            iframe.allowFullscreen = true;
+            iframe.setAttribute("loading", "lazy");
+            iframe.setAttribute("credentialless", "");
+            return iframe;
+        }
+        function extractUrlsFromNode(node: Node, urls: string[], seenUrls: Set<string>) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const element = node as HTMLElement;
+                if (element.tagName === "A") {
+                    const href = element.getAttribute("href");
+                    if (href && href.startsWith("https://") && !seenUrls.has(href)) {
+                        seenUrls.add(href);
+                        urls.push(href);
+                    }
+                    return;
+                }
+                Array.from(element.childNodes).forEach(childNode => {
+                    extractUrlsFromNode(childNode, urls, seenUrls);
+                });
+                return;
+            }
+            if (node.nodeType !== Node.TEXT_NODE) {
+                return;
+            }
+            const textContent = node.textContent || "";
+            const matches = textContent.match(/https:\/\/[^\s"<>]+/g);
+            if (!matches) {
+                return;
+            }
+            for (const match of matches) {
+                if (!seenUrls.has(match)) {
+                    seenUrls.add(match);
+                    urls.push(match);
+                }
+            }
+        }
+        function extractUrlsFromHtml(html: string): string[] {
+            const tempDiv = document.createElement("div");
+            const seenUrls = new Set<string>();
+            const urls: string[] = [];
+            tempDiv.innerHTML = html;
+            Array.from(tempDiv.childNodes).forEach(node => {
+                extractUrlsFromNode(node, urls, seenUrls);
+            });
+            return urls;
+        }
+        function linkifyTextNode(textNode: Text): boolean {
+            const text = textNode.textContent || "";
+            const matches = Array.from(text.matchAll(/https:\/\/[^\s"<>]+/g));
+            if (matches.length === 0) {
+                return false;
+            }
+            const doc = textNode.ownerDocument;
+            const fragment = doc.createDocumentFragment();
+            let cursor = 0;
+            for (const match of matches) {
+                const url = match[0];
+                const index = match.index || 0;
+                if (index > cursor) {
+                    fragment.appendChild(doc.createTextNode(text.slice(cursor, index)));
+                }
+                const anchor = doc.createElement("a");
+                anchor.href = XSSSanitizeUrl(url);
+                anchor.rel = "noopener noreferrer";
+                anchor.target = "_blank";
+                anchor.textContent = formatUrlDisplayText(url);
+                fragment.appendChild(anchor);
+                cursor = index + url.length;
+            }
+            if (cursor < text.length) {
+                fragment.appendChild(doc.createTextNode(text.slice(cursor)));
+            }
+            textNode.parentNode?.replaceChild(fragment, textNode);
+            return true;
+        }
+        function normalizeEditorLinks(editor: any) {
+            const body = editor.getBody() as HTMLElement | null;
+            if (!body) return;
+            const nodeFilter = body.ownerDocument.defaultView?.NodeFilter || window.NodeFilter;
+            const walker = body.ownerDocument.createTreeWalker(body, nodeFilter.SHOW_TEXT, {
+                acceptNode(node) {
+                    const parentElement = node.parentElement;
+                    if (!parentElement || parentElement.closest("a")) {
+                        return nodeFilter.FILTER_REJECT;
+                    }
+                    if ((node.textContent || "").includes("https://")) {
+                        return nodeFilter.FILTER_ACCEPT;
+                    }
+                    return nodeFilter.FILTER_REJECT;
+                }
+            });
+            const textNodes: Text[] = [];
+            let currentNode = walker.nextNode();
+            while (currentNode) {
+                textNodes.push(currentNode as Text);
+                currentNode = walker.nextNode();
+            }
+            let didMutate = false;
+            for (const textNode of textNodes) {
+                didMutate = linkifyTextNode(textNode) || didMutate;
+            }
+            if (didMutate) {
+                editor.nodeChanged();
+            }
+        }
+        function flattenAutoLinkedUrls(html: string): string {
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = html;
+            const anchors = tempDiv.querySelectorAll("a[href]");
+            anchors.forEach(anchor => {
+                const href = anchor.getAttribute("href");
+                const text = anchor.textContent?.trim() || "";
+                if (!href || !href.startsWith("https://")) {
+                    return;
+                }
+                if (text === href || text === formatUrlDisplayText(href)) {
+                    anchor.replaceWith(document.createTextNode(href));
+                }
+            });
+            return tempDiv.innerHTML;
+        }
+        async function createLinkPreviewEmbed(url: string): Promise<HTMLElement | null> {
+            const imageEmbed = createImageEmbed(url);
+            if (imageEmbed) {
+                return imageEmbed;
+            }
+            const youtubeEmbed = createYoutubeEmbed(url);
+            if (youtubeEmbed) {
+                return youtubeEmbed;
+            }
+            const xcomEmbed = await XcomOEmbedCard(url);
+            if (xcomEmbed) {
+                return xcomEmbed;
+            }
+            return OEmbedCard(url);
+        }
+        async function renderLinkPreview(editor: any) {
+            const renderVersion = ++linkPreviewRenderVersion;
+            DOM.addPostLinkPreview.innerHTML = "";
+            const urls = extractUrlsFromHtml(editor.getContent());
+            if (urls.length === 0) {
+                return;
+            }
+            const previewDiv = document.createElement("div");
+            previewDiv.classList.add("postCardEmbedDiv");
+            for (const url of urls) {
+                const embed = await createLinkPreviewEmbed(url);
+                if (renderVersion !== linkPreviewRenderVersion) {
+                    return;
+                }
+                if (embed) {
+                    previewDiv.appendChild(embed);
+                }
+            }
+            if (renderVersion === linkPreviewRenderVersion && previewDiv.children.length > 0) {
+                DOM.addPostLinkPreview.appendChild(previewDiv);
+            }
+        }
 
         async function initTinyMCE() {
             if (tinymceInitialized) return;
@@ -87,7 +274,7 @@ async function preloadTinyMCE() {
                 const isMobile = window.innerWidth < 768;
                 await tinymce.default.init({
                     selector: "#addPostText",
-                    plugins: "code table lists",
+                    plugins: "autolink code table lists",
                     toolbar: isMobile
                         ? "emojipicker forecolor backcolor | formatting"
                         : "emojipicker forecolor backcolor | bold italic underline strikethrough | bullist numlist",
@@ -144,9 +331,17 @@ async function preloadTinyMCE() {
                         setupTinyMCEEmojiButton(editor);
                         editor.on("input", function() {
                             debounceHandler();
+                            debounceLinkPreviewHandler();
                         });
                         editor.on("change", function() {
                             debounceHandler();
+                            debounceLinkPreviewHandler();
+                        });
+                        editor.on("PastePostProcess", function() {
+                            window.setTimeout(() => {
+                                normalizeEditorLinks(editor);
+                                debounceLinkPreviewHandler();
+                            }, 0);
                         });
                         editor.on("drop", function(e: any) {
                             const dragEvent = e as DragEvent;
@@ -154,13 +349,47 @@ async function preloadTinyMCE() {
                                 handleDroppedMedia(e, dragEvent);
                             }
                         });
+                        editor.on("SetContent", function() {
+                            debounceLinkPreviewHandler();
+                        });
                     }
                 });
                 tinymceInitialized = true;
+                addAvatarToToolbar().then();
             })();
             return tinymceInitPromise;
         }
+        async function addAvatarToToolbar() {
+            const modalBody = DOM.addPostModal.querySelector(".modal-body") as HTMLElement;
+            if (!modalBody) return;
+            const existing = modalBody.querySelector("#addPostAvatarBtn");
+            if (existing) existing.remove();
+            const blockchain = GetChain();
+            const address = GetAddress();
+            if (!blockchain || !address) return;
+            const avatarLink = document.createElement("a");
+            avatarLink.id = "addPostAvatarBtn";
+            avatarLink.href = `/p/${encodeURIComponent(blockchain)}/${encodeURIComponent(address)}`;
+            avatarLink.title = "Posting as Anonymous";
+            const avatarImg = document.createElement("img");
+            avatarImg.src = "/static/image/avatar.png";
+            avatarImg.alt = "Profile";
+            avatarImg.width = 28;
+            avatarImg.height = 28;
+            avatarLink.appendChild(avatarImg);
+            modalBody.appendChild(avatarLink);
+            let avatarUrl: string | null = await getIpfsAvatarUrl(blockchain, address);
+            if (!avatarUrl) {
+                avatarUrl = await WalletGetAvatar(blockchain, address);
+            }
+            if (avatarUrl) {
+                avatarImg.src = XSSSanitizeUrl(avatarUrl);
+            }
+            const name = await WalletGetName(blockchain, address);
+            avatarLink.title = `Posting as ${name && name.length > 0 ? name : "Anonymous"}`;
+        }
         function hideModal() {
+            linkPreviewRenderVersion++;
             DOM.spiceometerText.innerText = "";
             addPostModal.hide();
             const modalBackdrops = document.querySelectorAll(".modal-backdrop");
@@ -168,6 +397,7 @@ async function preloadTinyMCE() {
             if (tinymceInitialized) {
                 (window as any).tinymce.get("addPostText")?.setContent("");
             }
+            DOM.addPostLinkPreview.innerHTML = "";
             inlineMediaMap.forEach(data => URL.revokeObjectURL(data.blobUrl));
             inlineMediaMap.clear();
             binaryAttachments = [];
@@ -190,7 +420,7 @@ async function preloadTinyMCE() {
                 console.log("[addPost] TinyMCE not initialized, returning");
                 return;
             }
-            let payload = (window as any).tinymce.get("addPostText")?.getContent();
+            let payload = flattenAutoLinkedUrls((window as any).tinymce.get("addPostText")?.getContent() || "");
             console.log("[addPost] Payload:", payload);
             if (!payload || payload.trim() === "") {
                 console.log("[addPost] Empty payload, hiding modal");
@@ -439,6 +669,12 @@ async function preloadTinyMCE() {
         }
         const handleInput = () => { checkSpiciness().then(); };
         const debounceHandler = debounce(handleInput, 2000);
+        const handleLinkPreview = () => {
+            const editor = (window as any).tinymce.get("addPostText");
+            if (!editor) return;
+            renderLinkPreview(editor).then();
+        };
+        const debounceLinkPreviewHandler = debounce(handleLinkPreview, 250);
         function clickFileInput() {
             if (isGatewayMode()) {
                 showGatewayUploadDialog();
@@ -456,6 +692,8 @@ async function preloadTinyMCE() {
             if (editor) {
                 const sanitized = XSSSanitizeValue(draft);
                 editor.setContent(`<p>${sanitized.replace(/^ /, "&nbsp;")}</p>`);
+                normalizeEditorLinks(editor);
+                renderLinkPreview(editor).then();
             }
         }
         DOM.addPostButton.addEventListener("click", showModal);
