@@ -99,3 +99,8 @@ Project instructions for Codex in this repository.
 - Follow explicit user instructions over preferences.
 - Follow `Must` and `Must Not` rules unless the user explicitly asks to override them.
 - If a requested change appears to conflict with the blockchain isolation, security, or migration rules above, pause and ask before proceeding.
+
+## Considerations
+
+- Be careful when using XSS sinks such as `innerHTML`, `document.write`, `outerHTML`, and others. Always verify that any data flowing into these sinks is properly sanitized or escaped by built-in functions. When in doubt, perform source-to-sink analysis to confirm that untrusted data cannot reach these sinks without appropriate handling.
+

@@ -1,6 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
-import {IsValidIpfsCid, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
+import {IsValidIpfsCid, IsValidURL, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {GetAddress, GetChain, GetWallet, WalletGetAvatar, WalletGetName, WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
 import {UploadFile} from "../util/files";
 import {AddFileToIPFS, getIpfsAvatarUrl} from "../util/ipfs";
@@ -58,6 +58,16 @@ async function preloadTinyMCE() {
                 "<a href=\"https://yourplace.network/download\" target=\"_blank\" rel=\"noopener noreferrer\">Download YourPlace</a>"
             );
         }
+        function showGatewayHotlinkDialog(url: string) {
+            if (gatewayHotlinkDialogUrls.has(url)) return;
+            gatewayHotlinkDialogUrls.add(url);
+            ShowDialogModalHTML(
+                "This image is hosted on a 3rd party server, which does not allow hotlinking.<br>" +
+                "Please download the YourPlace Server at " +
+                "<a href=\"https://yourplace.network/download\" target=\"_blank\" rel=\"noopener noreferrer\">https://yourplace.network/download</a> " +
+                "to host and upload it yourself"
+            );
+        }
 
         let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
@@ -76,7 +86,21 @@ async function preloadTinyMCE() {
             mimeType: string;
             size: string;
         }
+        interface importedExternalImageData {
+            uuid: string;
+            fileName: string;
+            mimeType: string;
+        }
+        interface externalImageState {
+            allowsEmbedding: boolean;
+            importedFile?: importedExternalImageData;
+            ipfsUrl?: string;
+        }
         let binaryAttachments: fileData[] = [];
+        let externalImageMap: Map<string, externalImageState> = new Map();
+        let externalImageRequestMap: Map<string, Promise<externalImageState>> = new Map();
+        let externalImageProcessingPromise: Promise<void> = Promise.resolve();
+        let gatewayHotlinkDialogUrls: Set<string> = new Set();
         let linkPreviewRenderVersion = 0;
         let removedAttachments: string[] = [];
         let tinymceInitialized = false;
@@ -143,11 +167,30 @@ async function preloadTinyMCE() {
                 }
             }
         }
+        function parseDetachedHtml(html: string): HTMLElement {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+            doc.body.querySelectorAll("script, style, form, input, button, textarea, svg").forEach(element => {
+                element.remove();
+            });
+            doc.body.querySelectorAll("*").forEach(element => {
+                Array.from(element.attributes).forEach(attribute => {
+                    const attributeName = attribute.name.toLowerCase();
+                    if (attributeName.startsWith("on")) {
+                        element.removeAttribute(attribute.name);
+                        return;
+                    }
+                    if ((attributeName === "href" || attributeName === "src") && XSSSanitizeUrl(attribute.value) === "#") {
+                        element.removeAttribute(attribute.name);
+                    }
+                });
+            });
+            return doc.body;
+        }
         function extractUrlsFromHtml(html: string): string[] {
-            const tempDiv = document.createElement("div");
+            const tempDiv = parseDetachedHtml(html);
             const seenUrls = new Set<string>();
             const urls: string[] = [];
-            tempDiv.innerHTML = html;
             Array.from(tempDiv.childNodes).forEach(node => {
                 extractUrlsFromNode(node, urls, seenUrls);
             });
@@ -213,8 +256,7 @@ async function preloadTinyMCE() {
             }
         }
         function flattenAutoLinkedUrls(html: string): string {
-            const tempDiv = document.createElement("div");
-            tempDiv.innerHTML = html;
+            const tempDiv = parseDetachedHtml(html);
             const anchors = tempDiv.querySelectorAll("a[href]");
             anchors.forEach(anchor => {
                 const href = anchor.getAttribute("href");
@@ -227,6 +269,140 @@ async function preloadTinyMCE() {
                 }
             });
             return tempDiv.innerHTML;
+        }
+        function isThirdPartyExternalImageUrl(url: string): boolean {
+            if (!url.startsWith("https://") || !IsValidURL(url)) {
+                return false;
+            }
+            try {
+                const parsedUrl = new URL(url);
+                return parsedUrl.origin !== window.location.origin;
+            } catch (error) {
+                return false;
+            }
+        }
+        function extractExternalImageUrlsFromHtml(html: string): string[] {
+            const tempDiv = parseDetachedHtml(html);
+            const seenUrls = new Set<string>();
+            const urls: string[] = [];
+            tempDiv.querySelectorAll("img[src]").forEach(image => {
+                const src = image.getAttribute("src")?.trim() || "";
+                if (!src || !isThirdPartyExternalImageUrl(src) || seenUrls.has(src)) {
+                    return;
+                }
+                seenUrls.add(src);
+                urls.push(src);
+            });
+            return urls;
+        }
+        function replaceExternalImageUrlsInHtml(html: string, replacements: Map<string, string>): string {
+            if (replacements.size === 0) {
+                return html;
+            }
+            const tempDiv = parseDetachedHtml(html);
+            tempDiv.querySelectorAll("img[src]").forEach(image => {
+                const src = image.getAttribute("src");
+                if (!src) {
+                    return;
+                }
+                const replacement = replacements.get(src);
+                if (replacement) {
+                    image.setAttribute("src", replacement);
+                }
+            });
+            return tempDiv.innerHTML;
+        }
+        async function canEmbedExternalImage(url: string): Promise<boolean> {
+            return new Promise(resolve => {
+                const sanitizedUrl = XSSSanitizeUrl(url);
+                if (sanitizedUrl === "#") {
+                    resolve(false);
+                    return;
+                }
+                const testImage = new Image();
+                let finished = false;
+                const timeoutId = window.setTimeout(() => finish(false), 8000);
+                const finish = (result: boolean) => {
+                    if (finished) return;
+                    finished = true;
+                    window.clearTimeout(timeoutId);
+                    testImage.onload = null;
+                    testImage.onerror = null;
+                    resolve(result);
+                };
+                testImage.onload = () => finish(true);
+                testImage.onerror = () => finish(false);
+                testImage.decoding = "async";
+                testImage.src = sanitizedUrl;
+            });
+        }
+        async function importExternalImage(url: string, csrfToken: string): Promise<importedExternalImageData | null> {
+            const [status, data] = await HttpPostJson("/files/fetchExternal", {url}, csrfToken);
+            if (status !== 200 || !data?.data || data.data.length === 0) {
+                return null;
+            }
+            return {
+                uuid: data.data[0].uuid,
+                fileName: data.data[0].fileName,
+                mimeType: data.data[0].mimeType
+            };
+        }
+        async function resolveExternalImage(url: string, csrfToken: string, showGatewayDialog: boolean = false): Promise<externalImageState> {
+            const cached = externalImageMap.get(url);
+            if (cached) {
+                if (!cached.allowsEmbedding && isGatewayMode() && showGatewayDialog) {
+                    showGatewayHotlinkDialog(url);
+                }
+                return cached;
+            }
+            const inFlight = externalImageRequestMap.get(url);
+            if (inFlight) {
+                return inFlight;
+            }
+            const request = (async () => {
+                const allowsEmbedding = await canEmbedExternalImage(url);
+                if (allowsEmbedding) {
+                    const state = {allowsEmbedding: true};
+                    externalImageMap.set(url, state);
+                    return state;
+                }
+                if (isGatewayMode()) {
+                    if (showGatewayDialog) {
+                        showGatewayHotlinkDialog(url);
+                    }
+                    const state = {allowsEmbedding: false};
+                    externalImageMap.set(url, state);
+                    return state;
+                }
+                const importedFile = await importExternalImage(url, csrfToken);
+                if (!importedFile) {
+                    return {allowsEmbedding: false};
+                }
+                const state = {
+                    allowsEmbedding: false,
+                    importedFile: importedFile
+                };
+                externalImageMap.set(url, state);
+                return state;
+            })().finally(() => {
+                externalImageRequestMap.delete(url);
+            });
+            externalImageRequestMap.set(url, request);
+            return request;
+        }
+        async function processExternalImagesInEditor(editor: any) {
+            const csrfToken = DOM.csrfToken.value;
+            const externalUrls = extractExternalImageUrlsFromHtml(editor.getContent());
+            for (const externalUrl of externalUrls) {
+                await resolveExternalImage(externalUrl, csrfToken, true);
+            }
+        }
+        function queueExternalImageProcessing(editor: any) {
+            externalImageProcessingPromise = externalImageProcessingPromise.then(async () => {
+                await processExternalImagesInEditor(editor);
+            }).catch(error => {
+                console.log("[addPost] Error preflighting external image:", error);
+            });
         }
         async function createLinkPreviewEmbed(url: string): Promise<HTMLElement | null> {
             const imageEmbed = createImageEmbed(url);
@@ -340,6 +516,7 @@ async function preloadTinyMCE() {
                         editor.on("PastePostProcess", function() {
                             window.setTimeout(() => {
                                 normalizeEditorLinks(editor);
+                                queueExternalImageProcessing(editor);
                                 debounceLinkPreviewHandler();
                             }, 0);
                         });
@@ -350,6 +527,7 @@ async function preloadTinyMCE() {
                             }
                         });
                         editor.on("SetContent", function() {
+                            queueExternalImageProcessing(editor);
                             debounceLinkPreviewHandler();
                         });
                     }
@@ -403,6 +581,8 @@ async function preloadTinyMCE() {
             binaryAttachments = [];
             removedAttachments = [];
             DOM.attachmentDiv.innerHTML = "";
+            externalImageProcessingPromise = Promise.resolve();
+            gatewayHotlinkDialogUrls.clear();
         }
         async function showModal() {
             addPostModal.show();
@@ -434,6 +614,7 @@ async function preloadTinyMCE() {
             }
             DOM.submitPostButton.disabled = true;
             let csrfToken = DOM.csrfToken.value;
+            await externalImageProcessingPromise;
             console.log("[addPost] inlineMediaMap size:", inlineMediaMap.size);
             // Replace blob URLs with IPFS URLs for inline media
             for (const [blobUrl, mediaData] of inlineMediaMap) {
@@ -453,37 +634,37 @@ async function preloadTinyMCE() {
                 payload = payload.split(blobUrl).join(ipfsUrl);
             }
             console.log("[addPost] Final payload after IPFS replacement:", payload);
-            // Handle external image URLs - fetch via server proxy, upload to IPFS
-            const externalImageRegex = /<img[^>]+src=["'](https?:\/\/[^"']+)["'][^>]*>/gi;
-            let match;
-            const processedUrls = new Set<string>();
-            while ((match = externalImageRegex.exec(payload)) !== null) {
-                const fullTag = match[0];
-                const externalUrl = match[1];
-                if (processedUrls.has(externalUrl)) continue;
-                processedUrls.add(externalUrl);
-                console.log("[addPost] Found external image:", externalUrl);
-                try {
-                    const [status, data] = await HttpPostJson("/files/fetch-external", {url: externalUrl}, csrfToken);
-                    console.log("[addPost] Fetch external response:", status, data);
-                    if (status !== 200 || !data.data || data.data.length === 0) {
-                        console.log("[addPost] Failed to fetch external image via proxy");
-                        continue;
-                    }
-                    const uploadedFile = data.data[0];
-                    const cid = await AddFileToIPFS(uploadedFile.uuid, csrfToken);
+            const externalImageReplacements = new Map<string, string>();
+            for (const externalUrl of extractExternalImageUrlsFromHtml(payload)) {
+                const externalState = await resolveExternalImage(externalUrl, csrfToken, true);
+                if (externalState.allowsEmbedding) {
+                    continue;
+                }
+                if (isGatewayMode()) {
+                    DOM.submitPostButton.disabled = false;
+                    return;
+                }
+                if (!externalState.importedFile) {
+                    ShowToastWithDelay("Failed to import external image", 5000);
+                    DOM.submitPostButton.disabled = false;
+                    return;
+                }
+                if (!externalState.ipfsUrl) {
+                    const cid = await AddFileToIPFS(externalState.importedFile.uuid, csrfToken);
                     const cidString = cid?.toString();
                     if (cidString === undefined || !IsValidIpfsCid(cidString)) {
-                        console.log("[addPost] Failed to add external image to IPFS");
-                        continue;
+                        ShowToastWithDelay("Failed to add external image to IPFS", 5000);
+                        DOM.submitPostButton.disabled = false;
+                        return;
                     }
-                    const ext = uploadedFile.fileName.split(".").pop() || "";
-                    const ipfsUrl = `ipfs://${cidString}.${ext}`;
-                    console.log("[addPost] Converted external image to IPFS:", ipfsUrl);
-                    payload = payload.split(externalUrl).join(ipfsUrl);
-                } catch (error) {
-                    console.log("[addPost] Error processing external image:", error);
+                    const ext = externalState.importedFile.fileName.split(".").pop() || "";
+                    externalState.ipfsUrl = ext.length > 0 ? `ipfs://${cidString}.${ext}` : `ipfs://${cidString}`;
+                    externalImageMap.set(externalUrl, externalState);
                 }
+                externalImageReplacements.set(externalUrl, externalState.ipfsUrl);
+            }
+            if (externalImageReplacements.size > 0) {
+                payload = replaceExternalImageUrlsInHtml(payload, externalImageReplacements);
             }
             console.log("[addPost] Final payload after external image processing:", payload);
             const filteredAttachments = binaryAttachments.filter(f => !removedAttachments.includes(f.fileName));

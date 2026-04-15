@@ -9,6 +9,7 @@ import (
 	"YourPlace/src/core/network"
 	"YourPlace/src/core/security"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -139,9 +140,9 @@ func FilesRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, 
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "data": fileDataArray})
 		return
 	})
-	router.POST("/files/fetch-external", func(c *gin.Context) {
-		// Fetch an external image URL and save it locally, returning file data for upload
-		// Disabled in gateway mode to prevent abuse
+	router.POST("/files/fetchExternal", func(c *gin.Context) {
+		// Fetch an external image URL and save it locally, returning file data for upload.
+		// Disabled in gateway mode to prevent abuse.
 		if gateway {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Not available in gateway mode"})
 			return
@@ -154,43 +155,61 @@ func FilesRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, 
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid request"})
 			return
 		}
-		// Validate URL
+		payload.URL = security.SanitizeNonPrintable(strings.TrimSpace(payload.URL))
 		parsedURL, err := url.Parse(payload.URL)
-		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		if err != nil || parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid URL"})
 			return
 		}
-		// Fetch the external resource
-		client := &http.Client{Timeout: 30 * time.Second}
-		resp, err := client.Get(payload.URL)
+		if security.IsPrivateHost(parsedURL.Hostname()) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid URL"})
+			return
+		}
+		client := &http.Client{
+			Timeout: 30 * time.Second,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 10 {
+					return http.ErrUseLastResponse
+				}
+				if req.URL == nil || req.URL.Host == "" || security.IsPrivateHost(req.URL.Hostname()) {
+					return http.ErrUseLastResponse
+				}
+				return nil
+			},
+		}
+		req, err := http.NewRequest(http.MethodGet, payload.URL, nil)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid URL"})
+			return
+		}
+		resp, err := client.Do(req)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadGateway, gin.H{"status": "Failed to fetch external resource"})
 			return
 		}
 		defer resp.Body.Close()
+		if resp.Request == nil || resp.Request.URL == nil || resp.Request.URL.Host == "" || security.IsPrivateHost(resp.Request.URL.Hostname()) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid URL"})
+			return
+		}
 		if resp.StatusCode != http.StatusOK {
 			c.AbortWithStatusJSON(http.StatusBadGateway, gin.H{"status": "External resource returned error"})
 			return
 		}
-		// Limit size to 50MB
-		const maxSize = 50 << 20
+		const maxSize = 50 << 20 // 50 MB
 		if resp.ContentLength > maxSize {
 			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"status": "External file too large"})
 			return
 		}
-		// Get content type and determine extension
 		contentType := resp.Header.Get("Content-Type")
-		if !strings.HasPrefix(contentType, "image/") && !strings.HasPrefix(contentType, "video/") {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "URL must point to an image or video"})
-			return
+		if mediaType, _, parseErr := mime.ParseMediaType(contentType); parseErr == nil {
+			contentType = mediaType
 		}
-		// Extract filename from URL or generate one
-		urlPath := parsedURL.Path
+		urlPath := resp.Request.URL.Path
 		fileName := filepath.Base(urlPath)
 		if fileName == "" || fileName == "." || fileName == "/" {
 			fileName = "external-" + uuid.New().String()
 		}
-		// Ensure proper extension based on content type
 		ext := filepath.Ext(fileName)
 		if ext == "" {
 			switch contentType {
@@ -211,7 +230,6 @@ func FilesRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, 
 			}
 			fileName += ext
 		}
-		// Save to upload directory
 		uploadDirectory := security.SanitizePathTraversal(database.SettingsGetValue("uploadDirectory"))
 		if !strings.HasSuffix(uploadDirectory, host.PathSeparator) {
 			uploadDirectory = uploadDirectory + host.PathSeparator
@@ -226,20 +244,21 @@ func FilesRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, 
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid file path"})
 			return
 		}
-		// Read body with size limit
-		limitedReader := io.LimitReader(resp.Body, maxSize)
+		limitedReader := io.LimitReader(resp.Body, maxSize+1)
 		bodyBytes, err := io.ReadAll(limitedReader)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadGateway, gin.H{"status": "Failed to read external resource"})
 			return
 		}
-		// Write to file
+		if int64(len(bodyBytes)) > maxSize {
+			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"status": "External file too large"})
+			return
+		}
 		host.WriteFile(tempFilePath, bodyBytes)
 		if !host.DoesExist(tempFilePath) {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Failed to save file"})
 			return
 		}
-		// Hash and rename
 		fileHash, err := security.HashFile(tempFilePath)
 		if err != nil {
 			host.DeleteIfExists(tempFilePath)
@@ -258,6 +277,27 @@ func FilesRoutes(router *gin.Engine, database *db.Database, ipfs *network.IPFS, 
 			return
 		}
 		_, mimeType := security.GetFileType(finalFilePath)
+		if !strings.HasPrefix(mimeType, "image/") && !strings.HasPrefix(mimeType, "video/") {
+			host.DeleteIfExists(finalFilePath)
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "URL must point to an image or video"})
+			return
+		}
+		if ext == ".bin" {
+			switch mimeType {
+			case "image/png":
+				fileName = strings.TrimSuffix(fileName, ext) + ".png"
+			case "image/jpeg":
+				fileName = strings.TrimSuffix(fileName, ext) + ".jpg"
+			case "image/gif":
+				fileName = strings.TrimSuffix(fileName, ext) + ".gif"
+			case "image/webp":
+				fileName = strings.TrimSuffix(fileName, ext) + ".webp"
+			case "video/mp4":
+				fileName = strings.TrimSuffix(fileName, ext) + ".mp4"
+			case "video/webm":
+				fileName = strings.TrimSuffix(fileName, ext) + ".webm"
+			}
+		}
 		fileSize := int64(len(bodyBytes))
 		database.FileAdd(fileUUID, fileHash, mimeType, fileName, fileSize)
 		fileData := map[string]interface{}{
