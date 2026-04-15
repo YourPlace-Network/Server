@@ -126,10 +126,29 @@ echo "Building deployment command..."
 # Build commands as a single shell script for AWS SSM
 SCRIPT=$(cat <<'EOF'
 set -e
+load_instance_profile_credentials() {
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_CREDENTIAL_EXPIRATION AWS_PROFILE AWS_DEFAULT_PROFILE AWS_CONTAINER_CREDENTIALS_FULL_URI AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+  export AWS_EC2_METADATA_DISABLED=false
+  IMDS_TOKEN=$(curl -fsS -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+  IMDS_ROLE_NAME=$(curl -fsS -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" "http://169.254.169.254/latest/meta-data/iam/security-credentials/")
+  IMDS_CREDENTIALS=$(curl -fsS -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" "http://169.254.169.254/latest/meta-data/iam/security-credentials/$IMDS_ROLE_NAME")
+  AWS_ACCESS_KEY_ID=$(echo "$IMDS_CREDENTIALS" | jq -r '.AccessKeyId // empty')
+  AWS_SECRET_ACCESS_KEY=$(echo "$IMDS_CREDENTIALS" | jq -r '.SecretAccessKey // empty')
+  AWS_SESSION_TOKEN=$(echo "$IMDS_CREDENTIALS" | jq -r '.Token // empty')
+  AWS_CREDENTIAL_EXPIRATION=$(echo "$IMDS_CREDENTIALS" | jq -r '.Expiration // empty')
+  if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SESSION_TOKEN" ]; then
+    echo 'ERROR: Failed to retrieve EC2 instance profile credentials from IMDS'
+    echo "$IMDS_CREDENTIALS"
+    exit 1
+  fi
+  export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_CREDENTIAL_EXPIRATION
+  echo "Instance profile role: $IMDS_ROLE_NAME"
+}
 aws_with_instance_profile() {
-  env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN -u AWS_CREDENTIAL_EXPIRATION -u AWS_PROFILE -u AWS_DEFAULT_PROFILE -u AWS_CONTAINER_CREDENTIALS_FULL_URI -u AWS_CONTAINER_CREDENTIALS_RELATIVE_URI AWS_EC2_METADATA_DISABLED=false aws "$@"
+  aws "$@"
 }
 echo '=== Using EC2 instance profile credentials ==='
+load_instance_profile_credentials
 aws_with_instance_profile sts get-caller-identity --region AWS_REGION_PLACEHOLDER --output json
 echo '=== Installing TLS certificates ==='
 mkdir -p /opt/YourPlace
