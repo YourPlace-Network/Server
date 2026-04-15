@@ -9,17 +9,79 @@ if [ -z "$INSTANCE_ID" ] || [ -z "$ECR_REGISTRY" ] || [ -z "$CLOUDFLARE_CERT_PEM
   exit 1
 fi
 
+print_instance_diagnostics() {
+  local instance_details instance_status
+
+  instance_details=$(aws ec2 describe-instances \
+    --instance-ids "$INSTANCE_ID" \
+    --region "$AWS_REGION" \
+    --output json 2>/dev/null || echo "{}")
+  instance_status=$(aws ec2 describe-instance-status \
+    --include-all-instances \
+    --instance-ids "$INSTANCE_ID" \
+    --region "$AWS_REGION" \
+    --output json 2>/dev/null || echo "{}")
+
+  echo "EC2 instance summary:"
+  echo "$instance_details" | jq '{
+    InstanceId: .Reservations[0].Instances[0].InstanceId,
+    State: .Reservations[0].Instances[0].State.Name,
+    LaunchTime: .Reservations[0].Instances[0].LaunchTime,
+    PublicIpAddress: .Reservations[0].Instances[0].PublicIpAddress,
+    PrivateIpAddress: .Reservations[0].Instances[0].PrivateIpAddress,
+    SubnetId: .Reservations[0].Instances[0].SubnetId,
+    VpcId: .Reservations[0].Instances[0].VpcId,
+    IamInstanceProfile: .Reservations[0].Instances[0].IamInstanceProfile.Arn,
+    SecurityGroups: .Reservations[0].Instances[0].SecurityGroups
+  }'
+  echo ""
+  echo "EC2 status checks:"
+  echo "$instance_status" | jq '{
+    InstanceId: .InstanceStatuses[0].InstanceId,
+    AvailabilityZone: .InstanceStatuses[0].AvailabilityZone,
+    InstanceState: .InstanceStatuses[0].InstanceState.Name,
+    SystemStatus: .InstanceStatuses[0].SystemStatus.Status,
+    InstanceStatus: .InstanceStatuses[0].InstanceStatus.Status,
+    AttachedEbsStatus: .InstanceStatuses[0].AttachedEbsStatus.Status,
+    Events: .InstanceStatuses[0].Events
+  }'
+  echo ""
+}
+
+echo "Checking EC2 instance status..."
+print_instance_diagnostics
+
 echo "Checking SSM agent status..."
-SSM_STATUS=$(aws ssm describe-instance-information \
-  --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
-  --region "$AWS_REGION" \
-  --output json 2>/dev/null || echo "{}")
+SSM_WAIT_COUNT=0
+SSM_MAX_WAIT=12
+PING_STATUS="Unknown"
+AGENT_VERSION="Unknown"
+LAST_PING="Unknown"
 
-PING_STATUS=$(echo "$SSM_STATUS" | jq -r '.InstanceInformationList[0].PingStatus // "Unknown"')
-AGENT_VERSION=$(echo "$SSM_STATUS" | jq -r '.InstanceInformationList[0].AgentVersion // "Unknown"')
+while [ $SSM_WAIT_COUNT -lt $SSM_MAX_WAIT ]; do
+  SSM_STATUS=$(aws ssm describe-instance-information \
+    --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+    --region "$AWS_REGION" \
+    --output json 2>/dev/null || echo "{}")
 
-echo "SSM Ping Status: $PING_STATUS"
-echo "SSM Agent Version: $AGENT_VERSION"
+  PING_STATUS=$(echo "$SSM_STATUS" | jq -r '.InstanceInformationList[0].PingStatus // "Unknown"')
+  AGENT_VERSION=$(echo "$SSM_STATUS" | jq -r '.InstanceInformationList[0].AgentVersion // "Unknown"')
+  LAST_PING=$(echo "$SSM_STATUS" | jq -r '.InstanceInformationList[0].LastPingDateTime // "Unknown"')
+
+  echo "SSM Ping Status: $PING_STATUS"
+  echo "SSM Agent Version: $AGENT_VERSION"
+  echo "Last SSM Ping: $LAST_PING"
+
+  if [ "$PING_STATUS" = "Online" ]; then
+    break
+  fi
+
+  SSM_WAIT_COUNT=$((SSM_WAIT_COUNT + 1))
+  if [ $SSM_WAIT_COUNT -lt $SSM_MAX_WAIT ]; then
+    echo "SSM agent is not online yet, retrying in 10 seconds... ($SSM_WAIT_COUNT/$SSM_MAX_WAIT)"
+    sleep 10
+  fi
+done
 
 if [ "$PING_STATUS" != "Online" ]; then
   echo "ERROR: SSM agent is not online on instance $INSTANCE_ID"
@@ -27,6 +89,9 @@ if [ "$PING_STATUS" != "Online" ]; then
   echo "  1. The EC2 instance has the SSM agent installed and running"
   echo "  2. The instance has the AmazonSSMManagedInstanceCore IAM policy"
   echo "  3. The instance has network connectivity to SSM endpoints"
+  echo ""
+  print_instance_diagnostics
+  echo "Last SSM Ping: $LAST_PING"
   echo ""
   echo "Full SSM status:"
   echo "$SSM_STATUS" | jq '.'
@@ -61,6 +126,11 @@ echo "Building deployment command..."
 # Build commands as a single shell script for AWS SSM
 SCRIPT=$(cat <<'EOF'
 set -e
+aws_with_instance_profile() {
+  env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN -u AWS_CREDENTIAL_EXPIRATION -u AWS_PROFILE -u AWS_DEFAULT_PROFILE -u AWS_CONTAINER_CREDENTIALS_FULL_URI -u AWS_CONTAINER_CREDENTIALS_RELATIVE_URI AWS_EC2_METADATA_DISABLED=false aws "$@"
+}
+echo '=== Using EC2 instance profile credentials ==='
+aws_with_instance_profile sts get-caller-identity --region AWS_REGION_PLACEHOLDER --output json
 echo '=== Installing TLS certificates ==='
 mkdir -p /opt/YourPlace
 echo 'CERT_PEM_BASE64_PLACEHOLDER' | base64 -d > /opt/YourPlace/cert.pem
@@ -69,7 +139,8 @@ chmod 644 /opt/YourPlace/cert.pem
 chmod 600 /opt/YourPlace/cert.key
 echo '=== Fetching database credentials from Secrets Manager ==='
 MYSQL_DSN_ENV=""
-if SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id yourplace/database/gateway --region AWS_REGION_PLACEHOLDER --query SecretString --output text 2>/dev/null); then
+SECRET_ERROR_FILE=$(mktemp)
+if SECRET_JSON=$(aws_with_instance_profile secretsmanager get-secret-value --secret-id yourplace/database/gateway --region AWS_REGION_PLACEHOLDER --query SecretString --output text 2>"$SECRET_ERROR_FILE"); then
   YOURPLACE_MYSQL_DSN=$(echo "$SECRET_JSON" | jq -r '"\(.username):\(.password)@tcp(\(.host):\(.port))/\(.dbname)"')
   if [ -n "$YOURPLACE_MYSQL_DSN" ] && [ "$YOURPLACE_MYSQL_DSN" != "null:null@tcp(null:null)/null" ]; then
     export YOURPLACE_MYSQL_DSN
@@ -77,10 +148,19 @@ if SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id yourplace/datab
     echo 'Database credentials retrieved successfully'
   fi
 else
-  echo 'No database secret found, using SQLite'
+  if grep -q 'ResourceNotFoundException' "$SECRET_ERROR_FILE"; then
+    echo 'No database secret found, using SQLite'
+  else
+    echo 'ERROR: Failed to fetch database credentials from Secrets Manager'
+    cat "$SECRET_ERROR_FILE"
+    rm -f "$SECRET_ERROR_FILE"
+    exit 1
+  fi
 fi
+rm -f "$SECRET_ERROR_FILE"
 echo '=== Logging into ECR ==='
-aws ecr get-login-password --region AWS_REGION_PLACEHOLDER | docker login --username AWS --password-stdin ECR_REGISTRY_PLACEHOLDER
+ECR_PASSWORD=$(aws_with_instance_profile ecr get-login-password --region AWS_REGION_PLACEHOLDER)
+printf '%s' "$ECR_PASSWORD" | docker login --username AWS --password-stdin ECR_REGISTRY_PLACEHOLDER
 echo '=== Cleaning up old Docker images ==='
 docker image prune -af --filter "until=24h" 2>/dev/null || docker image prune -af 2>/dev/null || echo 'Prune skipped'
 echo '=== Pulling latest image ==='
