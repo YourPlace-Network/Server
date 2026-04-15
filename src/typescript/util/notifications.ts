@@ -19,7 +19,7 @@ export async function ShowNotifications() {
         LogError("Could not fetch notifications");
         return;
     }
-    const notifications: Notification[] = notificationsResponse[1].notifications || [];
+    const notifications: Notification[] = notificationsResponse[1]?.notifications || [];
     switch (GetPageRoute()) {
         case "":
             for (const notification of notifications) {
@@ -58,7 +58,7 @@ function initNotificationBell() {
 async function updateBellBadge() {
     let response = await HttpGetJson("/notifications/count");
     if (response[0] !== 200) return;
-    let count = response[1].count || 0;
+    let count = response[1]?.count || 0;
     let badge = document.getElementById("notificationBadge");
     if (!badge) return;
     if (count > 0) {
