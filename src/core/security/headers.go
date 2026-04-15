@@ -1,10 +1,11 @@
 package security
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 func Headers(port int) gin.HandlerFunc {
@@ -41,12 +42,12 @@ func Headers(port int) gin.HandlerFunc {
 				"font-src 'self' https://fonts.gstatic.com data:; "+
 				"connect-src 'self' data: https://*:* wss://*:* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // this must wildcard all TLS connections to allow for P2P traffic
 				"frame-src https://*; "+
+				"frame-ancestors 'self' https://app.yourplace.network https://yourplace.network; "+
 				"worker-src 'self' blob:; "+ // Spotify Web Playback SDK spawns blob: workers for audio decoding
 				"base-uri 'self'; "+
 				"form-action 'self'; "+
 				"object-src 'none'; ")
 		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "SAMEORIGIN")
 		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")

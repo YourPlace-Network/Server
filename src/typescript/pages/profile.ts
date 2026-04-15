@@ -19,7 +19,7 @@ import {CreatePostCard} from "../components/postCard";
 import {CreateCollectibleCard, getBlockchainIconPath, getBlockchainUrl, processTextWithTags} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, IsValidBaseAddress, IsValidAlgoAddress, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util/ipfs";
-import {IsGatewayMode} from "../util/miscellaneous";
+import {IsGatewayMode, IsLandingPreview} from "../util/miscellaneous";
 import {ShowDialogModalWithCallback} from "../components/modalDialog";
 import {ShowToast} from "../components/toast";
 import {IsSpotifyConnected, IsValidSpotifyUrl, MountSpotifyConnectPill, MountSpotifyEmbed, MountSpotifyFullPlayer} from "../services/spotify";
@@ -97,6 +97,7 @@ declare global {
         let copiedTooltip: any;
         let displayCollectiblesCallId = 0;
         let isFollowing = false;
+        const isLandingPreview = IsLandingPreview();
         let lastCommentsHash = "";
         let lastPostsHash = "";
         let postsEverLoaded = false;
@@ -110,6 +111,11 @@ declare global {
 
         // --------- Page Functions --------- //
         async function init() {
+            if (isLandingPreview) {
+                document.body.classList.add("landingProfilePreview");
+                muteLandingPreviewMedia();
+                observeLandingPreviewMedia();
+            }
             let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]:not(#modalProfileEdit [data-bs-toggle="tooltip"])'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});}); // enable tooltips
             const blockchainIconPath = getBlockchainIconPath(DOM.injectedBlockchain.value);
@@ -709,8 +715,8 @@ declare global {
                     return;
                 }
             }
-            await MountSpotifyEmbed(DOM.musicEmbed, sanitized);
-            if (currentConnected || gatewayMode) {
+            await MountSpotifyEmbed(DOM.musicEmbed, sanitized, !isLandingPreview);
+            if (currentConnected || gatewayMode || isLandingPreview) {
                 DOM.spotifyConnectPill.classList.add("hidden");
             } else {
                 MountSpotifyConnectPill(DOM.spotifyConnectPill, () => {
@@ -718,6 +724,23 @@ declare global {
                     renderProfileMusicEmbedFromData(sanitized);
                 });
             }
+        }
+        function muteLandingPreviewMedia() {
+            document.querySelectorAll<HTMLMediaElement>("audio, video").forEach((media) => {
+                media.autoplay = false;
+                media.defaultMuted = true;
+                media.muted = true;
+                media.volume = 0;
+                try {
+                    media.pause();
+                } catch (_) {}
+            });
+        }
+        function observeLandingPreviewMedia() {
+            const observer = new MutationObserver(() => {
+                muteLandingPreviewMedia();
+            });
+            observer.observe(document.body, {childList: true, subtree: true});
         }
         async function renderProfileWebsiteFromData(website: string) {
             if (website && website.length > 0) {

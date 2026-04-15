@@ -14,6 +14,24 @@ export function IsGatewayMode(): boolean {
     const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
     return gatewayMode === "true" && !isLocalhost;
 }
+export function IsLandingPreview(): boolean {
+    const params = new URLSearchParams(window.location.search);
+    if (window.self === window.top) {
+        try {
+            sessionStorage.removeItem("landingPreview");
+        } catch (_) {}
+        return false;
+    }
+    try {
+        if (params.get("landingPreview") === "1") {
+            sessionStorage.setItem("landingPreview", "1");
+            return true;
+        }
+        return sessionStorage.getItem("landingPreview") === "1";
+    } catch (_) {
+        return params.get("landingPreview") === "1";
+    }
+}
 export function IsMobileDevice(): boolean {
     const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
     const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i;

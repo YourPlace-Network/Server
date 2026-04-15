@@ -72,7 +72,7 @@ export function MountSpotifyConnectPill(container: HTMLElement, onConnected: () 
         if (ok) onConnected();
     };
 }
-export async function MountSpotifyEmbed(container: HTMLElement, spotifyUrl: string): Promise<void> {
+export async function MountSpotifyEmbed(container: HTMLElement, spotifyUrl: string, autoplay: boolean = true): Promise<void> {
     const uri = IsValidSpotifyUrl(spotifyUrl);
     if (!uri) return;
     container.innerHTML = "";
@@ -80,9 +80,11 @@ export async function MountSpotifyEmbed(container: HTMLElement, spotifyUrl: stri
     container.appendChild(placeholder);
     const IFrameAPI = await loadSpotifyIframeApi();
     IFrameAPI.createController(placeholder, {uri: uri, width: "100%", height: 152}, (ctrl: any) => {
-        try {
-            ctrl.play();
-        } catch (_) {}
+        if (autoplay) {
+            try {
+                ctrl.play();
+            } catch (_) {}
+        }
     });
 }
 export async function MountSpotifyFullPlayer(container: HTMLElement, spotifyUrl: string): Promise<boolean> {
