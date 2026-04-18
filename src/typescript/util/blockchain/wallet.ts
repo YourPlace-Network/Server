@@ -47,7 +47,9 @@ import {
     baseGetAvatar,
     baseGetCollectibles,
     baseGetDescription,
+    baseIsWalletConnected,
     baseGetName,
+    baseReconnectWallet,
     baseGetTransferFeeEstimate,
     baseMintCollectible,
     baseSetAvatar,
@@ -82,7 +84,9 @@ import {
     ethereumGetAvatar,
     ethereumGetCollectibles,
     ethereumGetDescription,
+    ethereumIsWalletConnected,
     ethereumGetName,
+    ethereumReconnectWallet,
     ethereumGetTransferFeeEstimate,
     ethereumMintCollectible,
     ethereumSetAvatar,
@@ -388,18 +392,18 @@ export async function ReconnectWallet() {
     switch (wallet) {
         case "cbwalletbase":
             // Only reconnect if we have stored credentials - don't prompt for new connection
-            const wagmiStore = localStorage.getItem("wagmi.store");
+            const wagmiStore = localStorage.getItem("yourplace.store");
             if (wagmiStore) {
-                await baseConnectWallet();
+                await baseReconnectWallet();
             }
             break;
         case "localwalletethereum":
             await localWalletEthereumReconnect();
             break;
         case "metamaskethereum":
-            const ethWagmiStore = localStorage.getItem("yourplace_ethereum");
+            const ethWagmiStore = localStorage.getItem("yourplace_ethereum.store");
             if (ethWagmiStore) {
-                await ethereumConnectWallet();
+                await ethereumReconnectWallet();
             }
             break;
         case "pera":
@@ -1191,11 +1195,11 @@ export async function WalletIsConnected(): Promise<boolean> {
     let wallet = GetWallet();
     switch (wallet) {
         case "cbwalletbase":
-            return false;
+            return await baseIsWalletConnected();
         case "localwalletethereum":
             return hasLocalWalletEthereum();
         case "metamaskethereum":
-            return false;
+            return await ethereumIsWalletConnected();
         case "pera":
             return !!peraWallet.connector?.connected;
     }

@@ -1,4 +1,4 @@
-import {DisconnectWallet, GetAddress, IsInsufficientFundsError, OnRampFiat} from "./wallet";
+import {DisconnectWallet, GetAddress, IsInsufficientFundsError, OnRampFiat, SetAddress} from "./wallet";
 import type {CollectibleData} from "./wallet";
 import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
@@ -15,6 +15,7 @@ import {
     disconnect,
     getConnections,
     http as wagmiHttp,
+    reconnect,
     signMessage,
 } from "@wagmi/core";
 import {mainnet as wagmiMainnet} from "@wagmi/core/chains";
@@ -42,6 +43,8 @@ const ethereumEnsAvatarCache = new PersistentCache("ethereum_ens_avatar");
 const ethereumEnsAddressCache = new PersistentCache("ethereum_ens_address");
 let ethereumPrefetchedNonce: {nonce: string, issuedAt: string, fetchedAt: number} | null = null;
 const ETHEREUM_NONCE_PREFETCH_VALIDITY_MS = 300000;
+const ETHEREUM_WAGMI_STORAGE_KEY = "yourplace_ethereum.store";
+const ETHEREUM_WAGMI_RECENT_CONNECTOR_KEY = "yourplace_ethereum.recentConnectorId";
 
 async function initEthWallet() {
     if (ethereumInit) { return; }
@@ -74,17 +77,54 @@ async function initEthWallet() {
 }
 initEthWallet().then();
 
+function clearEthereumWalletStorage() {
+    localStorage.removeItem(ETHEREUM_WAGMI_STORAGE_KEY);
+    localStorage.removeItem(ETHEREUM_WAGMI_RECENT_CONNECTOR_KEY);
+    localStorage.removeItem("wagmi.store");
+    localStorage.removeItem("wagmi.recentConnectorId");
+}
+function getEthereumConnectedAddress(): string {
+    const address = getConnections(ethereumWagmiConfig)[0]?.accounts?.[0]?.toString() || "";
+    if (address !== "" && IsValidBaseAddress(address)) {
+        return address;
+    }
+    return "";
+}
+function syncEthereumStoredAddress(address: string): string {
+    if (address !== "" && GetAddress() !== address) {
+        SetAddress(address);
+    }
+    return address;
+}
+async function restoreEthereumConnection(): Promise<string> {
+    const connector = ethereumWagmiConfig?.connectors?.[0];
+    if (!connector) {
+        return "";
+    }
+    try {
+        await reconnect(ethereumWagmiConfig, {
+            connectors: [connector],
+        });
+    } catch (_) {}
+    return syncEthereumStoredAddress(getEthereumConnectedAddress());
+}
+
 export async function ethereumAuthLogin(): Promise<string> {
     if (!ethereumInit) {
         await initEthWallet();
-        await ethereumConnectWallet();
+    }
+    let address = syncEthereumStoredAddress(getEthereumConnectedAddress());
+    if (address === "") {
+        address = await ethereumReconnectWallet();
+    }
+    if (address === "") {
+        address = await ethereumConnectWallet();
     }
     let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
     if (!csrfToken || csrfToken === "") {
         LogError("CSRF token not found - ethereumAuthLogin()");
         return "csrf token not found";
     }
-    let address = GetAddress()!;
     if (!address || address === "" || !IsValidBaseAddress(address)) {
         LogError("Invalid Ethereum address - ethereumAuthLogin()");
         return "invalid address";
@@ -157,30 +197,28 @@ export async function ethereumConnectWallet(): Promise<string> {
         await initEthWallet();
     }
     try {
-        const connections = getConnections(ethereumWagmiConfig);
-        if (connections.length > 0) {
-            const accounts = connections[0].accounts;
-            if (accounts && accounts.length > 0) {
-                const _address = accounts[0].toString();
-                if (_address && _address !== "" && IsValidBaseAddress(_address)) {
-                    return _address;
-                }
-            }
-            await disconnect(ethereumWagmiConfig);
-            localStorage.removeItem("wagmi.store");
-        } else {
-            localStorage.removeItem("wagmi.store");
+        let address = syncEthereumStoredAddress(getEthereumConnectedAddress());
+        if (address !== "") {
+            return address;
         }
+        address = await restoreEthereumConnection();
+        if (address !== "") {
+            return address;
+        }
+        if (getConnections(ethereumWagmiConfig).length > 0) {
+            await disconnect(ethereumWagmiConfig);
+        }
+        clearEthereumWalletStorage();
         const {accounts} = await wagmiConnect(ethereumWagmiConfig, {
             chainId: wagmiMainnet.id,
             connector: ethereumWagmiConfig.connectors[0],
         });
-        let _address = accounts[0].toString();
-        if (!_address || _address === "" || !IsValidBaseAddress(_address)) {
+        address = accounts[0].toString();
+        if (!address || address === "" || !IsValidBaseAddress(address)) {
             LogError("Failed to connect to Ethereum Wallet: Invalid address returned");
             return "";
         }
-        return _address;
+        return syncEthereumStoredAddress(address);
     } catch (error: unknown) {
         if (error instanceof Error) {
             if (error instanceof UserRejectedRequestError) {
@@ -192,28 +230,56 @@ export async function ethereumConnectWallet(): Promise<string> {
         return "";
     }
 }
+export async function ethereumReconnectWallet(): Promise<string> {
+    if (!ethereumInit) {
+        await initEthWallet();
+    }
+    return await restoreEthereumConnection();
+}
 export async function ethereumDisconnectWallet(): Promise<void> {
     if (!ethereumInit) return;
     await disconnect(ethereumWagmiConfig);
 }
-export async function ethereumTxn(dest: string, payload: string) {
-    let address = GetAddress();
-    if (!address) {
-        LogError("ethereumTxn: No address found");
-        return;
-    }
+export async function ethereumIsWalletConnected(): Promise<boolean> {
     if (!ethereumInit) {
         await initEthWallet();
     }
+    const address = getEthereumConnectedAddress();
+    if (address !== "") {
+        syncEthereumStoredAddress(address);
+        return true;
+    }
     try {
-        let connections = getConnections(ethereumWagmiConfig);
+        const accounts = await ethereumWagmiConfig?.connectors?.[0]?.getAccounts();
+        const accountAddress = accounts?.[0]?.toString() || "";
+        if (accountAddress !== "" && IsValidBaseAddress(accountAddress)) {
+            syncEthereumStoredAddress(accountAddress);
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
+export async function ethereumTxn(dest: string, payload: string) {
+    if (!ethereumInit) {
+        await initEthWallet();
+    }
+    let address = "";
+    try {
+        address = syncEthereumStoredAddress(getEthereumConnectedAddress());
+        if (address === "") {
+            address = await ethereumReconnectWallet();
+        }
+        if (address === "") {
+            address = await ethereumConnectWallet();
+        }
+        if (!address) {
+            LogError("ethereumTxn: No address found");
+            return;
+        }
+        const connections = getConnections(ethereumWagmiConfig);
         if (!connections.length) {
-            await ethereumConnectWallet();
-            connections = getConnections(ethereumWagmiConfig);
-            if (!connections.length) {
-                LogError("ethereumTxn: Failed to connect to Ethereum Wallet");
-                return;
-            }
+            LogError("ethereumTxn: Failed to connect to Ethereum Wallet");
+            return;
         }
         const connector = connections[0]?.connector;
         const provider = await connector?.getProvider() as { request: (args: { method: string; params: unknown[] }) => Promise<string> } | undefined;

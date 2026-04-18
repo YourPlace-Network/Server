@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func PostRoutes(router *gin.Engine, database *db.Database, title string) {
+func PostRoutes(router *gin.Engine, database *db.Database, title string, cryptoSeed []byte) {
 	router.GET("/posts/:blockchain/:address", func(c *gin.Context) {
 		blockchain := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchain) {
@@ -74,10 +74,13 @@ func PostRoutes(router *gin.Engine, database *db.Database, title string) {
 			return
 		}
 		authenticated := false
-		cryptoSeed := []byte(database.SettingsGetValue("cryptoSeed"))
+		userAddress := ""
+		userBlockchain := ""
 		authCookie, err := c.Request.Cookie("yp_auth")
 		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
 			authenticated = true
+			userAddress, _ = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
+			userBlockchain, _ = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
 		}
 		pageTitle := "Post | " + title
 		gateway := host.IsGatewayMode()
@@ -90,6 +93,8 @@ func PostRoutes(router *gin.Engine, database *db.Database, title string) {
 			"isCookieAuthenticated": authenticated,
 			"blockchain":            blockchain,
 			"txHash":                txHash,
+			"userAddress":           userAddress,
+			"userBlockchain":        userBlockchain,
 		})
 	})
 	router.GET("/post/data/:blockchain/:txHash", func(c *gin.Context) {

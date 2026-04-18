@@ -443,7 +443,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 		routes.SetupRoutes(router, database, title, favicon, port)
 	} else {
 		routes.ProfileRoutes(router, title, database, _blockchain, gateway)
-		routes.PostRoutes(router, database, title)
+		routes.PostRoutes(router, database, title, cryptoSeed)
 		routes.CommentRoutes(router, database)
 		routes.ReactionRoutes(router, database)
 		routes.FeedRoutes(router, database)

@@ -1,4 +1,4 @@
-import {DisconnectWallet, GetAddress, IsInsufficientFundsError, OnRampFiat} from "./wallet";
+import {DisconnectWallet, GetAddress, IsInsufficientFundsError, OnRampFiat, SetAddress} from "./wallet";
 import type {CollectibleData} from "./wallet";
 import {LogError, LogInfo} from "../log";
 import {HttpGetJson, HttpPostJson} from "../network";
@@ -15,6 +15,7 @@ import {
     disconnect,
     getConnections, getEnsAvatar, getEnsName,
     http as wagmiHttp,
+    reconnect,
     readContract,
     sendTransaction,
     signMessage,
@@ -136,6 +137,8 @@ const metadataYourPlace = {
     throttle: 500, // milliseconds
     baseBuilderCode: "bc_w72oslhy",
 }
+const BASE_WAGMI_STORAGE_KEY = "yourplace.store";
+const BASE_WAGMI_RECENT_CONNECTOR_KEY = "yourplace.recentConnectorId";
 let baseInit = false;
 let viemClient: any;
 let wagmiConfig: any;
@@ -198,6 +201,38 @@ async function initBaseWallet() {
 }
 initBaseWallet().then();
 
+function clearBaseWalletStorage() {
+    localStorage.removeItem(BASE_WAGMI_STORAGE_KEY);
+    localStorage.removeItem(BASE_WAGMI_RECENT_CONNECTOR_KEY);
+    localStorage.removeItem("wagmi.store");
+    localStorage.removeItem("wagmi.recentConnectorId");
+}
+function getBaseConnectedAddress(): string {
+    const address = getConnections(wagmiConfig)[0]?.accounts?.[0]?.toString() || "";
+    if (address !== "" && IsValidBaseAddress(address)) {
+        return address;
+    }
+    return "";
+}
+function syncBaseStoredAddress(address: string): string {
+    if (address !== "" && GetAddress() !== address) {
+        SetAddress(address);
+    }
+    return address;
+}
+async function restoreBaseConnection(): Promise<string> {
+    const connector = wagmiConfig?.connectors?.[0];
+    if (!connector) {
+        return "";
+    }
+    try {
+        await reconnect(wagmiConfig, {
+            connectors: [connector],
+        });
+    } catch (_) {}
+    return syncBaseStoredAddress(getBaseConnectedAddress());
+}
+
 // ---------- Core Wallet Functions ---------- //
 export async function basePrefetchLoginNonce(): Promise<void> {
     try {
@@ -217,14 +252,19 @@ export async function baseAuthLogin(): Promise<string> {
     // RET: string - "success" or error message or ""
     if (!baseInit) {
         await initBaseWallet();
-        await baseConnectWallet();
+    }
+    let address = syncBaseStoredAddress(getBaseConnectedAddress());
+    if (address === "") {
+        address = await baseReconnectWallet();
+    }
+    if (address === "") {
+        address = await baseConnectWallet();
     }
     let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
     if (!csrfToken || csrfToken === "") {
         LogError("CSRF token not found - baseAuthLogin()");
         return "csrf token not found";
     }
-    let address = GetAddress()!;
     if (!address || address === "" || !IsValidBaseAddress(address)) {
         LogError("Invalid Base address - baseAuthLogin()");
         return "invalid address";
@@ -310,34 +350,28 @@ export async function baseConnectWallet(): Promise<string> {
         await initBaseWallet();
     }
     try {
-        // Check if already connected and get existing connection
-        const connections = getConnections(wagmiConfig);
-        if (connections.length > 0) {
-            // Get the address from the existing connection
-            const accounts = connections[0].accounts;
-            if (accounts && accounts.length > 0) {
-                const _address = accounts[0].toString();
-                if (_address && _address !== "" && IsValidBaseAddress(_address)) {
-                    return _address;
-                }
-            }
-            // If we can't get a valid address, disconnect first
-            await disconnect(wagmiConfig);
-            localStorage.removeItem("wagmi.store"); // https://github.com/wevm/wagmi/issues/3425
-        } else {
-            localStorage.removeItem("wagmi.store"); // https://github.com/wevm/wagmi/issues/3425
+        let address = syncBaseStoredAddress(getBaseConnectedAddress());
+        if (address !== "") {
+            return address;
         }
-        // Now connect fresh
+        address = await restoreBaseConnection();
+        if (address !== "") {
+            return address;
+        }
+        if (getConnections(wagmiConfig).length > 0) {
+            await disconnect(wagmiConfig);
+        }
+        clearBaseWalletStorage(); // https://github.com/wevm/wagmi/issues/3425
         const {accounts} = await wagmiConnect(wagmiConfig, {
             chainId: wagmiBase.id,
             connector: wagmiConfig.connectors[0],
         });
-        let _address = accounts[0].toString();
-        if (!_address || _address === "" || !IsValidBaseAddress(_address)) {
+        address = accounts[0].toString();
+        if (!address || address === "" || !IsValidBaseAddress(address)) {
             LogError("Failed to connect to Base Wallet: Invalid address returned");
             return "";
         }
-        return _address;
+        return syncBaseStoredAddress(address);
     } catch (error: unknown) {
         if (error instanceof Error) {
             if (error instanceof UserRejectedRequestError) {
@@ -349,6 +383,12 @@ export async function baseConnectWallet(): Promise<string> {
         }
         return "";
     }
+}
+export async function baseReconnectWallet(): Promise<string> {
+    if (!baseInit) {
+        await initBaseWallet();
+    }
+    return await restoreBaseConnection();
 }
 export async function baseDisconnectWallet(): Promise<void> {
     await disconnect(wagmiConfig);
@@ -365,29 +405,46 @@ export async function baseDisconnectWallet(): Promise<void> {
     }
 }
 export async function baseIsWalletConnected(): Promise<boolean> {
-    // todo: check if wallet is connected
-    // LogInfo("finish implementing baseIsWalletConnected()");
-    return false
-}
-export async function baseTxn(dest: string, payload: string) {
-    let address = GetAddress();
-    if (!address) {
-        LogError("baseTxn: No address found");
-        return;
-    }
     if (!baseInit) {
         await initBaseWallet();
     }
+    const address = getBaseConnectedAddress();
+    if (address !== "") {
+        syncBaseStoredAddress(address);
+        return true;
+    }
     try {
-        let connections = getConnections(wagmiConfig);
+        const accounts = await wagmiConfig?.connectors?.[0]?.getAccounts();
+        const accountAddress = accounts?.[0]?.toString() || "";
+        if (accountAddress !== "" && IsValidBaseAddress(accountAddress)) {
+            syncBaseStoredAddress(accountAddress);
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
+export async function baseTxn(dest: string, payload: string) {
+    if (!baseInit) {
+        await initBaseWallet();
+    }
+    let address = "";
+    try {
+        address = syncBaseStoredAddress(getBaseConnectedAddress());
+        if (address === "") {
+            address = await baseReconnectWallet();
+        }
+        if (address === "") {
+            address = await baseConnectWallet();
+        }
+        if (!address) {
+            LogError("baseTxn: No address found");
+            return;
+        }
+        const connections = getConnections(wagmiConfig);
         LogInfo("baseTxn: Current connections: " + connections.length);
         if (!connections.length) {
-            await baseConnectWallet();
-            connections = getConnections(wagmiConfig);
-            if (!connections.length) {
-                LogError("baseTxn: Failed to connect to Base Wallet");
-                return;
-            }
+            LogError("baseTxn: Failed to connect to Base Wallet");
+            return;
         }
         const connector = connections[0]?.connector;
         LogInfo("baseTxn: Using connector: " + connector?.name + ", address: " + address + ", dest: " + dest);

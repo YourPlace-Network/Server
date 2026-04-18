@@ -35,6 +35,9 @@ declare global {
         window.DisconnectWalletCallback = function() {}
 
         async function syncAuthState() {
+            if (!DOM.isCookieAuthenticated) {
+                return;
+            }
             let isAuthenticated = DOM.isCookieAuthenticated && DOM.isCookieAuthenticated.value === "true";
             let walletConnected = await WalletIsConnected();
             if (!isAuthenticated && walletConnected) {

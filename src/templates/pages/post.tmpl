@@ -35,6 +35,11 @@
     </div>
     <input type="hidden" id="postBlockchain" value="{{.blockchain}}">
     <input type="hidden" id="postTxHash" value="{{.txHash}}">
+    <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
+    <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">
+    <input type="hidden" id="userAddress" value="{{ .userAddress }}">
+    <input type="hidden" id="userBlockchain" value="{{ .userBlockchain }}">
+    <input type="hidden" id="gatewayMode" value="{{ .gatewayMode }}">
 {{template "footer" .}}
 </body>
 </html>
