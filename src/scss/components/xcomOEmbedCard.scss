@@ -37,16 +37,24 @@
   flex-wrap: wrap;
 }
 .xcomCardTextDiv {
+  box-sizing: border-box;
+  min-width: 0;
+  overflow-wrap: anywhere;
   position: relative;
   width: 100%;
   padding-left: 3.1em;
   transform: translateY(-1.3em);
   margin-bottom: -1em;
+  word-break: break-word;
   img {
     width: -webkit-fill-available;
     max-height: 100em;
     border-radius: 1em;
   }
+}
+.xcomCardTextDiv a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .xcomCardUsernameLink {
   color: var(--yp-text);

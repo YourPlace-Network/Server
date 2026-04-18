@@ -20,6 +20,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.25em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .oEmbedCardDescription {
   font-size: 0.85em;

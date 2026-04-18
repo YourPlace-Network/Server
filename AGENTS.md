@@ -60,8 +60,9 @@ Project instructions for Codex in this repository.
 - Keep indentation aligned with surrounding code.
 - For snapshot-related work, prefer modifying the snapshot service rather than reshaping core server flow around it.
 - For long-form modal content, use `<div class='modalBodyLeft'>...</div>` instead of changing the global modal alignment.
-- Treat `704px` as the mobile versus desktop breakpoint. Treat `360px` to `704px` as mobile and anything above `704px` as desktop.
+- Treat `704px` as the mobile versus desktop breakpoint. Treat `360px` to `704px` as mobile and anything above `704px` as desktop. Don't worry about optimizing for resolutions below `360px` as very few devices will be in that range.
 - Perform source-to-sink analysis when doing vulnerability work. Verify exploitability through actual data flow.
+- Before making any code changes, create a detailed plan for me to review before you implement anything. Especially if the change is large, complex, or touches security-sensitive areas. The plan should include a clear description of the problem, the proposed solution, and any potential risks or edge cases to consider. This will help ensure that we are aligned on the approach before any code is written.
 
 ## Must Not
 
@@ -103,4 +104,6 @@ Project instructions for Codex in this repository.
 ## Considerations
 
 - Be careful when using XSS sinks such as `innerHTML`, `document.write`, `outerHTML`, and others. Always verify that any data flowing into these sinks is properly sanitized or escaped by built-in functions. When in doubt, perform source-to-sink analysis to confirm that untrusted data cannot reach these sinks without appropriate handling.
+- The webpack build can take a while. You need to be patient while waiting for it to finish, and you should avoid making unnecessary changes that trigger rebuilds. If you are making multiple frontend changes, consider bundling them together to minimize the number of builds.
+
 

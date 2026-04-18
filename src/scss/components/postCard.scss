@@ -69,15 +69,23 @@
   color: var(--yp-text);
 }
 .postCardTextDiv {
+  box-sizing: border-box;
   display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
   position: relative;
   width: 100%;
   padding-left: 5em;
   transform: translateY(-2.2em);
   margin-bottom: -2.2em;
+  word-break: break-word;
   &.clickable {
     cursor: pointer;
   }
+}
+.postCardTextDiv a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .postCardTextDiv img {
   width: -webkit-fill-available;

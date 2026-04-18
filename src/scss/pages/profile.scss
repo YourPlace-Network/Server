@@ -350,6 +350,47 @@ input[type="file"] {
   #profileName {
     max-width: calc(100vw - 18em);
   }
+  #rowDescription {
+    height: auto;
+    min-height: 0;
+  }
+  #profileDescription {
+    overflow-wrap: anywhere;
+    padding-top: 0.5em;
+    position: static;
+    top: 0;
+    word-break: break-word;
+  }
+  #profileMeta,
+  #profileStatsDiv {
+    gap: 0.5em 1em;
+    flex-wrap: wrap;
+  }
+  #profileStatsDiv {
+    justify-content: flex-start;
+    padding-left: 1em;
+  }
+  .iconMeta,
+  .metaText {
+    float: none;
+  }
+  .metaPair {
+    flex: 1 1 12em;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .metaText {
+    overflow-wrap: anywhere;
+  }
+  .stat {
+    flex: 0 1 calc(50% - 1em);
+    min-width: 7em;
+    max-width: 8.5em;
+    width: auto;
+  }
+  .stat1 {
+    padding-left: 0;
+  }
 }
 @media(max-width: 600px) {
   #bannerImg {
@@ -376,6 +417,9 @@ input[type="file"] {
     height: 6em;
     margin: 0.5em;
     top: -3em;
+  }
+  .metaPair {
+    flex-basis: 100%;
   }
   #profileName {
     max-width: calc(100vw - 10em);
