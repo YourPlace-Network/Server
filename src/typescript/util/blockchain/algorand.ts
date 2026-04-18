@@ -13,7 +13,7 @@ import {CIDToSubdomainURL} from "../ipfs";
 
 // ---------- Algorand Variables & Objects ---------- //
 export let algod: Algodv2;
-export let peraWallet = new PeraWalletConnect({shouldShowSignTxnToast: true, chainId: 416001});
+export let peraWallet = new PeraWalletConnect({shouldShowSignTxnToast: false, chainId: 416001});
 let algoInitialized = false;
 let algodURL: string, algodToken: string;
 const avatarCache = new PersistentCache("algo_avatar");

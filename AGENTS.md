@@ -105,5 +105,5 @@ Project instructions for Codex in this repository.
 
 - Be careful when using XSS sinks such as `innerHTML`, `document.write`, `outerHTML`, and others. Always verify that any data flowing into these sinks is properly sanitized or escaped by built-in functions. When in doubt, perform source-to-sink analysis to confirm that untrusted data cannot reach these sinks without appropriate handling.
 - The webpack build can take a while. You need to be patient while waiting for it to finish, and you should avoid making unnecessary changes that trigger rebuilds. If you are making multiple frontend changes, consider bundling them together to minimize the number of builds.
-
+- When implementing code changes and features, don't create tests unless I specifically ask for them. Focus on implementing the requested functionality first, and we can discuss testing separately if needed. If you do create tests, make sure they are relevant to the specific change and follow the existing testing patterns in the codebase.
 

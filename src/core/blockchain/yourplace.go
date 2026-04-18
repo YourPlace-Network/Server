@@ -38,12 +38,40 @@ func isValidYourPlacePayload(payload string) (bool, int, string, map[string]inte
 	}
 	return true, versionNumber, actionCode, payloadObject
 }
+
+type yourPlaceTargetPolicy struct {
+	allowBurnTarget bool
+	allowSelfTarget bool
+}
+
+type yourPlaceTransactionContext struct {
+	database     *db.Database
+	blockchain   string
+	txHash       string
+	fromAddress  string
+	toAddress    string
+	payload      string
+	amount       uint64
+	timestamp    uint64
+	blockNumber  uint64
+	targetPolicy yourPlaceTargetPolicy
+}
+
 func isValidBurnAddress(blockchain string, toAddress string) bool {
 	if blockchain == "base" {
 		return toAddress == burnAddressETH
 	}
 	if blockchain == "ethereum" {
 		return toAddress == burnAddressETHDead
+	}
+	return false
+}
+func isValidYourPlaceTarget(txnContext yourPlaceTransactionContext) bool {
+	if txnContext.targetPolicy.allowSelfTarget && txnContext.toAddress == txnContext.fromAddress {
+		return true
+	}
+	if txnContext.targetPolicy.allowBurnTarget && isValidBurnAddress(txnContext.blockchain, txnContext.toAddress) {
+		return true
 	}
 	return false
 }
@@ -72,130 +100,98 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 		core.LogDebug("Could not decode YourPlace transaction: " + err.Error())
 		return
 	}
-	decodedDataStr := string(decodedDataBytes)
-	isValid, versionNumber, actionCode, payloadObject := isValidYourPlacePayload(decodedDataStr)
-	if !isValid {
-		core.LogDebug("Could not decode YourPlace transaction: ")
-		return
-	}
-
-	txHash := transaction["hash"].(string)
-	fromAddress := transaction["from"].(string)
-	toAddress := transaction["to"].(string)
-	parentTxHash := ""
 	amountHexStr := transaction["value"].(string)[2:]
 	amountInt, _ := strconv.ParseUint(amountHexStr, 16, 64)
+	txnContext := yourPlaceTransactionContext{
+		database:    _Database,
+		blockchain:  blockchain,
+		txHash:      transaction["hash"].(string),
+		fromAddress: transaction["from"].(string),
+		toAddress:   transaction["to"].(string),
+		payload:     string(decodedDataBytes),
+		amount:      amountInt,
+		timestamp:   timestamp,
+		blockNumber: blockNumber,
+		targetPolicy: yourPlaceTargetPolicy{
+			allowBurnTarget: true,
+		},
+	}
+	tokenizeYourPlacePayload(txnContext)
+}
+func tokenizeYourPlacePayload(txnContext yourPlaceTransactionContext) {
+	isValid, versionNumber, actionCode, payloadObject := isValidYourPlacePayload(txnContext.payload)
+	if !isValid {
+		core.LogDebug("Could not decode YourPlace transaction: " + txnContext.txHash)
+		return
+	}
+	parentTxHash := ""
 	actionPrefix := actionCode[0]
 	actionPostfix := actionCode[1:]
 
 	if versionNumber == 1 {
 		switch actionPrefix {
 		case 'p': // Post Actions
-			if !isValidBurnAddress(blockchain, toAddress) {
-				core.LogDebug("Post action not sent to burn address")
+			if !isValidYourPlaceTarget(txnContext) {
+				core.LogDebug("Post action sent to invalid target")
 				return
 			}
 			switch actionPostfix {
 			case "":
-				if !handlePostTransaction(payloadObject, txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, blockNumber) {
+				if !handlePostTransaction(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, parentTxHash, txnContext.amount, txnContext.timestamp, txnContext.blockNumber) {
 					break
 				}
 			case "a":
-				if !handlePostTransactionAttachment(payloadObject, txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, blockNumber) {
+				if !handlePostTransactionAttachment(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, parentTxHash, txnContext.amount, txnContext.timestamp, txnContext.blockNumber) {
 					break
 				}
 			}
 			break
 		case 'c': // Comment Actions
 			switch actionPostfix {
-			case "": // Plain comment
-				if !handleCommentTransaction(payloadObject, txHash, blockchain, fromAddress, amountInt, timestamp, blockNumber) {
+			case "":
+				if !handleCommentTransaction(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, txnContext.amount, txnContext.timestamp, txnContext.blockNumber) {
 					break
 				}
-			case "a": // Comment with attachments
-				if !handleCommentTransactionAttachment(payloadObject, txHash, blockchain, fromAddress, amountInt, timestamp, blockNumber) {
+			case "a":
+				if !handleCommentTransactionAttachment(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, txnContext.amount, txnContext.timestamp, txnContext.blockNumber) {
 					break
 				}
 			}
 			break
 		case 'r': // Reaction Actions
 			switch actionPostfix {
-			case "l": // Like
-				if !handleLikeTransaction(payloadObject, txHash, blockchain, fromAddress, timestamp) {
+			case "l":
+				if !handleLikeTransaction(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, txnContext.timestamp) {
 					break
 				}
-			case "dl": // Dislike
-				if !handleDislikeTransaction(payloadObject, txHash, blockchain, fromAddress, timestamp) {
+			case "dl":
+				if !handleDislikeTransaction(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, txnContext.timestamp) {
 					break
 				}
-			case "e": // Emoji reaction
-				if !handleEmojiReactionTransaction(payloadObject, txHash, blockchain, fromAddress, timestamp) {
+			case "e":
+				if !handleEmojiReactionTransaction(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, txnContext.timestamp) {
 					break
 				}
 			}
 			break
 		case 'f': // Follow Actions
 			switch actionPostfix {
-			case "": // Follow user (directed to recipient)
-				blockchainPayload, ok1 := payloadObject["b"]
-				addressPayload, ok2 := payloadObject["a"]
-				if !ok1 || !ok2 {
-					core.LogDebug("Follow action missing required fields")
+			case "":
+				if !handleFollowTransaction(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, txnContext.timestamp) {
 					break
 				}
-				blockchainStr, ok1 := blockchainPayload.(string)
-				addressStr, ok2 := addressPayload.(string)
-				if !ok1 || !ok2 {
-					core.LogDebug("Follow action fields are not strings")
+			case "u":
+				if !handleUnfollowTransaction(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, txnContext.timestamp) {
 					break
 				}
-				if !security.IsValidBlockchain(blockchainStr) {
-					core.LogDebug("Invalid blockchain in follow action")
-					break
-				}
-				if !security.IsValidAddress(addressStr, blockchainStr) {
-					core.LogDebug("Invalid address in follow action")
-					break
-				}
-				if fromAddress == addressStr && blockchain == blockchainStr { // Ignore self-follow attempts (follower count fraud)
-					break
-				}
-				_Database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
-				break
-			case "u": // Unfollow user (directed to recipient)
-				blockchainPayload, ok1 := payloadObject["b"]
-				addressPayload, ok2 := payloadObject["a"]
-				if !ok1 || !ok2 {
-					core.LogDebug("Unfollow action missing required fields")
-					break
-				}
-				blockchainStr, ok1 := blockchainPayload.(string)
-				addressStr, ok2 := addressPayload.(string)
-				if !ok1 || !ok2 {
-					core.LogDebug("Unfollow action fields are not strings")
-					break
-				}
-				if !security.IsValidBlockchain(blockchainStr) {
-					core.LogDebug("Invalid blockchain in unfollow action")
-					break
-				}
-				if !security.IsValidAddress(addressStr, blockchainStr) {
-					core.LogDebug("Invalid address in unfollow action")
-					break
-				}
-				if fromAddress == addressStr && blockchain == blockchainStr { // Ignore self-unfollow attempts
-					break
-				}
-				_Database.OnchainFU(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
-				break
-			case "h": // Follow hashtag (to burn address)
-				if !isValidBurnAddress(blockchain, toAddress) {
+			case "h":
+				if !isValidYourPlaceTarget(txnContext) {
 					return
 				}
 				// TODO: Implement hashtag follow storage
 				break
-			case "uh": // Unfollow hashtag (to burn address)
-				if !isValidBurnAddress(blockchain, toAddress) {
+			case "uh":
+				if !isValidYourPlaceTarget(txnContext) {
 					return
 				}
 				// TODO: Implement hashtag unfollow storage
@@ -203,210 +199,256 @@ func tokenizeYourPlaceTransaction(blockchain string, transaction map[string]inte
 			}
 			break
 		case 'm': // Metadata Actions
-			if !isValidBurnAddress(blockchain, toAddress) {
+			if !isValidYourPlaceTarget(txnContext) {
 				return
 			}
-			switch actionPostfix {
-			case "n":
-				name, ok1 := payloadObject["n"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required name field")
-					break
-				}
-				nameStr, ok2 := name.(string)
-				if !ok2 {
-					core.LogDebug("Metadata action name field is not a string")
-					break
-				}
-				nameStr = security.SanitizeNonPrintable(payloadObject["n"].(string))
-				_Database.OnchainMN(blockchain, fromAddress, nameStr, timestamp)
-				break
-			case "a":
-				avatar, ok1 := payloadObject["a"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required avatar field")
-					break
-				}
-				avatarStr, ok2 := avatar.(string)
-				if !ok2 {
-					core.LogDebug("Metadata action avatar field is not a string")
-					break
-				}
-				avatarStr = security.SanitizeNonPrintable(avatarStr)
-				if security.IsValidURL(avatarStr) || security.IsValidCID(avatarStr) {
-					_Database.OnchainMA(blockchain, fromAddress, avatarStr, timestamp)
-				}
-				break
-			case "b":
-				banner, ok1 := payloadObject["b"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required banner field")
-					break
-				}
-				bannerStr, ok2 := banner.(string)
-				if !ok2 {
-					core.LogDebug("Metadata action banner field is not a string")
-					break
-				}
-				bannerStr = security.SanitizeNonPrintable(bannerStr)
-				if security.IsValidURL(bannerStr) || security.IsValidCID(bannerStr) {
-					_Database.OnchainMB(blockchain, fromAddress, bannerStr, timestamp)
-				}
-				break
-			case "c":
-				colorsRaw, ok1 := payloadObject["c"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required colors field")
-					break
-				}
-				colorsMap, ok2 := colorsRaw.(map[string]interface{})
-				if !ok2 {
-					core.LogDebug("Metadata action colors field is not an object")
-					break
-				}
-				validColors := validateProfileColors(colorsMap)
-				if len(validColors) > 0 {
-					colorsJSON, err := json.Marshal(validColors)
-					if err != nil {
-						break
-					}
-					_Database.OnchainMC(blockchain, fromAddress, string(colorsJSON), timestamp)
-				}
-				break
-			case "bot":
-				botRaw, ok1 := payloadObject["bot"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required bot field")
-					break
-				}
-				botVal, ok2 := botRaw.(bool)
-				if !ok2 {
-					core.LogDebug("Metadata action bot field is not a boolean")
-					break
-				}
-				if !botVal {
-					core.LogDebug("Metadata action bot flag is a one-way door, ignoring false value")
-					break
-				}
-				_Database.OnchainMBot(blockchain, fromAddress, botVal, timestamp)
-				break
-			case "nsfw":
-				nsfwRaw, ok1 := payloadObject["nsfw"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required nsfw field")
-					break
-				}
-				nsfwVal, ok2 := nsfwRaw.(bool)
-				if !ok2 {
-					core.LogDebug("Metadata action nsfw field is not a boolean")
-					break
-				}
-				if !nsfwVal {
-					core.LogDebug("Metadata action nsfw flag is a one-way door, ignoring false value")
-					break
-				}
-				_Database.OnchainMNsfw(blockchain, fromAddress, nsfwVal, timestamp)
-				break
-			case "v":
-				vertical, ok1 := payloadObject["v"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required vertical field")
-					break
-				}
-				verticalStr, ok2 := vertical.(string)
-				if !ok2 {
-					core.LogDebug("Metadata action vertical field is not a string")
-					break
-				}
-				if security.IsValidVertical(verticalStr) {
-					_Database.OnchainMV(blockchain, fromAddress, verticalStr, timestamp)
-				}
-				break
-			case "l":
-				location, ok1 := payloadObject["l"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required location field")
-					break
-				}
-				locationStr, ok2 := location.(string)
-				if !ok2 {
-					core.LogDebug("Metadata action location field is not a string")
-					break
-				}
-				locationStr = security.SanitizeNonPrintable(locationStr)
-				_Database.OnchainML(blockchain, fromAddress, locationStr, timestamp)
-				break
-			case "m":
-				music, ok1 := payloadObject["m"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required music field")
-					break
-				}
-				musicStr, ok2 := music.(string)
-				if !ok2 {
-					core.LogDebug("Metadata action music field is not a string")
-					break
-				}
-				musicStr = security.SanitizeNonPrintable(musicStr)
-				if musicStr == "" {
-					_Database.OnchainMM(blockchain, fromAddress, "", timestamp)
-					break
-				}
-				if valid, _ := services.IsValidSpotifyUri(musicStr); valid {
-					_Database.OnchainMM(blockchain, fromAddress, musicStr, timestamp)
-				} else {
-					core.LogDebug("Metadata music action URL is not a recognized provider")
-				}
-				break
-			case "w":
-				website, ok1 := payloadObject["w"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required website field")
-					break
-				}
-				websiteStr, ok2 := website.(string)
-				if !ok2 {
-					core.LogDebug("Metadata action website field is not a string")
-					break
-				}
-				websiteStr = security.SanitizeNonPrintable(websiteStr)
-				if security.IsValidURL(websiteStr) && len(websiteStr) > 0 {
-					_Database.OnchainMW(blockchain, fromAddress, websiteStr, timestamp)
-				}
-				break
-			case "d":
-				description, ok1 := payloadObject["d"]
-				if !ok1 {
-					core.LogDebug("Metadata action missing required description field")
-					break
-				}
-				descriptionStr, ok2 := description.(string)
-				if !ok2 {
-					core.LogDebug("Metadata action description field is not a string")
-					break
-				}
-				descriptionStr = security.SanitizeNonPrintable(descriptionStr)
-				if len(descriptionStr) > 0 {
-					_Database.OnchainMD(blockchain, fromAddress, descriptionStr, timestamp)
-				}
-				break
-			}
+			handleMetadataTransaction(txnContext.database, payloadObject, txnContext.blockchain, txnContext.fromAddress, actionPostfix, txnContext.timestamp)
 			break
 		case 'b': // Blocking Actions
-		case 's': // Settings Actions (to burn address)
-			if !isValidBurnAddress(blockchain, toAddress) {
+		case 's': // Settings Actions
+			if !isValidYourPlaceTarget(txnContext) {
 				return
 			}
 			// TODO: Implement settings storage
 			break
 		default:
-			core.LogDebug("Unknown YourPlace transaction action: " + txHash)
+			core.LogDebug("Unknown YourPlace transaction action: " + txnContext.txHash)
 		}
 	}
 }
 
 // --- Transaction Parsing Functions --- //
-func handlePostTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+func handleFollowTransaction(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+	blockchainPayload, ok1 := payloadObject["b"]
+	addressPayload, ok2 := payloadObject["a"]
+	if !ok1 || !ok2 {
+		core.LogDebug("Follow action missing required fields")
+		return false
+	}
+	blockchainStr, ok1 := blockchainPayload.(string)
+	addressStr, ok2 := addressPayload.(string)
+	if !ok1 || !ok2 {
+		core.LogDebug("Follow action fields are not strings")
+		return false
+	}
+	if !security.IsValidBlockchain(blockchainStr) {
+		core.LogDebug("Invalid blockchain in follow action")
+		return false
+	}
+	if !security.IsValidAddress(addressStr, blockchainStr) {
+		core.LogDebug("Invalid address in follow action")
+		return false
+	}
+	if fromAddress == addressStr && blockchain == blockchainStr {
+		return false
+	}
+	database.OnchainF(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
+	return true
+}
+func handleUnfollowTransaction(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+	blockchainPayload, ok1 := payloadObject["b"]
+	addressPayload, ok2 := payloadObject["a"]
+	if !ok1 || !ok2 {
+		core.LogDebug("Unfollow action missing required fields")
+		return false
+	}
+	blockchainStr, ok1 := blockchainPayload.(string)
+	addressStr, ok2 := addressPayload.(string)
+	if !ok1 || !ok2 {
+		core.LogDebug("Unfollow action fields are not strings")
+		return false
+	}
+	if !security.IsValidBlockchain(blockchainStr) {
+		core.LogDebug("Invalid blockchain in unfollow action")
+		return false
+	}
+	if !security.IsValidAddress(addressStr, blockchainStr) {
+		core.LogDebug("Invalid address in unfollow action")
+		return false
+	}
+	if fromAddress == addressStr && blockchain == blockchainStr {
+		return false
+	}
+	database.OnchainFU(txHash, blockchain, fromAddress, blockchain, addressStr, blockchainStr, timestamp)
+	return true
+}
+func handleMetadataTransaction(database *db.Database, payloadObject map[string]interface{}, blockchain, fromAddress, actionPostfix string, timestamp uint64) {
+	switch actionPostfix {
+	case "n":
+		name, ok1 := payloadObject["n"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required name field")
+			return
+		}
+		nameStr, ok2 := name.(string)
+		if !ok2 {
+			core.LogDebug("Metadata action name field is not a string")
+			return
+		}
+		nameStr = security.SanitizeNonPrintable(nameStr)
+		database.OnchainMN(blockchain, fromAddress, nameStr, timestamp)
+	case "a":
+		avatar, ok1 := payloadObject["a"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required avatar field")
+			return
+		}
+		avatarStr, ok2 := avatar.(string)
+		if !ok2 {
+			core.LogDebug("Metadata action avatar field is not a string")
+			return
+		}
+		avatarStr = security.SanitizeNonPrintable(avatarStr)
+		if security.IsValidURL(avatarStr) || security.IsValidCID(avatarStr) {
+			database.OnchainMA(blockchain, fromAddress, avatarStr, timestamp)
+		}
+	case "b":
+		banner, ok1 := payloadObject["b"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required banner field")
+			return
+		}
+		bannerStr, ok2 := banner.(string)
+		if !ok2 {
+			core.LogDebug("Metadata action banner field is not a string")
+			return
+		}
+		bannerStr = security.SanitizeNonPrintable(bannerStr)
+		if security.IsValidURL(bannerStr) || security.IsValidCID(bannerStr) {
+			database.OnchainMB(blockchain, fromAddress, bannerStr, timestamp)
+		}
+	case "c":
+		colorsRaw, ok1 := payloadObject["c"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required colors field")
+			return
+		}
+		colorsMap, ok2 := colorsRaw.(map[string]interface{})
+		if !ok2 {
+			core.LogDebug("Metadata action colors field is not an object")
+			return
+		}
+		validColors := validateProfileColors(colorsMap)
+		if len(validColors) > 0 {
+			colorsJSON, err := json.Marshal(validColors)
+			if err != nil {
+				return
+			}
+			database.OnchainMC(blockchain, fromAddress, string(colorsJSON), timestamp)
+		}
+	case "bot":
+		botRaw, ok1 := payloadObject["bot"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required bot field")
+			return
+		}
+		botVal, ok2 := botRaw.(bool)
+		if !ok2 {
+			core.LogDebug("Metadata action bot field is not a boolean")
+			return
+		}
+		if !botVal {
+			core.LogDebug("Metadata action bot flag is a one-way door, ignoring false value")
+			return
+		}
+		database.OnchainMBot(blockchain, fromAddress, botVal, timestamp)
+	case "nsfw":
+		nsfwRaw, ok1 := payloadObject["nsfw"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required nsfw field")
+			return
+		}
+		nsfwVal, ok2 := nsfwRaw.(bool)
+		if !ok2 {
+			core.LogDebug("Metadata action nsfw field is not a boolean")
+			return
+		}
+		if !nsfwVal {
+			core.LogDebug("Metadata action nsfw flag is a one-way door, ignoring false value")
+			return
+		}
+		database.OnchainMNsfw(blockchain, fromAddress, nsfwVal, timestamp)
+	case "v":
+		vertical, ok1 := payloadObject["v"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required vertical field")
+			return
+		}
+		verticalStr, ok2 := vertical.(string)
+		if !ok2 {
+			core.LogDebug("Metadata action vertical field is not a string")
+			return
+		}
+		if security.IsValidVertical(verticalStr) {
+			database.OnchainMV(blockchain, fromAddress, verticalStr, timestamp)
+		}
+	case "l":
+		location, ok1 := payloadObject["l"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required location field")
+			return
+		}
+		locationStr, ok2 := location.(string)
+		if !ok2 {
+			core.LogDebug("Metadata action location field is not a string")
+			return
+		}
+		locationStr = security.SanitizeNonPrintable(locationStr)
+		database.OnchainML(blockchain, fromAddress, locationStr, timestamp)
+	case "m":
+		music, ok1 := payloadObject["m"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required music field")
+			return
+		}
+		musicStr, ok2 := music.(string)
+		if !ok2 {
+			core.LogDebug("Metadata action music field is not a string")
+			return
+		}
+		musicStr = security.SanitizeNonPrintable(musicStr)
+		if musicStr == "" {
+			database.OnchainMM(blockchain, fromAddress, "", timestamp)
+			return
+		}
+		if valid, _ := services.IsValidSpotifyUri(musicStr); valid {
+			database.OnchainMM(blockchain, fromAddress, musicStr, timestamp)
+		} else {
+			core.LogDebug("Metadata music action URL is not a recognized provider")
+		}
+	case "w":
+		website, ok1 := payloadObject["w"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required website field")
+			return
+		}
+		websiteStr, ok2 := website.(string)
+		if !ok2 {
+			core.LogDebug("Metadata action website field is not a string")
+			return
+		}
+		websiteStr = security.SanitizeNonPrintable(websiteStr)
+		if security.IsValidURL(websiteStr) && len(websiteStr) > 0 {
+			database.OnchainMW(blockchain, fromAddress, websiteStr, timestamp)
+		}
+	case "d":
+		description, ok1 := payloadObject["d"]
+		if !ok1 {
+			core.LogDebug("Metadata action missing required description field")
+			return
+		}
+		descriptionStr, ok2 := description.(string)
+		if !ok2 {
+			core.LogDebug("Metadata action description field is not a string")
+			return
+		}
+		descriptionStr = security.SanitizeNonPrintable(descriptionStr)
+		if len(descriptionStr) > 0 {
+			database.OnchainMD(blockchain, fromAddress, descriptionStr, timestamp)
+		}
+	}
+}
+func handlePostTransaction(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	postText, ok := payloadObject["p"]
 	if !ok {
 		core.LogDebug("Post Action: no p in payload")
@@ -418,10 +460,10 @@ func handlePostTransaction(payloadObject map[string]interface{}, txHash, blockch
 		return false
 	}
 	postTextStr = security.SanitizeNonPrintable(postTextStr)
-	_Database.OnchainP(txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, postTextStr)
+	database.OnchainP(txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, postTextStr)
 	return true
 }
-func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHash, blockchain, fromAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+func handlePostTransactionAttachment(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	postText, ok1 := payloadObject["p"]
 	attachmentsRaw, ok2 := payloadObject["a"]
 	if !ok1 || !ok2 {
@@ -475,12 +517,12 @@ func handlePostTransactionAttachment(payloadObject map[string]interface{}, txHas
 		parsedAttachments = append(parsedAttachments, parsedAttachment)
 	}
 	postTextStr = security.SanitizeNonPrintable(postTextStr)
-	_Database.OnchainPA(txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, postTextStr, parsedAttachments)
+	database.OnchainPA(txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, postTextStr, parsedAttachments)
 	return true
 }
 
 // --- Comment Transaction Parsing Functions --- //
-func handleCommentTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+func handleCommentTransaction(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	targetTxHash, ok1 := payloadObject["t"]
 	commentText, ok2 := payloadObject["p"]
 	if !ok1 || !ok2 {
@@ -498,10 +540,10 @@ func handleCommentTransaction(payloadObject map[string]interface{}, txHash, bloc
 		return false
 	}
 	commentTextStr = security.SanitizeNonPrintable(commentTextStr)
-	_Database.OnchainC(txHash, blockchain, fromAddress, targetTxHashStr, amountInt, timestamp, commentTextStr)
+	database.OnchainC(txHash, blockchain, fromAddress, targetTxHashStr, amountInt, timestamp, commentTextStr)
 	return true
 }
-func handleCommentTransactionAttachment(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
+func handleCommentTransactionAttachment(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	targetTxHash, ok1 := payloadObject["t"]
 	commentText, ok2 := payloadObject["p"]
 	attachmentsRaw, ok3 := payloadObject["a"]
@@ -561,12 +603,12 @@ func handleCommentTransactionAttachment(payloadObject map[string]interface{}, tx
 		parsedAttachments = append(parsedAttachments, parsedAttachment)
 	}
 	commentTextStr = security.SanitizeNonPrintable(commentTextStr)
-	_Database.OnchainCA(txHash, blockchain, fromAddress, targetTxHashStr, amountInt, timestamp, commentTextStr, parsedAttachments)
+	database.OnchainCA(txHash, blockchain, fromAddress, targetTxHashStr, amountInt, timestamp, commentTextStr, parsedAttachments)
 	return true
 }
 
 // --- Reaction Transaction Parsing Functions --- //
-func handleLikeTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+func handleLikeTransaction(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
 	targetTxHash, ok1 := payloadObject["t"]
 	if !ok1 {
 		core.LogDebug("Like Action: missing target transaction hash")
@@ -587,10 +629,10 @@ func handleLikeTransaction(payloadObject map[string]interface{}, txHash, blockch
 			targetType = tt
 		}
 	}
-	_Database.OnchainR(txHash, blockchain, fromAddress, targetTxHashStr, targetType, "like", timestamp)
+	database.OnchainR(txHash, blockchain, fromAddress, targetTxHashStr, targetType, "like", timestamp)
 	return true
 }
-func handleDislikeTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+func handleDislikeTransaction(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
 	targetTxHash, ok1 := payloadObject["t"]
 	if !ok1 {
 		core.LogDebug("Dislike Action: missing target transaction hash")
@@ -611,10 +653,10 @@ func handleDislikeTransaction(payloadObject map[string]interface{}, txHash, bloc
 			targetType = tt
 		}
 	}
-	_Database.OnchainR(txHash, blockchain, fromAddress, targetTxHashStr, targetType, "dislike", timestamp)
+	database.OnchainR(txHash, blockchain, fromAddress, targetTxHashStr, targetType, "dislike", timestamp)
 	return true
 }
-func handleEmojiReactionTransaction(payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+func handleEmojiReactionTransaction(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
 	targetTxHash, ok1 := payloadObject["t"]
 	emoji, ok2 := payloadObject["e"]
 	if !ok1 || !ok2 {
@@ -642,6 +684,6 @@ func handleEmojiReactionTransaction(payloadObject map[string]interface{}, txHash
 			targetType = tt
 		}
 	}
-	_Database.OnchainR(txHash, blockchain, fromAddress, targetTxHashStr, targetType, emojiStr, timestamp)
+	database.OnchainR(txHash, blockchain, fromAddress, targetTxHashStr, targetType, emojiStr, timestamp)
 	return true
 }
