@@ -1,164 +1,168 @@
-@use "sass:map";
 @use "../global.scss";
-//TODO: remove important where possible
 
-// Modal Media Viewer Styles
 #modalMediaViewer {
-  .modal-dialog {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    margin: 0;
-    max-width: 100%;
-  }
-  .modal-content {
-    background-color: rgba(0, 0, 0, 0.9);
-    border: none;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-  }
-  .modal-body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-    position: relative; // Important for control positioning
-  }
-  // Reset mediaDiv to original size
-  #mediaDiv {
-    width: 90vw;
-    height: 90vh;
-    overflow: hidden;
-    position: relative;
-    // Make mediaDiv a flex container to properly contain carousel
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  // Carousel fills available space and uses flexbox
-  .carousel {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-  // Carousel inner grows to use available space
-  .carousel-inner {
-    flex: 1; // allows growth and shrink behavior
-    min-height: 0; // Allow shrinking
-    position: relative;
-    overflow: hidden;
-  }
-  // Style active carousel items only
-  .carousel-item.active {
-    height: 100%;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-  }
-  // Remove padding on any element (for aspect ratio padding)
-  #mediaDiv [style*="padding-top"] {
-    padding-top: 0;
-  }
-  // Constrain content within the modal
-  .carousel-item > * {
-    max-width: 100%;
-    max-height: 100%;
-  }
-  // All media should be contained
-  img, video, iframe,
-  .image-container,
-  .attachmentGrid {
-    max-width: 90vw;
-    max-height: calc(90vh - 50px); // Leave room for indicators
-    width: auto;
-    height: auto;
-  }
-  // Images specifically
-  img {
-    object-fit: contain;
-    display: block;
-  }
-  // Image containers need special handling
-  .image-container {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    background: none;
-  }
-  // Indicators at bottom of carousel
-  .carousel-indicators {
-    position: relative;
-    flex: 0 0 auto; // Don't grow or shrink
-    margin-top: 10px;
-    margin-bottom: 0;
-  }
-  // For non-carousel content
-  #mediaDiv > *:not(.carousel) {
-    max-width: 90vw;
-    max-height: 90vh;
-  }
-  // Position carousel controls in viewport margins using fixed positioning
-  #mediaViewerCarouselPrev,
-  #mediaViewerCarouselNext {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 50px;
-    height: 70px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.7;
-    transition: opacity 0.3s, background-color 0.3s;
-    z-index: 1055;
-    &:hover {
-      opacity: 1;
-      background-color: rgba(255, 255, 255, 0.2);
+    .modal-dialog {
+        margin: 0;
+        max-width: none;
+        min-height: 100vh;
+        width: 100vw;
     }
-    // Make controls smaller on very small viewports
-    @media (max-width: 768px) {
-      width: 40px;
-      height: 60px;
+    .modal-content {
+        background-color: rgba(0, 0, 0, 0.92);
+        border: none;
+        min-height: 100vh;
+        width: 100vw;
     }
-  }
-  // Center controls in the 5vw margins on each side
-  #mediaViewerCarouselPrev {
-    left: max(1vw, 5px); // At least 5px from edge
-  }
-  #mediaViewerCarouselNext {
-    right: max(1vw, 5px); // At least 5px from edge
-  }
-  // Style the icons
-  .carousel-control-prev-icon,
-  .carousel-control-next-icon {
-    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
-    width: 30px;
-    height: 30px;
-  }
-  // Close button
-  .btn-close {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    z-index: 1060;
-    background-color: rgba(255, 255, 255, 0.8);
-    opacity: 0.8;
-
-    &:hover {
-      opacity: 1;
+    .modal-body {
+        align-items: center;
+        display: flex;
+        justify-content: center;
+        overflow: hidden;
+        padding: 2.5rem 4.5rem;
+        position: relative;
     }
-  }
-}
-// Dark overlay
-.modal-backdrop {
-  background-color: rgba(0, 0, 0, 0.8);
+    #mediaDiv {
+        align-items: center;
+        display: flex;
+        height: calc(100vh - 5rem);
+        justify-content: center;
+        max-height: calc(100vh - 5rem);
+        max-width: calc(100vw - 9rem);
+        min-height: 0;
+        min-width: 0;
+        overflow: hidden;
+        position: relative;
+        width: 100%;
+    }
+    #mediaDiv > * {
+        max-height: 100%;
+        max-width: 100%;
+    }
+    .modalMediaViewerStage {
+        align-items: center;
+        display: flex;
+        height: auto;
+        justify-content: center;
+        max-height: 100%;
+        max-width: 100%;
+        width: auto;
+    }
+    .carousel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        position: relative;
+        width: 100%;
+    }
+    .carousel-inner {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        position: relative;
+    }
+    .carousel-item.active {
+        align-items: center;
+        display: flex !important;
+        height: 100%;
+        justify-content: center;
+    }
+    .carousel-item > * {
+        margin: auto;
+        max-height: 100%;
+        max-width: 100%;
+    }
+    #mediaDiv [style*="padding-top"] {
+        padding-top: 0;
+    }
+    .attachmentGrid,
+    .image-container,
+    iframe,
+    img,
+    video {
+        display: block;
+        height: auto;
+        margin: auto;
+        max-height: 100%;
+        max-width: 100%;
+        object-fit: contain;
+        width: auto;
+    }
+    .attachmentGrid {
+        width: 100%;
+    }
+    .image-container {
+        align-items: center;
+        background: none;
+        display: flex !important;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .carousel-indicators {
+        flex: 0 0 auto;
+        margin: 1rem 0 0 0;
+        position: relative;
+    }
+    #mediaViewerCarouselPrev,
+    #mediaViewerCarouselNext {
+        align-items: center;
+        border-radius: 0.5rem;
+        display: flex;
+        height: 4.5rem;
+        justify-content: center;
+        opacity: 0.7;
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: opacity 0.3s, background-color 0.3s;
+        width: 3.25rem;
+        z-index: 1055;
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.18);
+            opacity: 1;
+        }
+    }
+    #mediaViewerCarouselPrev {
+        left: 0.75rem;
+    }
+    #mediaViewerCarouselNext {
+        right: 0.75rem;
+    }
+    .carousel-control-prev-icon,
+    .carousel-control-next-icon {
+        filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+        height: 2rem;
+        width: 2rem;
+    }
+    .btn-close {
+        background-color: rgba(255, 255, 255, 0.82);
+        opacity: 0.8;
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+        z-index: 1060;
+        &:hover {
+            opacity: 1;
+        }
+    }
+    @media (max-width: 704px) {
+        .modal-body {
+            padding: 1rem 2.75rem 2rem 2.75rem;
+        }
+        #mediaDiv {
+            height: calc(100vh - 3rem);
+            max-height: calc(100vh - 3rem);
+            max-width: calc(100vw - 5.5rem);
+        }
+        #mediaViewerCarouselPrev,
+        #mediaViewerCarouselNext {
+            height: 3.75rem;
+            width: 2.75rem;
+        }
+        #mediaViewerCarouselPrev {
+            left: 0.25rem;
+        }
+        #mediaViewerCarouselNext {
+            right: 0.25rem;
+        }
+    }
 }

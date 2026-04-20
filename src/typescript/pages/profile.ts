@@ -11,6 +11,7 @@ import {LogError, LogInfo} from "../util/log";
 import {HttpGetJson} from "../util/network";
 import {ShowModalProfileDetails} from "../components/modalProfileDetails";
 import {showProfileEditModal} from "../components/modalProfileEdit";
+import {ShowAvatarMediaViewer} from "../components/modalMediaViewer";
 import {FetchComments, FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
 import {GetAddress, GetChain, GetWallet, IsValidAddress, WalletBurnCollectible, WalletFollowUser, WalletGetAvatar, WalletGetCollectibles, WalletGetDescription, WalletGetExplorerAddressLink, WalletGetName, WalletGetTransferFeeEstimate, WalletSendPostNudge, WalletTransferCollectible, WalletUnfollowUser} from "../util/blockchain/wallet";
@@ -621,29 +622,53 @@ declare global {
             };
             waitForPostAuthors();
         }
+        function setProfileAvatarViewerSource(avatarMediaViewerUrl: string | null) {
+            if (avatarMediaViewerUrl) {
+                DOM.profileAvatar.dataset.mediaViewerSrc = avatarMediaViewerUrl;
+                DOM.profileAvatar.classList.add("clickable");
+                return;
+            }
+            delete DOM.profileAvatar.dataset.mediaViewerSrc;
+            DOM.profileAvatar.classList.remove("clickable");
+        }
+        function isProfileAvatarVideoUrl(avatarMediaViewerUrl: string): boolean {
+            const normalizedAvatarUrl = avatarMediaViewerUrl.split(/[?#]/)[0].toLowerCase();
+            return normalizedAvatarUrl.endsWith(".mov") ||
+                normalizedAvatarUrl.endsWith(".mp4") ||
+                normalizedAvatarUrl.endsWith(".ogg") ||
+                normalizedAvatarUrl.endsWith(".webm");
+        }
         async function renderProfileAvatarFromData(blockchain: string, address: string) {
             let avatarURL = await WalletGetAvatar(blockchain, address);
             if (!avatarURL || avatarURL === "") {
                 avatarURL = await getIpfsAvatarUrl(blockchain, address) || "";
             }
-            // Convert ipfs:// URLs to HTTP gateway URLs
             if (avatarURL && avatarURL.startsWith("ipfs://")) {
                 avatarURL = CIDToSubdomainURL(avatarURL);
             }
             const defaultAvatar = "/static/image/avatar.png";
             let finalAvatarUrl = defaultAvatar;
+            let avatarMediaViewerUrl: string | null = null;
             if (IsValidURL(avatarURL)) {
-                finalAvatarUrl = XSSSanitizeUrl(avatarURL);
+                avatarMediaViewerUrl = XSSSanitizeUrl(avatarURL);
+                finalAvatarUrl = avatarMediaViewerUrl;
             } else if (IsValidIpfsCid(avatarURL)) {
                 const ipfsURL = CIDToSubdomainURL(avatarURL);
                 if (ipfsURL) {
-                    finalAvatarUrl = XSSSanitizeUrl(ipfsURL);
+                    avatarMediaViewerUrl = XSSSanitizeUrl(ipfsURL);
+                    finalAvatarUrl = avatarMediaViewerUrl;
                 }
             }
+            setProfileAvatarViewerSource(avatarMediaViewerUrl && avatarMediaViewerUrl !== defaultAvatar ? avatarMediaViewerUrl : null);
             if (DOM.profileAvatar.src !== finalAvatarUrl && !DOM.profileAvatar.src.endsWith(finalAvatarUrl)) {
                 DOM.profileAvatar.onerror = () => {
                     DOM.profileAvatar.src = defaultAvatar;
                     DOM.profileAvatar.onerror = null;
+                    if (avatarMediaViewerUrl && isProfileAvatarVideoUrl(avatarMediaViewerUrl)) {
+                        setProfileAvatarViewerSource(avatarMediaViewerUrl);
+                        return;
+                    }
+                    setProfileAvatarViewerSource(null);
                 };
                 DOM.profileAvatar.src = finalAvatarUrl;
             }
@@ -968,6 +993,13 @@ declare global {
         });
         DOM.profileName.addEventListener("click", function () {
             ShowModalProfileDetails(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
+        });
+        DOM.profileAvatar.addEventListener("click", function () {
+            const avatarMediaViewerUrl = DOM.profileAvatar.dataset.mediaViewerSrc;
+            if (!avatarMediaViewerUrl) {
+                return;
+            }
+            ShowAvatarMediaViewer(avatarMediaViewerUrl, DOM.profileName.textContent || "avatar");
         });
         DOM.profileEditBtn.addEventListener("click", showProfileEditModal);
         DOM.profileAddressCopy.addEventListener("click", function () {

@@ -5,10 +5,10 @@ import { CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented } fro
 import { OEmbedCard } from "./oEmbedCard";
 import { ProcessPostContentForPreviews } from "./postPreviewCard";
 import { ShowAddCommentUI } from "./addComment";
-import { ShowModalMediaViewer } from "./modalMediaViewer";
+import {ShowAvatarMediaViewer, ShowModalMediaViewer} from "./modalMediaViewer";
 import { XcomOEmbedCard } from "./xcomOEmbedCard";
 import { GetAddress, IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar } from "../util/blockchain/wallet";
-import { IsValidBlockchain, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue } from "../util/security";
+import { IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue } from "../util/security";
 import { CIDToSubdomainURL, getIpfsAvatarUrl } from "../util/ipfs";
 import { getFileIcon, formatFileSize } from "../util/files";
 import { LogError } from "../util/log";
@@ -244,7 +244,65 @@ async function grid4Attachments(attachments: HTMLElement[]): Promise<HTMLDivElem
     container.appendChild(row2);
     return container;
 }
-async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLElement) {
+
+function resolveAvatarMediaViewerUrl(avatarUrl: string | null | undefined): string | null {
+    if (!avatarUrl || avatarUrl.trim() === "" || avatarUrl === "/static/image/avatar.png") {
+        return null;
+    }
+    let resolvedAvatarUrl = avatarUrl.trim();
+    if (resolvedAvatarUrl.startsWith("ipfs://")) {
+        resolvedAvatarUrl = CIDToSubdomainURL(resolvedAvatarUrl) || "";
+    }
+    if (!resolvedAvatarUrl || !IsValidURL(resolvedAvatarUrl)) {
+        return null;
+    }
+    const sanitizedAvatarUrl = XSSSanitizeUrl(resolvedAvatarUrl);
+    if (sanitizedAvatarUrl === "#" || sanitizedAvatarUrl === "/static/image/avatar.png") {
+        return null;
+    }
+    return sanitizedAvatarUrl;
+}
+
+function isAvatarVideoMediaViewerUrl(avatarUrl: string): boolean {
+    const normalizedAvatarUrl = avatarUrl.split(/[?#]/)[0].toLowerCase();
+    return normalizedAvatarUrl.endsWith(".mov") ||
+        normalizedAvatarUrl.endsWith(".mp4") ||
+        normalizedAvatarUrl.endsWith(".ogg") ||
+        normalizedAvatarUrl.endsWith(".webm");
+}
+
+function setAvatarViewerState(avatarElement: HTMLElement, avatarMediaViewerUrl: string | null) {
+    if (avatarMediaViewerUrl) {
+        avatarElement.dataset.mediaViewerSrc = avatarMediaViewerUrl;
+        avatarElement.classList.add("clickable");
+        return;
+    }
+    delete avatarElement.dataset.mediaViewerSrc;
+    avatarElement.classList.remove("clickable");
+}
+
+function setAvatarImageSource(avatarImg: HTMLImageElement, avatarElement: HTMLElement, avatarUrl: string | null | undefined) {
+    const defaultAvatarPath = "/static/image/avatar.png";
+    const avatarMediaViewerUrl = resolveAvatarMediaViewerUrl(avatarUrl);
+    avatarImg.onerror = () => {
+        avatarImg.src = defaultAvatarPath;
+        avatarImg.onerror = null;
+        if (avatarMediaViewerUrl && isAvatarVideoMediaViewerUrl(avatarMediaViewerUrl)) {
+            setAvatarViewerState(avatarElement, avatarMediaViewerUrl);
+            return;
+        }
+        setAvatarViewerState(avatarElement, null);
+    };
+    if (avatarMediaViewerUrl) {
+        avatarImg.src = avatarMediaViewerUrl;
+        setAvatarViewerState(avatarElement, avatarMediaViewerUrl);
+        return;
+    }
+    avatarImg.src = defaultAvatarPath;
+    setAvatarViewerState(avatarElement, null);
+}
+
+async function handleAvatarLoad(avatarImg: HTMLImageElement, avatarElement: HTMLDivElement, cardElement: HTMLElement) {
     if (avatarImg.dataset.avatarLoaded === "true") {
         return;
     }
@@ -261,8 +319,11 @@ async function handleAvatarLoad(avatarImg: HTMLImageElement, cardElement: HTMLEl
                 if (!avatarUrl || avatarUrl === "") {
                     avatarUrl = await WalletGetAvatar(blockchain, address);
                 }
-                if (avatarUrl && avatarUrl !== "" && !avatarImg.src.endsWith(XSSSanitizeUrl(avatarUrl))) {
-                    avatarImg.src = XSSSanitizeUrl(avatarUrl);
+                const avatarMediaViewerUrl = resolveAvatarMediaViewerUrl(avatarUrl);
+                if (avatarMediaViewerUrl && !avatarImg.src.endsWith(avatarMediaViewerUrl)) {
+                    setAvatarImageSource(avatarImg, avatarElement, avatarMediaViewerUrl);
+                } else if (!avatarMediaViewerUrl) {
+                    setAvatarViewerState(avatarElement, null);
                 }
             } catch (error) {
                 LogError("Failed to fetch avatar: " + error);
@@ -468,27 +529,21 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
     postAddress.classList.add("postCardAddress");
     postAddress.value = XSSSanitizeValue(postData.address);
     avatarDiv.classList.add("postCardAvatar");
-    if (postData.resultType != "profile post" && IsValidBlockchain(postData.blockchain) && IsValidAddress(postData.address, postData.blockchain)) {
-        avatarDiv.classList.add("clickable");
-        avatarDiv.addEventListener("click", () => {
-            window.location.href = "/p/" + postData.blockchain + "/" + postData.address;
-        });
-    }
+    avatarDiv.addEventListener("click", (event: MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const avatarMediaViewerUrl = avatarDiv.dataset.mediaViewerSrc;
+        if (!avatarMediaViewerUrl) {
+            return;
+        }
+        ShowAvatarMediaViewer(avatarMediaViewerUrl, postData.author || "avatar");
+    });
     avatarImg.classList.add("postCardAvatar");
     avatarImg.crossOrigin = "anonymous";
     avatarImg.referrerPolicy = "no-referrer";
-    if (postData.avatarSrc === "" || postData.avatarSrc === null || postData.avatarSrc === undefined) {
-        avatarImg.src = "/static/image/avatar.png";
-    } else {
-        let avatarSrc = postData.avatarSrc;
-        if (avatarSrc.startsWith("ipfs://")) {
-            const converted = CIDToSubdomainURL(avatarSrc);
-            avatarSrc = converted || "/static/image/avatar.png";
-        }
-        avatarImg.src = XSSSanitizeUrl(avatarSrc);
-    }
+    setAvatarImageSource(avatarImg, avatarDiv, postData.avatarSrc);
     avatarImg.addEventListener("load", function(): void {
-        handleAvatarLoad(avatarImg, postDiv);
+        handleAvatarLoad(avatarImg, avatarDiv, postDiv);
     });
     postHeaderDiv.classList.add("postCardHeaderDiv");
     postAuthorLink.classList.add("postCardAuthorLink");
