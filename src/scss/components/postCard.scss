@@ -87,10 +87,14 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-.postCardTextDiv img {
-  width: -webkit-fill-available;
-  max-height: 100em;
-  border-radius: 1em;
+.postCardBodyImage {
+  display: block;
+  max-width: min(100%, 42rem);
+  width: auto;
+  height: auto;
+  max-height: 30rem;
+  border-radius: 0.5em;
+  margin: 0.5em 0;
 }
 .postCardEllipsesDiv {
   margin-left: auto;
@@ -147,13 +151,6 @@ ul.ellipsesMenu {
   max-width: 100%;
   height: auto;
   max-height: 25em;
-}
-.postCardInlineImage {
-  max-width: 100%;
-  height: auto;
-  max-height: 30em;
-  border-radius: 0.5em;
-  margin: 0.5em 0;
 }
 .postCardInlineVideo {
   max-width: 100%;

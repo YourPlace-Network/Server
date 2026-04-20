@@ -14,6 +14,32 @@ import { getFileIcon, formatFileSize } from "../util/files";
 import { LogError } from "../util/log";
 import { getBlockchainIconPath, getBlockchainUrl, processTextWithTags } from "../util/domFactory";
 
+async function canRenderInlineImage(url: string): Promise<boolean> {
+    return new Promise(resolve => {
+        const sanitizedUrl = XSSSanitizeUrl(url);
+        if (sanitizedUrl === "#") {
+            resolve(false);
+            return;
+        }
+        const image = new Image();
+        let finished = false;
+        const finish = (result: boolean) => {
+            if (finished) {
+                return;
+            }
+            finished = true;
+            window.clearTimeout(timeoutId);
+            image.onload = null;
+            image.onerror = null;
+            resolve(result);
+        };
+        const timeoutId = window.setTimeout(() => finish(false), 8000);
+        image.decoding = "async";
+        image.onload = () => finish(true);
+        image.onerror = () => finish(false);
+        image.src = sanitizedUrl;
+    });
+}
 async function createImageEmbed(url: string): Promise<HTMLElement | null> {
     const imageRegex = /^https:\/\/.*\.(jpg|jpeg|gif|webp|png|svg)$/i;
     if (!imageRegex.test(url)) {
@@ -387,6 +413,26 @@ export async function CreateImageLoader(image: HTMLImageElement): Promise<HTMLDi
     }
     return imageLoader
 }
+async function getInlineImageRenderability(html: string): Promise<Map<string, boolean>> {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const inlineImageUrls = new Set<string>();
+    doc.body.querySelectorAll("img[src]").forEach(image => {
+        const src = image.getAttribute("src")?.trim() || "";
+        if (!src.startsWith("https://") || !IsValidURL(src)) {
+            return;
+        }
+        inlineImageUrls.add(src);
+    });
+    const renderChecks = await Promise.all(Array.from(inlineImageUrls).map(async url => {
+        return [url, await canRenderInlineImage(url)] as const;
+    }));
+    const renderability = new Map<string, boolean>();
+    for (const [url, canRender] of renderChecks) {
+        renderability.set(url, canRender);
+    }
+    return renderability;
+}
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
@@ -684,6 +730,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
         }
     }
     const urlRegex = /(https:\/\/[^\s"<>]+)/g;
+    const inlineImageRenderability = await getInlineImageRenderability(postData.payload);
     let postText = postData.payload;
     const urls = postData.payload.match(urlRegex);
     if (urls) {
@@ -692,10 +739,16 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
                 postText = postText.replace(url, "").trim();
                 continue;
             }
+            const inlineImageCanRender = inlineImageRenderability.get(url);
+            if (inlineImageCanRender === true) {
+                continue;
+            }
             const imageEmbed = await createImageEmbed(url);
             if (imageEmbed) {
                 embedDiv.appendChild(imageEmbed);
-                postText = postText.replace(url, "").trim();
+                if (inlineImageCanRender !== false) {
+                    postText = postText.replace(url, "").trim();
+                }
                 continue;
             }
             const youtubeEmbed = createYoutubeEmbed(url);
@@ -720,21 +773,25 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
     }
     postTextDiv.innerHTML = XSSSanitizeTinyMCEHtml(postText);
     postTextDiv.querySelectorAll("p").forEach(p => {
-        if (p.textContent?.trim() === "") { p.remove(); }
+        if (p.textContent?.trim() === "" && !p.querySelector("iframe, img, video")) { p.remove(); }
     });
     processTextWithTags(postTextDiv);
-    postTextDiv.appendChild(embedDiv);
     const images = postTextDiv.querySelectorAll("img");
     images.forEach(img => {
         const src = img.getAttribute("src");
+        if (src && inlineImageRenderability.get(src) === false) {
+            img.remove();
+            return;
+        }
+        img.classList.add("postCardBodyImage");
         if (src && src.startsWith("ipfs://")) {
             const converted = CIDToSubdomainURL(src);
             if (converted) {
                 img.src = converted;
-                img.classList.add("postCardInlineImage");
             }
         }
     });
+    postTextDiv.appendChild(embedDiv);
     const videos = postTextDiv.querySelectorAll("video");
     videos.forEach(video => {
         const src = video.getAttribute("src");

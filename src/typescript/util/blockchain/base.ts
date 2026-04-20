@@ -137,6 +137,9 @@ const metadataYourPlace = {
     throttle: 500, // milliseconds
     baseBuilderCode: "bc_w72oslhy",
 }
+const BASE_DATA_SUFFIX = Attribution.toDataSuffix({
+    codes: [metadataYourPlace.baseBuilderCode],
+});
 const BASE_WAGMI_STORAGE_KEY = "yourplace.store";
 const BASE_WAGMI_RECENT_CONNECTOR_KEY = "yourplace.recentConnectorId";
 let baseInit = false;
@@ -152,12 +155,12 @@ const ensAddressCache = new PersistentCache("base_ens_address");
 // ensDescriptionCache removed - ENS description fetching not supported
 
 // ---------- Initialization Functions ---------- //
+function appendBaseDataSuffix(data: `0x${string}`): `0x${string}` {
+    return `${data}${BASE_DATA_SUFFIX.slice(2)}` as `0x${string}`;
+}
 async function initBaseWallet() {
     if (baseInit) { return; }
     try {
-        const BASE_DATA_SUFFIX = Attribution.toDataSuffix({
-            codes: [metadataYourPlace.baseBuilderCode],
-        });
         viemClient = createPublicClient({
             chain: viemBase,
             transport: viemHttp(mainnetBase.rpcUrl!),
@@ -453,6 +456,7 @@ export async function baseTxn(dest: string, payload: string) {
             to: dest as `0x${string}`,
             value: BigInt(0),
             data: ethers.hexlify(Buffer.from(payload, "utf8")) as `0x${string}`,
+            dataSuffix: BASE_DATA_SUFFIX,
             connector: connector,
         });
         LogInfo("baseTxn: Transaction sent successfully, hash: " + txHash);
@@ -655,7 +659,7 @@ export async function baseBurnCollectible(tokenId: bigint): Promise<boolean> {
         const provider = await connector?.getProvider() as { request: (args: { method: string; params: unknown[] }) => Promise<string> } | undefined;
         if (!provider) return false;
         const iface = new ethers.Interface(YP_NFT_CONTRACT_ABI);
-        const data = iface.encodeFunctionData("burn", [tokenId]);
+        const data = appendBaseDataSuffix(iface.encodeFunctionData("burn", [tokenId]) as `0x${string}`);
         await provider.request({
             method: "eth_sendTransaction",
             params: [{
@@ -755,7 +759,7 @@ export async function baseMintCollectible(metadataUri: string): Promise<string |
         const provider = await connector?.getProvider() as { request: (args: { method: string; params: unknown[] }) => Promise<string> } | undefined;
         if (!provider) return undefined;
         const iface = new ethers.Interface(YP_NFT_CONTRACT_ABI);
-        const data = iface.encodeFunctionData("mint", [metadataUri]);
+        const data = appendBaseDataSuffix(iface.encodeFunctionData("mint", [metadataUri]) as `0x${string}`);
         const txHash = await provider.request({
             method: "eth_sendTransaction",
             params: [{
@@ -785,7 +789,7 @@ export async function baseTransferCollectible(tokenId: bigint, toAddress: string
         const provider = await connector?.getProvider() as { request: (args: { method: string; params: unknown[] }) => Promise<string> } | undefined;
         if (!provider) return false;
         const iface = new ethers.Interface(YP_NFT_CONTRACT_ABI);
-        const data = iface.encodeFunctionData("safeTransferFrom", [GetAddress(), toAddress, tokenId]);
+        const data = appendBaseDataSuffix(iface.encodeFunctionData("safeTransferFrom", [GetAddress(), toAddress, tokenId]) as `0x${string}`);
         await provider.request({
             method: "eth_sendTransaction",
             params: [{
