@@ -18,7 +18,7 @@ import (
 var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/", "GET"},                                                       // Home page
 	{"/setup", "GET"}, {"/setup/installed", "GET"}, {"/setup", "POST"}, // Setup pages
-	{"/discover", "GET"},                                    // Discover API
+	{"/discover", "GET"}, {"/discover/random", "GET"}, // Discover API
 	{"/favicon.ico", "GET"},                                 // Favicon
 	{"/ping", "GET"},                                        // Health check endpoint
 	{"/mentalHealth", "GET"}, {"/mentalHealth/tips", "GET"}, // Mental health resources

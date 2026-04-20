@@ -352,6 +352,36 @@ ul.ellipsesMenu {
   padding-left: 2.5em;
   margin-bottom: 0.5em;
 }
+.commentBodyImage,
+.commentEmbeddedImage,
+.commentAttachmentImage,
+.commentAttachmentVideo,
+.commentInlineVideo {
+  display: block;
+  width: auto;
+  max-width: min(100%, 22rem);
+  height: auto;
+  max-height: 18rem;
+  border-radius: 0.5em;
+  margin: 0.5em 0;
+}
+.commentEmbeds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  padding-left: 2.5em;
+  margin-bottom: 0.5em;
+  > * {
+    max-width: min(100%, 22rem);
+  }
+}
+.commentEmbeddedIframe {
+  width: 100%;
+  max-width: 22rem;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 0.5em;
+}
 .commentAttachments {
   display: flex;
   flex-wrap: wrap;
@@ -360,14 +390,14 @@ ul.ellipsesMenu {
   margin-bottom: 0.5em;
 }
 .commentAttachmentImage {
-  max-width: 200px;
-  max-height: 150px;
-  border-radius: 0.5em;
-  object-fit: cover;
+  margin: 0;
   cursor: pointer;
   &:hover {
     opacity: 0.9;
   }
+}
+.commentAttachmentVideo {
+  margin: 0;
 }
 .commentAttachmentLink {
   display: inline-block;

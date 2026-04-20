@@ -3,9 +3,12 @@ import { CreatePostControlsBar } from "./postControls";
 import type { Comment } from "./addComment";
 import { ShowAddCommentUI } from "./addComment";
 import { CIDToSubdomainURL } from "../util/ipfs";
-import { IsValidURL, XSSSanitizeTextUrl, XSSSanitizeUrl } from "../util/security";
+import { IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl } from "../util/security";
 import { XcomOEmbedCard } from "./xcomOEmbedCard";
 import { formatTimestamp } from "../util/time";
+import { OEmbedCard } from "./oEmbedCard";
+import { ProcessPostContentForPreviews } from "./postPreviewCard";
+import { processTextWithTags } from "../util/domFactory";
 
 const MAX_INDENT_DEPTH = 4;
 const PAGE_SIZE = 5;
@@ -29,6 +32,138 @@ interface PaginationState {
 const pageChangeCallbacks: WeakMap<HTMLElement, (page: number) => void> = new WeakMap();
 const paginationStates: WeakMap<HTMLElement, PaginationState> = new WeakMap();
 
+function createCommentImageEmbed(url: string): HTMLImageElement | null {
+    const imageRegex = /^https:\/\/.*\.(jpg|jpeg|gif|webp|png|svg)$/i;
+    if (!imageRegex.test(url)) {
+        return null;
+    }
+    const img = document.createElement("img");
+    img.classList.add("commentEmbeddedImage");
+    img.crossOrigin = "anonymous";
+    img.referrerPolicy = "no-referrer";
+    img.src = XSSSanitizeUrl(url);
+    return img;
+}
+function createCommentYoutubeEmbed(url: string): HTMLIFrameElement | null {
+    const youtubeRegex = /^https:\/\/((?:www\.)?youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&].*)?$/;
+    const match = url.match(youtubeRegex);
+    if (!match) {
+        return null;
+    }
+    const iframe = document.createElement("iframe");
+    iframe.classList.add("commentEmbeddedIframe");
+    iframe.src = XSSSanitizeUrl(`https://www.youtube-nocookie.com/embed/${match[2]}`);
+    iframe.allow = "encrypted-media; picture-in-picture";
+    iframe.allowFullscreen = true;
+    iframe.setAttribute("loading", "lazy");
+    iframe.setAttribute("credentialless", "");
+    return iframe;
+}
+function normalizeCommentMediaSource(url: string | null): string | null {
+    if (!url) {
+        return null;
+    }
+    if (url.startsWith("ipfs://")) {
+        return CIDToSubdomainURL(url) || null;
+    }
+    if (!IsValidURL(url)) {
+        return null;
+    }
+    const sanitizedUrl = XSSSanitizeUrl(url);
+    return sanitizedUrl === "#" ? null : sanitizedUrl;
+}
+function styleCommentBodyMedia(contentDiv: HTMLElement): void {
+    const images = contentDiv.querySelectorAll("img");
+    images.forEach((img) => {
+        const src = normalizeCommentMediaSource(img.getAttribute("src"));
+        if (!src) {
+            img.remove();
+            return;
+        }
+        img.src = src;
+        img.classList.add("commentBodyImage");
+        (img as HTMLImageElement).crossOrigin = "anonymous";
+        (img as HTMLImageElement).referrerPolicy = "no-referrer";
+    });
+    const videos = contentDiv.querySelectorAll("video");
+    videos.forEach((video) => {
+        const src = normalizeCommentMediaSource(video.getAttribute("src"));
+        if (src) {
+            video.setAttribute("src", src);
+        }
+        video.querySelectorAll("source").forEach((source) => {
+            const sourceSrc = normalizeCommentMediaSource(source.getAttribute("src"));
+            if (!sourceSrc) {
+                source.remove();
+                return;
+            }
+            source.setAttribute("src", sourceSrc);
+        });
+        if (!video.getAttribute("src") && video.querySelectorAll("source").length === 0) {
+            video.remove();
+            return;
+        }
+        video.classList.add("commentInlineVideo");
+        video.setAttribute("controls", "");
+    });
+    const iframes = contentDiv.querySelectorAll("iframe");
+    iframes.forEach((iframe) => {
+        iframe.classList.add("commentEmbeddedIframe");
+    });
+}
+async function renderCommentBody(comment: Comment): Promise<HTMLDivElement> {
+    const contentDiv = document.createElement("div");
+    contentDiv.classList.add("commentContent");
+    contentDiv.innerHTML = XSSSanitizeTinyMCEHtml(comment.payload);
+    contentDiv.querySelectorAll("p").forEach((p) => {
+        if (p.textContent?.trim() === "" && !p.querySelector("iframe, img, video")) {
+            p.remove();
+        }
+    });
+    styleCommentBodyMedia(contentDiv);
+    processTextWithTags(contentDiv);
+    await ProcessPostContentForPreviews(contentDiv);
+    return contentDiv;
+}
+async function renderCommentEmbeds(comment: Comment): Promise<HTMLDivElement | null> {
+    const urlRegex = /(https:\/\/[^\s"<>]+)/g;
+    const embedUrls = comment.payload.replace(/<[^>]*>/g, " ").match(urlRegex);
+    if (!embedUrls) {
+        return null;
+    }
+    const embedDiv = document.createElement("div");
+    embedDiv.classList.add("commentEmbeds");
+    for (const url of embedUrls) {
+        const imageEmbed = createCommentImageEmbed(url);
+        if (imageEmbed) {
+            embedDiv.appendChild(imageEmbed);
+            continue;
+        }
+        const youtubeEmbed = createCommentYoutubeEmbed(url);
+        if (youtubeEmbed) {
+            embedDiv.appendChild(youtubeEmbed);
+            continue;
+        }
+        const xcomEmbed = await XcomOEmbedCard(url);
+        if (xcomEmbed) {
+            embedDiv.appendChild(xcomEmbed);
+            continue;
+        }
+        const oEmbedCard = await OEmbedCard(url);
+        if (oEmbedCard) {
+            embedDiv.appendChild(oEmbedCard);
+        }
+    }
+    return embedDiv.childElementCount > 0 ? embedDiv : null;
+}
+function createCommentAttachmentVideo(fileUrl: string): HTMLVideoElement {
+    const video = document.createElement("video");
+    video.classList.add("commentAttachmentVideo");
+    video.controls = true;
+    video.preload = "metadata";
+    video.src = XSSSanitizeUrl(fileUrl);
+    return video;
+}
 function createPaginationControls(container: HTMLElement, parentTxHash: string, blockchain: string, depth: number, sort: CommentSort): HTMLDivElement {
     const controls = document.createElement("div");
     controls.classList.add("commentPaginationControls");
@@ -104,31 +239,20 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
     dateSpan.textContent = formatTimestamp(comment.timestamp);
     headerDiv.appendChild(dateSpan);
     commentDiv.appendChild(headerDiv);
-    const contentDiv = document.createElement("div");
-    contentDiv.classList.add("commentContent");
-    contentDiv.innerHTML = XSSSanitizeTextUrl(comment.payload);
+    const contentDiv = await renderCommentBody(comment);
     commentDiv.appendChild(contentDiv);
-    const urlRegex = /(https:\/\/[^\s"<>]+)/g;
-    const urls = comment.payload.match(urlRegex);
-    if (urls) {
-        for (const url of urls) {
-            const xcomEmbed = await XcomOEmbedCard(url);
-            if (xcomEmbed) {
-                commentDiv.appendChild(xcomEmbed);
-            }
-        }
+    const embedDiv = await renderCommentEmbeds(comment);
+    if (embedDiv) {
+        commentDiv.appendChild(embedDiv);
     }
     if (comment.attachments && comment.attachments.length > 0) {
         const attachmentDiv = document.createElement("div");
         attachmentDiv.classList.add("commentAttachments");
         for (const attachment of comment.attachments) {
-            let fileUrl = attachment[0];
+            const fileUrl = normalizeCommentMediaSource(attachment[0]);
             const mimeType = attachment[1];
             const fileName = attachment[3];
-            if (fileUrl.startsWith("ipfs://")) {
-                fileUrl = CIDToSubdomainURL(fileUrl) || fileUrl;
-            }
-            if (!IsValidURL(fileUrl)) continue;
+            if (!fileUrl) continue;
             if (mimeType.startsWith("image/")) {
                 const img = document.createElement("img");
                 img.classList.add("commentAttachmentImage");
@@ -137,6 +261,9 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
                 img.crossOrigin = "anonymous";
                 img.referrerPolicy = "no-referrer";
                 attachmentDiv.appendChild(img);
+            } else if (mimeType.startsWith("video/")) {
+                const video = createCommentAttachmentVideo(fileUrl);
+                attachmentDiv.appendChild(video);
             } else {
                 const link = document.createElement("a");
                 link.classList.add("commentAttachmentLink");

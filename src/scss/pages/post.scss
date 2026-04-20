@@ -24,6 +24,10 @@
 }
 #commentSortControl {
     .btn {
+        --bs-btn-active-color: var(--yp-text);
+        --bs-btn-color: var(--yp-text);
+        --bs-btn-disabled-color: var(--yp-text);
+        --bs-btn-hover-color: var(--yp-text);
         font-size: 0.8em;
         display: flex;
         align-items: center;
@@ -35,19 +39,43 @@
         }
     }
     .dropdown-menu {
+        --bs-dropdown-link-active-color: var(--yp-text);
+        --bs-dropdown-link-color: var(--yp-text);
+        --bs-dropdown-link-hover-color: var(--yp-text);
         font-size: 0.85em;
         background-color: var(--yp-tertiary);
         border-color: var(--yp-secondary);
     }
     .dropdown-item {
-        color: var(--yp-text);
-        &:hover {
+        color: var(--yp-text) !important;
+        &:hover, &:focus, &:visited, &:active {
+            color: var(--yp-text) !important;
             background-color: var(--yp-quaternary);
         }
         &.active {
             background-color: var(--yp-quaternary);
-            color: var(--yp-text);
+            color: var(--yp-text) !important;
             font-weight: 600;
+        }
+    }
+}
+@media(min-width: 705px) {
+    #commentsSection {
+        .commentThread {
+            margin-left: 0;
+            border-left: none;
+        }
+        .commentItem[data-depth="1"] {
+            margin-left: 1em;
+        }
+        .commentItem[data-depth="2"] {
+            margin-left: 2em;
+        }
+        .commentItem[data-depth="3"] {
+            margin-left: 3em;
+        }
+        .commentItem[data-depth="4"] {
+            margin-left: 3.5em;
         }
     }
 }

@@ -62,7 +62,6 @@ Project instructions for Codex in this repository.
 - For long-form modal content, use `<div class='modalBodyLeft'>...</div>` instead of changing the global modal alignment.
 - Treat `704px` as the mobile versus desktop breakpoint. Treat `360px` to `704px` as mobile and anything above `704px` as desktop. Don't worry about optimizing for resolutions below `360px` as very few devices will be in that range.
 - Perform source-to-sink analysis when doing vulnerability work. Verify exploitability through actual data flow.
-- Before making any code changes, create a detailed plan for me to review before you implement anything. Especially if the change is large, complex, or touches security-sensitive areas. The plan should include a clear description of the problem, the proposed solution, and any potential risks or edge cases to consider. This will help ensure that we are aligned on the approach before any code is written.
 
 ## Must Not
 

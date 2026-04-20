@@ -55,7 +55,7 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
             ShowDialogModal("Please connect your wallet to comment");
             return;
         }
-        const content = getEditorContent(editorId);
+        let content = getEditorContent(editorId);
         if (!content || content.trim().length === 0) {
             ShowDialogModal("Please enter a comment");
             return;
@@ -74,6 +74,9 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
                         setButtonState(false, "Post");
                         return;
                     }
+                    const ext = media.fileName.split(".").pop() || "";
+                    const inlineIpfsUrl = ext.length > 0 ? `ipfs://${cidString}.${ext}` : `ipfs://${cidString}`;
+                    content = content.split(media.blobUrl).join(inlineIpfsUrl);
                     const ipfsUrl = `ipfs://${cidString}`;
                     attachments.push([ipfsUrl, media.mimeType, media.size, media.fileName]);
                 }

@@ -216,7 +216,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                     console.error("Failed to load discover profiles:", resp[0], resp[1]);
                     return;
                 }
-                const data = resp[1];
+                const data = getDiscoverProfiles(resp[1]);
                 await populateDiscoverRow(DOM.discoverRandomRow, data.random || []);
                 await populateDiscoverRow(DOM.discoverFollowersRow, data.byFollowers || []);
                 await populateDiscoverRow(DOM.discoverPostsRow, data.byPosts || []);
@@ -231,10 +231,25 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                     console.error("Failed to load random profiles:", resp[0], resp[1]);
                     return;
                 }
-                await populateDiscoverRow(DOM.discoverRandomRow, resp[1].random || []);
+                const data = getDiscoverProfiles(resp[1]);
+                await populateDiscoverRow(DOM.discoverRandomRow, data.random || []);
             } catch (error) {
                 console.error("Error loading random profiles:", error);
             }
+        }
+        function getDiscoverProfiles(data: any) {
+            if (!data || typeof data !== "object") {
+                return {
+                    random: [],
+                    byFollowers: [],
+                    byPosts: [],
+                };
+            }
+            return {
+                random: Array.isArray(data.random) ? data.random : [],
+                byFollowers: Array.isArray(data.byFollowers) ? data.byFollowers : [],
+                byPosts: Array.isArray(data.byPosts) ? data.byPosts : [],
+            };
         }
         async function populateDiscoverRow(rowElement: HTMLDivElement, profiles: any[]) {
             const columns = rowElement.querySelectorAll(".discoverCol");
