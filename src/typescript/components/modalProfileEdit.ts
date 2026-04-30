@@ -2,7 +2,7 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/modalProfileEdit.scss";
 import {LogError} from "../util/log";
 import {UploadFile} from "../util/files";
-import {UploadAvatarToIPFSService} from "../util/ipfs";
+import {AddFileToIPFS, UploadAvatarToIPFSService} from "../util/ipfs";
 import {WalletSetAvatar, WalletSetBanner, WalletSetBot, WalletSetColors, WalletSetDescription, WalletSetLocation, WalletSetMusicEmbed, WalletSetName, WalletSetNsfw, WalletSetVertical, WalletSetWebsite} from "../util/blockchain/wallet";
 import DOMPurify from "dompurify";
 import {ShowToastWithDelay} from "./toast";
@@ -183,7 +183,12 @@ export async function showProfileEditModal() {
             let result = await UploadFile(file, DOM.csrfToken.value);
             if (result[0] == 200 && result[1].status == "success" && result[1].data && result[1].data.length > 0) {
                 try {
-                    let success = await WalletSetAvatar("ipfs://" + result[1].data[0].cid);
+                    const cid = await AddFileToIPFS(result[1].data[0].cid, DOM.csrfToken.value);
+                    if (!cid) {
+                        LogError("Failed to publish avatar to IPFS");
+                        return;
+                    }
+                    let success = await WalletSetAvatar("ipfs://" + cid.toString());
                     if (success) hideModalAndShowToast();
                     return;
                 } catch (e) {
@@ -198,7 +203,12 @@ export async function showProfileEditModal() {
             let result = await UploadFile(file, DOM.csrfToken.value);
             if (result[0] == 200 && result[1].status == "success" && result[1].data && result[1].data.length > 0) {
                 try {
-                    let success = await WalletSetBanner("ipfs://" + result[1].data[0].cid);
+                    const cid = await AddFileToIPFS(result[1].data[0].cid, DOM.csrfToken.value);
+                    if (!cid) {
+                        LogError("Failed to publish banner to IPFS");
+                        return;
+                    }
+                    let success = await WalletSetBanner("ipfs://" + cid.toString());
                     if (success) hideModalAndShowToast();
                     return;
                 } catch (e) {

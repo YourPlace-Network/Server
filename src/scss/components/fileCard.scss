@@ -1,0 +1,47 @@
+.fileCardSummary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+}
+.fileCardBadge {
+  background-color: var(--yp-quaternary);
+  border-radius: 999px;
+  color: var(--yp-primary);
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.55rem;
+  text-transform: uppercase;
+}
+.fileCardName {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.fileCardMeta {
+  color: var(--yp-text);
+  filter: brightness(70%);
+  font-size: 0.9em;
+}
+.fileCard .postCardAttachmentDiv {
+  display: flex;
+  justify-content: center;
+}
+.fileCard .postCardAttachmentDiv > .image-container,
+.fileCard .postCardAttachmentDiv > .postAttachment {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+}
+.fileCard .postCardAttachmentDiv > .image-container {
+  display: inline-block;
+}
+.fileCard .postCardAttachmentDiv > .image-container .postCardAttachmentImage,
+.fileCard .postCardAttachmentDiv > .postCardAttachmentImage {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}

@@ -16,6 +16,7 @@ import {FetchComments, FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
 import {GetAddress, GetChain, GetWallet, IsValidAddress, WalletBurnCollectible, WalletFollowUser, WalletGetAvatar, WalletGetCollectibles, WalletGetDescription, WalletGetExplorerAddressLink, WalletGetName, WalletGetTransferFeeEstimate, WalletSendPostNudge, WalletTransferCollectible, WalletUnfollowUser} from "../util/blockchain/wallet";
 import type {CollectibleData} from "../util/blockchain/wallet";
+import {CreateFileCard, type FileCardData} from "../components/fileCard";
 import {CreatePostCard} from "../components/postCard";
 import {CreateCollectibleCard, getBlockchainIconPath, getBlockchainUrl, processTextWithTags} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, IsValidBaseAddress, IsValidAlgoAddress, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
@@ -35,6 +36,19 @@ declare global {
     }
 }
 
+type ProfileFileRow = {
+    addedDate: number;
+    cid: string;
+    fileName: string;
+    mimeType: string;
+    ownerAddress: string;
+    ownerBlockchain: string;
+    size: number;
+    source: string;
+    txHash?: string;
+    visibility: "public" | "private";
+};
+
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
 
@@ -48,6 +62,7 @@ declare global {
             btnFiles: document.getElementById("btnFiles")! as HTMLButtonElement,
             btnPosts: document.getElementById("btnPosts")! as HTMLButtonElement,
             btnSearch: document.getElementById("btnSearch")! as HTMLButtonElement,
+            manageFilesBtn: document.getElementById("manageFilesBtn")! as HTMLButtonElement,
             mintNFTButton: document.getElementById("mintNFTButton")! as HTMLButtonElement,
             profileAddressCopy: document.getElementById("profileAddressCopy")! as HTMLElement,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
@@ -69,6 +84,8 @@ declare global {
             profileLocation: document.getElementById("profileLocation")! as HTMLDivElement,
             profileVertical: document.getElementById("profileVertical")! as HTMLDivElement,
             profileWebsite: document.getElementById("profileWebsite")! as HTMLAnchorElement,
+            profileFilesSearch: document.getElementById("profileFilesSearch")! as HTMLInputElement,
+            rowFilesActions: document.getElementById("rowFilesActions")! as HTMLDivElement,
             rowMusic: document.getElementById("rowMusic")! as HTMLDivElement,
             profileJoined: document.getElementById("profileJoined")! as HTMLDivElement,
             postAvatars: document.getElementsByClassName("postCardAvatar")! as HTMLCollectionOf<HTMLImageElement>,
@@ -89,7 +106,7 @@ declare global {
             profileBlockchainLink: document.getElementById("profileBlockchainLink")! as HTMLAnchorElement,
             profileButtonsDiv: document.getElementById("profileButtonsDiv")! as HTMLDivElement,
         }
-        let activeTab: "posts" | "collectibles" | "comments" = "posts";
+        let activeTab: "posts" | "collectibles" | "comments" | "files" = "posts";
         let commentsEverLoaded = false;
         let commentsHasMore = true;
         let commentsLoading = false;
@@ -97,9 +114,12 @@ declare global {
         let commentsOffset = 0;
         let copiedTooltip: any;
         let displayCollectiblesCallId = 0;
+        let filesEverLoaded = false;
         let isFollowing = false;
         const isLandingPreview = IsLandingPreview();
+        let allProfileFileCards: FileCardData[] = [];
         let lastCommentsHash = "";
+        let lastFilesHash = "";
         let lastPostsHash = "";
         let postsEverLoaded = false;
         let postsHasMore = true;
@@ -146,8 +166,8 @@ declare global {
             await renderProfileAddress(requestedAddress);
             // Phase 2: Load profile data in background
             const profileDataPromise = HttpGetJson(`/profile/data/${requestedBlockchain}/${requestedAddress}`);
-            // Phase 3: Load posts in parallel (non-blocking) - skip if navigating directly to collectibles
-            const skipPosts = window.location.hash === "#collection" || window.location.hash === "#comments";
+            // Phase 3: Load posts in parallel unless a non-post tab was requested directly.
+            const skipPosts = window.location.hash === "#collection" || window.location.hash === "#comments" || window.location.hash === "#files";
             const postsPromise = skipPosts ? Promise.resolve() : displayPosts(requestedBlockchain, requestedAddress);
             // Handle profile data response
             try {
@@ -160,9 +180,11 @@ declare global {
             } catch (error) {
                 LogError("Profile data fetch failed: " + error);
             }
-            // Wait for posts to finish loading, then render guest view
+            // Only render the posts guest state when posts are the active initial view.
             await postsPromise;
-            await renderGuestView();
+            if (!skipPosts) {
+                await renderGuestView();
+            }
         }
         async function displayPosts(blockchain: string, address: string) {
             postsEverLoaded = true;
@@ -297,6 +319,108 @@ declare global {
                 commentsObserver.observe(lastComment);
             }
         }
+        function setFilesTabActive(isActive: boolean) {
+            DOM.btnFiles.classList.toggle("active", isActive);
+        }
+        function setFilesActionRowActive(isActive: boolean) {
+            DOM.rowFilesActions.classList.toggle("hidden", !isActive);
+        }
+        function getManageFilesUrl() {
+            return `/files/${encodeURIComponent(DOM.injectedBlockchain.value)}/${encodeURIComponent(DOM.injectedAddress.value)}`;
+        }
+        function getFilteredFileCards(): FileCardData[] {
+            const search = DOM.profileFilesSearch.value.trim().toLowerCase();
+            if (search.length === 0) {
+                return [...allProfileFileCards];
+            }
+            return allProfileFileCards.filter((card) => {
+                return card.attachments.some((attachment) => {
+                    const cid = String(attachment[0] || "").toLowerCase();
+                    const fileName = String(attachment[3] || "").toLowerCase();
+                    return cid.includes(search) || fileName.includes(search);
+                });
+            });
+        }
+        async function loadProfileFiles(blockchain: string, address: string): Promise<{cards: FileCardData[]; hash: string}> {
+            try {
+                const response = await HttpGetJson(`/files/data/${encodeURIComponent(blockchain)}/${encodeURIComponent(address)}`);
+                if (response[0] !== 200 || !response[1]?.files) {
+                    return {cards: [], hash: ""};
+                }
+                const files = (response[1].files as ProfileFileRow[]).filter((file) => {
+                    return file.visibility === "public" && file.source === "direct_upload";
+                });
+                const cards = groupProfileFiles(files);
+                const hash = JSON.stringify(files.map((file) => `${file.txHash || ""}:${file.cid}`));
+                return {cards, hash};
+            } catch (error) {
+                LogError("Failed to load profile files: " + error);
+                return {cards: [], hash: ""};
+            }
+        }
+        function groupProfileFiles(files: ProfileFileRow[]): FileCardData[] {
+            const groupedFiles = new Map<string, FileCardData>();
+            const currentAuthor = DOM.profileName.textContent || "Anonymous";
+            const currentAvatar = DOM.profileAvatar.getAttribute("src") || "";
+            for (const file of files) {
+                const groupingKey = file.txHash || `local:${file.cid}`;
+                let fileCard = groupedFiles.get(groupingKey);
+                if (!fileCard) {
+                    fileCard = {
+                        address: file.ownerAddress,
+                        author: currentAuthor,
+                        avatarSrc: currentAvatar,
+                        blockchain: file.ownerBlockchain,
+                        localPost: !file.txHash,
+                        source: file.source,
+                        timestamp: file.addedDate,
+                        txHash: file.txHash,
+                        attachments: [],
+                    };
+                    groupedFiles.set(groupingKey, fileCard);
+                }
+                fileCard.attachments.push([file.cid, file.mimeType, file.size, file.fileName]);
+            }
+            return Array.from(groupedFiles.values());
+        }
+        async function renderFileCards(cards: FileCardData[]) {
+            const existingFiles = DOM.contentDiv.querySelectorAll('.fileCard[data-tab="files"]');
+            existingFiles.forEach((fileCard) => fileCard.remove());
+            if (cards.length === 0) {
+                return;
+            }
+            const fileCards = await Promise.all(cards.map(async (cardData) => {
+                const fileCard = await CreateFileCard(cardData);
+                fileCard.setAttribute("data-tab", "files");
+                return fileCard;
+            }));
+            for (const fileCard of fileCards) {
+                DOM.contentDiv.appendChild(fileCard);
+            }
+        }
+        async function renderFilteredFileCards() {
+            const filteredCards = getFilteredFileCards();
+            await renderFileCards(filteredCards);
+            renderFilesGuestView(filteredCards.length, allProfileFileCards.length);
+        }
+        async function displayFiles(blockchain: string, address: string) {
+            filesEverLoaded = true;
+            DOM.emptyContentDivPlaceHolder.style.display = "none";
+            const {cards, hash} = await loadProfileFiles(blockchain, address);
+            allProfileFileCards = cards;
+            lastFilesHash = hash;
+            await renderFilteredFileCards();
+        }
+        async function refreshFilesData(blockchain: string, address: string) {
+            const {cards, hash} = await loadProfileFiles(blockchain, address);
+            allProfileFileCards = cards;
+            if (hash !== lastFilesHash) {
+                lastFilesHash = hash;
+                await renderFilteredFileCards();
+                return;
+            }
+            renderFilesGuestView(getFilteredFileCards().length, allProfileFileCards.length);
+        }
         async function refreshProfileData() {
             let requestedAddress = DOM.injectedAddress.value;
             let requestedBlockchain = DOM.injectedBlockchain.value;
@@ -310,6 +434,10 @@ declare global {
                     await renderProfileFromCache(profileData, requestedBlockchain, requestedAddress);
                 }
                 if (activeTab === "collectibles" || activeTab === "comments") return;
+                if (activeTab === "files") {
+                    await refreshFilesData(requestedBlockchain, requestedAddress);
+                    return;
+                }
                 const result = await FetchPosts(requestedBlockchain, requestedAddress, POSTS_PAGE_SIZE + 1, 0);
                 if (result) {
                     DOM.postsNum.textContent = String(result.totalCount);
@@ -378,7 +506,7 @@ declare global {
                 DOM.emptyContentDivPlaceHolder.style.display = "flex";
                 DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
                 DOM.emptyContentDivPlaceHolder.style.cursor = "default";
-                DOM.placeHolderIcon.classList.remove("bi-house-add", "bi-envelope-paper-heart");
+                DOM.placeHolderIcon.classList.remove("bi-house-add", "bi-envelope-paper-heart", "bi-chat-dots", "bi-folder2-open");
                 DOM.placeHolderIcon.classList.add("bi-gem");
                 if (DOM.isGuest.value === "false") {
                     DOM.placeHolderH3.textContent = "Create your first Collectible!";
@@ -405,6 +533,8 @@ declare global {
             DOM.btnCollectible.classList.add("active");
             DOM.btnComments.classList.remove("active");
             DOM.btnPosts.classList.remove("active");
+            setFilesTabActive(false);
+            setFilesActionRowActive(false);
             Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
             DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
             DOM.emptyContentDivPlaceHolder.style.cursor = "default";
@@ -420,6 +550,8 @@ declare global {
             DOM.btnComments.classList.add("active");
             DOM.btnCollectible.classList.remove("active");
             DOM.btnPosts.classList.remove("active");
+            setFilesTabActive(false);
+            setFilesActionRowActive(false);
             Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
             DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
             DOM.emptyContentDivPlaceHolder.style.cursor = "default";
@@ -439,8 +571,11 @@ declare global {
             DOM.btnPosts.classList.add("active");
             DOM.btnCollectible.classList.remove("active");
             DOM.btnComments.classList.remove("active");
+            setFilesTabActive(false);
+            setFilesActionRowActive(false);
             const existingGrid = DOM.contentDiv.querySelector(".collectibleGrid");
             if (existingGrid) existingGrid.remove();
+            Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
             DOM.emptyContentDivPlaceHolder.classList.add("clickable");
             DOM.emptyContentDivPlaceHolder.style.cursor = "";
             DOM.mintNFTButton.style.display = "none";
@@ -451,6 +586,29 @@ declare global {
                 const postCards = DOM.contentDiv.querySelectorAll('.postCard[data-tab="posts"]');
                 postCards.forEach(p => (p as HTMLElement).style.display = "");
                 renderGuestView();
+            }
+        }
+        function switchToFilesTab() {
+            activeTab = "files";
+            history.replaceState(null, "", window.location.pathname + "#files");
+            DOM.btnPosts.classList.remove("active");
+            DOM.btnCollectible.classList.remove("active");
+            DOM.btnComments.classList.remove("active");
+            setFilesTabActive(true);
+            setFilesActionRowActive(true);
+            DOM.contentDiv.querySelectorAll(".collectibleGrid, .collectibleLoading").forEach((element) => element.remove());
+            Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
+            DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
+            DOM.emptyContentDivPlaceHolder.style.cursor = "default";
+            DOM.addPostButton.style.display = "none";
+            DOM.mintNFTButton.style.display = "none";
+            if (!filesEverLoaded) {
+                displayFiles(DOM.injectedBlockchain.value, DOM.injectedAddress.value).then();
+            } else {
+                const fileCards = DOM.contentDiv.querySelectorAll('.fileCard[data-tab="files"]');
+                fileCards.forEach((fileCard) => (fileCard as HTMLElement).style.display = "");
+                renderFilesGuestView(getFilteredFileCards().length, allProfileFileCards.length);
+                refreshFilesData(DOM.injectedBlockchain.value, DOM.injectedAddress.value).then();
             }
         }
 
@@ -529,7 +687,7 @@ declare global {
                 DOM.followBtn.style.display = "block";
                 DOM.placeHolderH3.textContent = "Nothing posted yet";
                 DOM.placeHolderP.textContent = "Click to send a nudge! Sometimes friends need a little encouragement to share";
-                DOM.placeHolderIcon.classList.remove("bi-house-add");
+                DOM.placeHolderIcon.classList.remove("bi-house-add", "bi-chat-dots", "bi-folder2-open", "bi-gem");
                 DOM.placeHolderIcon.classList.add("bi-envelope-paper-heart");
                 DOM.emptyContentDivPlaceHolder.removeEventListener("click", placeHolderAddPostHandler);
                 DOM.emptyContentDivPlaceHolder.addEventListener("click", placeHolderNudgeHandler);
@@ -538,7 +696,7 @@ declare global {
                 DOM.followBtn.style.display = "none";
                 DOM.placeHolderH3.textContent = "Share your first post!";
                 DOM.placeHolderP.textContent = "Your amazing thoughts belong here";
-                DOM.placeHolderIcon.classList.remove("bi-envelope-paper-heart");
+                DOM.placeHolderIcon.classList.remove("bi-envelope-paper-heart", "bi-chat-dots", "bi-folder2-open", "bi-gem");
                 DOM.placeHolderIcon.classList.add("bi-house-add");
                 DOM.emptyContentDivPlaceHolder.removeEventListener("click", placeHolderNudgeHandler);
                 DOM.emptyContentDivPlaceHolder.addEventListener("click", placeHolderAddPostHandler);
@@ -558,9 +716,35 @@ declare global {
                 DOM.emptyContentDivPlaceHolder.style.display = "flex";
                 DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
                 DOM.emptyContentDivPlaceHolder.style.cursor = "default";
-                DOM.placeHolderIcon.classList.remove("bi-house-add", "bi-envelope-paper-heart", "bi-gem");
+                DOM.placeHolderIcon.classList.remove("bi-house-add", "bi-envelope-paper-heart", "bi-folder2-open", "bi-gem");
                 DOM.placeHolderIcon.classList.add("bi-chat-dots");
                 DOM.placeHolderH3.textContent = "No comments yet";
+                DOM.placeHolderP.textContent = "";
+            }
+        }
+        function renderFilesGuestView(fileCount?: number, totalFileCount?: number) {
+            const visibleFiles = fileCount !== undefined ? fileCount : DOM.contentDiv.querySelectorAll('.fileCard[data-tab="files"]').length;
+            const totalFiles = totalFileCount !== undefined ? totalFileCount : visibleFiles;
+            const hasFiles = visibleFiles > 0;
+            if (hasFiles) {
+                DOM.emptyContentDivPlaceHolder.style.display = "none";
+                return;
+            }
+            DOM.emptyContentDivPlaceHolder.style.display = "flex";
+            DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
+            DOM.emptyContentDivPlaceHolder.style.cursor = "default";
+            DOM.placeHolderIcon.classList.remove("bi-house-add", "bi-envelope-paper-heart", "bi-gem", "bi-chat-dots");
+            DOM.placeHolderIcon.classList.add("bi-folder2-open");
+            if (totalFiles > 0 && DOM.profileFilesSearch.value.trim().length > 0) {
+                DOM.placeHolderH3.textContent = "No matching files";
+                DOM.placeHolderP.textContent = "Try a different file name or CID";
+                return;
+            }
+            if (DOM.isGuest.value === "false") {
+                DOM.placeHolderH3.textContent = "No published files yet";
+                DOM.placeHolderP.textContent = "Use Manage Files to publish files directly to your profile";
+            } else {
+                DOM.placeHolderH3.textContent = "No files shared yet";
                 DOM.placeHolderP.textContent = "";
             }
         }
@@ -883,6 +1067,19 @@ declare global {
                 switchToPostsTab();
             }
         });
+        DOM.btnFiles.addEventListener("click", function () {
+            if (activeTab !== "files") {
+                switchToFilesTab();
+            }
+        });
+        DOM.manageFilesBtn.addEventListener("click", function () {
+            window.location.href = getManageFilesUrl();
+        });
+        DOM.profileFilesSearch.addEventListener("input", function () {
+            if (activeTab === "files") {
+                renderFilteredFileCards().then();
+            }
+        });
         DOM.btnSearch.addEventListener("click", function () {
             window.location.href = "/";
         });
@@ -1056,6 +1253,8 @@ declare global {
                 switchToCollectiblesTab();
             } else if (window.location.hash === "#comments") {
                 switchToCommentsTab();
+            } else if (window.location.hash === "#files") {
+                switchToFilesTab();
             }
             startAutoRefresh();
             updateNavBtnLayout();

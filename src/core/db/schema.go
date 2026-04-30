@@ -4,12 +4,15 @@ import (
 	"YourPlace/src/core"
 	"context"
 	"fmt"
+	"strings"
 	"time"
+
+	ipfscid "github.com/ipfs/go-cid"
 )
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 10
+const SchemaVersion = 13
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -35,6 +38,9 @@ var migrations = []Migration{
 	{Version: 8, Description: "Add user notifications and notification seen tables", Up: migrateV8},
 	{Version: 9, Description: "Add musicEmbed and musicEmbedTimestamp columns to meta tables", Up: migrateV9},
 	{Version: 10, Description: "Remove redundant blockchain column from chain-specific tables and drop legacy onchain_comment/onchain_reaction tables", Up: migrateV10},
+	{Version: 11, Description: "Move file tracking to local_files and onchain chain-specific files tables", Up: migrateV11},
+	{Version: 12, Description: "Add deleted markers to chain-specific file tables", Up: migrateV12},
+	{Version: 13, Description: "Drop deleted markers from chain-specific file tables", Up: migrateV13},
 }
 
 // --- Migration Functions --- //
@@ -231,6 +237,204 @@ func migrateV10(db *SQLite) error {
 	defer cancel()
 	return db.createTables(ctx)
 }
+func migrateV11(db *SQLite) error {
+	if err := createFileTrackingTablesSQLite(db); err != nil {
+		return err
+	}
+	return backfillLegacyFilesSQLite(db)
+}
+func migrateV12(db *SQLite) error {
+	columns := []struct {
+		table  string
+		column string
+		def    string
+	}{
+		{"onchain_base_files", "deletedTxHash", "TEXT DEFAULT ''"},
+		{"onchain_base_files", "deletedTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_algorand_files", "deletedTxHash", "TEXT DEFAULT ''"},
+		{"onchain_algorand_files", "deletedTimestamp", "INTEGER DEFAULT 0"},
+		{"onchain_ethereum_files", "deletedTxHash", "TEXT DEFAULT ''"},
+		{"onchain_ethereum_files", "deletedTimestamp", "INTEGER DEFAULT 0"},
+	}
+	for _, col := range columns {
+		if err := db.migrateAddColumn(col.table, col.column, col.def); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func migrateV13(db *SQLite) error {
+	columns := []struct {
+		table  string
+		column string
+	}{
+		{"onchain_base_files", "deletedTxHash"},
+		{"onchain_base_files", "deletedTimestamp"},
+		{"onchain_algorand_files", "deletedTxHash"},
+		{"onchain_algorand_files", "deletedTimestamp"},
+		{"onchain_ethereum_files", "deletedTxHash"},
+		{"onchain_ethereum_files", "deletedTimestamp"},
+	}
+	for _, col := range columns {
+		if err := db.migrateDropColumn(col.table, col.column); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func normalizeLegacyCID(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if strings.HasPrefix(value, "ipfs://") {
+		value = strings.TrimPrefix(value, "ipfs://")
+	}
+	if idx := strings.IndexAny(value, "/?#"); idx != -1 {
+		value = value[:idx]
+	}
+	if dot := strings.Index(value, "."); dot != -1 {
+		candidate := value[:dot]
+		if isValidCIDString(candidate) {
+			return candidate
+		}
+	}
+	if isValidCIDString(value) {
+		return value
+	}
+	return ""
+}
+
+func legacyCIDFromFields(cidValue string, fileURL string) string {
+	cidValue = normalizeLegacyCID(cidValue)
+	if cidValue != "" {
+		return cidValue
+	}
+	return normalizeLegacyCID(fileURL)
+}
+
+func createFileTrackingTablesSQLite(db *SQLite) error {
+	queries := []string{
+		"CREATE TABLE IF NOT EXISTS local_files (ownerAddress TEXT, ownerBlockchain TEXT, cid TEXT, fileHash TEXT, mimeType TEXT, fileName TEXT, size INTEGER, addedDate INTEGER, source TEXT, state TEXT, PRIMARY KEY (ownerAddress, ownerBlockchain, cid))",
+		"CREATE TABLE IF NOT EXISTS local_posts (localPostUUID TEXT PRIMARY KEY, ownerAddress TEXT, ownerBlockchain TEXT, timestamp INTEGER DEFAULT 0, payload TEXT DEFAULT '')",
+		"CREATE TABLE IF NOT EXISTS local_post_files (localPostUUID TEXT, cid TEXT, PRIMARY KEY (localPostUUID, cid))",
+		"CREATE TABLE IF NOT EXISTS onchain_base_files (txHash TEXT, fileIndex INTEGER, fromAddress TEXT DEFAULT '', cid TEXT DEFAULT '', mimeType TEXT DEFAULT '', fileName TEXT DEFAULT '', size INTEGER DEFAULT 0, timestamp INTEGER DEFAULT 0, source TEXT DEFAULT '', PRIMARY KEY (txHash, source, fileIndex))",
+		"CREATE TABLE IF NOT EXISTS onchain_algorand_files (txHash TEXT, fileIndex INTEGER, fromAddress TEXT DEFAULT '', cid TEXT DEFAULT '', mimeType TEXT DEFAULT '', fileName TEXT DEFAULT '', size INTEGER DEFAULT 0, timestamp INTEGER DEFAULT 0, source TEXT DEFAULT '', PRIMARY KEY (txHash, source, fileIndex))",
+		"CREATE TABLE IF NOT EXISTS onchain_ethereum_files (txHash TEXT, fileIndex INTEGER, fromAddress TEXT DEFAULT '', cid TEXT DEFAULT '', mimeType TEXT DEFAULT '', fileName TEXT DEFAULT '', size INTEGER DEFAULT 0, timestamp INTEGER DEFAULT 0, source TEXT DEFAULT '', PRIMARY KEY (txHash, source, fileIndex))",
+	}
+	for _, query := range queries {
+		if _, err := db.database.Exec(query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func backfillLegacyFilesSQLite(db *SQLite) error {
+	if !sqliteTableExists(db, "files") {
+		return nil
+	}
+	ownerAddress := db.AuthGetServerOwnerAddress()
+	ownerBlockchain := db.AuthGetServerOwnerNetwork()
+	if ownerAddress != "" && ownerBlockchain != "" {
+		rows, err := db.runParamSQLSelect("SELECT fileHash, mimeType, fileName, size, addedDate, COALESCE(cid, ''), COALESCE(fileURL, ''), COALESCE(source, '') FROM files")
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var fileHash, mimeType, fileName, cidValue, fileURL, source string
+			var size, addedDate int64
+			if err = rows.Scan(&fileHash, &mimeType, &fileName, &size, &addedDate, &cidValue, &fileURL, &source); err != nil {
+				return err
+			}
+			cid := legacyCIDFromFields(cidValue, fileURL)
+			if cid == "" {
+				continue
+			}
+			state := "staged"
+			if cidValue != "" || fileURL != "" {
+				state = "publishedLocalCopy"
+			}
+			if source == "" {
+				source = "direct_upload"
+			}
+			query := `INSERT INTO local_files (ownerAddress, ownerBlockchain, cid, fileHash, mimeType, fileName, size, addedDate, source, state)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				ON CONFLICT (ownerAddress, ownerBlockchain, cid) DO UPDATE SET
+					fileHash = excluded.fileHash,
+					mimeType = excluded.mimeType,
+					fileName = excluded.fileName,
+					size = excluded.size,
+					addedDate = excluded.addedDate,
+					source = excluded.source,
+					state = excluded.state`
+			if _, err = db.runParamSQLUpdate(query, ownerAddress, ownerBlockchain, cid, fileHash, mimeType, fileName, size, addedDate, source, state); err != nil {
+				return err
+			}
+		}
+	}
+	if !sqliteTableExists(db, "file_txn_hash") {
+		return nil
+	}
+	for _, blockchain := range core.ValidNetworks {
+		postTable := "onchain_" + blockchain + "_post"
+		commentTable := "onchain_" + blockchain + "_comment"
+		if !sqliteTableExists(db, postTable) || !sqliteTableExists(db, commentTable) {
+			continue
+		}
+		query := fmt.Sprintf(`SELECT fth.txHash, f.mimeType, f.fileName, f.size, COALESCE(f.cid, ''), COALESCE(f.fileURL, ''), COALESCE(f.source, ''),
+			COALESCE(p.fromAddress, c.fromAddress, ''), COALESCE(p.timestamp, c.timestamp, f.addedDate),
+			CASE
+				WHEN c.txHash IS NOT NULL THEN 'comment_attachment'
+				WHEN p.txHash IS NOT NULL THEN 'post_attachment'
+				ELSE 'direct_upload'
+			END
+			FROM file_txn_hash fth
+			INNER JOIN files f ON f.fileUUID = fth.fileUUID
+			LEFT JOIN onchain_%s_post p ON p.txHash = fth.txHash
+			LEFT JOIN onchain_%s_comment c ON c.txHash = fth.txHash
+			WHERE fth.blockchain = ?`, blockchain, blockchain)
+		rows, err := db.runParamSQLSelect(query, blockchain)
+		if err != nil {
+			return err
+		}
+		fileIndexes := make(map[string]int)
+		for rows.Next() {
+			var txHash, mimeType, fileName, cidValue, fileURL, storedSource, fromAddress, derivedSource string
+			var size, timestamp int64
+			if err = rows.Scan(&txHash, &mimeType, &fileName, &size, &cidValue, &fileURL, &storedSource, &fromAddress, &timestamp, &derivedSource); err != nil {
+				rows.Close()
+				return err
+			}
+			cid := legacyCIDFromFields(cidValue, fileURL)
+			if cid == "" {
+				continue
+			}
+			source := derivedSource
+			if source == "" {
+				source = storedSource
+			}
+			if source == "" {
+				source = "direct_upload"
+			}
+			if fromAddress == "" {
+				fromAddress = ownerAddress
+			}
+			key := txHash + ":" + source
+			fileIndex := fileIndexes[key]
+			fileIndexes[key] = fileIndex + 1
+			insertQuery := fmt.Sprintf("INSERT INTO onchain_%s_files (txHash, fileIndex, fromAddress, cid, mimeType, fileName, size, timestamp, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (txHash, source, fileIndex) DO NOTHING", blockchain)
+			if _, err = db.runParamSQLUpdate(insertQuery, txHash, fileIndex, fromAddress, cid, mimeType, fileName, size, timestamp, source); err != nil {
+				rows.Close()
+				return err
+			}
+		}
+		rows.Close()
+	}
+	return nil
+}
 
 // Example migration templates for future use:
 //
@@ -346,6 +550,37 @@ func (db *SQLite) migrateAddColumn(table, column, definition string) error {
 	core.LogDebug(fmt.Sprintf("Added column %s.%s", table, column))
 	return nil
 }
+func (db *SQLite) migrateDropColumn(table, column string) error {
+	rows, err := db.database.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return fmt.Errorf("failed to get table info for %s: %w", table, err)
+	}
+	defer rows.Close()
+	columnExists := false
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull, pk int
+		var dfltValue interface{}
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			return fmt.Errorf("failed to scan table info: %w", err)
+		}
+		if name == column {
+			columnExists = true
+			break
+		}
+	}
+	if !columnExists {
+		core.LogDebug(fmt.Sprintf("Column %s.%s does not exist, skipping", table, column))
+		return nil
+	}
+	query := fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", table, column)
+	if _, err := db.database.Exec(query); err != nil {
+		return fmt.Errorf("failed to drop column %s from %s: %w", column, table, err)
+	}
+	core.LogDebug(fmt.Sprintf("Dropped column %s.%s", table, column))
+	return nil
+}
 
 // migrateCreateIndex creates an index if it doesn't already exist.
 func (db *SQLite) migrateCreateIndex(indexName, table, columns string) error {
@@ -378,4 +613,18 @@ func (db *SQLite) migrateRenameTable(oldName, newName string) error {
 	}
 	core.LogDebug(fmt.Sprintf("Renamed table %s to %s", oldName, newName))
 	return nil
+}
+
+func sqliteTableExists(db *SQLite, table string) bool {
+	rows, err := db.database.Query("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", table)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	return rows.Next()
+}
+
+func isValidCIDString(value string) bool {
+	_, err := ipfscid.Decode(value)
+	return err == nil
 }

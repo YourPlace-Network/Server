@@ -24,6 +24,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 
 	router.GET("/settings", func(c *gin.Context) { // Settings View
 		token := middleware.GetCSRFToken(c)
+		ipfsGateway := getConfiguredIPFSGateway(database)
 		authenticated := false
 		userAddress := ""
 		userBlockchain := ""
@@ -37,6 +38,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"title":                 title,
 			"pageName":              "settings",
 			"csrfToken":             token,
+			"ipfsGateway":           ipfsGateway,
 			"isCookieAuthenticated": authenticated,
 			"gatewayMode":           gateway,
 			"userAddress":           userAddress,
@@ -257,10 +259,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		})
 	})
 	router.GET("/settings/content/ipfsGateway", func(c *gin.Context) {
-		gateway := database.SettingsGetValue("ipfsGateway")
-		if gateway == "" {
-			gateway = "ipfs.io"
-		}
+		gateway := getConfiguredIPFSGateway(database)
 		c.SecureJSON(http.StatusOK, gin.H{
 			"gateway": gateway,
 		})
@@ -1200,9 +1199,10 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			return
 		}
 		if payload.Gateway == "default" {
-			database.SettingsUpdateValue("ipfsGateway", "ipfs.io")
-			ipfs.IPFSSetGateway("ipfs.io")
-			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "gateway": "ipfs.io"})
+			defaultGateway := network.GetDefaultIPFSGateway()
+			database.SettingsUpdateValue("ipfsGateway", defaultGateway)
+			ipfs.IPFSSetGateway(defaultGateway)
+			c.SecureJSON(http.StatusOK, gin.H{"status": "success", "gateway": defaultGateway})
 			return
 		}
 		gateway := security.SanitizeNonPrintable(payload.Gateway)

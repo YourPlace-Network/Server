@@ -23,7 +23,6 @@ import {LogError} from "../util/log";
         }
         let mintModal = new window.bootstrap.Modal(DOM.mintNFTModal, {});
         let uploadedFileCid = "";
-        let uploadedFileUUID = "";
         let uploadedFileMimeType = "";
         function isGatewayMintEnabled(): boolean {
             return DOM.gatewayMintEnabled?.value === "true";
@@ -35,7 +34,6 @@ import {LogError} from "../util/log";
             DOM.mintNFTFileInput.value = "";
             DOM.mintNFTPreviewDiv.innerHTML = "";
             uploadedFileCid = "";
-            uploadedFileUUID = "";
             uploadedFileMimeType = "";
         }
         function showModal() {
@@ -60,11 +58,11 @@ import {LogError} from "../util/log";
                 uploadedFileCid = cid;
             } else {
                 const response = await UploadFile(file, csrfToken);
-                if (response[0] !== 200 || !response[1].data || !response[1].data[0] || !response[1].data[0].uuid) {
+                if (response[0] !== 200 || !response[1].data || !response[1].data[0] || !response[1].data[0].cid) {
                     ShowToast("Failed to upload file");
                     return;
                 }
-                uploadedFileUUID = response[1].data[0].uuid;
+                uploadedFileCid = response[1].data[0].cid;
             }
             uploadedFileMimeType = file.type;
             DOM.mintNFTPreviewDiv.innerHTML = "";
@@ -87,7 +85,7 @@ import {LogError} from "../util/log";
                 ShowToast("Please enter a name");
                 return;
             }
-            if (!uploadedFileUUID && !uploadedFileCid) {
+            if (!uploadedFileCid) {
                 ShowToast("Please upload media");
                 return;
             }
@@ -99,7 +97,7 @@ import {LogError} from "../util/log";
                 if (isGatewayMintEnabled()) {
                     mediaCidStr = uploadedFileCid;
                 } else {
-                    const mediaCid = await AddFileToIPFS(uploadedFileUUID, csrfToken);
+                    const mediaCid = await AddFileToIPFS(uploadedFileCid, csrfToken);
                     if (!mediaCid) {
                         ShowToast("Failed to pin media to IPFS");
                         return;
@@ -127,11 +125,11 @@ import {LogError} from "../util/log";
                     metadataCidStr = metaCid;
                 } else {
                     const metaResponse = await UploadFile(metadataFile, csrfToken);
-                    if (metaResponse[0] !== 200 || !metaResponse[1].data || !metaResponse[1].data[0] || !metaResponse[1].data[0].uuid) {
+                    if (metaResponse[0] !== 200 || !metaResponse[1].data || !metaResponse[1].data[0] || !metaResponse[1].data[0].cid) {
                         ShowToast("Failed to upload metadata");
                         return;
                     }
-                    const metadataCid = await AddFileToIPFS(metaResponse[1].data[0].uuid, csrfToken);
+                    const metadataCid = await AddFileToIPFS(metaResponse[1].data[0].cid, csrfToken);
                     if (!metadataCid) {
                         ShowToast("Failed to pin metadata to IPFS");
                         return;

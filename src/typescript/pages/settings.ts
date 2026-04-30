@@ -12,6 +12,7 @@ import {AIIsEnabled, AIIsModelEnabled} from "../services/ai";
 import {GetSpotifyRedirectUri} from "../services/spotify";
 import {ShowSavedToast, ShowToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
+import {GetBootstrappedIpfsGateway, GetConfiguredIpfsGateway} from "../util/ipfs";
 import {Sleep} from "../util/time";
 import {XSSSanitizeValue} from "../util/security";
 
@@ -568,9 +569,9 @@ import {XSSSanitizeValue} from "../util/security";
             }
         }
         async function getIpfsGateway() {
-            let response = await HttpGetJson("/settings/content/ipfsGateway");
-            if (response[0] === 200) {
-                DOM.ipfsGatewayURL.value = response[1].gateway || "ipfs.io";
+            const gateway = await GetConfiguredIpfsGateway();
+            if (gateway !== "") {
+                DOM.ipfsGatewayURL.value = gateway;
             }
         }
         async function getDebugMode() {
@@ -1058,7 +1059,7 @@ import {XSSSanitizeValue} from "../util/security";
             }
             let response = await HttpPostJson("/settings/content/ipfsGateway", data, DOM.csrfToken.value);
             if (response[0] === 200) {
-                DOM.ipfsGatewayURL.value = response[1].gateway || "ipfs.io";
+                DOM.ipfsGatewayURL.value = response[1].gateway || GetBootstrappedIpfsGateway();
                 ShowSavedToast();
             }
         }

@@ -62,7 +62,7 @@
                                             <label for="ipfsGatewayURL" class="form-label">Public IPFS Gateway</label>
                                             <a href="/faq#collapseIPFSGateway" target="_blank" id="ipfsGatewayHelpLink"><i class="bi bi-question-circle" id="ipfsGatewayHelp" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="yp-tooltip" data-bs-delay="0" title="Public gateway used to resolve IPFS content when running in gateway mode"></i></a>
                                             <div class="input-group mb-3" id="ipfsGatewayForm">
-                                                <input type="text" class="form-control" id="ipfsGatewayURL" placeholder="ipfs.io">
+                                                <input type="text" class="form-control" id="ipfsGatewayURL" placeholder="{{ .ipfsGateway }}">
                                                 <button class="btn btn-primary btn-outline-secondary" id="defaultIpfsGatewayBtn" type="button">Default</button>
                                                 <button class="btn btn-primary btn-outline-secondary" id="saveIpfsGatewayBtn" type="button">Save</button>
                                             </div>

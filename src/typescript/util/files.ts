@@ -1,4 +1,4 @@
-import {HttpGetJson, HttpPostFile} from "./network";
+import {HttpGetJson, HttpPostFile, HttpPostJson} from "./network";
 
 export async function UploadFile(file: File | FileList, csrfToken: string): Promise<[number, any]> {
     if (csrfToken == null || csrfToken == "") {
@@ -7,9 +7,44 @@ export async function UploadFile(file: File | FileList, csrfToken: string): Prom
     let response = await HttpPostFile("/files/upload", file, csrfToken);
     return [response[0], response[1]];
 }
-export async function DownloadFile(uuid: string): Promise<[number, any]> {
-    let response = await HttpGetJson("/files/download/" + uuid);
+export async function DownloadFile(cid: string): Promise<[number, any]> {
+    let response = await HttpGetJson("/files/download/" + cid);
     return [response[0], response[1]];
+}
+export async function FinalizeFiles(cids: string[], visibility: "public" | "private", source: string, csrfToken: string, txHash?: string, blockchain?: string): Promise<[number, any]> {
+    return await HttpPostJson("/files/finalize", {
+        cids,
+        visibility,
+        source,
+        txHash: txHash || "",
+        blockchain: blockchain || "",
+    }, csrfToken);
+}
+export async function DeleteFile(cid: string, csrfToken: string, txHash?: string, blockchain?: string): Promise<[number, any]> {
+    return await HttpPostJson("/files/delete", {
+        cid,
+        txHash: txHash || "",
+        blockchain: blockchain || "",
+    }, csrfToken);
+}
+export async function PrepareRenameFile(cid: string, fileNameBase: string, csrfToken: string): Promise<[number, any]> {
+    return await HttpPostJson("/files/rename/prepare", {
+        cid,
+        fileNameBase,
+    }, csrfToken);
+}
+export async function RenameFile(cid: string, fileNameBase: string, csrfToken: string, publishCid?: string, deleteTxHash?: string, publishTxHash?: string, blockchain?: string): Promise<[number, any]> {
+    return await HttpPostJson("/files/rename", {
+        cid,
+        fileNameBase,
+        publishCid: publishCid || "",
+        deleteTxHash: deleteTxHash || "",
+        publishTxHash: publishTxHash || "",
+        blockchain: blockchain || "",
+    }, csrfToken);
+}
+export async function CreateLocalPost(payload: string, attachments: string[], csrfToken: string): Promise<[number, any]> {
+    return await HttpPostJson("/posts/local", {payload, attachments}, csrfToken);
 }
 const fileIcons: Record<string, string> = {
     "application/pdf": "bi-file-earmark-pdf-fill",

@@ -18,6 +18,24 @@ type MySQL struct {
 	dsn      string
 }
 
+func (db *MySQL) ensureFileTrackingTables() {
+	if db.mysqlTableExists("local_files") &&
+		db.mysqlTableExists("local_posts") &&
+		db.mysqlTableExists("local_post_files") &&
+		db.mysqlTableExists("onchain_base_files") &&
+		db.mysqlTableExists("onchain_algorand_files") &&
+		db.mysqlTableExists("onchain_ethereum_files") {
+		return
+	}
+	if err := db.createFileTrackingTablesMySQL(); err != nil {
+		core.LogDebug("Could not create file tracking tables: " + err.Error())
+		return
+	}
+	if err := db.backfillLegacyFilesMySQL(); err != nil {
+		core.LogDebug("Could not backfill legacy files: " + err.Error())
+	}
+}
+
 func (db *MySQL) Init(dsn string) {
 	// DSN == <db-username>:<URL-encoded-password>@tcp(<db-host>:<db-port>)/<db-name>
 	startupCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -151,7 +169,7 @@ func (db *MySQL) withTransaction(fn func(*sql.Tx) error) error {
 	}
 	if err = fn(tx); err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
-			return core.LogDebugReturn(fmt.Sprintf("Rollback failed: %v (original error: %w)", rbErr, err))
+			return core.LogDebugReturn(fmt.Sprintf("Rollback failed: %v (original error: %v)", rbErr, err))
 		}
 		return err
 	}
@@ -165,8 +183,9 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		"auth_expired":           "CREATE TABLE IF NOT EXISTS auth_expired (uuid VARCHAR(255) PRIMARY KEY, status VARCHAR(255))",
 		"auth_nonce":             "CREATE TABLE IF NOT EXISTS auth_nonce (nonce VARCHAR(255) PRIMARY KEY, status VARCHAR(255), timestamp BIGINT)",
 		"csrf_tokens":            "CREATE TABLE IF NOT EXISTS csrf_tokens (token VARCHAR(255) PRIMARY KEY, expiration BIGINT)",
-		"file_txn_hash":          "CREATE TABLE IF NOT EXISTS file_txn_hash (fileUUID VARCHAR(255), txHash VARCHAR(255), blockchain VARCHAR(255), PRIMARY KEY (fileUUID, txHash, blockchain))",
-		"files":                  "CREATE TABLE IF NOT EXISTS files (fileUUID VARCHAR(255) PRIMARY KEY, fileHash VARCHAR(255), mimeType VARCHAR(255), fileName VARCHAR(255), size BIGINT, addedDate BIGINT, cid VARCHAR(255), fileURL TEXT, source VARCHAR(255))",
+		"local_files":            "CREATE TABLE IF NOT EXISTS local_files (ownerAddress VARCHAR(255), ownerBlockchain VARCHAR(255), cid VARCHAR(255), fileHash VARCHAR(255), mimeType VARCHAR(255), fileName VARCHAR(1024), size BIGINT, addedDate BIGINT, source VARCHAR(255), state VARCHAR(255), PRIMARY KEY (ownerAddress, ownerBlockchain, cid))",
+		"local_posts":            "CREATE TABLE IF NOT EXISTS local_posts (localPostUUID VARCHAR(255) PRIMARY KEY, ownerAddress VARCHAR(255), ownerBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, payload TEXT)",
+		"local_post_files":       "CREATE TABLE IF NOT EXISTS local_post_files (localPostUUID VARCHAR(255), cid VARCHAR(255), PRIMARY KEY (localPostUUID, cid))",
 		"login_nonce":            "CREATE TABLE IF NOT EXISTS login_nonce (nonce VARCHAR(512) PRIMARY KEY, domain VARCHAR(255), expiration BIGINT, nonceHash VARCHAR(255))",
 		"meta":                   "CREATE TABLE IF NOT EXISTS meta (`key` VARCHAR(255) PRIMARY KEY, value BLOB)",
 		"notifications":          "CREATE TABLE IF NOT EXISTS notifications (uid VARCHAR(255) PRIMARY KEY, message TEXT, timestamp BIGINT DEFAULT 0)",
@@ -183,6 +202,7 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		"onchain_base_follow":   "CREATE TABLE IF NOT EXISTS onchain_base_follow (txHash VARCHAR(255) PRIMARY KEY, followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0)",
 		"onchain_base_comment":  "CREATE TABLE IF NOT EXISTS onchain_base_comment (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
 		"onchain_base_reaction": "CREATE TABLE IF NOT EXISTS onchain_base_reaction (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0)",
+		"onchain_base_files":    "CREATE TABLE IF NOT EXISTS onchain_base_files (txHash VARCHAR(255), fileIndex BIGINT, fromAddress VARCHAR(255) DEFAULT '', cid VARCHAR(255) DEFAULT '', mimeType VARCHAR(255) DEFAULT '', fileName VARCHAR(1024) DEFAULT '', size BIGINT DEFAULT 0, timestamp BIGINT DEFAULT 0, source VARCHAR(255) DEFAULT '', PRIMARY KEY (txHash, source, fileIndex))",
 		// Algorand-specific tables
 		"algorand_indexer_jobs":     "CREATE TABLE IF NOT EXISTS algorand_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
 		"onchain_algorand_post":     "CREATE TABLE IF NOT EXISTS onchain_algorand_post (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
@@ -191,6 +211,7 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		"onchain_algorand_follow":   "CREATE TABLE IF NOT EXISTS onchain_algorand_follow (txHash VARCHAR(255) PRIMARY KEY, followerAddress VARCHAR(255), followerBlockchain VARCHAR(255), followeeAddress VARCHAR(255), followeeBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0)",
 		"onchain_algorand_comment":  "CREATE TABLE IF NOT EXISTS onchain_algorand_comment (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
 		"onchain_algorand_reaction": "CREATE TABLE IF NOT EXISTS onchain_algorand_reaction (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0)",
+		"onchain_algorand_files":    "CREATE TABLE IF NOT EXISTS onchain_algorand_files (txHash VARCHAR(255), fileIndex BIGINT, fromAddress VARCHAR(255) DEFAULT '', cid VARCHAR(255) DEFAULT '', mimeType VARCHAR(255) DEFAULT '', fileName VARCHAR(1024) DEFAULT '', size BIGINT DEFAULT 0, timestamp BIGINT DEFAULT 0, source VARCHAR(255) DEFAULT '', PRIMARY KEY (txHash, source, fileIndex))",
 		// Ethereum-specific tables
 		"ethereum_indexer_jobs":     "CREATE TABLE IF NOT EXISTS ethereum_indexer_jobs (uuid VARCHAR(255) PRIMARY KEY, headBlock BIGINT, status VARCHAR(255), tailBlock BIGINT, timestamp BIGINT, rps BIGINT DEFAULT 0)",
 		"onchain_ethereum_block":    "CREATE TABLE IF NOT EXISTS onchain_ethereum_block (txHash VARCHAR(255) PRIMARY KEY, blockerAddress VARCHAR(255), blockerBlockchain VARCHAR(255), blockeeAddress VARCHAR(255), blockeeBlockchain VARCHAR(255), `key` VARCHAR(255), value TEXT, timestamp BIGINT DEFAULT 0)",
@@ -199,6 +220,7 @@ func (db *MySQL) createTables(ctx context.Context) error {
 		"onchain_ethereum_meta":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_meta (address VARCHAR(255) PRIMARY KEY, avatar TEXT DEFAULT '', banner TEXT DEFAULT '', bot TINYINT DEFAULT 0, colors TEXT DEFAULT '', description TEXT DEFAULT '', ensAvatar TEXT DEFAULT '', ensName VARCHAR(255) DEFAULT '', location VARCHAR(255) DEFAULT '', musicEmbed VARCHAR(255) DEFAULT '', name VARCHAR(255) DEFAULT '', nsfw TINYINT DEFAULT 0, server VARCHAR(255) DEFAULT '', vertical VARCHAR(255) DEFAULT '', website VARCHAR(255) DEFAULT '', addressTimestamp BIGINT DEFAULT 0, avatarTimestamp BIGINT DEFAULT 0, bannerTimestamp BIGINT DEFAULT 0, blockchainTimestamp BIGINT DEFAULT 0, botTimestamp BIGINT DEFAULT 0, colorsTimestamp BIGINT DEFAULT 0, descriptionTimestamp BIGINT DEFAULT 0, ensAvatarTimestamp BIGINT DEFAULT 0, ensNameTimestamp BIGINT DEFAULT 0, locationTimestamp BIGINT DEFAULT 0, musicEmbedTimestamp BIGINT DEFAULT 0, nameTimestamp BIGINT DEFAULT 0, nsfwTimestamp BIGINT DEFAULT 0, serverTimestamp BIGINT DEFAULT 0, verticalTimestamp BIGINT DEFAULT 0, websiteTimestamp BIGINT DEFAULT 0)",
 		"onchain_ethereum_post":     "CREATE TABLE IF NOT EXISTS onchain_ethereum_post (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', parentTxHash VARCHAR(255) DEFAULT '', amount DOUBLE DEFAULT 0, timestamp BIGINT DEFAULT 0, data TEXT)",
 		"onchain_ethereum_reaction": "CREATE TABLE IF NOT EXISTS onchain_ethereum_reaction (txHash VARCHAR(255) PRIMARY KEY, fromAddress VARCHAR(255) DEFAULT '', targetTxHash VARCHAR(255) DEFAULT '', targetType VARCHAR(255) DEFAULT 'post', reactionType VARCHAR(255) DEFAULT '', timestamp BIGINT DEFAULT 0)",
+		"onchain_ethereum_files":    "CREATE TABLE IF NOT EXISTS onchain_ethereum_files (txHash VARCHAR(255), fileIndex BIGINT, fromAddress VARCHAR(255) DEFAULT '', cid VARCHAR(255) DEFAULT '', mimeType VARCHAR(255) DEFAULT '', fileName VARCHAR(1024) DEFAULT '', size BIGINT DEFAULT 0, timestamp BIGINT DEFAULT 0, source VARCHAR(255) DEFAULT '', PRIMARY KEY (txHash, source, fileIndex))",
 	}
 	for _, createStatement := range tables {
 		err := db.execWithRetry(ctx, createStatement, 3)
@@ -305,6 +327,24 @@ func (db *MySQL) RunMigrations() error {
 			return core.LogDebugReturn("MySQL migration v10 failed: " + err.Error())
 		}
 		db.setSchemaVersion(10)
+	}
+	if currentVersion < 11 {
+		if err := db.migrateV11MySQL(); err != nil {
+			return core.LogDebugReturn("MySQL migration v11 failed: " + err.Error())
+		}
+		db.setSchemaVersion(11)
+	}
+	if currentVersion < 12 {
+		if err := db.migrateV12MySQL(); err != nil {
+			return core.LogDebugReturn("MySQL migration v12 failed: " + err.Error())
+		}
+		db.setSchemaVersion(12)
+	}
+	if currentVersion < 13 {
+		if err := db.migrateV13MySQL(); err != nil {
+			return core.LogDebugReturn("MySQL migration v13 failed: " + err.Error())
+		}
+		db.setSchemaVersion(13)
 	}
 	core.LogDebug(fmt.Sprintf("MySQL: Database schema upgrade completed (now at version %d)", targetVersion))
 	return nil
@@ -500,6 +540,185 @@ func (db *MySQL) migrateV10MySQL() error {
 		core.LogDebug(fmt.Sprintf("MySQL: Dropped legacy table %s", table))
 	}
 	return nil
+}
+func (db *MySQL) migrateV11MySQL() error {
+	if err := db.createFileTrackingTablesMySQL(); err != nil {
+		return err
+	}
+	return db.backfillLegacyFilesMySQL()
+}
+func (db *MySQL) migrateV12MySQL() error {
+	columns := []struct {
+		table  string
+		column string
+		def    string
+	}{
+		{"onchain_base_files", "deletedTxHash", "VARCHAR(255) DEFAULT ''"},
+		{"onchain_base_files", "deletedTimestamp", "BIGINT DEFAULT 0"},
+		{"onchain_algorand_files", "deletedTxHash", "VARCHAR(255) DEFAULT ''"},
+		{"onchain_algorand_files", "deletedTimestamp", "BIGINT DEFAULT 0"},
+		{"onchain_ethereum_files", "deletedTxHash", "VARCHAR(255) DEFAULT ''"},
+		{"onchain_ethereum_files", "deletedTimestamp", "BIGINT DEFAULT 0"},
+	}
+	for _, col := range columns {
+		if err := db.migrateAddColumn(col.table, col.column, col.def); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (db *MySQL) migrateV13MySQL() error {
+	columns := []struct {
+		table  string
+		column string
+	}{
+		{"onchain_base_files", "deletedTxHash"},
+		{"onchain_base_files", "deletedTimestamp"},
+		{"onchain_algorand_files", "deletedTxHash"},
+		{"onchain_algorand_files", "deletedTimestamp"},
+		{"onchain_ethereum_files", "deletedTxHash"},
+		{"onchain_ethereum_files", "deletedTimestamp"},
+	}
+	for _, col := range columns {
+		if err := db.migrateDropColumn(col.table, col.column); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (db *MySQL) createFileTrackingTablesMySQL() error {
+	queries := []string{
+		"CREATE TABLE IF NOT EXISTS local_files (ownerAddress VARCHAR(255), ownerBlockchain VARCHAR(255), cid VARCHAR(255), fileHash VARCHAR(255), mimeType VARCHAR(255), fileName VARCHAR(1024), size BIGINT, addedDate BIGINT, source VARCHAR(255), state VARCHAR(255), PRIMARY KEY (ownerAddress, ownerBlockchain, cid))",
+		"CREATE TABLE IF NOT EXISTS local_posts (localPostUUID VARCHAR(255) PRIMARY KEY, ownerAddress VARCHAR(255), ownerBlockchain VARCHAR(255), timestamp BIGINT DEFAULT 0, payload TEXT)",
+		"CREATE TABLE IF NOT EXISTS local_post_files (localPostUUID VARCHAR(255), cid VARCHAR(255), PRIMARY KEY (localPostUUID, cid))",
+		"CREATE TABLE IF NOT EXISTS onchain_base_files (txHash VARCHAR(255), fileIndex BIGINT, fromAddress VARCHAR(255) DEFAULT '', cid VARCHAR(255) DEFAULT '', mimeType VARCHAR(255) DEFAULT '', fileName VARCHAR(1024) DEFAULT '', size BIGINT DEFAULT 0, timestamp BIGINT DEFAULT 0, source VARCHAR(255) DEFAULT '', PRIMARY KEY (txHash, source, fileIndex))",
+		"CREATE TABLE IF NOT EXISTS onchain_algorand_files (txHash VARCHAR(255), fileIndex BIGINT, fromAddress VARCHAR(255) DEFAULT '', cid VARCHAR(255) DEFAULT '', mimeType VARCHAR(255) DEFAULT '', fileName VARCHAR(1024) DEFAULT '', size BIGINT DEFAULT 0, timestamp BIGINT DEFAULT 0, source VARCHAR(255) DEFAULT '', PRIMARY KEY (txHash, source, fileIndex))",
+		"CREATE TABLE IF NOT EXISTS onchain_ethereum_files (txHash VARCHAR(255), fileIndex BIGINT, fromAddress VARCHAR(255) DEFAULT '', cid VARCHAR(255) DEFAULT '', mimeType VARCHAR(255) DEFAULT '', fileName VARCHAR(1024) DEFAULT '', size BIGINT DEFAULT 0, timestamp BIGINT DEFAULT 0, source VARCHAR(255) DEFAULT '', PRIMARY KEY (txHash, source, fileIndex))",
+	}
+	for _, query := range queries {
+		if _, err := db.database.Exec(query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (db *MySQL) backfillLegacyFilesMySQL() error {
+	if !db.mysqlTableExists("files") {
+		return nil
+	}
+	ownerAddress := db.AuthGetServerOwnerAddress()
+	ownerBlockchain := db.AuthGetServerOwnerNetwork()
+	if ownerAddress != "" && ownerBlockchain != "" {
+		rows, err := db.runParamSQLSelect("SELECT fileHash, mimeType, fileName, size, addedDate, COALESCE(cid, ''), COALESCE(fileURL, ''), COALESCE(source, '') FROM files")
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var fileHash, mimeType, fileName, cidValue, fileURL, source string
+			var size, addedDate int64
+			if err = rows.Scan(&fileHash, &mimeType, &fileName, &size, &addedDate, &cidValue, &fileURL, &source); err != nil {
+				return err
+			}
+			cid := legacyCIDFromFields(cidValue, fileURL)
+			if cid == "" {
+				continue
+			}
+			state := "staged"
+			if cidValue != "" || fileURL != "" {
+				state = "publishedLocalCopy"
+			}
+			if source == "" {
+				source = "direct_upload"
+			}
+			query := `INSERT INTO local_files (ownerAddress, ownerBlockchain, cid, fileHash, mimeType, fileName, size, addedDate, source, state)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				ON DUPLICATE KEY UPDATE
+					fileHash = VALUES(fileHash),
+					mimeType = VALUES(mimeType),
+					fileName = VALUES(fileName),
+					size = VALUES(size),
+					addedDate = VALUES(addedDate),
+					source = VALUES(source),
+					state = VALUES(state)`
+			if _, err = db.runParamSQLUpdate(query, ownerAddress, ownerBlockchain, cid, fileHash, mimeType, fileName, size, addedDate, source, state); err != nil {
+				return err
+			}
+		}
+	}
+	if !db.mysqlTableExists("file_txn_hash") {
+		return nil
+	}
+	for _, blockchain := range core.ValidNetworks {
+		postTable := "onchain_" + blockchain + "_post"
+		commentTable := "onchain_" + blockchain + "_comment"
+		if !db.mysqlTableExists(postTable) || !db.mysqlTableExists(commentTable) {
+			continue
+		}
+		query := fmt.Sprintf(`SELECT fth.txHash, f.mimeType, f.fileName, f.size, COALESCE(f.cid, ''), COALESCE(f.fileURL, ''), COALESCE(f.source, ''),
+			COALESCE(p.fromAddress, c.fromAddress, ''), COALESCE(p.timestamp, c.timestamp, f.addedDate),
+			CASE
+				WHEN c.txHash IS NOT NULL THEN 'comment_attachment'
+				WHEN p.txHash IS NOT NULL THEN 'post_attachment'
+				ELSE 'direct_upload'
+			END
+			FROM file_txn_hash fth
+			INNER JOIN files f ON f.fileUUID = fth.fileUUID
+			LEFT JOIN onchain_%s_post p ON p.txHash = fth.txHash
+			LEFT JOIN onchain_%s_comment c ON c.txHash = fth.txHash
+			WHERE fth.blockchain = ?`, blockchain, blockchain)
+		rows, err := db.runParamSQLSelect(query, blockchain)
+		if err != nil {
+			return err
+		}
+		fileIndexes := make(map[string]int)
+		for rows.Next() {
+			var txHash, mimeType, fileName, cidValue, fileURL, storedSource, fromAddress, derivedSource string
+			var size, timestamp int64
+			if err = rows.Scan(&txHash, &mimeType, &fileName, &size, &cidValue, &fileURL, &storedSource, &fromAddress, &timestamp, &derivedSource); err != nil {
+				rows.Close()
+				return err
+			}
+			cid := legacyCIDFromFields(cidValue, fileURL)
+			if cid == "" {
+				continue
+			}
+			source := derivedSource
+			if source == "" {
+				source = storedSource
+			}
+			if source == "" {
+				source = "direct_upload"
+			}
+			if fromAddress == "" {
+				fromAddress = ownerAddress
+			}
+			key := txHash + ":" + source
+			fileIndex := fileIndexes[key]
+			fileIndexes[key] = fileIndex + 1
+			insertQuery := fmt.Sprintf("INSERT IGNORE INTO onchain_%s_files (txHash, fileIndex, fromAddress, cid, mimeType, fileName, size, timestamp, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", blockchain)
+			if _, err = db.runParamSQLUpdate(insertQuery, txHash, fileIndex, fromAddress, cid, mimeType, fileName, size, timestamp, source); err != nil {
+				rows.Close()
+				return err
+			}
+		}
+		rows.Close()
+	}
+	return nil
+}
+func (db *MySQL) mysqlTableExists(table string) bool {
+	rows, err := db.database.Query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?", table)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	var count int
+	if rows.Next() {
+		if err = rows.Scan(&count); err != nil {
+			return false
+		}
+	}
+	return count > 0
 }
 func (db *MySQL) migrateDropColumn(table, column string) error {
 	query := fmt.Sprintf("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '%s' AND COLUMN_NAME = '%s'", table, column)
@@ -982,32 +1201,12 @@ func (db *MySQL) ProfileGetComments(address string, blockchain string, limit int
 	for rowsComments.Next() {
 		var timestamp uint64
 		var txHash, payload, parent string
-		var attachments [][]interface{}
 		err := rowsComments.Scan(&txHash, &parent, &timestamp, &payload)
 		if err != nil {
 			core.LogDebug("Could not scan database rows for user comments: " + err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
-		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
-		if err != nil {
-			core.LogDebug("Could not get attachments for comment: " + err.Error())
-		} else if rowsAttachments != nil {
-			for rowsAttachments.Next() {
-				var mimeType string
-				var size uint64
-				var fileUrl string
-				var fileName string
-				err := rowsAttachments.Scan(&mimeType, &size, &fileUrl, &fileName)
-				if err != nil {
-					core.LogDebug("Could parse rows for comment attachment: " + err.Error())
-					break
-				}
-				attachment := []interface{}{fileUrl, mimeType, size, fileName}
-				attachments = append(attachments, attachment)
-			}
-			rowsAttachments.Close()
-		}
+		attachments := db.GetPostAttachments(txHash, blockchain)
 		commentCount := db.GetCommentCount(txHash, blockchain)
 		comment := map[string]interface{}{
 			"resultType":   "profile comment",
@@ -1060,32 +1259,12 @@ func (db *MySQL) ProfileGetPosts(address string, blockchain string, limit int, o
 	for rowsPosts.Next() {
 		var timestamp uint64
 		var txHash, payload, parent string
-		var attachments [][]interface{}
 		err := rowsPosts.Scan(&txHash, &parent, &timestamp, &payload)
 		if err != nil {
 			core.LogDebug("Could not scan database rows for user posts: " + err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
-		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
-		if err != nil {
-			core.LogDebug("Could not get attachments for post: " + err.Error())
-		} else if rowsAttachments != nil {
-			for rowsAttachments.Next() {
-				var mimeType string
-				var size uint64
-				var fileUrl string
-				var fileName string
-				err := rowsAttachments.Scan(&mimeType, &size, &fileUrl, &fileName)
-				if err != nil {
-					core.LogDebug("Could parse rows for post attachment: " + err.Error())
-					break
-				}
-				attachment := []interface{}{fileUrl, mimeType, size, fileName}
-				attachments = append(attachments, attachment)
-			}
-			rowsAttachments.Close()
-		}
+		attachments := db.GetPostAttachments(txHash, blockchain)
 		commentCount := db.GetCommentCount(txHash, blockchain)
 		post := map[string]interface{}{
 			"resultType":   "profile post",
@@ -1277,36 +1456,10 @@ func (db *MySQL) SearchGetPosts(query string, limit int, offset int) []map[strin
 		posts = append(posts, post)
 	}
 	if len(postEntries) > 0 {
-		var placeholders []string
-		var attachParams []interface{}
 		for _, pe := range postEntries {
-			placeholders = append(placeholders, "(?, ?)")
-			attachParams = append(attachParams, pe.txHash, pe.blockchain)
-		}
-		attachQuery := fmt.Sprintf("SELECT fth.txHash, fth.blockchain, f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE (fth.txHash, fth.blockchain) IN (%s)", strings.Join(placeholders, ", "))
-		rowsAttachments, err := db.runParamSQLSelect(attachQuery, attachParams...)
-		if err != nil {
-			core.LogDebug("Could not get attachments for posts: " + err.Error())
-		} else {
-			attachMap := make(map[string][][]interface{})
-			for rowsAttachments.Next() {
-				var aTxHash, aBlockchain, mimeType, fileName string
-				var size uint64
-				var fileURL string
-				err := rowsAttachments.Scan(&aTxHash, &aBlockchain, &mimeType, &size, &fileURL, &fileName)
-				if err != nil {
-					core.LogDebug("Could not parse attachment rows: " + err.Error())
-					break
-				}
-				key := aBlockchain + aTxHash
-				attachMap[key] = append(attachMap[key], []interface{}{fileURL, mimeType, size, fileName})
-			}
-			rowsAttachments.Close()
-			for _, pe := range postEntries {
-				key := pe.blockchain + pe.txHash
-				if attachments, ok := attachMap[key]; ok {
-					posts[pe.index]["attachments"] = attachments
-				}
+			attachments := db.GetPostAttachments(pe.txHash, pe.blockchain)
+			if len(attachments) > 0 {
+				posts[pe.index]["attachments"] = attachments
 			}
 		}
 	}
@@ -1572,38 +1725,323 @@ func (db *MySQL) AuthGetServerOwnerNetwork() string {
 }
 
 // --- File & IPFS --- //
-func (db *MySQL) FileAdd(fileUUID string, fileHash string, mimeType string, fileName string, size int64) {
-	query := "INSERT IGNORE INTO files (fileUUID, fileHash, mimeType, fileName, size, addedDate) VALUES (?, ?, ?, ?, ?, ?)"
-	_, err := db.runParamSQLUpdate(query, fileUUID, fileHash, mimeType, fileName, size, core.GetTimestamp())
+func (db *MySQL) LocalFileUpsert(ownerAddress string, ownerBlockchain string, fileHash string, cid string, mimeType string, fileName string, size int64, source string, state string) {
+	query := `INSERT INTO local_files (ownerAddress, ownerBlockchain, cid, fileHash, mimeType, fileName, size, addedDate, source, state)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			fileHash = VALUES(fileHash),
+			mimeType = VALUES(mimeType),
+			fileName = VALUES(fileName),
+			size = VALUES(size),
+			source = VALUES(source),
+			state = VALUES(state)`
+	_, err := db.runParamSQLUpdate(query, ownerAddress, ownerBlockchain, cid, fileHash, mimeType, fileName, size, core.GetTimestamp(), source, state)
 	if err != nil {
-		core.LogDebug("Could not add the file to the database: " + err.Error())
+		core.LogDebug("Could not upsert local file: " + err.Error())
 	}
 }
-func (db *MySQL) IPFSAdd(fileUUID string, cid string) {
-	fileURL := "ipfs://" + cid
-	query := "UPDATE files SET cid = ?, fileURL = ? WHERE fileUUID = ?"
-	_, err := db.runParamSQLUpdate(query, cid, fileURL, fileUUID)
+func (db *MySQL) LocalFileUpdate(ownerAddress string, ownerBlockchain string, cid string, source string, state string) {
+	query := "UPDATE local_files SET source = ?, state = ? WHERE ownerAddress = ? AND ownerBlockchain = ? AND cid = ?"
+	_, err := db.runParamSQLUpdate(query, source, state, ownerAddress, ownerBlockchain, cid)
 	if err != nil {
-		core.LogDebug("Could not add the IPFS CID to the database: " + err.Error())
+		core.LogDebug("Could not update local file: " + err.Error())
 	}
 }
-func (db *MySQL) GetFileHashFromUUID(uuid string) string {
-	rows, err := db.runParamSQLSelect("SELECT fileHash FROM files WHERE fileUUID = ?", uuid)
+func (db *MySQL) LocalFileGet(ownerAddress string, ownerBlockchain string, cid string) map[string]interface{} {
+	query := `SELECT ownerAddress, ownerBlockchain, cid, fileHash, mimeType, fileName, size, addedDate, source, state
+		FROM local_files WHERE ownerAddress = ? AND ownerBlockchain = ? AND cid = ? LIMIT 1`
+	rows, err := db.runParamSQLSelect(query, ownerAddress, ownerBlockchain, cid)
 	if err != nil {
-		core.LogDebug("Could not get the hash from the UUID: " + err.Error())
-		return ""
+		core.LogDebug("Could not fetch local file: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var fileHash, mimeType, fileName, source, state string
+		var size, addedDate int64
+		var rowOwnerAddress, rowOwnerBlockchain, rowCID string
+		if err = rows.Scan(&rowOwnerAddress, &rowOwnerBlockchain, &rowCID, &fileHash, &mimeType, &fileName, &size, &addedDate, &source, &state); err != nil {
+			core.LogDebug("Could not scan local file: " + err.Error())
+			return nil
+		}
+		return map[string]interface{}{
+			"ownerAddress":    rowOwnerAddress,
+			"ownerBlockchain": rowOwnerBlockchain,
+			"cid":             rowCID,
+			"fileHash":        fileHash,
+			"mimeType":        mimeType,
+			"fileName":        fileName,
+			"size":            size,
+			"addedDate":       addedDate,
+			"source":          source,
+			"state":           state,
+		}
+	}
+	return nil
+}
+func (db *MySQL) LocalFileGetByOwnerAddress(ownerAddress string, cid string) map[string]interface{} {
+	query := `SELECT ownerAddress, ownerBlockchain, cid, fileHash, mimeType, fileName, size, addedDate, source, state
+		FROM local_files
+		WHERE ownerAddress = ? AND cid = ?
+		ORDER BY addedDate DESC
+		LIMIT 1`
+	rows, err := db.runParamSQLSelect(query, ownerAddress, cid)
+	if err != nil {
+		core.LogDebug("Could not fetch local file by owner address: " + err.Error())
+		return nil
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var fileHash, mimeType, fileName, source, state string
+		var size, addedDate int64
+		var rowOwnerAddress, rowOwnerBlockchain, rowCID string
+		if err = rows.Scan(&rowOwnerAddress, &rowOwnerBlockchain, &rowCID, &fileHash, &mimeType, &fileName, &size, &addedDate, &source, &state); err != nil {
+			core.LogDebug("Could not scan local file by owner address: " + err.Error())
+			return nil
+		}
+		return map[string]interface{}{
+			"ownerAddress":    rowOwnerAddress,
+			"ownerBlockchain": rowOwnerBlockchain,
+			"cid":             rowCID,
+			"fileHash":        fileHash,
+			"mimeType":        mimeType,
+			"fileName":        fileName,
+			"size":            size,
+			"addedDate":       addedDate,
+			"source":          source,
+			"state":           state,
+		}
+	}
+	return nil
+}
+func (db *MySQL) LocalFileDelete(ownerAddress string, ownerBlockchain string, cid string) {
+	linkQuery := "DELETE FROM local_post_files WHERE cid = ?"
+	if _, err := db.runParamSQLUpdate(linkQuery, cid); err != nil {
+		core.LogDebug("Could not unlink local file from local posts: " + err.Error())
+	}
+	query := "DELETE FROM local_files WHERE ownerAddress = ? AND ownerBlockchain = ? AND cid = ?"
+	if _, err := db.runParamSQLUpdate(query, ownerAddress, ownerBlockchain, cid); err != nil {
+		core.LogDebug("Could not delete local file: " + err.Error())
+	}
+}
+func (db *MySQL) LocalFilesGetPrivate(ownerAddress string, ownerBlockchain string) []map[string]interface{} {
+	files := []map[string]interface{}{}
+	query := `SELECT ownerAddress, ownerBlockchain, cid, mimeType, fileName, size, addedDate, source
+		FROM local_files
+		WHERE ownerAddress = ? AND ownerBlockchain = ? AND state = 'private'
+		ORDER BY addedDate DESC`
+	rows, err := db.runParamSQLSelect(query, ownerAddress, ownerBlockchain)
+	if err != nil {
+		core.LogDebug("Could not fetch private local files: " + err.Error())
+		return files
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var fileHash string
-		err = rows.Scan(&fileHash)
-		if err != nil {
-			core.LogDebug("Could not get the hash from the UUID: " + err.Error())
-			return ""
+		var rowOwnerAddress, rowOwnerBlockchain, cid, mimeType, fileName, source string
+		var size, addedDate int64
+		if err = rows.Scan(&rowOwnerAddress, &rowOwnerBlockchain, &cid, &mimeType, &fileName, &size, &addedDate, &source); err != nil {
+			core.LogDebug("Could not scan private local file: " + err.Error())
+			continue
 		}
-		return fileHash
+		files = append(files, map[string]interface{}{
+			"ownerAddress":    rowOwnerAddress,
+			"ownerBlockchain": rowOwnerBlockchain,
+			"cid":             cid,
+			"mimeType":        mimeType,
+			"fileName":        fileName,
+			"size":            size,
+			"addedDate":       addedDate,
+			"source":          source,
+			"visibility":      "private",
+		})
 	}
-	return ""
+	return files
+}
+func (db *MySQL) LocalFilesGetPublished(ownerAddress string, ownerBlockchain string) []map[string]interface{} {
+	files := []map[string]interface{}{}
+	queryFmt := `SELECT lf.ownerAddress, lf.ownerBlockchain, lf.cid, lf.mimeType, lf.fileName, lf.size, lf.addedDate, lf.source,
+			COALESCE((
+				SELECT of.txHash
+				FROM onchain_%s_files of
+				WHERE of.fromAddress = lf.ownerAddress AND of.cid = lf.cid AND of.source = lf.source
+				ORDER BY of.timestamp DESC, of.txHash DESC
+				LIMIT 1
+			), '') AS txHash
+		FROM local_files lf
+		WHERE lf.ownerAddress = ? AND lf.ownerBlockchain = ? AND lf.state = 'publishedLocalCopy'
+		ORDER BY lf.addedDate DESC`
+	query := fmt.Sprintf(queryFmt, ownerBlockchain)
+	rows, err := db.runParamSQLSelect(query, ownerAddress, ownerBlockchain)
+	if err != nil {
+		core.LogDebug("Could not fetch published local files: " + err.Error())
+		return files
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var rowOwnerAddress, rowOwnerBlockchain, cid, mimeType, fileName, source, txHash string
+		var size, addedDate int64
+		if err = rows.Scan(&rowOwnerAddress, &rowOwnerBlockchain, &cid, &mimeType, &fileName, &size, &addedDate, &source, &txHash); err != nil {
+			core.LogDebug("Could not scan published local file: " + err.Error())
+			continue
+		}
+		files = append(files, map[string]interface{}{
+			"ownerAddress":    rowOwnerAddress,
+			"ownerBlockchain": rowOwnerBlockchain,
+			"cid":             cid,
+			"mimeType":        mimeType,
+			"fileName":        fileName,
+			"size":            size,
+			"addedDate":       addedDate,
+			"source":          source,
+			"txHash":          txHash,
+			"visibility":      "public",
+		})
+	}
+	return files
+}
+func (db *MySQL) ProfileGetPublicFiles(address string, blockchain string) []map[string]interface{} {
+	files := []map[string]interface{}{}
+	query := fmt.Sprintf(`SELECT fromAddress, '%s' AS ownerBlockchain, cid, mimeType, fileName, size, timestamp, source, txHash
+		FROM onchain_%s_files
+		WHERE fromAddress = ?
+		ORDER BY timestamp DESC, txHash DESC, fileIndex ASC`, blockchain, blockchain)
+	rows, err := db.runParamSQLSelect(query, address)
+	if err != nil {
+		core.LogDebug("Could not fetch public files: " + err.Error())
+		return files
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var rowOwnerAddress, rowOwnerBlockchain, cid, mimeType, fileName, source, txHash string
+		var size, addedDate int64
+		if err = rows.Scan(&rowOwnerAddress, &rowOwnerBlockchain, &cid, &mimeType, &fileName, &size, &addedDate, &source, &txHash); err != nil {
+			core.LogDebug("Could not scan public file: " + err.Error())
+			continue
+		}
+		files = append(files, map[string]interface{}{
+			"ownerAddress":    rowOwnerAddress,
+			"ownerBlockchain": rowOwnerBlockchain,
+			"cid":             cid,
+			"mimeType":        mimeType,
+			"fileName":        fileName,
+			"size":            size,
+			"addedDate":       addedDate,
+			"source":          source,
+			"txHash":          txHash,
+			"visibility":      "public",
+		})
+	}
+	return files
+}
+func (db *MySQL) LocalPostCreate(ownerAddress string, ownerBlockchain string, payload string, attachments []string) string {
+	localPostUUID := uuid.New().String()
+	query := "INSERT INTO local_posts (localPostUUID, ownerAddress, ownerBlockchain, timestamp, payload) VALUES (?, ?, ?, ?, ?)"
+	_, err := db.runParamSQLUpdate(query, localPostUUID, ownerAddress, ownerBlockchain, core.GetTimestamp(), payload)
+	if err != nil {
+		core.LogDebug("Could not create local post: " + err.Error())
+		return ""
+	}
+	for _, cid := range attachments {
+		linkQuery := "INSERT IGNORE INTO local_post_files (localPostUUID, cid) VALUES (?, ?)"
+		if _, err = db.runParamSQLUpdate(linkQuery, localPostUUID, cid); err != nil {
+			core.LogDebug("Could not link local post attachment: " + err.Error())
+			continue
+		}
+		updateQuery := "UPDATE local_files SET source = 'post_attachment', state = 'private' WHERE ownerAddress = ? AND ownerBlockchain = ? AND cid = ?"
+		_, _ = db.runParamSQLUpdate(updateQuery, ownerAddress, ownerBlockchain, cid)
+	}
+	return localPostUUID
+}
+func (db *MySQL) LocalPostGetCount(ownerAddress string, ownerBlockchain string) int64 {
+	rows, err := db.runParamSQLSelect("SELECT COUNT(*) FROM local_posts WHERE ownerAddress = ? AND ownerBlockchain = ?", ownerAddress, ownerBlockchain)
+	if err != nil {
+		core.LogDebug("Could not count local posts: " + err.Error())
+		return 0
+	}
+	defer rows.Close()
+	var count int64
+	if rows.Next() {
+		if err = rows.Scan(&count); err != nil {
+			core.LogDebug("Could not scan local post count: " + err.Error())
+			return 0
+		}
+	}
+	return count
+}
+func (db *MySQL) LocalPostsGet(ownerAddress string, ownerBlockchain string, limit int, offset int) []map[string]interface{} {
+	posts := []map[string]interface{}{}
+	query := fmt.Sprintf(`SELECT p.localPostUUID, p.ownerAddress, '%s' AS ownerBlockchain, p.timestamp, p.payload
+		FROM local_posts p
+		WHERE p.ownerAddress = ? AND p.ownerBlockchain = ?
+		ORDER BY p.timestamp DESC
+		LIMIT ? OFFSET ?`, ownerBlockchain)
+	rows, err := db.runParamSQLSelect(query, ownerAddress, ownerBlockchain, limit, offset)
+	if err != nil {
+		core.LogDebug("Could not fetch local posts: " + err.Error())
+		return posts
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var localPostUUID, address, blockchain, payload string
+		var timestamp uint64
+		if err = rows.Scan(&localPostUUID, &address, &blockchain, &timestamp, &payload); err != nil {
+			core.LogDebug("Could not scan local post: " + err.Error())
+			continue
+		}
+		post := map[string]interface{}{
+			"resultType":   "local post",
+			"txHash":       localPostUUID,
+			"timestamp":    timestamp,
+			"payload":      payload,
+			"blockchain":   blockchain,
+			"address":      address,
+			"commentCount": int64(0),
+			"localPost":    true,
+		}
+		attachments := db.getLocalPostAttachments(ownerAddress, ownerBlockchain, localPostUUID)
+		if len(attachments) > 0 {
+			post["attachments"] = attachments
+		}
+		posts = append(posts, post)
+	}
+	return posts
+}
+func (db *MySQL) getLocalPostAttachments(ownerAddress string, ownerBlockchain string, localPostUUID string) [][]interface{} {
+	attachments := [][]interface{}{}
+	query := `SELECT f.cid, f.mimeType, f.size, f.fileName
+		FROM local_post_files pf
+		INNER JOIN local_files f ON pf.cid = f.cid
+		WHERE pf.localPostUUID = ? AND f.ownerAddress = ? AND f.ownerBlockchain = ?
+		ORDER BY f.addedDate ASC`
+	rows, err := db.runParamSQLSelect(query, localPostUUID, ownerAddress, ownerBlockchain)
+	if err != nil {
+		core.LogDebug("Could not fetch local post attachments: " + err.Error())
+		return attachments
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid, mimeType, fileName string
+		var size int64
+		if err = rows.Scan(&cid, &mimeType, &size, &fileName); err != nil {
+			core.LogDebug("Could not scan local post attachment: " + err.Error())
+			continue
+		}
+		attachments = append(attachments, []interface{}{cid, mimeType, size, fileName})
+	}
+	return attachments
+}
+func (db *MySQL) OnchainFilesUpsert(txHash string, blockchain string, fromAddr string, source string, timestamp uint64, attachments []Attachment) {
+	if len(attachments) == 0 {
+		return
+	}
+	queryFmt := "INSERT IGNORE INTO onchain_%s_files (txHash, fileIndex, fromAddress, cid, mimeType, fileName, size, timestamp, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	for fileIndex, attachment := range attachments {
+		_, err := db.runParamSQLUpdate(query, txHash, fileIndex, fromAddr, attachment.CID, attachment.MimeType, attachment.FileName, attachment.FileSize, timestamp, source)
+		if err != nil {
+			core.LogDebug("Could not upsert onchain file: " + err.Error())
+		}
+	}
 }
 
 // --- Indexer --- //
@@ -1821,6 +2259,21 @@ func (db *MySQL) getPostAuthor(blockchain string, txHash string) (string, string
 		}
 		return fromAddress, blockchain
 	}
+	_ = rows.Close()
+	fileQueryFmt := "SELECT fromAddress FROM onchain_%s_files WHERE txHash = ? LIMIT 1"
+	fileQuery := fmt.Sprintf(fileQueryFmt, blockchain)
+	fileRows, err := db.runParamSQLSelect(fileQuery, txHash)
+	if err != nil {
+		return "", ""
+	}
+	defer fileRows.Close()
+	if fileRows.Next() {
+		var fromAddress string
+		if err := fileRows.Scan(&fromAddress); err != nil {
+			return "", ""
+		}
+		return fromAddress, blockchain
+	}
 	return "", ""
 }
 func (db *MySQL) OnchainC(txHash string, blockchain string, fromAddr string, parentTxHash string, amount uint64, timestamp uint64, data string) {
@@ -1862,49 +2315,7 @@ func (db *MySQL) OnchainCA(txHash string, blockchain string, fromAddr string, pa
 			db.UserNotificationInsert(notifID, postAuthor, postBlockchain, fromAddr, blockchain, "comment", parentTxHash, "", timestamp)
 		}
 	}
-	for _, attachment := range attachments {
-		fileURL := attachment.FileURL
-		fileUUID := uuid.New().String()
-		cid := ""
-		if strings.HasPrefix(fileURL, "ipfs://") {
-			cid = strings.TrimPrefix(fileURL, "ipfs://")
-		}
-		mimeType := attachment.MimeType
-		size := attachment.FileSize
-		fileName := attachment.FileName
-		var existingFileUUID string
-		if fileURL != "" || cid != "" {
-			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
-			if err != nil {
-				core.LogDebug("Could not check for existing file: " + err.Error())
-				continue
-			}
-			if rows.Next() {
-				err = rows.Scan(&existingFileUUID)
-				if err != nil {
-					core.LogDebug("Could not scan existing file UUID: " + err.Error())
-					rows.Close()
-					continue
-				}
-			}
-			rows.Close()
-		}
-		if existingFileUUID != "" {
-			fileUUID = existingFileUUID
-		} else {
-			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain")
-			if err != nil {
-				core.LogDebug("Could not insert file record: " + err.Error())
-				continue
-			}
-		}
-		fileTxnQuery := "INSERT IGNORE INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?)"
-		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
-		if err != nil {
-			core.LogDebug("Could not link file to transaction: " + err.Error())
-		}
-	}
+	db.OnchainFilesUpsert(txHash, blockchain, fromAddr, "comment_attachment", timestamp, attachments)
 }
 func (db *MySQL) OnchainR(txHash string, blockchain string, fromAddr string, targetTxHash string, targetType string, reactionType string, timestamp uint64) {
 	if reactionType == "like" {
@@ -1973,47 +2384,20 @@ func (db *MySQL) OnchainPA(txHash string, blockchain string, fromAddr string, pa
 			db.UserNotificationInsert(notifID, postAuthor, postBlockchain, fromAddr, blockchain, "repost", parentTxHash, "", timestamp)
 		}
 	}
-	for _, attachment := range attachments {
-		fileURL := attachment.FileURL
-		fileUUID := uuid.New().String()
-		cid := ""
-		if strings.HasPrefix(fileURL, "ipfs://") {
-			cid = strings.TrimPrefix(fileURL, "ipfs://")
-		}
-		mimeType := attachment.MimeType
-		size := attachment.FileSize
-		fileName := attachment.FileName
-		var existingFileUUID string
-		if fileURL != "" || cid != "" {
-			rows, err := db.runParamSQLSelect("SELECT fileUUID FROM files WHERE (fileURL = ? AND fileURL IS NOT NULL AND fileURL != '') OR (cid = ? AND cid IS NOT NULL AND cid != '') LIMIT 1", fileURL, cid)
-			if err != nil {
-				core.LogDebug("Could not check for existing file: " + err.Error())
-				continue
-			}
-			if rows.Next() {
-				err = rows.Scan(&existingFileUUID)
-				if err != nil {
-					core.LogDebug("Could not scan existing file UUID: " + err.Error())
-					rows.Close()
-					continue
-				}
-			}
-			rows.Close()
-		}
-		if existingFileUUID != "" {
-			fileUUID = existingFileUUID
-		} else {
-			insertFileQuery := "INSERT INTO files (fileUUID, fileName, mimeType, size, addedDate, cid, fileURL, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-			_, err = db.runParamSQLUpdate(insertFileQuery, fileUUID, fileName, mimeType, size, timestamp, cid, fileURL, "onchain")
-			if err != nil {
-				core.LogDebug("Could not insert file record: " + err.Error())
-				continue
-			}
-		}
-		fileTxnQuery := "INSERT IGNORE INTO file_txn_hash (fileUUID, txHash, blockchain) VALUES (?, ?, ?)"
-		_, err = db.runParamSQLUpdate(fileTxnQuery, fileUUID, txHash, blockchain)
+	db.OnchainFilesUpsert(txHash, blockchain, fromAddr, "post_attachment", timestamp, attachments)
+}
+func (db *MySQL) OnchainPF(txHash string, blockchain string, fromAddr string, timestamp uint64, attachments []Attachment) {
+	db.OnchainFilesUpsert(txHash, blockchain, fromAddr, "direct_upload", timestamp, attachments)
+}
+func (db *MySQL) OnchainPFD(txHash string, blockchain string, fromAddr string, timestamp uint64, cids []string) {
+	_ = txHash
+	_ = timestamp
+	queryFmt := "DELETE FROM onchain_%s_files WHERE fromAddress = ? AND cid = ?"
+	query := fmt.Sprintf(queryFmt, blockchain)
+	for _, cid := range cids {
+		_, err := db.runParamSQLUpdate(query, fromAddr, cid)
 		if err != nil {
-			core.LogDebug("Could not link file to transaction: " + err.Error())
+			core.LogDebug("Could not delete onchain file: " + err.Error())
 		}
 	}
 }
@@ -2416,27 +2800,67 @@ func (db *MySQL) GetPost(txHash string, blockchain string) map[string]interface{
 		if len(attachments) > 0 {
 			post["attachments"] = attachments
 		}
+		return post
+	}
+	_ = rows.Close()
+	fileQueryFmt := `SELECT f.txHash, '%s' AS blockchain, f.fromAddress, '' as parentTxHash, f.timestamp,
+		COALESCE(NULLIF(m.name, ''), NULLIF(m.ensName, ''), '') as author, COALESCE(NULLIF(m.avatar, ''), NULLIF(m.ensAvatar, ''), '') as avatarSrc
+		FROM onchain_%s_files f
+		LEFT JOIN onchain_%s_meta m ON f.fromAddress = m.address
+		WHERE f.txHash = ? AND f.source = 'direct_upload'
+		ORDER BY f.fileIndex ASC
+		LIMIT 1`
+	fileQuery := fmt.Sprintf(fileQueryFmt, blockchain, blockchain, blockchain)
+	fileRows, err := db.runParamSQLSelect(fileQuery, txHash)
+	if err != nil {
+		core.LogDebug("Could not get file publish: " + err.Error())
+		return post
+	}
+	defer fileRows.Close()
+	if fileRows.Next() {
+		var pTxHash, bc, fromAddress, parentTxHash, author, avatarSrc string
+		var timestamp int64
+		err := fileRows.Scan(&pTxHash, &bc, &fromAddress, &parentTxHash, &timestamp, &author, &avatarSrc)
+		if err != nil {
+			core.LogDebug("Could not scan file publish row: " + err.Error())
+			return post
+		}
+		post = map[string]interface{}{
+			"resultType":   "file",
+			"txHash":       pTxHash,
+			"blockchain":   bc,
+			"address":      fromAddress,
+			"parentTxHash": parentTxHash,
+			"timestamp":    timestamp,
+			"payload":      "",
+			"author":       author,
+			"avatarSrc":    avatarSrc,
+		}
+		attachments := db.GetPostAttachments(txHash, blockchain)
+		if len(attachments) > 0 {
+			post["attachments"] = attachments
+		}
 	}
 	return post
 }
 func (db *MySQL) GetPostAttachments(txHash string, blockchain string) [][]interface{} {
 	var attachments [][]interface{}
-	query := `SELECT f.fileURL, f.mimeType, f.size, f.fileName
-		FROM files f
-		JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID
-		WHERE fth.txHash = ? AND fth.blockchain = ?`
-	rows, err := db.runParamSQLSelect(query, txHash, blockchain)
+	query := fmt.Sprintf(`SELECT cid, mimeType, size, fileName
+		FROM onchain_%s_files
+		WHERE txHash = ?
+		ORDER BY fileIndex ASC`, blockchain)
+	rows, err := db.runParamSQLSelect(query, txHash)
 	if err != nil {
 		return attachments
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var fileURL, mimeType, fileName string
+		var cid, mimeType, fileName string
 		var size int64
-		if err := rows.Scan(&fileURL, &mimeType, &size, &fileName); err != nil {
+		if err := rows.Scan(&cid, &mimeType, &size, &fileName); err != nil {
 			continue
 		}
-		attachments = append(attachments, []interface{}{fileURL, mimeType, size, fileName})
+		attachments = append(attachments, []interface{}{cid, mimeType, size, fileName})
 	}
 	return attachments
 }
@@ -2460,32 +2884,12 @@ func (db *MySQL) GetFollowersFeed(followerAddress string, followerBlockchain str
 	for rows.Next() {
 		var timestamp uint64
 		var txHash, parentTxHash, payload, blockchain, address string
-		var attachments [][]interface{}
 		err := rows.Scan(&txHash, &parentTxHash, &timestamp, &payload, &address, &blockchain)
 		if err != nil {
 			core.LogDebug("Could not scan database rows for followers feed: " + err.Error())
 			return nil
 		}
-		sqlQuery := "SELECT f.mimeType, f.size, f.fileUrl, f.fileName FROM files f INNER JOIN file_txn_hash fth ON f.fileUUID = fth.fileUUID WHERE fth.txHash = ? AND fth.blockchain = ?"
-		rowsAttachments, err := db.runParamSQLSelect(sqlQuery, txHash, blockchain)
-		if err != nil {
-			core.LogDebug("Could not get attachments for post: " + err.Error())
-		} else if rowsAttachments != nil {
-			for rowsAttachments.Next() {
-				var mimeType string
-				var size uint64
-				var fileUrl string
-				var fileName string
-				err := rowsAttachments.Scan(&mimeType, &size, &fileUrl, &fileName)
-				if err != nil {
-					core.LogDebug("Could parse rows for post attachment: " + err.Error())
-					break
-				}
-				attachment := []interface{}{fileUrl, mimeType, size, fileName}
-				attachments = append(attachments, attachment)
-			}
-			rowsAttachments.Close()
-		}
+		attachments := db.GetPostAttachments(txHash, blockchain)
 		commentCount := db.GetCommentCount(txHash, blockchain)
 		post := map[string]interface{}{
 			"resultType":   "post",

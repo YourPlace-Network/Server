@@ -1,6 +1,6 @@
-import {GetAddress, WalletSubmitComment, WalletSubmitCommentAttach} from "../util/blockchain/wallet";
+import {GetAddress, WalletSubmitComment, WalletSubmitCommentAttachTx} from "../util/blockchain/wallet";
 import {ShowDialogModal, ShowDialogModalHTML} from "./modalDialog";
-import {UploadFile} from "../util/files";
+import {FinalizeFiles, UploadFile} from "../util/files";
 import {AddFileToIPFS, CIDToSubdomainURL} from "../util/ipfs";
 import {IsValidIpfsCid, XSSSanitizeTextUrl} from "../util/security";
 import {CreatePostControlsBar} from "./postControls";
@@ -24,7 +24,7 @@ export interface Comment {
 }
 let commentEditorId = 0;
 interface InlineMediaData {
-    uuid: string;
+    cid: string;
     fileName: string;
     mimeType: string;
     size: string;
@@ -66,21 +66,32 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
             if (mediaList.length > 0) {
                 const csrfToken = (document.getElementById("csrfToken") as HTMLInputElement)?.value || "";
                 const attachments: string[][] = [];
+                const attachmentCids: string[] = [];
                 for (const media of mediaList) {
-                    const cid = await AddFileToIPFS(media.uuid, csrfToken);
+                    const cid = await AddFileToIPFS(media.cid, csrfToken);
                     const cidString = cid?.toString();
                     if (cidString === undefined || !IsValidIpfsCid(cidString)) {
                         ShowDialogModal("Failed to upload attachment to IPFS");
                         setButtonState(false, "Post");
                         return;
                     }
-                    const ext = media.fileName.split(".").pop() || "";
-                    const inlineIpfsUrl = ext.length > 0 ? `ipfs://${cidString}.${ext}` : `ipfs://${cidString}`;
+                    const inlineIpfsUrl = `ipfs://${cidString}`;
                     content = content.split(media.blobUrl).join(inlineIpfsUrl);
-                    const ipfsUrl = `ipfs://${cidString}`;
-                    attachments.push([ipfsUrl, media.mimeType, media.size, media.fileName]);
+                    attachments.push([cidString, media.mimeType, media.size, media.fileName]);
+                    attachmentCids.push(cidString);
                 }
-                await WalletSubmitCommentAttach(parentTxHash, content, attachments);
+                const txHash = await WalletSubmitCommentAttachTx(parentTxHash, content, attachments);
+                if (!txHash) {
+                    ShowDialogModal("Failed to submit comment. Please try again.");
+                    setButtonState(false, "Post");
+                    return;
+                }
+                const finalizeResponse = await FinalizeFiles(attachmentCids, "public", "comment_attachment", csrfToken, txHash, blockchain);
+                if (finalizeResponse[0] !== 200) {
+                    ShowDialogModal("Failed to finalize comment attachments");
+                    setButtonState(false, "Post");
+                    return;
+                }
             } else {
                 await WalletSubmitComment(parentTxHash, content);
             }
@@ -194,9 +205,9 @@ function initCommentEditor(editorId: string, onSubmit?: (setButtonState: (disabl
             }
             const uploadedFile = data.data[0];
             const blobUrl = URL.createObjectURL(renamedFile);
-            console.log("[addComment] Created blob URL:", blobUrl, "uuid:", uploadedFile.uuid);
+            console.log("[addComment] Created blob URL:", blobUrl, "cid:", uploadedFile.cid);
             const mediaData = {
-                uuid: uploadedFile.uuid,
+                cid: uploadedFile.cid,
                 fileName: uploadedFile.fileName,
                 mimeType: uploadedFile.mimeType,
                 size: uploadedFile.size || renamedFile.size.toString(),

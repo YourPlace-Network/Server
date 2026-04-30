@@ -15,6 +15,7 @@ import {
     algoGetName,
     algoGetTransferFeeEstimate,
     algoMintCollectible,
+    algoDeleteFiles,
     algoReconnectSession,
     algoSetBanner,
     algoSetBot,
@@ -26,8 +27,10 @@ import {
     algoSetNsfw,
     algoSetVertical,
     algoSetWebsite,
+    algoPublishFiles,
     algoSubmitComment,
     algoSubmitCommentAttach,
+    algoSubmitCommentAttachTx,
     algoSubmitDislike,
     algoSubmitEmojiReaction,
     algoSubmitLike,
@@ -36,6 +39,7 @@ import {
     peraWallet,
     setAlgoAvatar,
     algoSubmitPost,
+    algoSubmitPostAttachTx,
     setAlgoPostAttach,
 } from "./algorand";
 import {
@@ -52,6 +56,7 @@ import {
     baseReconnectWallet,
     baseGetTransferFeeEstimate,
     baseMintCollectible,
+    baseDeleteFiles,
     baseSetAvatar,
     baseSetBanner,
     baseSetBot,
@@ -63,6 +68,7 @@ import {
     baseSetNsfw,
     baseSetVertical,
     baseSetWebsite,
+    basePublishFiles,
     baseSubmitComment,
     baseSubmitCommentAttach,
     baseSubmitDislike,
@@ -89,6 +95,7 @@ import {
     ethereumReconnectWallet,
     ethereumGetTransferFeeEstimate,
     ethereumMintCollectible,
+    ethereumDeleteFiles,
     ethereumSetAvatar,
     ethereumSetBanner,
     ethereumSetBot,
@@ -100,6 +107,7 @@ import {
     ethereumSetNsfw,
     ethereumSetVertical,
     ethereumSetWebsite,
+    ethereumPublishFiles,
     ethereumSubmitComment,
     ethereumSubmitCommentAttach,
     ethereumSubmitDislike,
@@ -117,6 +125,7 @@ import {
     localWalletEthereumAuthLogin,
     localWalletEthereumBurnCollectible,
     localWalletEthereumConnect,
+    localWalletEthereumDeleteFiles,
     localWalletEthereumDisconnect,
     localWalletEthereumFollowUser,
     localWalletEthereumGetCollectibles,
@@ -133,6 +142,7 @@ import {
     localWalletEthereumSetNsfw,
     localWalletEthereumSetVertical,
     localWalletEthereumSetWebsite,
+    localWalletEthereumPublishFiles,
     localWalletEthereumSubmitComment,
     localWalletEthereumSubmitCommentAttach,
     localWalletEthereumSubmitDislike,
@@ -190,7 +200,21 @@ const cachedNames: Record<string, PersistentCache> = {
     "ethereum": new PersistentCache("ethereum_name"),
 };
 export function WalletGetCachedAvatar(chain: string, address: string): string | null {
-    return cachedAvatars[chain]?.get<string>(address) ?? null;
+    const cachedAvatar = cachedAvatars[chain]?.get<string>(address) ?? null;
+    if (!cachedAvatar) {
+        return null;
+    }
+    const normalizedAvatar = CIDToSubdomainURL(cachedAvatar);
+    if (normalizedAvatar !== "") {
+        if (normalizedAvatar !== cachedAvatar) {
+            cachedAvatars[chain]?.set(address, normalizedAvatar);
+        }
+        return normalizedAvatar;
+    }
+    if (IsValidURL(cachedAvatar)) {
+        return cachedAvatar;
+    }
+    return null;
 }
 export function WalletGetCachedName(chain: string, address: string): string | null {
     return cachedNames[chain]?.get<string>(address) ?? null;
@@ -788,6 +812,33 @@ export async function WalletSubmitPostAttach(payload: string, attach: string[][]
             return false;
     }
 }
+export async function WalletSubmitPostAttachTx(payload: string, attach: string[][]): Promise<string | null> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot submit post with attachments");
+        return null;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
+    switch (wallet) {
+        case "cbwalletbase":
+            return await baseSubmitPostAttach(payload, attach) || null;
+        case "localwalletethereum":
+            return await localWalletEthereumSubmitPostAttach(payload, attach) || null;
+        case "metamaskethereum":
+            return await ethereumSubmitPostAttach(payload, attach) || null;
+        case "pera": {
+            const txHash = await algoSubmitPostAttachTx(payload, attach);
+            return txHash || null;
+        }
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return null;
+    }
+}
 export async function WalletSubmitComment(parentTxHash: string, payload: string): Promise<boolean> {
     let wallet = GetWallet();
     if (!wallet) {
@@ -842,6 +893,87 @@ export async function WalletSubmitCommentAttach(parentTxHash: string, payload: s
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;
+    }
+}
+export async function WalletSubmitCommentAttachTx(parentTxHash: string, payload: string, attach: string[][]): Promise<string | null> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot submit comment with attachments");
+        return null;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
+    switch (wallet) {
+        case "cbwalletbase":
+            return await baseSubmitCommentAttach(parentTxHash, payload, attach) || null;
+        case "localwalletethereum":
+            return await localWalletEthereumSubmitCommentAttach(parentTxHash, payload, attach) || null;
+        case "metamaskethereum":
+            return await ethereumSubmitCommentAttach(parentTxHash, payload, attach) || null;
+        case "pera": {
+            const txHash = await algoSubmitCommentAttachTx(parentTxHash, payload, attach);
+            return txHash || null;
+        }
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return null;
+    }
+}
+export async function WalletPublishFiles(attach: string[][]): Promise<string | null> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot publish files");
+        return null;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
+    switch (wallet) {
+        case "cbwalletbase":
+            return await basePublishFiles(attach) || null;
+        case "localwalletethereum":
+            return await localWalletEthereumPublishFiles(attach) || null;
+        case "metamaskethereum":
+            return await ethereumPublishFiles(attach) || null;
+        case "pera": {
+            const txHash = await algoPublishFiles(attach);
+            return txHash || null;
+        }
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return null;
+    }
+}
+export async function WalletDeleteFiles(cids: string[]): Promise<string | null> {
+    let wallet = GetWallet();
+    if (!wallet) {
+        LogError("No wallet connected - cannot delete files");
+        return null;
+    }
+    const isConnected = await WalletIsConnected();
+    if (!isConnected) {
+        LogInfo("Wallet session expired - attempting to reconnect");
+        await ReconnectWallet();
+    }
+    switch (wallet) {
+        case "cbwalletbase":
+            return await baseDeleteFiles(cids) || null;
+        case "localwalletethereum":
+            return await localWalletEthereumDeleteFiles(cids) || null;
+        case "metamaskethereum":
+            return await ethereumDeleteFiles(cids) || null;
+        case "pera": {
+            const txHash = await algoDeleteFiles(cids);
+            return txHash || null;
+        }
+        default:
+            LogError("Invalid wallet selection: " + wallet);
+            return null;
     }
 }
 export async function WalletSubmitLike(targetTxHash: string, targetType: string): Promise<boolean> {

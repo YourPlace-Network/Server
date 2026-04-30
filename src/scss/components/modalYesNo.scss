@@ -1,5 +1,9 @@
 @use "../global";
 
+#modalYesNoBody.modalYesNoBodyCentered {
+  text-align: center;
+}
+
 #modalYesNoFooter {
   border-top: none;
   justify-content: center;

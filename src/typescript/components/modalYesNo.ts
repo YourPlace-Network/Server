@@ -4,9 +4,15 @@ import "../../scss/components/modalYesNo.scss"
 
 // HTML Template:  {{template "modalYesNo" .}}
 
-export function ShowModalYesNo(message: string): Promise<boolean> {
+type ShowModalYesNoOptions = {
+    centerContent?: boolean;
+};
+
+export function ShowModalYesNo(message: string, options?: ShowModalYesNoOptions): Promise<boolean> {
     return new Promise((resolve) => {
+        const modalBody = document.getElementById("modalYesNoBody") as HTMLDivElement;
         document.getElementById("modalYesNoContent")!.textContent = message;
+        modalBody.classList.toggle("modalYesNoBodyCentered", options?.centerContent === true);
         const yesButton = document.getElementById("modalYesButton") as HTMLButtonElement;
         const noButton = document.getElementById("modalNoButton") as HTMLButtonElement;
         // Create click handlers
@@ -22,6 +28,7 @@ export function ShowModalYesNo(message: string): Promise<boolean> {
         const cleanup = () => {
             yesButton.removeEventListener("click", handleYes);
             noButton.removeEventListener("click", handleNo);
+            modalBody.classList.remove("modalYesNoBodyCentered");
             HideModalYesNo();
         };
         // Add event listeners

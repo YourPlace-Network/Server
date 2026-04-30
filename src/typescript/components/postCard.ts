@@ -8,8 +8,8 @@ import { ShowAddCommentUI } from "./addComment";
 import {ShowAvatarMediaViewer, ShowModalMediaViewer} from "./modalMediaViewer";
 import { XcomOEmbedCard } from "./xcomOEmbedCard";
 import { GetAddress, IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar } from "../util/blockchain/wallet";
-import { IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue } from "../util/security";
-import { CIDToSubdomainURL, getIpfsAvatarUrl } from "../util/ipfs";
+import { IsValidIpfsCid, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue } from "../util/security";
+import { CIDToSubdomainURL, getIpfsAvatarUrl, ProbeIpfsMediaType, ResolveIpfsContentUrl } from "../util/ipfs";
 import { getFileIcon, formatFileSize } from "../util/files";
 import { LogError } from "../util/log";
 import { getBlockchainIconPath, getBlockchainUrl, processTextWithTags } from "../util/domFactory";
@@ -51,6 +51,32 @@ async function createImageEmbed(url: string): Promise<HTMLElement | null> {
     img.referrerPolicy = "no-referrer";
     img.src = XSSSanitizeUrl(url);
     return img;
+}
+function createIpfsImageEmbed(url: string, cid: string): HTMLImageElement | null {
+    const sanitizedUrl = XSSSanitizeUrl(url);
+    if (sanitizedUrl === "#") {
+        return null;
+    }
+    const img = document.createElement("img") as HTMLImageElement;
+    img.classList.add("postCardEmbeddedImage");
+    img.crossOrigin = "anonymous";
+    img.referrerPolicy = "no-referrer";
+    img.src = sanitizedUrl;
+    img.alt = `ipfs://${cid}`;
+    return img;
+}
+function createIpfsVideoEmbed(url: string): HTMLVideoElement | null {
+    const sanitizedUrl = XSSSanitizeUrl(url);
+    if (sanitizedUrl === "#") {
+        return null;
+    }
+    const video = document.createElement("video") as HTMLVideoElement;
+    video.classList.add("postCardInlineVideo");
+    video.controls = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.src = sanitizedUrl;
+    return video;
 }
 function createYoutubeEmbed(url: string): HTMLIFrameElement | null {
     const youtubeRegex = /^https:\/\/((?:www\.)?youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&].*)?$/;
@@ -332,7 +358,69 @@ async function handleAvatarLoad(avatarImg: HTMLImageElement, avatarElement: HTML
     }
 }
 
-export async function CreateAttachmentCard(attachment: any[]): Promise<HTMLDivElement> {
+function resolveAttachmentUrl(attachmentRef: string, isLocalPost: boolean): string {
+    if (isLocalPost && IsValidIpfsCid(attachmentRef)) {
+        return `/files/download/${encodeURIComponent(attachmentRef)}`;
+    }
+    const converted = CIDToSubdomainURL(attachmentRef);
+    if (converted) {
+        return converted;
+    }
+    return attachmentRef;
+}
+function normalizeAttachmentCID(attachmentRef: string | null | undefined): string {
+    if (!attachmentRef) {
+        return "";
+    }
+    const trimmedRef = attachmentRef.trim();
+    if (trimmedRef === "") {
+        return "";
+    }
+    if (IsValidIpfsCid(trimmedRef)) {
+        return trimmedRef.startsWith("ipfs://") ? trimmedRef.substring("ipfs://".length) : trimmedRef;
+    }
+    if (trimmedRef.startsWith("/files/download/")) {
+        const cid = decodeURIComponent(trimmedRef.substring("/files/download/".length));
+        return IsValidIpfsCid(cid) ? cid : "";
+    }
+    try {
+        const parsedUrl = new URL(trimmedRef, window.location.origin);
+        if (parsedUrl.pathname.startsWith("/files/download/")) {
+            const cid = decodeURIComponent(parsedUrl.pathname.substring("/files/download/".length));
+            return IsValidIpfsCid(cid) ? cid : "";
+        }
+        const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+        if (pathParts.length >= 2 && pathParts[0] === "ipfs" && IsValidIpfsCid(pathParts[1])) {
+            return pathParts[1];
+        }
+        const hostnameParts = parsedUrl.hostname.split(".");
+        if (hostnameParts.length > 2 && hostnameParts[1] === "ipfs" && IsValidIpfsCid(hostnameParts[0])) {
+            return hostnameParts[0];
+        }
+    } catch (error) {
+        return "";
+    }
+    return "";
+}
+function getEmbeddedAttachmentCIDs(payload: string): Set<string> {
+    const embeddedCIDs = new Set<string>();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(payload, "text/html");
+    doc.body.querySelectorAll("img[src], video[src], source[src]").forEach((element) => {
+        const ref = element.getAttribute("src");
+        const cid = normalizeAttachmentCID(ref);
+        if (cid !== "") {
+            embeddedCIDs.add(cid);
+        }
+    });
+    const bareMatches = extractBareIpfsMatches(doc.body.textContent || "");
+    for (const match of bareMatches) {
+        embeddedCIDs.add(match.cid);
+    }
+    return embeddedCIDs;
+}
+
+export async function CreateAttachmentCard(attachment: any[], isLocalPost: boolean = false): Promise<HTMLDivElement> {
     const attachmentCard = document.createElement("div") as HTMLDivElement;
     const iconRow = document.createElement("div") as HTMLDivElement;
     const fileIcon = document.createElement("i") as HTMLElement;
@@ -350,11 +438,7 @@ export async function CreateAttachmentCard(attachment: any[]): Promise<HTMLDivEl
     nameRow.classList.add("attachmentCardNameRow");
     bottomRow.classList.add("attachmentCardBottomRow");
     fileIcon.classList.add("icon", "attachmentCardIcon", iconClass);
-    if (attachment[0].startsWith("ipfs://")) {
-        attachmentURL = CIDToSubdomainURL(attachment[0]);
-    } else {
-        attachmentURL = attachment[0];
-    }
+    attachmentURL = resolveAttachmentUrl(attachment[0], isLocalPost);
     if (!IsValidURL(attachmentURL)) {
         return Promise.reject("Invalid URL");
     }
@@ -494,6 +578,165 @@ async function getInlineImageRenderability(html: string): Promise<Map<string, bo
     }
     return renderability;
 }
+function cleanupEmptyPostParagraphs(postTextDiv: HTMLElement): void {
+    postTextDiv.querySelectorAll("p").forEach((p) => {
+        if (p.textContent?.trim() === "" && !p.querySelector("iframe, img, video")) {
+            p.remove();
+        }
+    });
+}
+function extractBareIpfsMatches(text: string): {cid: string; end: number; start: number; token: string}[] {
+    const matches = Array.from(text.matchAll(/ipfs:\/\/[A-Za-z0-9]+/g));
+    const results: {cid: string; end: number; start: number; token: string}[] = [];
+    for (const match of matches) {
+        const token = match[0];
+        const start = match.index || 0;
+        const end = start + token.length;
+        const nextChar = text.charAt(end);
+        if (nextChar === "/" || nextChar === "?" || nextChar === "#") {
+            continue;
+        }
+        if (!IsValidIpfsCid(token)) {
+            continue;
+        }
+        results.push({
+            cid: token.substring("ipfs://".length),
+            end: end,
+            start: start,
+            token: token,
+        });
+    }
+    return results;
+}
+async function linkifyBareIpfsText(element: HTMLElement, representedCIDs: Set<string>): Promise<{anchor: HTMLAnchorElement; cid: string}[]> {
+    const nodeFilter = element.ownerDocument.defaultView?.NodeFilter || window.NodeFilter;
+    const walker = element.ownerDocument.createTreeWalker(element, nodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            const parentElement = node.parentElement;
+            if (!parentElement || parentElement.closest("a, img, video, source, iframe")) {
+                return nodeFilter.FILTER_REJECT;
+            }
+            if (!(node.textContent || "").includes("ipfs://")) {
+                return nodeFilter.FILTER_REJECT;
+            }
+            return nodeFilter.FILTER_ACCEPT;
+        }
+    });
+    const textNodes: Text[] = [];
+    let currentNode = walker.nextNode();
+    while (currentNode) {
+        textNodes.push(currentNode as Text);
+        currentNode = walker.nextNode();
+    }
+    const candidates: {anchor: HTMLAnchorElement; cid: string}[] = [];
+    for (const textNode of textNodes) {
+        const text = textNode.textContent || "";
+        const matches = extractBareIpfsMatches(text);
+        if (matches.length === 0) {
+            continue;
+        }
+        const fragment = textNode.ownerDocument.createDocumentFragment();
+        let cursor = 0;
+        let didMutate = false;
+        for (const match of matches) {
+            if (match.start > cursor) {
+                fragment.appendChild(textNode.ownerDocument.createTextNode(text.slice(cursor, match.start)));
+            }
+            if (representedCIDs.has(match.cid)) {
+                didMutate = true;
+                cursor = match.end;
+                continue;
+            }
+            const resolvedUrl = ResolveIpfsContentUrl(match.cid);
+            const sanitizedUrl = XSSSanitizeUrl(resolvedUrl);
+            if (resolvedUrl === "" || sanitizedUrl === "#") {
+                fragment.appendChild(textNode.ownerDocument.createTextNode(match.token));
+                cursor = match.end;
+                continue;
+            }
+            const anchor = textNode.ownerDocument.createElement("a");
+            anchor.href = sanitizedUrl;
+            anchor.rel = "noopener noreferrer";
+            anchor.target = "_blank";
+            anchor.textContent = match.token;
+            fragment.appendChild(anchor);
+            representedCIDs.add(match.cid);
+            candidates.push({anchor, cid: match.cid});
+            didMutate = true;
+            cursor = match.end;
+        }
+        if (!didMutate) {
+            continue;
+        }
+        if (cursor < text.length) {
+            fragment.appendChild(textNode.ownerDocument.createTextNode(text.slice(cursor)));
+        }
+        textNode.parentNode?.replaceChild(fragment, textNode);
+    }
+    return candidates;
+}
+async function upgradeBareIpfsLinksToEmbeds(candidates: {anchor: HTMLAnchorElement; cid: string}[]): Promise<void> {
+    if (candidates.length === 0) {
+        return;
+    }
+    const results = await Promise.all(candidates.map(async (candidate) => {
+        return {
+            anchor: candidate.anchor,
+            cid: candidate.cid,
+            mediaType: await ProbeIpfsMediaType(candidate.cid),
+            resolvedUrl: ResolveIpfsContentUrl(candidate.cid),
+        };
+    }));
+    for (const result of results) {
+        if (!result.anchor.isConnected || result.resolvedUrl === "") {
+            continue;
+        }
+        if (result.mediaType === "image") {
+            const imageEmbed = createIpfsImageEmbed(result.resolvedUrl, result.cid);
+            if (imageEmbed) {
+                result.anchor.replaceWith(imageEmbed);
+            }
+            continue;
+        }
+        if (result.mediaType === "video") {
+            const videoEmbed = createIpfsVideoEmbed(result.resolvedUrl);
+            if (videoEmbed) {
+                result.anchor.replaceWith(videoEmbed);
+            }
+        }
+    }
+}
+async function applyFileCardSummary(postTextDiv: HTMLSpanElement, attachments: any[]): Promise<void> {
+    if (!attachments || attachments.length === 0) {
+        return;
+    }
+    const summary = document.createElement("span");
+    const badge = document.createElement("span");
+    const title = document.createElement("span");
+    const meta = document.createElement("span");
+    let totalSize = 0;
+    for (const attachment of attachments) {
+        totalSize += Number(attachment[2] || 0);
+    }
+    const formattedSize = await formatFileSize(totalSize);
+    summary.classList.add("fileCardSummary");
+    badge.classList.add("fileCardBadge");
+    title.classList.add("fileCardName");
+    meta.classList.add("fileCardMeta");
+    badge.textContent = attachments.length === 1 ? "File" : "Files";
+    if (attachments.length === 1) {
+        title.textContent = XSSSanitizeValue(attachments[0][3] || "Uploaded file");
+        meta.textContent = formattedSize;
+    } else {
+        title.textContent = `${attachments.length} uploaded files`;
+        meta.textContent = `${formattedSize} total`;
+    }
+    postTextDiv.innerHTML = "";
+    summary.appendChild(badge);
+    summary.appendChild(title);
+    summary.appendChild(meta);
+    postTextDiv.appendChild(summary);
+}
 export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
     let postDiv = document.createElement("div") as HTMLDivElement;
     let postID = document.createElement("input") as HTMLInputElement;
@@ -518,7 +761,10 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
     let postdatevalue = new Date(unixpostdate * 1000).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true});
     let walletAddressLink = WalletGetYourPlaceAddressLink(postData.address);
     let walletTxLink = WalletGetExplorerTxLink(postData.txHash, postData.blockchain);
-    postDiv.classList.add("postCard", "postCardClickable");
+    postDiv.classList.add("postCard");
+    if (!postData.localPost) {
+        postDiv.classList.add("postCardClickable");
+    }
     postID.type = "hidden";
     postID.classList.add("postCardID");
     postID.value = postData.txHash;
@@ -574,6 +820,8 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
     postTextDiv.textContent = postData.payload;
     embedDiv.classList.add("postCardEmbedDiv");
     reactionDiv.classList.add("postCardReactionDiv");
+    const inlineAttachmentCIDs = getEmbeddedAttachmentCIDs(postData.payload || "");
+    const separatelyRenderedAttachmentCIDs = new Set<string>();
     postDiv.appendChild(postID);
     postDiv.appendChild(postBlockchain);
     postDiv.appendChild(postAddress);
@@ -585,10 +833,12 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
     postHeaderDiv.appendChild(postDate);
     ellipsesBtn.appendChild(ellipses);
     ellipsesDiv.appendChild(ellipsesBtn);
-    ellipsesMenuItemExplorer.appendChild(ellipsesMenuItemExplorerLink);
-    ellipsesMenu.appendChild(ellipsesMenuItemExplorer);
-    ellipsesDiv.appendChild(ellipsesMenu);
-    postHeaderDiv.appendChild(ellipsesDiv);
+    if (!postData.localPost) {
+        ellipsesMenuItemExplorer.appendChild(ellipsesMenuItemExplorerLink);
+        ellipsesMenu.appendChild(ellipsesMenuItemExplorer);
+        ellipsesDiv.appendChild(ellipsesMenu);
+        postHeaderDiv.appendChild(ellipsesDiv);
+    }
     postDiv.appendChild(postTextDiv);
     if ("attachments" in postData) {
         let attachmentDiv = document.createElement("div") as HTMLDivElement;
@@ -597,11 +847,15 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
         let listedAttachmentElements: HTMLElement[] = [];
         for (let i = 0; i < postData.attachments.length; i ++) {
             let attachment = postData.attachments[i];
-            let mimeType = attachment[1];
-            let fileUrl = attachment[0];
-            if (fileUrl.startsWith("ipfs://")) {
-                fileUrl = CIDToSubdomainURL(fileUrl);
+            let attachmentCID = normalizeAttachmentCID(attachment[0]);
+            if (attachmentCID !== "" && inlineAttachmentCIDs.has(attachmentCID)) {
+                continue;
             }
+            if (attachmentCID !== "") {
+                separatelyRenderedAttachmentCIDs.add(attachmentCID);
+            }
+            let mimeType = attachment[1];
+            let fileUrl = resolveAttachmentUrl(attachment[0], !!postData.localPost);
             switch (mimeType) {
                 case "image/jpeg":
                 case "image/png":
@@ -621,7 +875,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
                     }
                     break;
                 default:
-                    let attachmentCard = await CreateAttachmentCard(postData.attachments[i]).catch( e =>{
+                    let attachmentCard = await CreateAttachmentCard(postData.attachments[i], !!postData.localPost).catch( e =>{
                         return "failed"
                     });
                     if (!(attachmentCard instanceof HTMLDivElement)) {
@@ -728,9 +982,11 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
             }
         }
     });
-    reactionDiv.appendChild(controlsBar);
-    postDiv.appendChild(reactionDiv);
-    postDiv.appendChild(addCommentContainer);
+    if (!postData.localPost) {
+        reactionDiv.appendChild(controlsBar);
+        postDiv.appendChild(reactionDiv);
+        postDiv.appendChild(addCommentContainer);
+    }
     const commentThreadContainer = document.createElement("div");
     commentThreadContainer.classList.add("commentThreadContainer");
     let commentThreadLoaded = false;
@@ -751,7 +1007,9 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
             }
         }
     };
-    postDiv.appendChild(commentThreadContainer);
+    if (!postData.localPost) {
+        postDiv.appendChild(commentThreadContainer);
+    }
     const blockchainIconPath = getBlockchainIconPath(postData.blockchain);
     if (blockchainIconPath) {
         let blockchainBadge = document.createElement("div") as HTMLDivElement;
@@ -773,17 +1031,22 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
         }
         postDiv.appendChild(blockchainBadge);
     }
-    fetchAndUpdatePostControls(controlsBar, postData.blockchain, postData.txHash);
+    if (!postData.localPost) {
+        fetchAndUpdatePostControls(controlsBar, postData.blockchain, postData.txHash);
+    }
     const attachmentUrls = new Set<string>();
     if ("attachments" in postData) {
         for (const attachment of postData.attachments) {
-            let fileUrl = attachment[0];
-            if (fileUrl.startsWith("ipfs://")) {
-                fileUrl = CIDToSubdomainURL(fileUrl);
-            }
+            let fileUrl = resolveAttachmentUrl(attachment[0], !!postData.localPost);
             attachmentUrls.add(fileUrl);
+            const attachmentCID = normalizeAttachmentCID(attachment[0]);
+            if (attachmentCID !== "") {
+                attachmentUrls.add(`ipfs://${attachmentCID}`);
+                attachmentUrls.add(`/files/download/${encodeURIComponent(attachmentCID)}`);
+            }
         }
     }
+    const representedIpfsCIDs = new Set<string>(separatelyRenderedAttachmentCIDs);
     const urlRegex = /(https:\/\/[^\s"<>]+)/g;
     const inlineImageRenderability = await getInlineImageRenderability(postData.payload);
     let postText = postData.payload;
@@ -827,9 +1090,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
         }
     }
     postTextDiv.innerHTML = XSSSanitizeTinyMCEHtml(postText);
-    postTextDiv.querySelectorAll("p").forEach(p => {
-        if (p.textContent?.trim() === "" && !p.querySelector("iframe, img, video")) { p.remove(); }
-    });
+    cleanupEmptyPostParagraphs(postTextDiv);
     processTextWithTags(postTextDiv);
     const images = postTextDiv.querySelectorAll("img");
     images.forEach(img => {
@@ -846,7 +1107,6 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
             }
         }
     });
-    postTextDiv.appendChild(embedDiv);
     const videos = postTextDiv.querySelectorAll("video");
     videos.forEach(video => {
         const src = video.getAttribute("src");
@@ -858,12 +1118,22 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
             }
         }
     });
+    const bareIpfsLinkCandidates = await linkifyBareIpfsText(postTextDiv, representedIpfsCIDs);
+    await upgradeBareIpfsLinksToEmbeds(bareIpfsLinkCandidates);
+    cleanupEmptyPostParagraphs(postTextDiv);
+    postTextDiv.appendChild(embedDiv);
     ProcessPostContentForPreviews(postTextDiv);
-    const postUrl = `/post/${postData.blockchain}/${postData.txHash}`;
-    postDiv.addEventListener("click", (e: MouseEvent) => {
-        const target = e.target as HTMLElement;
-        if (target.closest("a, button, iframe, video, .addCommentContainer, .blockchainBadge, .commentThreadContainer, .postCardAttachmentDiv, .postCardAvatar, .postCardEmbedDiv, .postCardEllipsesDiv, .postControlsBar")) return;
-        window.location.href = postUrl;
-    });
+    if (postData.resultType === "file") {
+        postDiv.classList.add("fileCard");
+        await applyFileCardSummary(postTextDiv, postData.attachments || []);
+    }
+    if (!postData.localPost) {
+        const postUrl = `/post/${postData.blockchain}/${postData.txHash}`;
+        postDiv.addEventListener("click", (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.closest("a, button, iframe, video, .addCommentContainer, .blockchainBadge, .commentThreadContainer, .postCardAttachmentDiv, .postCardAvatar, .postCardEmbedDiv, .postCardEllipsesDiv, .postControlsBar")) return;
+            window.location.href = postUrl;
+        });
+    }
     return postDiv;
 }

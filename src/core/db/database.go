@@ -16,7 +16,7 @@ type Database struct {
 	Engine string
 }
 type Attachment struct { //we can move this as long as it isn't defined in a package that imports database
-	FileURL  string
+	CID      string
 	MimeType string
 	FileSize uint64
 	FileName string
@@ -277,31 +277,234 @@ func (db *Database) AuthGetServerOwnerNetwork() string {
 	return ""
 }
 
+func (db *Database) ensureFileTrackingTables() {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.ensureFileTrackingTables()
+	case "sqlite":
+		db.sqlite.ensureFileTrackingTables()
+	}
+}
+
 // --- Files Functions --- //
-func (db *Database) FileAdd(fileUUID string, fileHash string, mimeType string, fileName string, size int64) {
+func (db *Database) LocalFileUpsert(ownerAddress string, ownerBlockchain string, fileHash string, cid string, mimeType string, fileName string, size int64, source string, state string) {
+	db.ensureFileTrackingTables()
 	switch db.Engine {
 	case "mysql":
-		db.mysql.FileAdd(fileUUID, fileHash, mimeType, fileName, size)
+		db.mysql.LocalFileUpsert(ownerAddress, ownerBlockchain, fileHash, cid, mimeType, fileName, size, source, state)
 	case "sqlite":
-		db.sqlite.FileAdd(fileUUID, fileHash, mimeType, fileName, size)
+		db.sqlite.LocalFileUpsert(ownerAddress, ownerBlockchain, fileHash, cid, mimeType, fileName, size, source, state)
 	}
 }
-func (db *Database) IPFSAdd(fileUUID string, cid string) {
+func (db *Database) LocalFileUpdate(ownerAddress string, ownerBlockchain string, cid string, source string, state string) {
+	db.ensureFileTrackingTables()
 	switch db.Engine {
 	case "mysql":
-		db.mysql.IPFSAdd(fileUUID, cid)
+		db.mysql.LocalFileUpdate(ownerAddress, ownerBlockchain, cid, source, state)
 	case "sqlite":
-		db.sqlite.IPFSAdd(fileUUID, cid)
+		db.sqlite.LocalFileUpdate(ownerAddress, ownerBlockchain, cid, source, state)
 	}
 }
-func (db *Database) GetFileHashFromUUID(fileUUID string) string {
+func (db *Database) LocalFileGet(ownerAddress string, ownerBlockchain string, cid string) map[string]interface{} {
+	db.ensureFileTrackingTables()
 	switch db.Engine {
 	case "mysql":
-		return db.mysql.GetFileHashFromUUID(fileUUID)
+		return db.mysql.LocalFileGet(ownerAddress, ownerBlockchain, cid)
 	case "sqlite":
-		return db.sqlite.GetFileHashFromUUID(fileUUID)
+		return db.sqlite.LocalFileGet(ownerAddress, ownerBlockchain, cid)
+	}
+	return nil
+}
+func (db *Database) LocalFileGetByOwnerAddress(ownerAddress string, cid string) map[string]interface{} {
+	db.ensureFileTrackingTables()
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.LocalFileGetByOwnerAddress(ownerAddress, cid)
+	case "sqlite":
+		return db.sqlite.LocalFileGetByOwnerAddress(ownerAddress, cid)
+	}
+	return nil
+}
+func (db *Database) LocalFileDelete(ownerAddress string, ownerBlockchain string, cid string) {
+	db.ensureFileTrackingTables()
+	switch db.Engine {
+	case "mysql":
+		db.mysql.LocalFileDelete(ownerAddress, ownerBlockchain, cid)
+	case "sqlite":
+		db.sqlite.LocalFileDelete(ownerAddress, ownerBlockchain, cid)
+	}
+}
+func (db *Database) LocalFilesGetPrivate(ownerAddress string, ownerBlockchain string) []map[string]interface{} {
+	db.ensureFileTrackingTables()
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.LocalFilesGetPrivate(ownerAddress, ownerBlockchain)
+	case "sqlite":
+		return db.sqlite.LocalFilesGetPrivate(ownerAddress, ownerBlockchain)
+	}
+	return nil
+}
+func (db *Database) LocalFilesGetPublished(ownerAddress string, ownerBlockchain string) []map[string]interface{} {
+	db.ensureFileTrackingTables()
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.LocalFilesGetPublished(ownerAddress, ownerBlockchain)
+	case "sqlite":
+		return db.sqlite.LocalFilesGetPublished(ownerAddress, ownerBlockchain)
+	}
+	return nil
+}
+func (db *Database) OnchainFilesUpsert(txHash string, blockchain string, fromAddr string, source string, timestamp uint64, attachments []Attachment) {
+	db.ensureFileTrackingTables()
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainFilesUpsert(txHash, blockchain, fromAddr, source, timestamp, attachments)
+	case "sqlite":
+		db.sqlite.OnchainFilesUpsert(txHash, blockchain, fromAddr, source, timestamp, attachments)
+	}
+}
+func (db *Database) ProfileGetPublicFiles(address string, blockchain string) []map[string]interface{} {
+	db.ensureFileTrackingTables()
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.ProfileGetPublicFiles(address, blockchain)
+	case "sqlite":
+		return db.sqlite.ProfileGetPublicFiles(address, blockchain)
+	}
+	return nil
+}
+func (db *Database) LocalPostCreate(ownerAddress string, ownerBlockchain string, payload string, attachments []string) string {
+	db.ensureFileTrackingTables()
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.LocalPostCreate(ownerAddress, ownerBlockchain, payload, attachments)
+	case "sqlite":
+		return db.sqlite.LocalPostCreate(ownerAddress, ownerBlockchain, payload, attachments)
 	}
 	return ""
+}
+func (db *Database) LocalPostGetCount(ownerAddress string, ownerBlockchain string) int64 {
+	db.ensureFileTrackingTables()
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.LocalPostGetCount(ownerAddress, ownerBlockchain)
+	case "sqlite":
+		return db.sqlite.LocalPostGetCount(ownerAddress, ownerBlockchain)
+	}
+	return 0
+}
+func (db *Database) LocalPostsGet(ownerAddress string, ownerBlockchain string, limit int, offset int) []map[string]interface{} {
+	db.ensureFileTrackingTables()
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.LocalPostsGet(ownerAddress, ownerBlockchain, limit, offset)
+	case "sqlite":
+		return db.sqlite.LocalPostsGet(ownerAddress, ownerBlockchain, limit, offset)
+	}
+	return nil
+}
+func (db *Database) ProfileGetFilesForViewer(address string, blockchain string, viewerAddress string, viewerBlockchain string) []map[string]interface{} {
+	files := db.ProfileGetPublicFiles(address, blockchain)
+	if viewerAddress == address && viewerBlockchain == blockchain {
+		publicFilesByCID := make(map[string]map[string]interface{})
+		for _, file := range files {
+			cid, _ := file["cid"].(string)
+			if cid != "" {
+				publicFilesByCID[cid] = file
+			}
+			file["canDelete"] = db.LocalFileGet(address, blockchain, cid) != nil || db.LocalFileGetByOwnerAddress(address, cid) != nil
+		}
+		publishedLocalFiles := db.LocalFilesGetPublished(address, blockchain)
+		for _, file := range publishedLocalFiles {
+			cid, _ := file["cid"].(string)
+			if cid == "" {
+				continue
+			}
+			file["canDelete"] = true
+			existing, ok := publicFilesByCID[cid]
+			if !ok {
+				files = append(files, file)
+				publicFilesByCID[cid] = file
+				continue
+			}
+			existing["canDelete"] = true
+			localAddedDate, _ := file["addedDate"].(int64)
+			existingAddedDate, _ := existing["addedDate"].(int64)
+			if localAddedDate < existingAddedDate {
+				continue
+			}
+			existing["fileName"] = file["fileName"]
+			existing["mimeType"] = file["mimeType"]
+			existing["size"] = file["size"]
+			existing["source"] = file["source"]
+			existing["addedDate"] = file["addedDate"]
+		}
+		privateFiles := db.LocalFilesGetPrivate(address, blockchain)
+		for _, file := range privateFiles {
+			file["canDelete"] = true
+		}
+		files = append(files, privateFiles...)
+		return files
+	}
+	for _, file := range files {
+		file["canDelete"] = false
+	}
+	return files
+}
+func (db *Database) ProfileGetPostCountForViewer(address string, blockchain string, viewerAddress string, viewerBlockchain string) int64 {
+	count := db.ProfileGetPostCount(address, blockchain)
+	if viewerAddress == address && viewerBlockchain == blockchain {
+		count += db.LocalPostGetCount(address, blockchain)
+	}
+	return count
+}
+func (db *Database) ProfileGetPostsForViewer(address string, blockchain string, viewerAddress string, viewerBlockchain string, limit int, offset int) []map[string]interface{} {
+	fetchLimit := limit + offset
+	if fetchLimit < limit {
+		fetchLimit = limit
+	}
+	posts := db.ProfileGetPosts(address, blockchain, fetchLimit, 0)
+	if viewerAddress == address && viewerBlockchain == blockchain {
+		posts = append(posts, db.LocalPostsGet(address, blockchain, fetchLimit, 0)...)
+	}
+	slices.SortFunc(posts, func(a, b map[string]interface{}) int {
+		aTimestamp, _ := a["timestamp"].(uint64)
+		bTimestamp, _ := b["timestamp"].(uint64)
+		if aTimestamp == 0 {
+			if value, ok := a["timestamp"].(int64); ok && value > 0 {
+				aTimestamp = uint64(value)
+			}
+		}
+		if bTimestamp == 0 {
+			if value, ok := b["timestamp"].(int64); ok && value > 0 {
+				bTimestamp = uint64(value)
+			}
+		}
+		if aTimestamp == bTimestamp {
+			aID, _ := a["txHash"].(string)
+			bID, _ := b["txHash"].(string)
+			switch {
+			case aID > bID:
+				return -1
+			case aID < bID:
+				return 1
+			default:
+				return 0
+			}
+		}
+		if aTimestamp > bTimestamp {
+			return -1
+		}
+		return 1
+	})
+	if offset >= len(posts) {
+		return []map[string]interface{}{}
+	}
+	end := offset + limit
+	if end > len(posts) {
+		end = len(posts)
+	}
+	return posts[offset:end]
 }
 
 // --- Indexer Functions --- //
@@ -1048,6 +1251,22 @@ func (db *Database) OnchainCA(txHash string, blockchain string, fromAddr string,
 		db.mysql.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data, attachments)
 	case "sqlite":
 		db.sqlite.OnchainCA(txHash, blockchain, fromAddr, parentTxHash, amount, timestamp, data, attachments)
+	}
+}
+func (db *Database) OnchainPF(txHash string, blockchain string, fromAddr string, timestamp uint64, attachments []Attachment) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainPF(txHash, blockchain, fromAddr, timestamp, attachments)
+	case "sqlite":
+		db.sqlite.OnchainPF(txHash, blockchain, fromAddr, timestamp, attachments)
+	}
+}
+func (db *Database) OnchainPFD(txHash string, blockchain string, fromAddr string, timestamp uint64, cids []string) {
+	switch db.Engine {
+	case "mysql":
+		db.mysql.OnchainPFD(txHash, blockchain, fromAddr, timestamp, cids)
+	case "sqlite":
+		db.sqlite.OnchainPFD(txHash, blockchain, fromAddr, timestamp, cids)
 	}
 }
 func (db *Database) GetComments(parentTxHash string, blockchain string, limit int, offset int, sort string) []map[string]interface{} {

@@ -40,7 +40,7 @@ func Headers(port int) gin.HandlerFunc {
 				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
 				"media-src 'self' data: blob: https://*; "+ // blob: is required by Spotify Web Playback SDK for audio chunks
 				"font-src 'self' https://fonts.gstatic.com data:; "+
-				"connect-src 'self' data: https://*:* wss://*:* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // this must wildcard all TLS connections to allow for P2P traffic
+				"connect-src 'self' data: blob: https://*:* wss://*:* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // blob: is required for editor attachment previews and wildcard TLS connections allow P2P traffic
 				"frame-src https://*; "+
 				"frame-ancestors 'self' https://app.yourplace.network https://yourplace.network; "+
 				"worker-src 'self' blob:; "+ // Spotify Web Playback SDK spawns blob: workers for audio decoding

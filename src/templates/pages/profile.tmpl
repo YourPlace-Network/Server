@@ -121,7 +121,7 @@
             <div class="col-sm-10">
                 <div id="profileButtonsDiv" class="row">
                     <button class="navBtn col-sm btn active" id="btnPosts">
-                        <i class="bi bi-pencil"></i><span class="navBtnTxt">Posts</span>
+                        <i class="bi bi-sticky"></i><span class="navBtnTxt">Posts</span>
                     </button>
                     <button class="navBtn col-sm btn" id="btnComments">
                         <i class="bi bi-chat-dots"></i><span class="navBtnTxt">Comments</span>
@@ -129,12 +129,28 @@
                     <button class="navBtn col-sm btn" id="btnCollectible">
                         <i class="bi bi-gem"></i><span class="navBtnTxt">Collectibles</span>
                     </button>
-                    <button class="navBtn col-sm btn" id="btnFiles" aria-describedby="comingsoon-tooltip" disabled>
-                        <i class="bi bi-floppy"></i><span class="navBtnTxt">Files</span>
+                    <button class="navBtn col-sm btn" id="btnMarket" aria-describedby="comingsoon-tooltip" disabled>
+                        <i class="bi bi-shop"></i><span class="navBtnTxt">Market</span>
+                    </button>
+                    <button class="navBtn col-sm btn" id="btnFiles">
+                        <i class="bi bi-folder2-open"></i><span class="navBtnTxt">Files</span>
                     </button>
                     <button class="navBtn col-sm btn" id="btnSearch">
                         <i class="bi bi-search"></i><span class="navBtnTxt">Search</span>
                     </button>
+                </div>
+            </div>
+            <div class="col-sm-1"></div>
+        </div>
+
+        <div class="row hidden" id="rowFilesActions">
+            <div class="col-sm-1"></div>
+            <div class="col-sm-10">
+                <div id="profileFilesActionsDiv">
+                    <button class="btn" id="manageFilesBtn" type="button">
+                        <i class="bi bi-pencil"></i><span class="navBtnTxt">Manage Files</span>
+                    </button>
+                    <input type="search" id="profileFilesSearch" class="form-control" placeholder="Search name or CID">
                 </div>
             </div>
             <div class="col-sm-1"></div>

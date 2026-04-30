@@ -359,6 +359,14 @@ export async function ethereumSubmitPostAttach(payload: string, attach: string[]
     let jsonData = YP.postAttach(payload, attach);
     return await ethereumTxn(mainnetEth.burnAddress, jsonData);
 }
+export async function ethereumPublishFiles(attach: string[][]) {
+    let jsonData = YP.filePublish(attach);
+    return await ethereumTxn(mainnetEth.burnAddress, jsonData);
+}
+export async function ethereumDeleteFiles(cids: string[]) {
+    let jsonData = YP.fileDelete(cids);
+    return await ethereumTxn(mainnetEth.burnAddress, jsonData);
+}
 export async function ethereumFollowUser(toAddress: string, toBlockchain: string) {
     let jsonData = YP.follow(toAddress, toBlockchain);
     return await ethereumTxn(toAddress, jsonData);

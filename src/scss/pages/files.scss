@@ -1,0 +1,380 @@
+@use "sass:map";
+@use "../global.scss";
+
+#filesPage {
+  color: var(--yp-text);
+  padding-top: 1.5rem;
+}
+
+.filesHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.filesTitleWrap {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.filesAvatarLink {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.filesAvatar {
+  border-radius: 0.5rem;
+  height: 3rem;
+  object-fit: cover;
+  width: 3rem;
+}
+
+.filesTitle {
+  color: var(--yp-text);
+  margin: 0;
+}
+
+.filesControls {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.filesControls #filesSearch {
+  min-width: 20rem;
+}
+
+#modalFileRename .form-control,
+#modalFileRename .input-group-text {
+  background-color: transparent;
+  border-color: var(--yp-text);
+  color: var(--yp-text);
+}
+
+#modalFileRename .form-control::placeholder {
+  color: var(--yp-text);
+  opacity: 0.8;
+}
+
+.filesRenameCurrentName {
+  margin-bottom: 0.75rem;
+  opacity: 0.85;
+  word-break: break-word;
+}
+
+.filesRenameInputGroup {
+  margin-bottom: 1rem;
+}
+
+.filesRenameExtension {
+  white-space: nowrap;
+}
+
+.filesRenameSubmitIcon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+#filesPage .form-control,
+#filesPage .form-select,
+#filesPage .btn,
+#filesPage th,
+#filesPage td,
+#filesPage label,
+#filesPage p,
+#filesPage h1,
+#filesPage h2,
+#filesPage h3,
+#filesPage h4,
+#filesPage h5,
+#filesPage h6 {
+  color: var(--yp-text);
+}
+
+#filesPage .form-control::placeholder {
+  color: var(--yp-text);
+  opacity: 0.8;
+}
+
+#filesPage .form-select,
+#filesPage .form-control {
+  background-color: transparent;
+  border-color: var(--yp-text);
+}
+
+#filesPage .form-select option {
+  background-color: var(--yp-tertiary);
+  color: var(--yp-text);
+}
+
+#filesPage .table {
+  --bs-table-color: var(--yp-text);
+  --bs-table-bg: transparent;
+  --bs-table-border-color: var(--yp-text);
+  --bs-table-hover-color: var(--yp-text);
+  font-size: 0.86rem;
+  min-width: 100%;
+  table-layout: auto;
+  width: max-content;
+}
+
+#filesPage .btn {
+  color: var(--yp-text);
+}
+
+#filesPage th,
+#filesPage td {
+  line-height: 1.15;
+  padding-bottom: 0.4rem;
+  padding-top: 0.4rem;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+#filesPage th {
+  user-select: none;
+}
+
+#addFilesButton {
+  width: 3.7em;
+  height: 3.7em;
+  position: fixed;
+  bottom: .5em;
+  right: .5em;
+  background: var(--yp-quaternary);
+  border-radius: 4em;
+}
+
+.addFilesIcon {
+  font-size: 1.5em;
+  color: map.get(global.$colors, "tertiary");
+  font-weight: 900;
+  -webkit-text-stroke: 0.04em currentColor;
+}
+
+.filesTableWrap {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 1rem;
+  isolation: isolate;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 0.5rem 0.75rem;
+}
+
+.filesEmptyState {
+  display: none;
+  opacity: 0.8;
+  padding: 1rem 0;
+}
+
+.filesNameCell {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filesCidCell {
+  font-family: monospace;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filesSortableHeader {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.filesSortableHeader.active {
+  color: var(--yp-link);
+}
+
+.filesSortArrow {
+  display: inline-block;
+  margin-left: 0.35rem;
+  min-width: 0.65rem;
+}
+
+.filesCidLink {
+  color: var(--yp-text);
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.filesActionCell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.filesActionMenuButton {
+  align-items: center;
+  display: inline-flex;
+  min-width: 2.25rem;
+  justify-content: center;
+  padding: 0.25rem;
+}
+
+.filesActionDropdown {
+  background-color: var(--yp-tertiary);
+  border-color: var(--yp-secondary);
+  border-radius: 0.75rem;
+  border-style: solid;
+  border-width: 1px;
+  box-shadow: 0 0.8rem 1.75rem rgba(0, 0, 0, 0.35);
+  min-width: 11rem;
+  padding: 0.45rem 0;
+}
+
+.filesActionDropdownFloating {
+  position: fixed;
+  z-index: 5000;
+}
+
+.filesActionDropdownItem {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--yp-text);
+  display: flex;
+  gap: 0.9rem;
+  justify-content: flex-start;
+  padding: 0.65rem 0.9rem;
+  text-align: left;
+  width: 100%;
+}
+
+.filesActionDropdownIcon {
+  display: inline-flex;
+  font-size: 0.95rem;
+  justify-content: center;
+  line-height: 1;
+  min-width: 1.25rem;
+}
+
+.filesActionDropdownLabel {
+  flex: 1 1 auto;
+}
+
+.filesActionDropdownItem:hover,
+.filesActionDropdownItem:focus,
+.filesActionDropdownItem:active {
+  background-color: var(--yp-quaternary);
+  color: var(--yp-text);
+}
+
+.filesActionDropdownItem:disabled {
+  color: var(--yp-text);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.filesTypeCell,
+.filesSizeCell,
+.filesUploadedCell,
+.filesVisibilityCell,
+.filesSourceCell {
+  white-space: nowrap;
+}
+
+.filesSourceCell {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filesPreview {
+  background: rgba(49, 49, 49, 0.96);
+  border: 1px solid rgba(211, 211, 211, 0.35);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.35);
+  max-width: 16rem;
+  opacity: 0;
+  padding: 0.6rem;
+  pointer-events: none;
+  position: fixed;
+  transform: translateY(0.3rem);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  visibility: hidden;
+  z-index: 2000;
+}
+
+.filesPreview.visible {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.filesPreviewMedia {
+  border-radius: 0.45rem;
+  display: block;
+  max-height: 12rem;
+  max-width: 100%;
+}
+
+.filesPreviewMeta {
+  color: var(--yp-text);
+  font-size: 0.8rem;
+}
+
+.filesPreviewName {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  word-break: break-word;
+}
+
+.filesPreviewType {
+  opacity: 0.85;
+}
+
+.filesPreviewFallback {
+  margin-top: 0.35rem;
+  opacity: 0.7;
+}
+
+@media (max-width: 704px) {
+  #addFilesButton {
+    width: 2.8em;
+    height: 2.8em;
+    border: 2px solid map.get(global.$colors, "tertiary");
+    z-index: 1000;
+  }
+
+  .addFilesIcon {
+    font-size: 1.2em;
+  }
+
+  .filesHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filesTitleWrap {
+    gap: 0.6rem;
+  }
+
+  .filesAvatar {
+    height: 2.5rem;
+    width: 2.5rem;
+  }
+
+  .filesControls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filesControls #filesSearch {
+    min-width: 0;
+  }
+
+  .filesActionCell {
+    flex-direction: row;
+  }
+}

@@ -1,0 +1,20 @@
+.modalFileUploadList {
+  margin-bottom: 1rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.modalFileUploadListItem {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.5rem 0;
+}
+
+#modalFileInput::file-selector-button {
+  color: var(--yp-tertiary);
+  font-weight: 600;
+}
+
+.modalFileUploadSubmitIcon {
+  font-size: 1rem;
+  line-height: 1;
+}

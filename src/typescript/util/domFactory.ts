@@ -165,8 +165,11 @@ export function CreateCollectibleCard(data: CollectibleData, isOwner: boolean): 
     let mediaDiv = document.createElement("div");
     mediaDiv.classList.add("collectibleCardMedia");
     let mediaUrl = data.imageUrl;
-    if (mediaUrl && mediaUrl.startsWith("ipfs://")) {
-        mediaUrl = CIDToSubdomainURL(mediaUrl);
+    if (mediaUrl) {
+        const convertedUrl = CIDToSubdomainURL(mediaUrl);
+        if (convertedUrl) {
+            mediaUrl = convertedUrl;
+        }
     }
     if (data.mimeType && data.mimeType.startsWith("video/")) {
         let video = document.createElement("video");

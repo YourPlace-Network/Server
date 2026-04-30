@@ -217,12 +217,39 @@ body.landingProfilePreview {
 #rowButtons {
     padding: 1em 0 1em 0;
 }
+#rowFilesActions {
+  padding-bottom: 1em;
+}
 #profileButtonsDiv {
   float: left;
   width: 100%;
   z-index: 20;
   position: relative;
   padding-left: 20px;
+}
+#profileFilesActionsDiv {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-start;
+  padding-left: 20px;
+}
+#manageFilesBtn {
+  margin-left: 5px;
+  white-space: nowrap;
+}
+#manageFilesBtn i.bi {
+  padding-right: 0.4em;
+}
+#profileFilesSearch {
+  background-color: transparent;
+  border-color: var(--yp-text);
+  color: var(--yp-text);
+  margin-left: auto;
+  max-width: 20rem;
+}
+#profileFilesSearch::placeholder {
+  opacity: 0.8;
 }
 .navBtn {
   height: 2.33em;
@@ -407,6 +434,22 @@ input[type="file"] {
 @media(max-width: 575px) {
   .navBtn {
     margin-bottom: 0.5em;
+  }
+  #rowFilesActions {
+    padding-top: 0.25em;
+  }
+  #profileFilesActionsDiv {
+    align-items: stretch;
+    flex-direction: column;
+    padding-right: 20px;
+  }
+  #manageFilesBtn {
+    margin-right: 5px;
+  }
+  #profileFilesSearch {
+    margin-left: 5px;
+    max-width: none;
+    width: auto;
   }
   #profileName {
     max-width: calc(100vw - 13em);

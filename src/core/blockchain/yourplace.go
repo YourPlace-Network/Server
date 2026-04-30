@@ -7,6 +7,7 @@ import (
 	"YourPlace/src/core/services"
 	"encoding/hex"
 	"encoding/json"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -142,6 +143,14 @@ func tokenizeYourPlacePayload(txnContext yourPlaceTransactionContext) {
 				}
 			case "a":
 				if !handlePostTransactionAttachment(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, parentTxHash, txnContext.amount, txnContext.timestamp, txnContext.blockNumber) {
+					break
+				}
+			case "f":
+				if !handleFileTransactionPublish(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, txnContext.timestamp) {
+					break
+				}
+			case "fd":
+				if !handleFileTransactionDelete(txnContext.database, payloadObject, txnContext.txHash, txnContext.blockchain, txnContext.fromAddress, txnContext.timestamp) {
 					break
 				}
 			}
@@ -463,6 +472,124 @@ func handlePostTransaction(database *db.Database, payloadObject map[string]inter
 	database.OnchainP(txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, postTextStr)
 	return true
 }
+func normalizeAttachmentCID(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if strings.HasPrefix(value, "ipfs://") {
+		value = strings.TrimPrefix(value, "ipfs://")
+	}
+	if idx := strings.IndexAny(value, "/?#"); idx != -1 {
+		value = value[:idx]
+	}
+	if dot := strings.Index(value, "."); dot != -1 {
+		candidate := value[:dot]
+		if security.IsValidCID(candidate) {
+			return candidate
+		}
+	}
+	if security.IsValidCID(value) {
+		return strings.TrimPrefix(value, "ipfs://")
+	}
+	parsedURL, err := url.Parse(value)
+	if err != nil {
+		return ""
+	}
+	pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+	for index, part := range pathParts {
+		if part == "ipfs" && index+1 < len(pathParts) && security.IsValidCID(pathParts[index+1]) {
+			return pathParts[index+1]
+		}
+	}
+	hostParts := strings.Split(parsedURL.Hostname(), ".")
+	if len(hostParts) > 0 && security.IsValidCID(hostParts[0]) {
+		return hostParts[0]
+	}
+	return ""
+}
+func parseYourPlaceAttachments(attachmentsRaw interface{}) ([]db.Attachment, bool) {
+	attachmentsArray, ok := attachmentsRaw.([]interface{})
+	if !ok {
+		core.LogDebug("Attachment payload is not properly typed")
+		return nil, false
+	}
+	parsedAttachments := []db.Attachment{}
+	for _, attachment := range attachmentsArray {
+		attachmentArray, ok := attachment.([]interface{})
+		if !ok {
+			core.LogDebug("Attachment payload entry is not an array")
+			return nil, false
+		}
+		if len(attachmentArray) != 4 {
+			core.LogDebug("Attachment payload entry length is not 4")
+			return nil, false
+		}
+		cidValue, okCID := attachmentArray[0].(string)
+		parsedMimeType, okMimeType := attachmentArray[1].(string)
+		sizeFloat, okSize := attachmentArray[2].(float64)
+		fileName, okFileName := attachmentArray[3].(string)
+		if !okCID || !okMimeType || !okSize || !okFileName {
+			core.LogDebug("Attachment payload entry values are not properly typed")
+			return nil, false
+		}
+		if !security.IsValidIndexedFilename(fileName) {
+			core.LogDebug("Attachment payload entry contains an invalid filename")
+			return nil, false
+		}
+		cid := normalizeAttachmentCID(cidValue)
+		if cid == "" {
+			core.LogDebug("Attachment payload entry does not contain a valid CID")
+			return nil, false
+		}
+		if sizeFloat < 0 {
+			core.LogDebug("Attachment payload entry contains negative file size")
+			return nil, false
+		}
+		parsedAttachments = append(parsedAttachments, db.Attachment{
+			CID:      cid,
+			MimeType: parsedMimeType,
+			FileSize: uint64(sizeFloat),
+			FileName: fileName,
+		})
+	}
+	return parsedAttachments, true
+}
+func parseYourPlaceCIDList(cidsRaw interface{}) ([]string, bool) {
+	cidArray, ok := cidsRaw.([]interface{})
+	if !ok {
+		core.LogDebug("CID payload is not properly typed")
+		return nil, false
+	}
+	if len(cidArray) == 0 {
+		core.LogDebug("CID payload is empty")
+		return nil, false
+	}
+	parsedCIDs := []string{}
+	seenCIDs := make(map[string]struct{})
+	for _, cidEntry := range cidArray {
+		cidValue, ok := cidEntry.(string)
+		if !ok {
+			core.LogDebug("CID payload entry is not a string")
+			return nil, false
+		}
+		cid := normalizeAttachmentCID(cidValue)
+		if cid == "" {
+			core.LogDebug("CID payload entry is invalid")
+			return nil, false
+		}
+		if _, exists := seenCIDs[cid]; exists {
+			continue
+		}
+		seenCIDs[cid] = struct{}{}
+		parsedCIDs = append(parsedCIDs, cid)
+	}
+	if len(parsedCIDs) == 0 {
+		core.LogDebug("CID payload did not contain any valid entries")
+		return nil, false
+	}
+	return parsedCIDs, true
+}
 func handlePostTransactionAttachment(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress, parentTxHash string, amountInt uint64, timestamp uint64, blockNumber uint64) bool {
 	postText, ok1 := payloadObject["p"]
 	attachmentsRaw, ok2 := payloadObject["a"]
@@ -471,53 +598,42 @@ func handlePostTransactionAttachment(database *db.Database, payloadObject map[st
 		return false
 	}
 	postTextStr, ok3 := postText.(string)
-	attachmentsArray, ok4 := attachmentsRaw.([]interface{}) // ensures array json format for the array containing all attachments
-	if !ok3 || !ok4 {
+	if !ok3 {
 		core.LogDebug("Post attach action fields are not properly typed")
 		return false
 	}
-	parsedAttachments := []db.Attachment{}
-	for _, attachment := range attachmentsArray {
-		attachmentArray, ok := attachment.([]interface{}) //ensures array json format for each individual attachment
-		if !ok {
-			core.LogDebug("Post attach action fields are not array")
-			return false
-		}
-		if len(attachmentArray) != 4 {
-			core.LogDebug("Attachment array length is not 4")
-			return false
-		}
-		parsedURL, okURL := attachmentArray[0].(string)
-		parsedMimeType, okMimeType := attachmentArray[1].(string)
-		sizeFloat, okSize := attachmentArray[2].(float64)
-		fileName, okFileName := attachmentArray[3].(string)
-		if !okURL || !okMimeType || !okSize || !okFileName {
-			core.LogDebug("Post attach array values are not properly typed")
-			return false
-		}
-		if !security.IsValidIndexedFilename(fileName) {
-			core.LogDebug("Post attach action does not contain a valid filename")
-			return false
-		}
-		if !security.IsValidURL(parsedURL) && !security.IsValidCID(parsedURL) {
-			core.LogDebug("Post attach action does not contain a valid URL or CID")
-			return false
-		}
-		if sizeFloat < 0 {
-			core.LogDebug("Post attach action contains negative file size")
-			return false
-		}
-		sizeUint := uint64(sizeFloat)
-		parsedAttachment := db.Attachment{
-			FileURL:  parsedURL,
-			MimeType: parsedMimeType,
-			FileSize: sizeUint,
-			FileName: fileName,
-		}
-		parsedAttachments = append(parsedAttachments, parsedAttachment)
+	parsedAttachments, ok := parseYourPlaceAttachments(attachmentsRaw)
+	if !ok {
+		return false
 	}
 	postTextStr = security.SanitizeNonPrintable(postTextStr)
 	database.OnchainPA(txHash, blockchain, fromAddress, parentTxHash, amountInt, timestamp, postTextStr, parsedAttachments)
+	return true
+}
+func handleFileTransactionPublish(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+	attachmentsRaw, ok := payloadObject["a"]
+	if !ok {
+		core.LogDebug("File publish action missing required attachments field")
+		return false
+	}
+	parsedAttachments, ok := parseYourPlaceAttachments(attachmentsRaw)
+	if !ok {
+		return false
+	}
+	database.OnchainPF(txHash, blockchain, fromAddress, timestamp, parsedAttachments)
+	return true
+}
+func handleFileTransactionDelete(database *db.Database, payloadObject map[string]interface{}, txHash, blockchain, fromAddress string, timestamp uint64) bool {
+	cidsRaw, ok := payloadObject["c"]
+	if !ok {
+		core.LogDebug("File delete action missing required CID field")
+		return false
+	}
+	parsedCIDs, ok := parseYourPlaceCIDList(cidsRaw)
+	if !ok {
+		return false
+	}
+	database.OnchainPFD(txHash, blockchain, fromAddress, timestamp, parsedCIDs)
 	return true
 }
 
@@ -553,8 +669,7 @@ func handleCommentTransactionAttachment(database *db.Database, payloadObject map
 	}
 	targetTxHashStr, ok1 := targetTxHash.(string)
 	commentTextStr, ok2 := commentText.(string)
-	attachmentsArray, ok3 := attachmentsRaw.([]interface{})
-	if !ok1 || !ok2 || !ok3 {
+	if !ok1 || !ok2 {
 		core.LogDebug("Comment Attach Action: fields are not properly typed")
 		return false
 	}
@@ -562,45 +677,9 @@ func handleCommentTransactionAttachment(database *db.Database, payloadObject map
 		core.LogDebug("Comment Attach Action: invalid target transaction hash")
 		return false
 	}
-	parsedAttachments := []db.Attachment{}
-	for _, attachment := range attachmentsArray {
-		attachmentArray, ok := attachment.([]interface{})
-		if !ok {
-			core.LogDebug("Comment Attach Action: attachment is not array")
-			return false
-		}
-		if len(attachmentArray) != 4 {
-			core.LogDebug("Comment Attach Action: attachment array length is not 4")
-			return false
-		}
-		parsedURL, okURL := attachmentArray[0].(string)
-		parsedMimeType, okMimeType := attachmentArray[1].(string)
-		sizeFloat, okSize := attachmentArray[2].(float64)
-		fileName, okFileName := attachmentArray[3].(string)
-		if !okURL || !okMimeType || !okSize || !okFileName {
-			core.LogDebug("Comment Attach Action: attachment values are not properly typed")
-			return false
-		}
-		if !security.IsValidIndexedFilename(fileName) {
-			core.LogDebug("Comment Attach Action: invalid filename")
-			return false
-		}
-		if !security.IsValidURL(parsedURL) && !security.IsValidCID(parsedURL) {
-			core.LogDebug("Comment Attach Action: invalid URL or CID")
-			return false
-		}
-		if sizeFloat < 0 {
-			core.LogDebug("Comment Attach Action: negative file size")
-			return false
-		}
-		sizeUint := uint64(sizeFloat)
-		parsedAttachment := db.Attachment{
-			FileURL:  parsedURL,
-			MimeType: parsedMimeType,
-			FileSize: sizeUint,
-			FileName: fileName,
-		}
-		parsedAttachments = append(parsedAttachments, parsedAttachment)
+	parsedAttachments, ok := parseYourPlaceAttachments(attachmentsRaw)
+	if !ok {
+		return false
 	}
 	commentTextStr = security.SanitizeNonPrintable(commentTextStr)
 	database.OnchainCA(txHash, blockchain, fromAddress, targetTxHashStr, amountInt, timestamp, commentTextStr, parsedAttachments)

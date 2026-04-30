@@ -155,6 +155,7 @@
 }
 .discoverCol {
   margin-bottom: 0.5em;
+  min-width: 0;
 }
 .discoverCol .profileCard {
   height: 100%;
@@ -164,6 +165,8 @@
   display: flex;
   flex-direction: row;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
 }
 .discoverCol .profileCardAvatar {
   width: 2.5em;
@@ -175,7 +178,9 @@
 .discoverCol .profileCardIdentity {
   gap: 0.1em;
   float: none;
+  flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
 }
 .discoverCol .profileCardName {
   font-size: 0.9em;

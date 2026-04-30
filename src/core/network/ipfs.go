@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,16 +28,21 @@ import (
 )
 
 // https://developers.cloudflare.com/distributed-web/ipfs-gateway
-// var cloudflareIPFS = "https://cloudflare-ipfs.com/ipfs/%s" //CID (doesn't work with video)
-// var ipfsio = "https://ipfs.io/ipfs/%s?filename=%s"         //CID & URL encoded name
+// Example public gateway URL shape: https://<gateway>/ipfs/%s?filename=%s
 // https://github.com/ipfs/kubo/tree/master/docs/examples/kubo-as-a-library
 // https://github.com/empirefox/hybrid/blob/2c2a55d1c0d3a235dc7c5eea9ef430af253172e7/pkg/ipfs/migrate-directly.go
 // https://github.com/zhangzhao2/idena-go/blob/151a8b1fa742d6aba28cbcd5301bece16f786ab3/ipfs/migration.go
+
+const defaultIPFSGateway = "ipfs.io"
 
 type IPFS struct {
 	rpcNode     *krpc.HttpApi
 	contentPath string
 	port        uint64
+}
+
+func GetDefaultIPFSGateway() string {
+	return defaultIPFSGateway
 }
 
 func (node *IPFS) Init(port uint64) {
@@ -139,6 +145,26 @@ func (node *IPFS) IPFSAddFile(path string) (string, error) { // Adds & pins file
 		return "", _core.LogErrorReturn("Could not pin file to IPFS: " + err.Error())
 	}
 	return cid, nil
+}
+func (node *IPFS) IPFSHashFile(path string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	st, err := os.Stat(path)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not get file stats for CID hashing: " + err.Error())
+	}
+	_node, err := ipfsfiles.NewSerialFile(path, false, st)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not create serial file for CID hashing: " + err.Error())
+	}
+	addOptions := []kcoreifaceoptions.UnixfsAddOption{
+		kcoreifaceoptions.Unixfs.HashOnly(true),
+	}
+	ipfsPath, err := node.rpcNode.Unixfs().Add(ctx, _node, addOptions...)
+	if err != nil {
+		return "", _core.LogErrorReturn("Could not hash file for CID: " + err.Error())
+	}
+	return ipfsPath.RootCid().String(), nil
 }
 func (node *IPFS) IPFSDownloadFile(cid string, path string) error { // Downloads a file or directory from IPFS to local file system
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -351,6 +377,60 @@ func (node *IPFS) IPFSPinFile(cid string) error {
 	_core.LogDebug("Successfully pinned file remotely with CID: " + cid)
 	return nil
 }
+func (node *IPFS) IPFSUnpinFile(cid string) error {
+	if !security.IsValidCID(cid) {
+		return _core.LogErrorReturn("Could not unpin invalid CID: " + cid)
+	}
+	requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/rm?arg=%s", node.port, cid)
+	response, err := HttpPost(requestString)
+	if err != nil && !strings.Contains(response, "not pinned") && !strings.Contains(response, "pinned indirectly") {
+		return _core.LogErrorReturn("Could not unpin file locally: " + err.Error())
+	}
+	_core.LogDebug("Successfully unpinned file locally with CID: " + cid)
+	if err = node.IPFSUnpinRemoteFile("ipfsPinning", cid); err != nil {
+		_core.LogDebug("Could not unpin file remotely: " + err.Error())
+	}
+	return nil
+}
+func (node *IPFS) IPFSUnpinRemoteFile(serviceName string, cid string) error {
+	if serviceName == "" || !security.IsValidCID(cid) {
+		return nil
+	}
+	requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/pin/remote/rm?service=%s&cid=%s", node.port, url.QueryEscape(serviceName), url.QueryEscape(cid))
+	response, err := HttpPost(requestString)
+	if err != nil {
+		if strings.Contains(response, "service not found") || strings.Contains(response, "not found") || strings.Contains(response, "no pins matched") {
+			return nil
+		}
+		return _core.LogErrorReturn("Could not unpin file remotely: " + err.Error())
+	}
+	_core.LogDebug("Successfully unpinned file remotely with CID: " + cid)
+	return nil
+}
+func (node *IPFS) IPFSRemoveFromMFS(path string) error {
+	if path == "" {
+		return nil
+	}
+	requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/files/rm?arg=%s&force=true", node.port, url.QueryEscape(path))
+	response, err := HttpPost(requestString)
+	if err != nil {
+		if strings.Contains(response, "file does not exist") || strings.Contains(response, "not found") {
+			return nil
+		}
+		return _core.LogErrorReturn("Could not remove file from MFS: " + err.Error())
+	}
+	_core.LogDebug("Successfully removed file from MFS: " + path)
+	return nil
+}
+func (node *IPFS) IPFSGarbageCollect() error {
+	requestString := fmt.Sprintf("http://127.0.0.1:%d/api/v0/repo/gc?stream-errors=true", node.port)
+	_, err := HttpPost(requestString)
+	if err != nil {
+		return _core.LogErrorReturn("Could not run IPFS garbage collection: " + err.Error())
+	}
+	_core.LogDebug("Successfully ran IPFS garbage collection")
+	return nil
+}
 
 func UpdateIPFSConfig(port uint64) {
 	path := host.GetDataDir() + ".ipfs" + host.PathSeparator + "config"
@@ -409,7 +489,7 @@ func UpdateIPFSConfig(port uint64) {
 	}
 }
 func createMFSDirectory(port uint64, path string) error {
-	_url := fmt.Sprintf("http://localhost:%d/api/v0/files/mkdir?arg=%s&p=true", port, path)
+	_url := fmt.Sprintf("http://localhost:%d/api/v0/files/mkdir?arg=%s&p=true", port, url.QueryEscape(path))
 	resp, err := http.Post(_url, "application/json", nil)
 	if err != nil {
 		return _core.LogErrorReturn("Could not create MFS directory: " + err.Error())
@@ -422,7 +502,7 @@ func createMFSDirectory(port uint64, path string) error {
 	return nil
 }
 func copyToMFS(source, destination string, port uint64) error { //todo: handle existing file being reuploaded
-	_url := fmt.Sprintf("http://127.0.0.1:%d/api/v0/files/cp?arg=%s&arg=%s", port, source, destination)
+	_url := fmt.Sprintf("http://127.0.0.1:%d/api/v0/files/cp?arg=%s&arg=%s", port, url.QueryEscape(source), url.QueryEscape(destination))
 	resp, err := http.Post(_url, "application/json", nil)
 	if err != nil {
 		return err

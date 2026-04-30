@@ -12,8 +12,10 @@ export interface Notification {
 }
 
 let lastKnownCount = 0;
+let notificationBellInitialized = false;
 
 export async function ShowNotifications() {
+    initNotificationBell();
     let notificationsResponse = await HttpGetJson("/notification");
     if (notificationsResponse[0] !== 200) {
         LogError("Could not fetch notifications");
@@ -36,7 +38,6 @@ export async function ShowNotifications() {
             }
             break;
     }
-    initNotificationBell();
 }
 export async function DismissNotification(uid: string) {
     let csrfToken = (document.getElementById("csrfToken")! as HTMLInputElement).value;
@@ -46,10 +47,12 @@ export async function DismissNotification(uid: string) {
     }
 }
 function initNotificationBell() {
+    if (notificationBellInitialized) return;
     let isCookieAuthenticated = document.getElementById("isCookieAuthenticated") as HTMLInputElement | null;
     if (!isCookieAuthenticated || isCookieAuthenticated.value !== "true") return;
     let bell = document.getElementById("notificationBell");
     if (!bell) return;
+    notificationBellInitialized = true;
     bell.style.display = "flex";
     updateBellBadge();
     setInterval(updateBellBadge, 60000);

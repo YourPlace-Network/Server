@@ -3,7 +3,7 @@ import { CreatePostControlsBar } from "./postControls";
 import type { Comment } from "./addComment";
 import { ShowAddCommentUI } from "./addComment";
 import { CIDToSubdomainURL } from "../util/ipfs";
-import { IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl } from "../util/security";
+import { IsValidIpfsCid, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl } from "../util/security";
 import { XcomOEmbedCard } from "./xcomOEmbedCard";
 import { formatTimestamp } from "../util/time";
 import { OEmbedCard } from "./oEmbedCard";
@@ -63,7 +63,7 @@ function normalizeCommentMediaSource(url: string | null): string | null {
     if (!url) {
         return null;
     }
-    if (url.startsWith("ipfs://")) {
+    if (url.startsWith("ipfs://") || IsValidIpfsCid(url)) {
         return CIDToSubdomainURL(url) || null;
     }
     if (!IsValidURL(url)) {

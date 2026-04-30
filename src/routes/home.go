@@ -12,6 +12,7 @@ import (
 func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool, database *db.Database, cryptoSeed []byte, gateway bool) {
 	router.GET("/", func(c *gin.Context) {
 		token := middleware.GetCSRFToken(c)
+		ipfsGateway := getConfiguredIPFSGateway(database)
 		authenticated := false
 		userAddress := ""
 		userBlockchain := ""
@@ -25,6 +26,7 @@ func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool
 			"title":                 title,
 			"pageName":              "home",
 			"csrfToken":             token,
+			"ipfsGateway":           ipfsGateway,
 			"isCookieAuthenticated": authenticated,
 			"gatewayMode":           gateway,
 			"userAddress":           userAddress,

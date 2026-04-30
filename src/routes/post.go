@@ -33,8 +33,16 @@ func PostRoutes(router *gin.Engine, database *db.Database, title string, cryptoS
 		if err != nil || offset < 0 || offset > 10000 {
 			offset = 0
 		}
-		totalCount := database.ProfileGetPostCount(address, blockchain)
-		posts := database.ProfileGetPosts(address, blockchain, limit, offset)
+		viewerAddressValue, hasViewerAddress := c.Get("accountAddress")
+		viewerBlockchainValue, hasViewerBlockchain := c.Get("blockchain")
+		viewerAddress := ""
+		viewerBlockchain := ""
+		if hasViewerAddress && hasViewerBlockchain {
+			viewerAddress, _ = viewerAddressValue.(string)
+			viewerBlockchain, _ = viewerBlockchainValue.(string)
+		}
+		totalCount := database.ProfileGetPostCountForViewer(address, blockchain, viewerAddress, viewerBlockchain)
+		posts := database.ProfileGetPostsForViewer(address, blockchain, viewerAddress, viewerBlockchain, limit, offset)
 		c.SecureJSON(http.StatusOK, gin.H{"posts": posts, "totalCount": totalCount})
 	})
 	router.GET("/posts/:blockchain/:address/comments", func(c *gin.Context) {
@@ -85,10 +93,12 @@ func PostRoutes(router *gin.Engine, database *db.Database, title string, cryptoS
 		pageTitle := "Post | " + title
 		gateway := host.IsGatewayMode()
 		token := middleware.GetCSRFToken(c)
+		ipfsGateway := getConfiguredIPFSGateway(database)
 		c.HTML(http.StatusOK, "src/templates/pages/post.tmpl", gin.H{
 			"title":                 pageTitle,
 			"pageName":              "post",
 			"csrfToken":             token,
+			"ipfsGateway":           ipfsGateway,
 			"gatewayMode":           gateway,
 			"isCookieAuthenticated": authenticated,
 			"blockchain":            blockchain,

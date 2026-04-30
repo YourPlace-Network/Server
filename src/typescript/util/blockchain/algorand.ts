@@ -311,13 +311,15 @@ export async function algoSubmitPost(text: string): Promise<boolean> {
     return true;
 }
 export async function setAlgoPostAttach(text: string, attachments: string[][]): Promise<boolean> {
-    if (text == "" || text == null) return false;
+    return (await algoSubmitPostAttachTx(text, attachments)) !== "";
+}
+export async function algoSubmitPostAttachTx(text: string, attachments: string[][]): Promise<string> {
+    if (text == "" || text == null) return "";
     let address = GetAddress()!;
     let payload = YP.postAttach(text, attachments);
     let txn = await algoCreatePostTxn(address, payload);
-    if (!txn) return false;
-    await algoSubmitTxn(txn);
-    return true;
+    if (!txn) return "";
+    return await algoSubmitTxn(txn);
 }
 export async function algoSubmitComment(parentTxHash: string, text: string): Promise<boolean> {
     if (text == "" || text == null) return false;
@@ -330,14 +332,30 @@ export async function algoSubmitComment(parentTxHash: string, text: string): Pro
     return true;
 }
 export async function algoSubmitCommentAttach(parentTxHash: string, text: string, attachments: string[][]): Promise<boolean> {
-    if (text == "" || text == null) return false;
-    if (parentTxHash == "" || parentTxHash == null) return false;
+    return (await algoSubmitCommentAttachTx(parentTxHash, text, attachments)) !== "";
+}
+export async function algoSubmitCommentAttachTx(parentTxHash: string, text: string, attachments: string[][]): Promise<string> {
+    if (text == "" || text == null) return "";
+    if (parentTxHash == "" || parentTxHash == null) return "";
     let address = GetAddress()!;
     let payload = YP.commentAttach(parentTxHash, text, attachments);
     let txn = await algoCreatePostTxn(address, payload);
-    if (!txn) return false;
-    await algoSubmitTxn(txn);
-    return true;
+    if (!txn) return "";
+    return await algoSubmitTxn(txn);
+}
+export async function algoPublishFiles(attachments: string[][]): Promise<string> {
+    let address = GetAddress()!;
+    let payload = YP.filePublish(attachments);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return "";
+    return await algoSubmitTxn(txn);
+}
+export async function algoDeleteFiles(cids: string[]): Promise<string> {
+    let address = GetAddress()!;
+    let payload = YP.fileDelete(cids);
+    let txn = await algoCreatePostTxn(address, payload);
+    if (!txn) return "";
+    return await algoSubmitTxn(txn);
 }
 export async function algoSubmitLike(targetTxHash: string, targetType: string): Promise<boolean> {
     if (targetTxHash == "" || targetTxHash == null) return false;

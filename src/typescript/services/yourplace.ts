@@ -84,6 +84,18 @@ export let YP = {
         }
         return `yp/1/pa:${JSON.stringify(payload)}`
     },
+    filePublish: function(attach: string[][]): string {
+        const payload = {
+            a: attach
+        }
+        return `yp/1/pf:${JSON.stringify(payload)}`
+    },
+    fileDelete: function(cids: string[]): string {
+        const payload = {
+            c: cids
+        }
+        return `yp/1/pfd:${JSON.stringify(payload)}`
+    },
     follow: function(toAddress: string, toBlockchain: string): string {
         const payload = {
             a: toAddress,

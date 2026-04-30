@@ -37,7 +37,7 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 // Prefix match on path, exact match on method
 var prefixGetExclusions = []string{ // Auth exclude all GET requests to these paths (public read-only APIs)
 	"/static/", "/login", "/logout", // Necessary for login page and static assets
-	"/profile/", "/posts/", "/post/", "/comments/", "/reactions/", // Public content browsing
+	"/profile/", "/posts/", "/post/", "/comments/", "/reactions/", "/files/", // Public content browsing
 	"/services/algorand/nfd/", "/services/oembed", "/services/spotify/", "/services/xcom/oembed", // Public data-fetching proxies for post embeds and profile data
 }
 var prefixPostExclusions = []string{ // Exclude all POST requests to these paths (public, non-auth, stateful APIs)
@@ -154,6 +154,9 @@ func IsRequestExcluded(c *gin.Context) bool {
 	requestMethod := strings.TrimRight(c.Request.Method, "/\\")
 	if requestPath == "/login" && requestMethod == "HEAD" {
 		return true // Exclude all HEAD requests to /login to prevent redirect loops
+	}
+	if strings.HasPrefix(requestPath, "/files/download/") && requestMethod == "GET" {
+		return false
 	}
 	// Prefix exclusion checks
 	for _, prefix := range prefixGetExclusions { // GET prefix exclusions

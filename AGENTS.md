@@ -62,6 +62,8 @@ Project instructions for Codex in this repository.
 - For long-form modal content, use `<div class='modalBodyLeft'>...</div>` instead of changing the global modal alignment.
 - Treat `704px` as the mobile versus desktop breakpoint. Treat `360px` to `704px` as mobile and anything above `704px` as desktop. Don't worry about optimizing for resolutions below `360px` as very few devices will be in that range.
 - Perform source-to-sink analysis when doing vulnerability work. Verify exploitability through actual data flow.
+- Keep camelCase for Go and TypeScript identifiers. Use snake_case only where the repo already does so for SQL tables and columns.
+- Security files should not contain non-security-related code.
 
 ## Must Not
 
@@ -78,6 +80,7 @@ Project instructions for Codex in this repository.
 - Do not recolor unrelated global UI controls when adjusting a user's profile colors.
 - Do not flip the default centered modal alignment globally.
 - Do not add comments unless they are clearly necessary or explicitly requested.
+- Do not use any hardcoded IPFS gateway or blockchain URLS in the codebase. Use existing helpers to generate URLs based on configuration and context.
 
 ## Prefer
 

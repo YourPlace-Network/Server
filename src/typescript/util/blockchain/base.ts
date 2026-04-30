@@ -527,6 +527,14 @@ export async function baseSubmitPostAttach(payload: string, attach: string[][]) 
     let jsonData = YP.postAttach(payload, attach);
     return await baseTxn(mainnetBase.burnAddress, jsonData);
 }
+export async function basePublishFiles(attach: string[][]) {
+    let jsonData = YP.filePublish(attach);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function baseDeleteFiles(cids: string[]) {
+    let jsonData = YP.fileDelete(cids);
+    return await baseTxn(mainnetBase.burnAddress, jsonData);
+}
 export async function baseFollowUser(toAddress: string, toBlockchain: string) {
     let jsonData = YP.follow(toAddress, toBlockchain);
     return await baseTxn(toAddress, jsonData);

@@ -383,6 +383,14 @@ export async function localWalletEthereumSubmitPostAttach(payload: string, attac
     const jsonData = YP.postAttach(payload, attach);
     return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
 }
+export async function localWalletEthereumPublishFiles(attach: string[][]): Promise<string | undefined> {
+    const jsonData = YP.filePublish(attach);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
+export async function localWalletEthereumDeleteFiles(cids: string[]): Promise<string | undefined> {
+    const jsonData = YP.fileDelete(cids);
+    return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);
+}
 export async function localWalletEthereumSubmitComment(parentTxHash: string, payload: string): Promise<string | undefined> {
     const jsonData = YP.comment(parentTxHash, payload);
     return await localWalletEthereumTxn(mainnetBase.burnAddress, jsonData);

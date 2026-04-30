@@ -2,7 +2,44 @@ import {isValidAddress} from "algosdk";
 import {CID} from "multiformats/cid";
 import {isAddress} from "web3-validator";
 import DOMPurify from "dompurify";
+import {GetBootstrappedIpfsGateway} from "./ipfs";
 
+function ResolveIpfsUrl(url: string): string {
+    const trimmedUrl = url.trim();
+    if (trimmedUrl === "") {
+        return "";
+    }
+    let candidate = trimmedUrl;
+    if (candidate.startsWith("http://") || candidate.startsWith("https://") || candidate.startsWith("/") || candidate.startsWith("data:")) {
+        return "";
+    }
+    if (candidate.startsWith("ipfs://")) {
+        candidate = candidate.substring("ipfs://".length);
+    }
+    const match = candidate.match(/^([^/?#]+)(.*)$/);
+    if (!match) {
+        return "";
+    }
+    try {
+        const parsedCid = CID.parse(match[1]);
+        const normalizedCid = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
+        const suffix = match[2] || "";
+        const isLocalhost = typeof window !== "undefined" &&
+            (window.location.hostname === "127.0.0.1" ||
+                window.location.hostname === "localhost" ||
+                window.location.hostname.endsWith(".localhost"));
+        if (isLocalhost) {
+            return `http://${normalizedCid}.ipfs.localhost:42426${suffix}`;
+        }
+        const configuredGateway = GetBootstrappedIpfsGateway();
+        if (configuredGateway !== "") {
+            return `https://${configuredGateway}/ipfs/${normalizedCid}${suffix}`;
+        }
+        return "";
+    } catch (error) {
+        return "";
+    }
+}
 
 export function IsValidBlockchain(chain: string): boolean {
     const validChains = ["algorand", "base", "ethereum"];
@@ -108,6 +145,10 @@ export function IsValidYoutubeUrl(url: string): boolean {
     }
 }
 export function XSSSanitizeUrl(href: string): string {
+    const resolvedIpfsUrl = ResolveIpfsUrl(href);
+    if (resolvedIpfsUrl !== "") {
+        return resolvedIpfsUrl;
+    }
     if (IsValidURL(href)) {
         return href;
     }
@@ -208,7 +249,26 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
         }
     });
 
-    const sanitized = DOMPurify.sanitize(html, config) as string;
+    let sanitized = DOMPurify.sanitize(html, config) as string;
+    if (typeof document !== "undefined" && sanitized !== "") {
+        const template = document.createElement("template");
+        template.innerHTML = sanitized;
+        template.content.querySelectorAll("[src]").forEach((node) => {
+            const src = node.getAttribute("src");
+            if (!src) {
+                return;
+            }
+            const resolvedSrc = ResolveIpfsUrl(src);
+            if (resolvedSrc !== "") {
+                node.setAttribute("src", resolvedSrc);
+                return;
+            }
+            if (src.startsWith("ipfs://")) {
+                node.removeAttribute("src");
+            }
+        });
+        sanitized = template.innerHTML;
+    }
 
     DOMPurify.removeHook("uponSanitizeElement");
     DOMPurify.removeHook("beforeSanitizeAttributes");

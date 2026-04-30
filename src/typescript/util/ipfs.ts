@@ -1,13 +1,147 @@
 import {CID} from "multiformats/cid";
-import {IsValidIpfsCid, IsValidURL} from "./security";
 import {HttpGetJson, HttpPostJson} from "./network";
 import {LogDebug, LogError, LogInfo} from "./log";
 import {IsGatewayMode} from "./miscellaneous";
 
-const IPFS_GATEWAY_DEFAULT = "ipfs.io";
+const IPFS_GATEWAY_META_NAME = "yp-ipfs-gateway";
 let ipfsGatewayCache: string | null = null;
+const ipfsResolvedUrlCache = new Map<string, string>();
+const ipfsMediaProbeCache = new Map<string, Promise<"file" | "image" | "video">>();
 
-async function getIpfsGateway(): Promise<string> {
+function isValidIpfsCidValue(cid: string): boolean {
+    const IPFS_PREFIX = "ipfs://";
+    let normalizedCid = cid;
+    if (normalizedCid.startsWith(IPFS_PREFIX)) {
+        normalizedCid = normalizedCid.substring(IPFS_PREFIX.length);
+    }
+    try {
+        CID.parse(normalizedCid);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+function isValidNetworkUrl(url: string): boolean {
+    try {
+        const urlObj = new URL(url);
+        if (urlObj.protocol === "https:") {
+            return true;
+        }
+        return urlObj.protocol === "http:" && (urlObj.hostname === "localhost" || urlObj.hostname.endsWith(".localhost"));
+    } catch (error) {
+        return false;
+    }
+}
+function initializeIpfsGatewayCache(): void {
+    if (ipfsGatewayCache !== null || typeof document === "undefined") {
+        return;
+    }
+    const metaEl = document.querySelector(`meta[name="${IPFS_GATEWAY_META_NAME}"]`) as HTMLMetaElement | null;
+    const hiddenEl = document.getElementById("ipfsGateway") as HTMLInputElement | null;
+    const bootstrappedGateway = metaEl?.content?.trim() || hiddenEl?.value?.trim() || "";
+    if (bootstrappedGateway !== "") {
+        ipfsGatewayCache = bootstrappedGateway;
+    }
+}
+export function GetBootstrappedIpfsGateway(): string {
+    initializeIpfsGatewayCache();
+    return ipfsGatewayCache || "";
+}
+function normalizeIpfsCIDValue(cid: string): string {
+    const IPFS_PREFIX = "ipfs://";
+    const IPFS_POSTFIX = ".ipfs.localhost:42426";
+    let normalizedCid = cid.trim();
+    if (normalizedCid.startsWith(IPFS_PREFIX)) {
+        normalizedCid = normalizedCid.substring(IPFS_PREFIX.length);
+        if (normalizedCid.endsWith(IPFS_POSTFIX)) {
+            normalizedCid = normalizedCid.substring(0, normalizedCid.length - IPFS_POSTFIX.length);
+        }
+    }
+    if (!isValidIpfsCidValue(normalizedCid)) {
+        return "";
+    }
+    try {
+        const parsedCid = CID.parse(normalizedCid);
+        return parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
+    } catch (error) {
+        LogError("Invalid CID when trying to normalize IPFS value: " + error);
+        return "";
+    }
+}
+function loadImageWithTimeoutInternal(url: string, timeoutMs: number, logFailures: boolean): Promise<boolean> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        let timeoutId: number;
+        let resolved = false;
+        const cleanup = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            resolved = true;
+            img.onload = null;
+            img.onerror = null;
+            img.src = "";
+        };
+        img.onload = () => {
+            if (!resolved) {
+                cleanup();
+                resolve(true);
+            }
+        };
+        img.onerror = () => {
+            if (!resolved) {
+                cleanup();
+                if (logFailures) {
+                    LogError(`Failed to load image: ${url}`);
+                }
+                resolve(false);
+            }
+        };
+        timeoutId = window.setTimeout(() => {
+            if (!resolved) {
+                cleanup();
+                if (logFailures) {
+                    LogError(`Image load timeout (${timeoutMs}ms): ${url}`);
+                }
+                resolve(false);
+            }
+        }, timeoutMs);
+        img.src = url;
+    });
+}
+function loadVideoMetadataWithTimeout(url: string, timeoutMs: number = 8000): Promise<boolean> {
+    return new Promise((resolve) => {
+        const video = document.createElement("video");
+        let timeoutId: number;
+        let resolved = false;
+        const cleanup = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            resolved = true;
+            video.onloadedmetadata = null;
+            video.onerror = null;
+            video.removeAttribute("src");
+            video.load();
+        };
+        const finish = (result: boolean) => {
+            if (resolved) {
+                return;
+            }
+            cleanup();
+            resolve(result);
+        };
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = "metadata";
+        video.onloadedmetadata = () => finish(true);
+        video.onerror = () => finish(false);
+        timeoutId = window.setTimeout(() => finish(false), timeoutMs);
+        video.src = url;
+        video.load();
+    });
+}
+
+initializeIpfsGatewayCache();
+
+export async function GetConfiguredIpfsGateway(): Promise<string> {
+    initializeIpfsGatewayCache();
     if (ipfsGatewayCache !== null) return ipfsGatewayCache;
     try {
         const response = await HttpGetJson("/settings/content/ipfsGateway");
@@ -18,10 +152,10 @@ async function getIpfsGateway(): Promise<string> {
     } catch (error) {
         LogError("Failed to get IPFS gateway setting: " + error);
     }
-    return IPFS_GATEWAY_DEFAULT;
+    return "";
 }
-export async function AddFileToIPFS(fileUUID: string, csrfToken: string): Promise<CID | null> {
-    let response = await HttpPostJson("/files/ipfs/add", {"fileUUID": fileUUID}, csrfToken);
+export async function AddFileToIPFS(cid: string, csrfToken: string): Promise<CID | null> {
+    let response = await HttpPostJson("/files/ipfs/add", {"cid": cid}, csrfToken);
     if (response[0] === 200) {
         return stringToCID(response[1].cid);
     }
@@ -44,62 +178,92 @@ export async function GetNFTUploadAuth(csrfToken: string): Promise<any> {
     LogDebug("Failed to get NFT upload auth: " + (response[1].status || response[0]));
     return null;
 }
-export function CIDToSubdomainURL(cid: string): string {
-    const IPFS_PREFIX = "ipfs://";
-    const IPFS_POSTFIX = ".ipfs.localhost:42426";
-    let url = "";
-    if (cid.startsWith(IPFS_PREFIX)) {
-        cid = cid.substring(IPFS_PREFIX.length);
-        if (cid.endsWith(IPFS_POSTFIX)) {
-            cid = cid.substring(0, (cid.length - IPFS_POSTFIX.length));
-        }
+export function ResolveIpfsContentUrl(cid: string): string {
+    const normalizedCid = normalizeIpfsCIDValue(cid);
+    if (normalizedCid === "") {
+        return "";
     }
-    if (!IsValidIpfsCid(cid)) {
-        return url;
+    const cachedUrl = ipfsResolvedUrlCache.get(normalizedCid);
+    if (cachedUrl) {
+        return cachedUrl;
+    }
+    const resolvedUrl = CIDToSubdomainURL(normalizedCid);
+    if (resolvedUrl !== "") {
+        ipfsResolvedUrlCache.set(normalizedCid, resolvedUrl);
+    }
+    return resolvedUrl;
+}
+export async function ProbeIpfsMediaType(cid: string, timeoutMs: number = 8000): Promise<"file" | "image" | "video"> {
+    const normalizedCid = normalizeIpfsCIDValue(cid);
+    if (normalizedCid === "") {
+        return "file";
+    }
+    const cachedProbe = ipfsMediaProbeCache.get(normalizedCid);
+    if (cachedProbe) {
+        return cachedProbe;
+    }
+    const probeMediaType = async (): Promise<"file" | "image" | "video"> => {
+        const resolvedUrl = ResolveIpfsContentUrl(normalizedCid);
+        if (resolvedUrl === "") {
+            return "file";
+        }
+        if (await loadImageWithTimeoutInternal(resolvedUrl, timeoutMs, false)) {
+            return "image";
+        }
+        if (await loadVideoMetadataWithTimeout(resolvedUrl, timeoutMs)) {
+            return "video";
+        }
+        return "file";
+    };
+    const probePromise = probeMediaType().catch((error) => {
+        LogError("Failed to probe IPFS media type: " + error);
+        return "file" as const;
+    });
+    ipfsMediaProbeCache.set(normalizedCid, probePromise);
+    return probePromise;
+}
+export function CIDToSubdomainURL(cid: string): string {
+    const IPFS_POSTFIX = ".ipfs.localhost:42426";
+    const cidv1 = normalizeIpfsCIDValue(cid);
+    if (cidv1 === "") {
+        return "";
     }
     try {
-        const parsedCid = CID.parse(cid);
-        const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
         if (IsGatewayMode()) {
-            const ipfsGateway = ipfsGatewayCache || IPFS_GATEWAY_DEFAULT;
-            url = "https://" + ipfsGateway + "/ipfs/" + cidv1;
-        } else {
-            url = "http://" + cidv1 + IPFS_POSTFIX;
+            const ipfsGateway = GetBootstrappedIpfsGateway();
+            if (ipfsGateway === "") {
+                return "";
+            }
+            return "https://" + ipfsGateway + "/ipfs/" + cidv1;
         }
+        return "http://" + cidv1 + IPFS_POSTFIX;
     } catch (error) {
         LogError("Invalid CID when trying to convert to subdomain syntax: " + error)
     }
-    return url.trim();
+    return "";
 }
 export async function CIDToSubdomainURLAsync(cid: string): Promise<string> {
-    const IPFS_PREFIX = "ipfs://";
     const IPFS_POSTFIX = ".ipfs.localhost:42426";
-    let url = "";
-    if (cid.startsWith(IPFS_PREFIX)) {
-        cid = cid.substring(IPFS_PREFIX.length);
-        if (cid.endsWith(IPFS_POSTFIX)) {
-            cid = cid.substring(0, (cid.length - IPFS_POSTFIX.length));
-        }
-    }
-    if (!IsValidIpfsCid(cid)) {
-        return url;
+    const cidv1 = normalizeIpfsCIDValue(cid);
+    if (cidv1 === "") {
+        return "";
     }
     try {
-        const parsedCid = CID.parse(cid);
-        const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
         if (IsGatewayMode()) {
-            const ipfsGateway = await getIpfsGateway();
-            url = "https://" + ipfsGateway + "/ipfs/" + cidv1;
-        } else {
-            url = "http://" + cidv1 + IPFS_POSTFIX;
+            const ipfsGateway = await GetConfiguredIpfsGateway();
+            if (ipfsGateway === "") {
+                return "";
+            }
+            return "https://" + ipfsGateway + "/ipfs/" + cidv1;
         }
+        return "http://" + cidv1 + IPFS_POSTFIX;
     } catch (error) {
         LogError("Invalid CID when trying to convert to subdomain syntax: " + error)
     }
-    return url.trim();
+    return "";
 }
-export function GetIPFSFile(cid: string): Promise<Blob> {
-    if (!IsValidIpfsCid(cid)) {
+export async function GetIPFSFile(cid: string): Promise<Blob> {
+    if (!isValidIpfsCidValue(cid)) {
         throw new Error("Invalid IPFS CID");
     }
     // Remove ipfs:// prefix if present
@@ -111,38 +275,31 @@ export function GetIPFSFile(cid: string): Promise<Blob> {
         // Parse the CID and ensure we have a v1 CID for subdomain gateways
         const parsedCid = CID.parse(cid);
         const cidv1 = parsedCid.version === 0 ? parsedCid.toV1().toString() : parsedCid.toString();
-
-        // Set up our gateway URLs
-        const publicGatewayUrl = "https://" + IPFS_GATEWAY_DEFAULT + "/ipfs/" + cidv1;
         const localGatewayUrl = "http://" + cidv1 + ".ipfs.localhost:42426";
-
-        LogInfo("Fetching IPFS file from public gateway: " + publicGatewayUrl);
-        LogInfo("Fetching IPFS file from local gateway: " + localGatewayUrl);
-
-        // Create fetch promises for both gateways
-        const fetchPublic = fetch(publicGatewayUrl).then(response => {
+        const publicGatewayUrl = await CIDToSubdomainURLAsync(cidv1);
+        const fetchFromGateway = async (gatewayName: string, gatewayUrl: string): Promise<Blob> => {
+            LogInfo(`Fetching IPFS file from ${gatewayName} gateway: ${gatewayUrl}`);
+            const response = await fetch(gatewayUrl);
             if (!response.ok) {
-                throw new Error("Public gateway returned status: " + response.status);
+                throw new Error(`${gatewayName} gateway returned status: ${response.status}`);
             }
             return response.blob();
-        }).catch(error => {
-            LogError("Error fetching from public gateway: " + error);
-            throw error;
-        });
-
-        const fetchLocal = fetch(localGatewayUrl).then(response => {
-            if (!response.ok) {
-                throw new Error("Local gateway returned status: " + response.status);
+        };
+        if (IsGatewayMode()) {
+            if (publicGatewayUrl === "") {
+                throw new Error("IPFS gateway is not configured");
             }
-            return response.blob();
-        }).catch(error => {
-            LogError("Error fetching from local gateway: " + error.message);
-            throw error;
-        });
-
-        // Race the promises - return whichever completes first
-        console.log("Race starting");
-        return Promise.race([fetchPublic, fetchLocal]);
+            return await fetchFromGateway("public", publicGatewayUrl);
+        }
+        try {
+            return await fetchFromGateway("local", localGatewayUrl);
+        } catch (localError) {
+            LogError("Error fetching from local gateway: " + localError);
+            if (publicGatewayUrl !== "") {
+                return await fetchFromGateway("public", publicGatewayUrl);
+            }
+            throw localError;
+        }
     } catch (error: any) {
         LogError("Failed to fetch IPFS file with CID " + cid + ": " + error);
         throw new Error("Failed to fetch IPFS file: " + error);
@@ -217,44 +374,11 @@ async function downloadFromIpfs(cid: string): Promise<Blob> {
 
 /* --- Image Loading with Timeout --- */
 export async function loadImageWithTimeout(url: string, timeoutMs: number = 5000): Promise<boolean> {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        let timeoutId: number;
-        let resolved = false;
-        const cleanup = () => {
-            if (timeoutId) clearTimeout(timeoutId);
-            resolved = true;
-            img.onload = null;
-            img.onerror = null;
-            img.src = "";
-        };
-        img.onload = () => {
-            if (!resolved) {
-                cleanup();
-                resolve(true);
-            }
-        };
-        img.onerror = () => {
-            if (!resolved) {
-                cleanup();
-                LogError(`Failed to load image: ${url}`);
-                resolve(false);
-            }
-        };
-        timeoutId = window.setTimeout(() => {
-            if (!resolved) {
-                cleanup();
-                LogError(`Image load timeout (${timeoutMs}ms): ${url}`);
-                resolve(false);
-            }
-        }, timeoutMs);
-        img.src = url;
-    });
+    return loadImageWithTimeoutInternal(url, timeoutMs, true);
 }
 export async function checkIPFSContentExists(cid: string, timeoutMs: number = 3000): Promise<boolean> {
     try {
-        const url = CIDToSubdomainURL(cid);
+        const url = ResolveIpfsContentUrl(cid);
         if (!url) return false;
         // Use HEAD request to check if content exists without downloading
         const controller = new AbortController();
@@ -287,11 +411,11 @@ export async function getIpfsAvatarUrl(blockchain: string, address: string): Pro
                 if (avatarCid.startsWith("ipfs://")) {
                     const converted = CIDToSubdomainURL(avatarCid);
                     if (converted) return converted;
-                } else if (IsValidURL(avatarCid)) {
+                } else if (isValidNetworkUrl(avatarCid)) {
                     return avatarCid;
                 }
                 const avatarURL = CIDToSubdomainURL(avatarCid);
-                if (IsValidURL(avatarURL)) {
+                if (isValidNetworkUrl(avatarURL)) {
                     return avatarURL;
                 }
             }
@@ -304,7 +428,7 @@ export async function getIpfsAvatarUrl(blockchain: string, address: string): Pro
 
 /* --- Helper Functions --- */
 export function stringToCID(cid: string): CID {
-    if (!IsValidIpfsCid(cid)) throw new Error("Invalid CID");
+    if (!isValidIpfsCidValue(cid)) throw new Error("Invalid CID");
     return CID.parse(cid);
 }
 export async function UploadAvatarToIPFSService(file: File, csrfToken: string): Promise<string | null> {
@@ -348,7 +472,7 @@ async function uploadToYourPlace(file: File, url: string, key: string): Promise<
         return null;
     }
     const result = await response.json();
-    if (result.Hash && IsValidIpfsCid(result.Hash)) {
+    if (result.Hash && isValidIpfsCidValue(result.Hash)) {
         return result.Hash;
     }
     LogDebug("YourPlace pinning upload returned invalid response");

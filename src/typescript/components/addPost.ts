@@ -1,8 +1,8 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
 import {IsValidIpfsCid, IsValidURL, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
-import {GetAddress, GetChain, GetWallet, WalletGetAvatar, WalletGetName, WalletSubmitPost, WalletSubmitPostAttach} from "../util/blockchain/wallet";
-import {UploadFile} from "../util/files";
+import {GetAddress, GetChain, GetWallet, WalletGetAvatar, WalletGetName, WalletSubmitPost, WalletSubmitPostAttachTx} from "../util/blockchain/wallet";
+import {CreateLocalPost, FinalizeFiles, UploadFile} from "../util/files";
 import {AddFileToIPFS, getIpfsAvatarUrl} from "../util/ipfs";
 import {HttpPostJson} from "../util/network";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
@@ -38,8 +38,11 @@ async function preloadTinyMCE() {
             spiceometerText: document.getElementById("spiceometerText")! as HTMLDivElement,
             csrfToken: document.getElementById("csrfToken") as HTMLInputElement,
             gatewayMode: document.getElementById("gatewayModeAddPost") as HTMLInputElement,
+            savedPostCheckbox: document.getElementById("savedPostCheckbox") as HTMLInputElement,
             tinymceSpinner: document.getElementById("tinymceSpinner")! as HTMLDivElement,
             attachmentDiv: document.getElementById("postAttachDiv")! as HTMLDivElement,
+            userAddress: document.getElementById("userAddress") as HTMLInputElement | null,
+            userBlockchain: document.getElementById("userBlockchain") as HTMLInputElement | null,
         }
 
         function isLocalhost(): boolean {
@@ -50,6 +53,12 @@ async function preloadTinyMCE() {
         }
         function isGatewayMode(): boolean {
             return DOM.gatewayMode && DOM.gatewayMode.value === "true" && !isLocalhost();
+        }
+        function shouldCreatePublicPost(): boolean {
+            if (isGatewayMode()) {
+                return true;
+            }
+            return !DOM.savedPostCheckbox || DOM.savedPostCheckbox.checked;
         }
         function showGatewayUploadDialog() {
             hideModal();
@@ -71,25 +80,30 @@ async function preloadTinyMCE() {
 
         let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {return new window.bootstrap.Tooltip(tooltipTriggerEl, {delay: {show: 1500, hide: 0}});});
+        if (DOM.savedPostCheckbox) {
+            DOM.savedPostCheckbox.disabled = isGatewayMode();
+        }
 
         let addPostModal = new window.bootstrap.Modal(DOM.addPostModal, {});
         interface inlineMediaData {
-            uuid: string;
+            cid: string;
             fileName: string;
             mimeType: string;
+            size: string;
             blobUrl: string;
         }
         let inlineMediaMap: Map<string, inlineMediaData> = new Map();
         interface fileData {
-            uuid: string;
+            cid: string;
             fileName: string;
             mimeType: string;
             size: string;
         }
         interface importedExternalImageData {
-            uuid: string;
+            cid: string;
             fileName: string;
             mimeType: string;
+            size: string;
         }
         interface externalImageState {
             allowsEmbedding: boolean;
@@ -105,6 +119,23 @@ async function preloadTinyMCE() {
         let removedAttachments: string[] = [];
         let tinymceInitialized = false;
         let tinymceInitPromise: Promise<void> | null = null;
+
+        function hasMatchingWalletIdentity(): boolean {
+            const activeAddress = GetAddress();
+            const activeBlockchain = GetChain();
+            if (!activeAddress || !activeBlockchain) {
+                return false;
+            }
+            const expectedAddress = DOM.userAddress?.value || "";
+            const expectedBlockchain = DOM.userBlockchain?.value || "";
+            if (expectedAddress !== "" && activeAddress !== expectedAddress) {
+                return false;
+            }
+            if (expectedBlockchain !== "" && activeBlockchain !== expectedBlockchain) {
+                return false;
+            }
+            return true;
+        }
 
         function formatUrlDisplayText(url: string): string {
             return url.replace(/^https:\/\/(www\.)?/, "").replace(/[?#].*$/, "");
@@ -255,7 +286,24 @@ async function preloadTinyMCE() {
                 editor.nodeChanged();
             }
         }
-        function flattenAutoLinkedUrls(html: string): string {
+        function replaceElementWithText(element: Element, value: string) {
+            if (value === "") {
+                element.remove();
+                return;
+            }
+            element.replaceWith(element.ownerDocument.createTextNode(value));
+        }
+        function flattenInlineMediaElements(root: HTMLElement) {
+            root.querySelectorAll("img[src]").forEach(image => {
+                const src = image.getAttribute("src")?.trim() || "";
+                replaceElementWithText(image, ` ${src} `);
+            });
+            root.querySelectorAll("video").forEach(video => {
+                const src = video.getAttribute("src")?.trim() || video.querySelector("source[src]")?.getAttribute("src")?.trim() || "";
+                replaceElementWithText(video, ` ${src} `);
+            });
+        }
+        function flattenAutoFormattedContent(html: string, flattenInlineMedia: boolean = false): string {
             const tempDiv = parseDetachedHtml(html);
             const anchors = tempDiv.querySelectorAll("a[href]");
             anchors.forEach(anchor => {
@@ -268,6 +316,9 @@ async function preloadTinyMCE() {
                     anchor.replaceWith(document.createTextNode(href));
                 }
             });
+            if (flattenInlineMedia) {
+                flattenInlineMediaElements(tempDiv);
+            }
             return tempDiv.innerHTML;
         }
         function isThirdPartyExternalImageUrl(url: string): boolean {
@@ -342,9 +393,10 @@ async function preloadTinyMCE() {
                 return null;
             }
             return {
-                uuid: data.data[0].uuid,
+                cid: data.data[0].cid,
                 fileName: data.data[0].fileName,
-                mimeType: data.data[0].mimeType
+                mimeType: data.data[0].mimeType,
+                size: String(data.data[0].size || 0)
             };
         }
         async function resolveExternalImage(url: string, csrfToken: string, showGatewayDialog: boolean = false): Promise<externalImageState> {
@@ -493,11 +545,12 @@ async function preloadTinyMCE() {
                         }
                         const uploadedFile = data.data[0];
                         const blobUrl = URL.createObjectURL(renamedFile);
-                        console.log("[addPost] Created blob URL:", blobUrl, "uuid:", uploadedFile.uuid);
+                        console.log("[addPost] Created blob URL:", blobUrl, "cid:", uploadedFile.cid);
                         inlineMediaMap.set(blobUrl, {
-                            uuid: uploadedFile.uuid,
+                            cid: uploadedFile.cid,
                             fileName: uploadedFile.fileName,
                             mimeType: uploadedFile.mimeType,
+                            size: String(uploadedFile.size || renamedFile.size),
                             blobUrl: blobUrl
                         });
                         console.log("[addPost] inlineMediaMap now has", inlineMediaMap.size, "entries");
@@ -600,7 +653,7 @@ async function preloadTinyMCE() {
                 console.log("[addPost] TinyMCE not initialized, returning");
                 return;
             }
-            let payload = flattenAutoLinkedUrls((window as any).tinymce.get("addPostText")?.getContent() || "");
+            let payload = flattenAutoFormattedContent((window as any).tinymce.get("addPostText")?.getContent() || "");
             console.log("[addPost] Payload:", payload);
             if (!payload || payload.trim() === "") {
                 console.log("[addPost] Empty payload, hiding modal");
@@ -614,24 +667,36 @@ async function preloadTinyMCE() {
             }
             DOM.submitPostButton.disabled = true;
             let csrfToken = DOM.csrfToken.value;
+            const blockchain = GetChain();
+            const publicPost = shouldCreatePublicPost();
+            if (publicPost && !hasMatchingWalletIdentity()) {
+                DOM.submitPostButton.disabled = false;
+                ShowToastWithDelay("Switch your wallet back to this account before publishing", 5000);
+                return;
+            }
+            const attachmentCids = new Set<string>();
+            const attachments: string[][] = [];
             await externalImageProcessingPromise;
             console.log("[addPost] inlineMediaMap size:", inlineMediaMap.size);
-            // Replace blob URLs with IPFS URLs for inline media
             for (const [blobUrl, mediaData] of inlineMediaMap) {
                 console.log("[addPost] Processing media:", blobUrl, mediaData);
-                let cid = await AddFileToIPFS(mediaData.uuid, csrfToken);
-                console.log("[addPost] AddFileToIPFS returned:", cid);
-                let cidString = cid?.toString();
+                let cidString = mediaData.cid;
+                if (publicPost) {
+                    let cid = await AddFileToIPFS(mediaData.cid, csrfToken);
+                    console.log("[addPost] AddFileToIPFS returned:", cid);
+                    cidString = cid?.toString() || "";
+                }
                 if (cidString === undefined || !IsValidIpfsCid(cidString)) {
                     console.log("[addPost] Invalid CID, showing error");
-                    ShowToastWithDelay("Failed to upload file to IPFS", 5000);
+                    ShowToastWithDelay("Failed to prepare attachment", 5000);
                     DOM.submitPostButton.disabled = false;
                     return;
                 }
-                let ext = mediaData.fileName.split(".").pop() || "";
-                let ipfsUrl = `ipfs://${cidString}.${ext}`;
-                console.log("[addPost] Replacing", blobUrl, "with", ipfsUrl);
-                payload = payload.split(blobUrl).join(ipfsUrl);
+                attachmentCids.add(cidString);
+                attachments.push([cidString, mediaData.mimeType, mediaData.size, mediaData.fileName]);
+                const replacementUrl = publicPost ? `ipfs://${cidString}` : `/files/download/${encodeURIComponent(cidString)}`;
+                console.log("[addPost] Replacing", blobUrl, "with", replacementUrl);
+                payload = payload.split(blobUrl).join(replacementUrl);
             }
             console.log("[addPost] Final payload after IPFS replacement:", payload);
             const externalImageReplacements = new Map<string, string>();
@@ -649,45 +714,67 @@ async function preloadTinyMCE() {
                     DOM.submitPostButton.disabled = false;
                     return;
                 }
-                if (!externalState.ipfsUrl) {
-                    const cid = await AddFileToIPFS(externalState.importedFile.uuid, csrfToken);
-                    const cidString = cid?.toString();
-                    if (cidString === undefined || !IsValidIpfsCid(cidString)) {
-                        ShowToastWithDelay("Failed to add external image to IPFS", 5000);
-                        DOM.submitPostButton.disabled = false;
-                        return;
-                    }
-                    const ext = externalState.importedFile.fileName.split(".").pop() || "";
-                    externalState.ipfsUrl = ext.length > 0 ? `ipfs://${cidString}.${ext}` : `ipfs://${cidString}`;
-                    externalImageMap.set(externalUrl, externalState);
+                let cidString = externalState.importedFile.cid;
+                if (publicPost) {
+                    const cid = await AddFileToIPFS(externalState.importedFile.cid, csrfToken);
+                    cidString = cid?.toString() || "";
                 }
-                externalImageReplacements.set(externalUrl, externalState.ipfsUrl);
+                if (!IsValidIpfsCid(cidString)) {
+                    ShowToastWithDelay("Failed to prepare external image", 5000);
+                    DOM.submitPostButton.disabled = false;
+                    return;
+                }
+                attachmentCids.add(cidString);
+                attachments.push([cidString, externalState.importedFile.mimeType, externalState.importedFile.size, externalState.importedFile.fileName]);
+                const resolvedUrl = publicPost ? `ipfs://${cidString}` : `/files/download/${encodeURIComponent(cidString)}`;
+                externalImageReplacements.set(externalUrl, resolvedUrl);
             }
             if (externalImageReplacements.size > 0) {
                 payload = replaceExternalImageUrlsInHtml(payload, externalImageReplacements);
             }
+            if (publicPost) {
+                payload = flattenAutoFormattedContent(payload, true);
+            }
             console.log("[addPost] Final payload after external image processing:", payload);
             const filteredAttachments = binaryAttachments.filter(f => !removedAttachments.includes(f.fileName));
             console.log("[addPost] Binary attachments:", filteredAttachments.length);
-            let success: boolean;
-            if (filteredAttachments.length > 0) {
-                let attachments: string[][] = [];
-                for (const file of filteredAttachments) {
-                    let cid = await AddFileToIPFS(file.uuid, csrfToken);
-                    let cidString = cid?.toString();
-                    if (cidString === undefined || !IsValidIpfsCid(cidString)) {
-                        ShowToastWithDelay("Failed to upload attachment to IPFS", 5000);
+            for (const file of filteredAttachments) {
+                let cidString = file.cid;
+                if (publicPost) {
+                    let cid = await AddFileToIPFS(file.cid, csrfToken);
+                    cidString = cid?.toString() || "";
+                }
+                if (!IsValidIpfsCid(cidString)) {
+                    ShowToastWithDelay("Failed to prepare attachment", 5000);
+                    DOM.submitPostButton.disabled = false;
+                    return;
+                }
+                attachmentCids.add(cidString);
+                attachments.push([cidString, file.mimeType, file.size, file.fileName]);
+            }
+            let success = false;
+            if (publicPost) {
+                if (attachments.length > 0) {
+                    const txHash = await WalletSubmitPostAttachTx(payload, attachments);
+                    if (!txHash || !blockchain) {
                         DOM.submitPostButton.disabled = false;
+                        ShowToastWithDelay("Failed to submit post", 5000);
                         return;
                     }
-                    let ipfsUrl = `ipfs://${cidString}`;
-                    attachments.push([ipfsUrl, file.mimeType, file.size, file.fileName]);
+                    const finalizeResponse = await FinalizeFiles(Array.from(attachmentCids), "public", "post_attachment", csrfToken, txHash, blockchain);
+                    if (finalizeResponse[0] !== 200) {
+                        DOM.submitPostButton.disabled = false;
+                        ShowToastWithDelay("Failed to finalize post attachments", 5000);
+                        return;
+                    }
+                    success = true;
+                } else {
+                    console.log("[addPost] Calling WalletSubmitPost");
+                    success = await WalletSubmitPost(payload);
                 }
-                console.log("[addPost] Calling WalletSubmitPostAttach");
-                success = await WalletSubmitPostAttach(payload, attachments);
             } else {
-                console.log("[addPost] Calling WalletSubmitPost");
-                success = await WalletSubmitPost(payload);
+                const createResponse = await CreateLocalPost(payload, Array.from(attachmentCids), csrfToken);
+                success = createResponse[0] === 200;
             }
             DOM.submitPostButton.disabled = false;
             if (!success) {
@@ -697,9 +784,13 @@ async function preloadTinyMCE() {
             }
             console.log("[addPost] Post submitted successfully");
             hideModal();
-            ShowToastWithDelay("Your post should show up shortly. Please wait for it to spread through the network.", 10000);
+            if (publicPost) {
+                ShowToastWithDelay("Your post should show up shortly. Please wait for it to spread through the network.", 10000);
+            } else {
+                ShowToastWithDelay("Saved privately on your server.", 5000);
+            }
             DOM.spiceometerText.innerText = "";
-            let crossPostEnabled = await XcomIsCrossPostEnabled();
+            let crossPostEnabled = publicPost && await XcomIsCrossPostEnabled();
             if (crossPostEnabled) {
                 let plainText = payload.replace(/<[^>]*>/g, "").trim();
                 if (plainText.length > 0) {
@@ -742,9 +833,10 @@ async function preloadTinyMCE() {
             const uploadedFile = data.data[0];
             const blobUrl = URL.createObjectURL(file);
             inlineMediaMap.set(blobUrl, {
-                uuid: uploadedFile.uuid,
+                cid: uploadedFile.cid,
                 fileName: uploadedFile.fileName,
                 mimeType: uploadedFile.mimeType,
+                size: String(uploadedFile.size || file.size),
                 blobUrl: blobUrl
             });
             if (file.type.startsWith("image/")) {
@@ -761,7 +853,7 @@ async function preloadTinyMCE() {
             }
             const uploadedFile = data.data[0];
             binaryAttachments.push({
-                uuid: uploadedFile.uuid,
+                cid: uploadedFile.cid,
                 fileName: uploadedFile.fileName,
                 mimeType: uploadedFile.mimeType,
                 size: uploadedFile.size

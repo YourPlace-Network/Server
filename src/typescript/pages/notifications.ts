@@ -4,6 +4,7 @@ import "../components/scrollTop";
 import "../../scss/components/scrollTop.scss";
 import "../components/menu";
 import {CreateNotificationCard, type UserNotification} from "../components/notificationCard";
+import {WalletGetAvatar, WalletGetCachedAvatar} from "../util/blockchain/wallet";
 import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError} from "../util/log";
 import {ShowNotifications} from "../util/notifications";
@@ -16,14 +17,31 @@ import {ShowNotifications} from "../util/notifications";
             clearAllBtn: document.getElementById("clearAllBtn")! as HTMLButtonElement,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
+            notificationsAvatar: document.getElementById("notificationsAvatar") as HTMLImageElement | null,
             notificationsDiv: document.getElementById("notificationsDiv")! as HTMLDivElement,
             notificationsEmpty: document.getElementById("notificationsEmpty")! as HTMLDivElement,
+            userAddress: document.getElementById("userAddress")! as HTMLInputElement,
+            userBlockchain: document.getElementById("userBlockchain")! as HTMLInputElement,
         }
         const PAGE_SIZE = 25;
         let offset = 0;
         let loading = false;
         let hasMore = true;
 
+        async function renderNotificationsAvatar() {
+            if (!DOM.notificationsAvatar || DOM.userAddress.value === "" || DOM.userBlockchain.value === "") {
+                return;
+            }
+            const defaultAvatar = "/static/image/avatar.png";
+            DOM.notificationsAvatar.onerror = () => {
+                DOM.notificationsAvatar!.src = defaultAvatar;
+                DOM.notificationsAvatar!.onerror = null;
+            };
+            const cachedAvatar = WalletGetCachedAvatar(DOM.userBlockchain.value, DOM.userAddress.value);
+            DOM.notificationsAvatar.src = cachedAvatar || defaultAvatar;
+            const avatarUrl = await WalletGetAvatar(DOM.userBlockchain.value, DOM.userAddress.value);
+            DOM.notificationsAvatar.src = avatarUrl || defaultAvatar;
+        }
         async function dismissNotification(id: string) {
             let response = await HttpPostJson(`/notifications/dismiss/${id}`, {}, DOM.csrfToken);
             if (response[0] !== 200) {
@@ -81,6 +99,7 @@ import {ShowNotifications} from "../util/notifications";
         DOM.notificationsDiv.after(sentinel);
         scrollObserver.observe(sentinel);
 
+        renderNotificationsAvatar().then();
         loadNotifications().then();
         if (DOM.isCookieAuthenticated.value === "true") {
             markSeen().then();

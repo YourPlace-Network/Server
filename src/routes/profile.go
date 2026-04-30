@@ -71,6 +71,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			return
 		}
 		token := middleware.GetCSRFToken(c)
+		ipfsGateway := getConfiguredIPFSGateway(database)
 		// Check if the profile viewer is the profile owner
 		isGuest := true
 		userAddress := ""
@@ -113,6 +114,7 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			"title":                 pageTitle,
 			"csrfToken":             token,
 			"pageName":              "profile",
+			"ipfsGateway":           ipfsGateway,
 			"injectedAddress":       addressParam,
 			"injectedBlockchain":    blockchainParam,
 			"isCookieAuthenticated": true,

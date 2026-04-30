@@ -25,7 +25,7 @@
                                     </button>
                                     <ul class="dropdown-menu" id="postDropdownMenu">
                                         <li><div class="form-check form-switch" id="savedPostCheckboxDiv" data-bs-toggle="tooltip" title="Save this post to the blockchain forever">
-                                                <input class="form-check-input" type="checkbox" role="switch" id="savedPostCheckbox" checked disabled>
+                                                <input class="form-check-input" type="checkbox" role="switch" id="savedPostCheckbox" checked {{if .gatewayMode}}disabled{{end}}>
                                                 <label class="form-check-label" for="savedPostCheckbox" id="savedPostCheckboxLabel">Save Post</label>
                                             </div></li>
                                         <li><button type="button" class="btn btn-primary" id="btnUploadFile" data-bs-toggle="tooltip" data-bs-html="true" title="Attach a file to the post">
