@@ -37,9 +37,9 @@ function renderPreviewCard(post: any, postUrl: string): HTMLDivElement {
     header.classList.add("previewHeader");
     const avatar = document.createElement("img");
     avatar.classList.add("previewAvatar");
-    let avatarSrc = post.avatarSrc || "/static/image/avatar.png";
+    let avatarSrc = post.avatarSrc || "/static/image/avatar.svg";
     if (avatarSrc.startsWith("ipfs://")) {
-        avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.png";
+        avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.svg";
     }
     avatar.src = XSSSanitizeUrl(avatarSrc);
     avatar.alt = "avatar";

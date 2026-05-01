@@ -272,7 +272,7 @@ async function grid4Attachments(attachments: HTMLElement[]): Promise<HTMLDivElem
 }
 
 function resolveAvatarMediaViewerUrl(avatarUrl: string | null | undefined): string | null {
-    if (!avatarUrl || avatarUrl.trim() === "" || avatarUrl === "/static/image/avatar.png") {
+    if (!avatarUrl || avatarUrl.trim() === "" || avatarUrl === "/static/image/avatar.svg") {
         return null;
     }
     let resolvedAvatarUrl = avatarUrl.trim();
@@ -283,7 +283,7 @@ function resolveAvatarMediaViewerUrl(avatarUrl: string | null | undefined): stri
         return null;
     }
     const sanitizedAvatarUrl = XSSSanitizeUrl(resolvedAvatarUrl);
-    if (sanitizedAvatarUrl === "#" || sanitizedAvatarUrl === "/static/image/avatar.png") {
+    if (sanitizedAvatarUrl === "#" || sanitizedAvatarUrl === "/static/image/avatar.svg") {
         return null;
     }
     return sanitizedAvatarUrl;
@@ -308,7 +308,7 @@ function setAvatarViewerState(avatarElement: HTMLElement, avatarMediaViewerUrl: 
 }
 
 function setAvatarImageSource(avatarImg: HTMLImageElement, avatarElement: HTMLElement, avatarUrl: string | null | undefined) {
-    const defaultAvatarPath = "/static/image/avatar.png";
+    const defaultAvatarPath = "/static/image/avatar.svg";
     const avatarMediaViewerUrl = resolveAvatarMediaViewerUrl(avatarUrl);
     avatarImg.onerror = () => {
         avatarImg.src = defaultAvatarPath;

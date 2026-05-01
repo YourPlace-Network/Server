@@ -220,7 +220,7 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source"
             }, 50);
         }
         async function renderFilesAvatar() {
-            const defaultAvatar = "/static/image/avatar.png";
+            const defaultAvatar = "/static/image/avatar.svg";
             DOM.filesAvatar.onerror = () => {
                 DOM.filesAvatar.src = defaultAvatar;
                 DOM.filesAvatar.onerror = null;

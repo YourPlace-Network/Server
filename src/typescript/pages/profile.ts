@@ -830,7 +830,7 @@ type ProfileFileRow = {
             if (avatarURL && avatarURL.startsWith("ipfs://")) {
                 avatarURL = CIDToSubdomainURL(avatarURL);
             }
-            const defaultAvatar = "/static/image/avatar.png";
+            const defaultAvatar = "/static/image/avatar.svg";
             let finalAvatarUrl = defaultAvatar;
             let avatarMediaViewerUrl: string | null = null;
             if (IsValidURL(avatarURL)) {

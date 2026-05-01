@@ -137,7 +137,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 for (const item of feedItems) {
                     if (item.type === "native") {
                         item.data.author = "Loading...";
-                        item.data.avatarSrc = "/static/image/avatar.png";
+                        item.data.avatarSrc = "/static/image/avatar.svg";
                         let postDiv = await CreatePostCard(item.data);
                         pendingCards.push(postDiv);
                     } else {
@@ -181,7 +181,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                                 const avatarElement = postDiv.querySelector('img.postCardAvatar') as HTMLImageElement;
                                 if (authorElement) authorElement.textContent = name || "Anonymous";
                                 if (avatarElement) {
-                                    const defaultPath = "/static/image/avatar.png";
+                                    const defaultPath = "/static/image/avatar.svg";
                                     if (avatarStr) {
                                         let avatarSrc = avatarStr;
                                         if (avatarSrc.startsWith("ipfs://")) {
@@ -258,7 +258,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 const col = columns[i] as HTMLDivElement;
                 col.innerHTML = "";
                 profile.name = WalletGetCachedName(profile.blockchain, profile.address) || "Loading...";
-                profile.avatarSrc = WalletGetCachedAvatar(profile.blockchain, profile.address) || "/static/image/avatar.png";
+                profile.avatarSrc = WalletGetCachedAvatar(profile.blockchain, profile.address) || "/static/image/avatar.svg";
                 profile.description = "";
                 const profileCard = await CreateProfileCard(profile);
                 col.appendChild(profileCard);
@@ -266,7 +266,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
             }
         }
         function updateCardAvatar(element: HTMLImageElement, avatarStr: string | null) {
-            const defaultPath = "/static/image/avatar.png";
+            const defaultPath = "/static/image/avatar.svg";
             if (avatarStr) {
                 let avatarSrc = avatarStr;
                 if (avatarSrc.startsWith("ipfs://")) {
@@ -462,7 +462,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 for (let i = 0; i < profiles.length; i++) {
                     profiles[i].resultType = "profile";
                     profiles[i].name = WalletGetCachedName(profiles[i].blockchain, profiles[i].address) || "Loading...";
-                    profiles[i].avatarSrc = WalletGetCachedAvatar(profiles[i].blockchain, profiles[i].address) || "/static/image/avatar.png";
+                    profiles[i].avatarSrc = WalletGetCachedAvatar(profiles[i].blockchain, profiles[i].address) || "/static/image/avatar.svg";
                     let profileDiv = await CreateProfileCard(profiles[i]);
                     if (i >= SEARCH_PROFILES_VISIBLE) {
                         profileDiv.style.display = "none";
@@ -497,7 +497,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 DOM.resultsDiv.appendChild(searchPostsDiv);
                 for (let i = 0; i < posts.length; i++) {
                     posts[i].author = "Loading...";
-                    posts[i].avatarSrc = "/static/image/avatar.png";
+                    posts[i].avatarSrc = "/static/image/avatar.svg";
                     let postDiv = await CreatePostCard(posts[i]);
                     allCards.push(postDiv);
                     allResults.push(posts[i]);
@@ -524,7 +524,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 const existingCount = searchPostsDiv.children.length;
                 for (let i = 0; i < posts.length; i++) {
                     posts[i].author = "Loading...";
-                    posts[i].avatarSrc = "/static/image/avatar.png";
+                    posts[i].avatarSrc = "/static/image/avatar.svg";
                     let postDiv = await CreatePostCard(posts[i]);
                     newCards.push(postDiv);
                     searchPostsDiv.appendChild(postDiv);

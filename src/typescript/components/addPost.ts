@@ -603,7 +603,7 @@ async function preloadTinyMCE() {
             avatarLink.href = `/p/${encodeURIComponent(blockchain)}/${encodeURIComponent(address)}`;
             avatarLink.title = "Posting as Anonymous";
             const avatarImg = document.createElement("img");
-            avatarImg.src = "/static/image/avatar.png";
+            avatarImg.src = "/static/image/avatar.svg";
             avatarImg.alt = "Profile";
             avatarImg.width = 28;
             avatarImg.height = 28;

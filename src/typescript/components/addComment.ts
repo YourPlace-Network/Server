@@ -305,9 +305,9 @@ function createPreviewCommentElement(comment: Comment, blockchain: string): HTML
     avatarLink.classList.add("previewCommentAvatarLink");
     const avatarImg = document.createElement("img");
     avatarImg.classList.add("previewCommentAvatar");
-    let avatarSrc = comment.avatarSrc || "/static/image/avatar.png";
+    let avatarSrc = comment.avatarSrc || "/static/image/avatar.svg";
     if (avatarSrc.startsWith("ipfs://")) {
-        avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.png";
+        avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.svg";
     }
     avatarImg.src = avatarSrc;
     avatarImg.alt = "avatar";

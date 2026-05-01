@@ -24,9 +24,9 @@ export async function CreateProfileCard(profileData: any): Promise<HTMLAnchorEle
     let profileAvatarSrc = profileData.avatarSrc;
     if (profileAvatarSrc && profileAvatarSrc.startsWith("ipfs://")) {
         const converted = CIDToSubdomainURL(profileAvatarSrc);
-        profileAvatarSrc = converted || "/static/image/avatar.png";
+        profileAvatarSrc = converted || "/static/image/avatar.svg";
     }
-    avatarImg.src = XSSSanitizeUrl(profileAvatarSrc || "/static/image/avatar.png");
+    avatarImg.src = XSSSanitizeUrl(profileAvatarSrc || "/static/image/avatar.svg");
     nameDiv.classList.add("profileCardName");
     nameDiv.textContent = profileData.name || "Anonymous";
     addressDiv.classList.add("profileCardAddress");
@@ -65,7 +65,7 @@ export async function FetchAndUpdateProfileCard(profileCard: HTMLElement, blockc
     if (nameDiv) nameDiv.textContent = name || "Anonymous";
     if (descriptionDiv) descriptionDiv.textContent = description || "";
     if (avatarImg) {
-        const defaultPath = "/static/image/avatar.png";
+        const defaultPath = "/static/image/avatar.svg";
         if (avatarStr) {
             let avatarSrc = avatarStr;
             if (avatarSrc.startsWith("ipfs://")) {

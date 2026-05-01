@@ -29,7 +29,7 @@ export async function showProfileEditModal() {
         modalProfileEdit: document.getElementById("modalProfileEdit")! as HTMLDivElement,
         saveProfileBtn: document.getElementById("saveProfileBtn")! as HTMLButtonElement,
     }
-    if (DOM.profileAvatar.src != "/static/image/avatar.png") {
+    if (DOM.profileAvatar.src != "/static/image/avatar.svg") {
         DOM.avatarPreview.src = DOMPurify.sanitize(DOM.profileAvatar.src);
     }
     if (DOM.profileBanner.src != "/static/image/banner.jpg") {

@@ -32,7 +32,7 @@ import {ShowNotifications} from "../util/notifications";
             if (!DOM.notificationsAvatar || DOM.userAddress.value === "" || DOM.userBlockchain.value === "") {
                 return;
             }
-            const defaultAvatar = "/static/image/avatar.png";
+            const defaultAvatar = "/static/image/avatar.svg";
             DOM.notificationsAvatar.onerror = () => {
                 DOM.notificationsAvatar!.src = defaultAvatar;
                 DOM.notificationsAvatar!.onerror = null;

@@ -76,7 +76,7 @@ declare global {
         async function toggleAvatarBtn() {
             let isAuthenticated = DOM.isCookieAuthenticated && DOM.isCookieAuthenticated.value === "true";
             if (!isAuthenticated) {
-                DOM.menuAvatar.src = "/static/image/avatar.png";
+                DOM.menuAvatar.src = "/static/image/avatar.svg";
                 DOM.menuAvatarLink.href = "/login";
                 return;
             }
@@ -92,10 +92,10 @@ declare global {
                 if (avatar) {
                     DOM.menuAvatar.src = XSSSanitizeUrl(avatar);
                 } else {
-                    DOM.menuAvatar.src = "/static/image/avatar.png";
+                    DOM.menuAvatar.src = "/static/image/avatar.svg";
                 }
             } else {
-                DOM.menuAvatar.src = "/static/image/avatar.png";
+                DOM.menuAvatar.src = "/static/image/avatar.svg";
                 DOM.menuAvatarLink.href = "/login";
             }
         }
