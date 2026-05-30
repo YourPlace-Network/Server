@@ -27,7 +27,6 @@ declare global {
             menuDownloadLink: document.getElementById("menuDownloadLink")! as HTMLAnchorElement,
             menuPlacesLink: document.getElementById("menuPlacesLink") as HTMLAnchorElement | null,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated") as HTMLInputElement | null,
-            gatewayMode: document.getElementById("gatewayMode") as HTMLInputElement | null,
             userAddress: document.getElementById("userAddress") as HTMLInputElement | null,
             userBlockchain: document.getElementById("userBlockchain") as HTMLInputElement | null,
         }
@@ -100,11 +99,16 @@ declare global {
             }
         }
 
-        function isLocalhost(): boolean {
-            const hostname = window.location.hostname;
-            return hostname === 'localhost' ||
-                   hostname === '127.0.0.1' ||
-                   hostname === '[::1]';
+        function syncMenuLinks() {
+            if (IsGatewayMode()) {
+                DOM.menuDownloadLink.style.display = "block";
+                DOM.menuSettingsLink.style.display = "block";
+                if (DOM.menuPlacesLink) { DOM.menuPlacesLink.href = `${window.location.protocol}//${window.location.host}/`; }
+            } else {
+                DOM.menuDownloadLink.style.display = "none";
+                DOM.menuSettingsLink.style.display = "block";
+                if (DOM.menuPlacesLink) { DOM.menuPlacesLink.href = "/"; }
+            }
         }
 
         DOM.menuLoginBtn.addEventListener("click", handleLoginLogoutClick);
@@ -112,6 +116,7 @@ declare global {
             e.preventDefault();
             e.stopPropagation();
             await syncAuthState();
+            syncMenuLinks();
             toggleAvatarBtn().then();
             toggleLoginBtn().then();
         });
@@ -119,6 +124,7 @@ declare global {
         DOM.htmlMenu.addEventListener("mouseenter", () => {
             hoverTimeout = setTimeout(async () => {
                 await syncAuthState();
+                syncMenuLinks();
                 toggleAvatarBtn().then();
                 toggleLoginBtn().then();
                 DOM.bsOffcanvas.show();
@@ -130,18 +136,11 @@ declare global {
         DOM.htmlMenu.addEventListener("focusin", (e) => {
             //e.preventDefault();
             //e.stopPropagation();
-            if (DOM.gatewayMode?.value === "true" && !isLocalhost()) {
-                DOM.menuDownloadLink.style.display = "block";
-                DOM.menuSettingsLink.style.display = "none";
-                if (DOM.menuPlacesLink) { DOM.menuPlacesLink.href = `${window.location.protocol}//${window.location.host}/`; }
-            } else {
-                DOM.menuDownloadLink.style.display = "none";
-                DOM.menuSettingsLink.style.display = "block";
-                if (DOM.menuPlacesLink) { DOM.menuPlacesLink.href = "/"; }
-            }
+            syncMenuLinks();
         });
 
         await syncAuthState();
+        syncMenuLinks();
         toggleAvatarBtn().then();
         toggleLoginBtn().then();
     }
