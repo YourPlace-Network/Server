@@ -241,6 +241,21 @@ body.landingProfilePreview {
 #manageFilesBtn i.bi {
   padding-right: 0.4em;
 }
+#addFilesButton {
+  background: var(--yp-quaternary);
+  border-radius: 4em;
+  bottom: .5em;
+  height: 3.7em;
+  position: fixed;
+  right: .5em;
+  width: 3.7em;
+}
+.addFilesIcon {
+  color: map.get(global.$colors, "tertiary");
+  font-size: 1.5em;
+  font-weight: 900;
+  -webkit-text-stroke: 0.04em currentColor;
+}
 #profileFilesSearch {
   background-color: transparent;
   border-color: var(--yp-text);
@@ -450,6 +465,15 @@ input[type="file"] {
     margin-left: 5px;
     max-width: none;
     width: auto;
+  }
+  #addFilesButton {
+    border: 2px solid map.get(global.$colors, "tertiary");
+    height: 2.8em;
+    width: 2.8em;
+    z-index: 1000;
+  }
+  .addFilesIcon {
+    font-size: 1.2em;
   }
   #profileName {
     max-width: calc(100vw - 13em);

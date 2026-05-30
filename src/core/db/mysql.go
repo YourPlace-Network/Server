@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const mysqlFollowFeedIndexColumns = "followerAddress(128), followerBlockchain(32), followeeBlockchain(32), followeeAddress(128)"
+
 type MySQL struct {
 	database *sql.DB
 	dsn      string
@@ -228,6 +230,19 @@ func (db *MySQL) createTables(ctx context.Context) error {
 			return core.LogDebugReturn("Table creation failed: " + err.Error())
 		}
 	}
+	for _, blockchain := range core.ValidNetworks {
+		postTable := "onchain_" + blockchain + "_post"
+		followTable := "onchain_" + blockchain + "_follow"
+		if err := db.migrateCreateIndex("idx_"+postTable+"_timestamp_txhash", postTable, "timestamp, txHash"); err != nil {
+			return core.LogDebugReturn("Index creation failed: " + err.Error())
+		}
+		if err := db.migrateCreateIndex("idx_"+postTable+"_from_timestamp_txhash", postTable, "fromAddress, timestamp, txHash"); err != nil {
+			return core.LogDebugReturn("Index creation failed: " + err.Error())
+		}
+		if err := db.migrateCreateIndex("idx_"+followTable+"_feed", followTable, mysqlFollowFeedIndexColumns); err != nil {
+			return core.LogDebugReturn("Index creation failed: " + err.Error())
+		}
+	}
 	return nil
 }
 func (db *MySQL) getSchemaVersion() int {
@@ -345,6 +360,12 @@ func (db *MySQL) RunMigrations() error {
 			return core.LogDebugReturn("MySQL migration v13 failed: " + err.Error())
 		}
 		db.setSchemaVersion(13)
+	}
+	if currentVersion < 14 {
+		if err := db.migrateV14MySQL(); err != nil {
+			return core.LogDebugReturn("MySQL migration v14 failed: " + err.Error())
+		}
+		db.setSchemaVersion(14)
 	}
 	core.LogDebug(fmt.Sprintf("MySQL: Database schema upgrade completed (now at version %d)", targetVersion))
 	return nil
@@ -586,6 +607,22 @@ func (db *MySQL) migrateV13MySQL() error {
 	}
 	return nil
 }
+func (db *MySQL) migrateV14MySQL() error {
+	for _, blockchain := range core.ValidNetworks {
+		postTable := "onchain_" + blockchain + "_post"
+		followTable := "onchain_" + blockchain + "_follow"
+		if err := db.migrateCreateIndex("idx_"+postTable+"_timestamp_txhash", postTable, "timestamp, txHash"); err != nil {
+			return err
+		}
+		if err := db.migrateCreateIndex("idx_"+postTable+"_from_timestamp_txhash", postTable, "fromAddress, timestamp, txHash"); err != nil {
+			return err
+		}
+		if err := db.migrateCreateIndex("idx_"+followTable+"_feed", followTable, mysqlFollowFeedIndexColumns); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (db *MySQL) createFileTrackingTablesMySQL() error {
 	queries := []string{
 		"CREATE TABLE IF NOT EXISTS local_files (ownerAddress VARCHAR(255), ownerBlockchain VARCHAR(255), cid VARCHAR(255), fileHash VARCHAR(255), mimeType VARCHAR(255), fileName VARCHAR(1024), size BIGINT, addedDate BIGINT, source VARCHAR(255), state VARCHAR(255), PRIMARY KEY (ownerAddress, ownerBlockchain, cid))",
@@ -719,6 +756,32 @@ func (db *MySQL) mysqlTableExists(table string) bool {
 		}
 	}
 	return count > 0
+}
+func (db *MySQL) mysqlIndexExists(indexName, table string) bool {
+	rows, err := db.database.Query("SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?", table, indexName)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	var count int
+	if rows.Next() {
+		if err = rows.Scan(&count); err != nil {
+			return false
+		}
+	}
+	return count > 0
+}
+func (db *MySQL) migrateCreateIndex(indexName, table, columns string) error {
+	if db.mysqlIndexExists(indexName, table) {
+		core.LogDebug(fmt.Sprintf("MySQL: Index %s already exists on %s, skipping", indexName, table))
+		return nil
+	}
+	query := fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, table, columns)
+	if _, err := db.database.Exec(query); err != nil {
+		return core.LogDebugReturn(fmt.Sprintf("MySQL: failed to create index %s on %s: %s", indexName, table, err.Error()))
+	}
+	core.LogDebug(fmt.Sprintf("MySQL: Created index %s on %s(%s)", indexName, table, columns))
+	return nil
 }
 func (db *MySQL) migrateDropColumn(table, column string) error {
 	query := fmt.Sprintf("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '%s' AND COLUMN_NAME = '%s'", table, column)
@@ -2872,7 +2935,7 @@ func (db *MySQL) GetFollowersFeed(followerAddress string, followerBlockchain str
 			  FROM onchain_%s_post p
 			  INNER JOIN onchain_%s_follow f ON p.fromAddress = f.followeeAddress AND f.followeeBlockchain = ?
 			  WHERE f.followerAddress = ? AND f.followerBlockchain = ? AND p.data IS NOT NULL
-			  ORDER BY p.timestamp DESC
+			  ORDER BY p.timestamp DESC, p.txHash DESC
 			  LIMIT ? OFFSET ?`
 	query := fmt.Sprintf(queryFmt, followerBlockchain, followerBlockchain, followerBlockchain)
 	rows, err := db.runParamSQLSelect(query, followerBlockchain, followerAddress, followerBlockchain, limit, offset)

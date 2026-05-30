@@ -300,6 +300,18 @@ func (db *SQLite) createTables(ctx context.Context) error {
 			return core.LogDebugReturn("Table creation failed: " + err.Error())
 		}
 	}
+	for _, blockchain := range core.ValidNetworks {
+		indexes := []string{
+			fmt.Sprintf("CREATE INDEX IF NOT EXISTS idx_onchain_%s_post_timestamp_txhash ON onchain_%s_post (timestamp, txHash)", blockchain, blockchain),
+			fmt.Sprintf("CREATE INDEX IF NOT EXISTS idx_onchain_%s_post_from_timestamp_txhash ON onchain_%s_post (fromAddress, timestamp, txHash)", blockchain, blockchain),
+			fmt.Sprintf("CREATE INDEX IF NOT EXISTS idx_onchain_%s_follow_feed ON onchain_%s_follow (followerAddress, followerBlockchain, followeeBlockchain, followeeAddress)", blockchain, blockchain),
+		}
+		for _, index := range indexes {
+			if err := db.execWithRetry(ctx, index, 3); err != nil {
+				return core.LogDebugReturn("Index creation failed: " + err.Error())
+			}
+		}
+	}
 	return nil
 }
 func (db *SQLite) getSchemaVersion() int {
@@ -3227,7 +3239,7 @@ func (db *SQLite) GetFollowersFeed(followerAddress string, followerBlockchain st
 			  FROM onchain_%s_post p
 			  INNER JOIN onchain_%s_follow f ON p.fromAddress = f.followeeAddress AND f.followeeBlockchain = ?
 			  WHERE f.followerAddress = ? AND f.followerBlockchain = ? AND p.data IS NOT NULL
-			  ORDER BY p.timestamp DESC
+			  ORDER BY p.timestamp DESC, p.txHash DESC
 			  LIMIT ? OFFSET ?`
 	query := fmt.Sprintf(queryFmt, followerBlockchain, followerBlockchain, followerBlockchain)
 	rows, err := db.runParamSQLSelect(query, followerBlockchain, followerAddress, followerBlockchain, limit, offset)

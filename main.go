@@ -415,10 +415,11 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedExtensions([]string{
 		".gif", ".jpg", ".jpeg", ".mp4", ".png", ".webm", ".webp", ".woff", ".woff2",
 	})))
+	router.Use(middleware.GatewayMiddleware(gateway))
 	router.Use(middleware.LoopbackMiddleware(port, gateway, gatewayMintEnabled))
 	router.Use(middleware.LoopbackRedirectMiddleware(port))
 	router.Use(middleware.CSRFMiddleware(middleware.CSRFConfig{CryptoSeed: cryptoSeed}))
-	router.Use(middleware.AuthMiddleware(cryptoSeed, database))
+	router.Use(middleware.AuthMiddleware(cryptoSeed, database, gateway))
 	if !installed && !gateway {
 		router.Use(middleware.SetupMiddleware(installed))
 	}

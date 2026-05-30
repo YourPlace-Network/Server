@@ -13,6 +13,7 @@ import {GetSpotifyRedirectUri} from "../services/spotify";
 import {ShowSavedToast, ShowToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
 import {GetBootstrappedIpfsGateway, GetConfiguredIpfsGateway} from "../util/ipfs";
+import {IsGatewayMode} from "../util/miscellaneous";
 import {Sleep} from "../util/time";
 import {XSSSanitizeValue} from "../util/security";
 
@@ -158,8 +159,12 @@ import {XSSSanitizeValue} from "../util/security";
         let algoPopperInstance: Instance | null = null;
         let ethereumPopperInstance: Instance | null = null;
         let popperInstance: Instance | null = null;
+        const gatewayMode = IsGatewayMode();
 
         async function init() {
+            if (gatewayMode) {
+                disableSettingsControls();
+            }
             InitTooltips();
             ExpandAccordionByHash();
 
@@ -171,6 +176,20 @@ import {XSSSanitizeValue} from "../util/security";
             setInterval(getEthereumIndexerStatus, 6000);
             setInterval(getIndexerRunning, 6000);
             setInterval(getIndexerStatus, 6000);
+        }
+
+        function disableSettingsControls() {
+            document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement>("input, textarea, select, button").forEach((element) => {
+                if (element instanceof HTMLButtonElement && element.dataset.bsToggle === "collapse") {
+                    return;
+                }
+                element.disabled = true;
+            });
+            document.querySelectorAll<HTMLAnchorElement>(".dropdown-item").forEach((element) => {
+                element.classList.add("disabled");
+                element.setAttribute("aria-disabled", "true");
+                element.tabIndex = -1;
+            });
         }
 
         /* Getting Current Settings Values */
@@ -1687,6 +1706,9 @@ import {XSSSanitizeValue} from "../util/security";
 
         /* On-Demand Loading */
         DOM.collapseContent.addEventListener("show.bs.collapse", function() {
+            if (gatewayMode) {
+                return;
+            }
             getUploadDirectory().then();
             getIpfsPinning().then();
             getIpfsGateway().then();
@@ -1695,45 +1717,64 @@ import {XSSSanitizeValue} from "../util/security";
             getOllamaModelEnabled().then();
         });
         DOM.collapseBlockchain.addEventListener("show.bs.collapse", function() {
-            getIndexerOnBattery().then();
             getIndexerRunning().then();
             getIndexerStatus().then();
+            if (!gatewayMode) {
+                getIndexerOnBattery().then();
+            }
         });
         DOM.collapseBase.addEventListener("show.bs.collapse", function() {
-            getBaseURL().then();
             getBaseIndexerProgress().then();
             getBaseThrottle().then();
-            getBaseFullNode().then();
-            getBaseDataDirectory().then();
             getBaseIndexerRunning().then();
             getBaseIndexerStatus().then();
+            if (!gatewayMode) {
+                getBaseURL().then();
+                getBaseFullNode().then();
+                getBaseDataDirectory().then();
+            }
         });
         DOM.collapseAlgo.addEventListener("show.bs.collapse", function() {
-            getAlgoURL().then();
             getAlgoIndexerProgress().then();
             getAlgoThrottle().then();
             getAlgoIndexerRunning().then();
             getAlgoIndexerStatus().then();
+            if (!gatewayMode) {
+                getAlgoURL().then();
+            }
         });
         DOM.collapseEthereum.addEventListener("show.bs.collapse", function() {
-            getEthereumURL().then();
             getEthereumIndexerProgress().then();
             getEthereumThrottle().then();
             getEthereumIndexerRunning().then();
             getEthereumIndexerStatus().then();
+            if (!gatewayMode) {
+                getEthereumURL().then();
+            }
         });
         DOM.collapseServerInfo.addEventListener("show.bs.collapse", function() {
-            getDebugMode().then();
-            getServerRuntime().then();
             getServerVersion().then();
+            if (!gatewayMode) {
+                getDebugMode().then();
+                getServerRuntime().then();
+            }
         });
         DOM.collapseNetworking.addEventListener("show.bs.collapse", function() {
+            if (gatewayMode) {
+                return;
+            }
             getNetworkPorts().then();
         });
         DOM.collapseSpotify.addEventListener("show.bs.collapse", function() {
+            if (gatewayMode) {
+                return;
+            }
             getSpotifySettings().then();
         });
         DOM.collapseXcom.addEventListener("show.bs.collapse", function() {
+            if (gatewayMode) {
+                return;
+            }
             getXcomCredentials().then();
             getXcomSettings().then();
             getXcomTier().then();

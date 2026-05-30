@@ -30,6 +30,20 @@
         </div>
     </div>
 </div>
+<div class="modal" id="modalFileInfo" tabindex="-1" aria-labelledby="modalFileInfoTitle">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalFileInfoTitle">File Info</h5>
+            </div>
+            <div class="modal-body">
+                <div class="modalBodyLeft">
+                    <div id="modalFileInfoBody" class="filesInfoBody"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="container-fluid" id="filesPage">
     <div class="row">
         <div class="col-sm-1"></div>
@@ -55,7 +69,6 @@
                         <th scope="col" class="filesSortableHeader" data-sort-key="size">Size<span class="filesSortArrow"></span></th>
                         <th scope="col" class="filesSortableHeader" data-sort-key="addedDate">Uploaded<span class="filesSortArrow"></span></th>
                         <th scope="col" class="filesSortableHeader" data-sort-key="visibility">Visibility<span class="filesSortArrow"></span></th>
-                        <th scope="col" class="filesSortableHeader" data-sort-key="source">Source<span class="filesSortArrow"></span></th>
                         {{if not .isGuest}}<th scope="col">Action</th>{{end}}
                     </tr>
                     </thead>

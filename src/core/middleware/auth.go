@@ -27,11 +27,8 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/robots.txt", "GET"},                           // Robots direction
 	{"/rpc/base", "POST"}, {"/rpc/ethereum", "POST"}, // Public RPC proxy endpoints
 	{"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"}, // Database snapshot endpoints
-	{"/settings/ipfs/port", "GET"},         // IPFS settings
-	{"/settings/base", "GET"},              // Base settings
-	{"/settings/services/algorand", "GET"}, // Algorand settings
-	{"/s", "GET"},                          // Search endpoint
-	{"/404", "GET"},                        // 404 not-found page
+	{"/s", "GET"},   // Search endpoint
+	{"/404", "GET"}, // 404 not-found page
 }
 
 // Prefix match on path, exact match on method
@@ -44,9 +41,9 @@ var prefixPostExclusions = []string{ // Exclude all POST requests to these paths
 	"/login", // Login endpoints
 }
 
-func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
+func AuthMiddleware(cryptoSeed []byte, database *db.Database, gateway bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		isExcluded := IsRequestExcluded(c)
+		isExcluded := IsRequestExcluded(c, gateway)
 		// Always try to set context variables if valid cookie exists
 		authCookie, authCookieErr := c.Request.Cookie("yp_auth")
 		// Cache cookie validation result to avoid multiple PBKDF2 operations
@@ -147,11 +144,14 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database) gin.HandlerFunc {
 	}
 }
 
-func IsRequestExcluded(c *gin.Context) bool {
+func IsRequestExcluded(c *gin.Context, gateway bool) bool {
 	requestURI := c.Request.RequestURI
 	parsedURL, _ := url.Parse(requestURI)
 	requestPath := parsedURL.Path
 	requestMethod := strings.TrimRight(c.Request.Method, "/\\")
+	if gateway && requestMethod == "GET" && IsGatewaySettingsGetAllowed(requestPath) {
+		return true
+	}
 	if requestPath == "/login" && requestMethod == "HEAD" {
 		return true // Exclude all HEAD requests to /login to prevent redirect loops
 	}

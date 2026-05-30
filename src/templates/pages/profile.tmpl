@@ -15,6 +15,7 @@
 {{template "modalProfileDetails" .}}
 {{template "modalTransferNFT" .}}
 {{template "modalYesNo" .}}
+{{template "modalFileUpload" .}}
     <div class="container-fluid" id="topContainer">
         <div class="row" id="rowBanner">
             <div class="col-sm-1"></div>
@@ -183,6 +184,11 @@
             <div class="col-sm-1">
                 {{template "addPost" .}}
                 {{template "mintNFTButton" .}}
+                {{if and (not .isGuest) (not .gatewayMode)}}
+                <button type="button" class="btn grow hidden" id="addFilesButton" data-bs-toggle="tooltip" title="Upload Files" data-bs-placement="left">
+                    <i class="bi bi-upload addFilesIcon"></i>
+                </button>
+                {{end}}
             </div>
         </div>
     </div>

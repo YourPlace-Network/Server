@@ -153,8 +153,8 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                 }
                 if (mode === "refresh") {
                     const firstChild = DOM.followersFeedDiv.firstChild;
-                    for (let i = pendingCards.length - 1; i >= 0; i--) {
-                        DOM.followersFeedDiv.insertBefore(pendingCards[i], firstChild);
+                    for (const card of pendingCards) {
+                        DOM.followersFeedDiv.insertBefore(card, firstChild);
                     }
                 } else {
                     for (const card of pendingCards) {

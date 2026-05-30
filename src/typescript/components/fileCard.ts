@@ -2,7 +2,7 @@ import "../../scss/components/fileCard.scss";
 import { HttpGetJson } from "../util/network";
 import { CreatePostCard } from "./postCard";
 
-export type FileCardAttachment = [string, string, number | string, string];
+export type FileCardAttachment = [string, string, number | string, string, string?];
 export interface FileCardData {
     address: string;
     author?: string;

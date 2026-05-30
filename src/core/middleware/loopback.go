@@ -34,13 +34,9 @@ func LoopbackMiddleware(port int, gateway bool, gatewayMintEnabled bool) gin.Han
 			c.Next()
 			return
 		}
-		if gateway && c.Request.Method == "GET" { // In gateway mode, allow specific settings endpoints
-			if strings.HasPrefix(requestPath, "/settings/algorand/url") ||
-				strings.HasPrefix(requestPath, "/settings/base/url") ||
-				strings.HasPrefix(requestPath, "/settings/services/algorand") {
-				c.Next()
-				return
-			}
+		if gateway && c.Request.Method == "GET" && IsGatewaySettingsGetAllowed(c.Request.URL.Path) {
+			c.Next()
+			return
 		}
 		// Check if this request matches an exception rule
 		validHosts := map[string]bool{

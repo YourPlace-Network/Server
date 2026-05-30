@@ -181,7 +181,8 @@ func streamLocalFileInline(c *gin.Context, database *db.Database, localFile map[
 		mimeType = "application/octet-stream"
 	}
 	c.Header("Cache-Control", "private, no-store, must-revalidate")
-	c.DataFromReader(http.StatusOK, fileInfo.Size(), mimeType, fileHandle, nil)
+	c.Header("Content-Type", mimeType)
+	http.ServeContent(c.Writer, c.Request, fileInfo.Name(), fileInfo.ModTime(), fileHandle)
 }
 func deleteLocalFileResources(database *db.Database, ipfs *network.IPFS, localFile map[string]interface{}) {
 	if localFile == nil {

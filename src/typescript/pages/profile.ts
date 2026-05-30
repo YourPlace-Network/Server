@@ -4,6 +4,7 @@ import "../../scss/pages/profile.scss";
 import "../components/addPost";
 import "../components/mintNFT";
 import "../components/modalDialog";
+import "../components/modalFileUpload";
 import "../components/modalYesNo";
 import "../components/scrollTop";
 import "../components/menu";
@@ -38,6 +39,7 @@ declare global {
 
 type ProfileFileRow = {
     addedDate: number;
+    canDelete?: boolean;
     cid: string;
     fileName: string;
     mimeType: string;
@@ -55,6 +57,7 @@ type ProfileFileRow = {
     function main() {
         let DOM = {
             addPostButton: document.getElementById("addPostButton")! as HTMLButtonElement,
+            addFilesButton: document.getElementById("addFilesButton") as HTMLButtonElement | null,
             avatarPreview: document.getElementById("avatarPreview")! as HTMLImageElement,
             bannerPreview: document.getElementById("bannerPreview")! as HTMLImageElement,
             btnCollectible: document.getElementById("btnCollectible")! as HTMLButtonElement,
@@ -325,6 +328,9 @@ type ProfileFileRow = {
         function setFilesActionRowActive(isActive: boolean) {
             DOM.rowFilesActions.classList.toggle("hidden", !isActive);
         }
+        function setFilesUploadButtonActive(isActive: boolean) {
+            DOM.addFilesButton?.classList.toggle("hidden", !isActive || DOM.isGuest.value !== "false" || IsGatewayMode());
+        }
         function getManageFilesUrl() {
             return `/files/${encodeURIComponent(DOM.injectedBlockchain.value)}/${encodeURIComponent(DOM.injectedAddress.value)}`;
         }
@@ -379,7 +385,8 @@ type ProfileFileRow = {
                     };
                     groupedFiles.set(groupingKey, fileCard);
                 }
-                fileCard.attachments.push([file.cid, file.mimeType, file.size, file.fileName]);
+                const localPreviewUrl = file.canDelete === true ? `/files/preview/${encodeURIComponent(file.cid)}` : "";
+                fileCard.attachments.push([file.cid, file.mimeType, file.size, file.fileName, localPreviewUrl]);
             }
             return Array.from(groupedFiles.values());
         }
@@ -535,6 +542,7 @@ type ProfileFileRow = {
             DOM.btnPosts.classList.remove("active");
             setFilesTabActive(false);
             setFilesActionRowActive(false);
+            setFilesUploadButtonActive(false);
             Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
             DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
             DOM.emptyContentDivPlaceHolder.style.cursor = "default";
@@ -552,6 +560,7 @@ type ProfileFileRow = {
             DOM.btnPosts.classList.remove("active");
             setFilesTabActive(false);
             setFilesActionRowActive(false);
+            setFilesUploadButtonActive(false);
             Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
             DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
             DOM.emptyContentDivPlaceHolder.style.cursor = "default";
@@ -573,6 +582,7 @@ type ProfileFileRow = {
             DOM.btnComments.classList.remove("active");
             setFilesTabActive(false);
             setFilesActionRowActive(false);
+            setFilesUploadButtonActive(false);
             const existingGrid = DOM.contentDiv.querySelector(".collectibleGrid");
             if (existingGrid) existingGrid.remove();
             Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
@@ -596,6 +606,7 @@ type ProfileFileRow = {
             DOM.btnComments.classList.remove("active");
             setFilesTabActive(true);
             setFilesActionRowActive(true);
+            setFilesUploadButtonActive(true);
             DOM.contentDiv.querySelectorAll(".collectibleGrid, .collectibleLoading").forEach((element) => element.remove());
             Array.from(DOM.contentDiv.children).forEach(c => (c as HTMLElement).style.display = "none");
             DOM.emptyContentDivPlaceHolder.classList.remove("clickable");
@@ -1078,6 +1089,11 @@ type ProfileFileRow = {
         DOM.profileFilesSearch.addEventListener("input", function () {
             if (activeTab === "files") {
                 renderFilteredFileCards().then();
+            }
+        });
+        window.addEventListener("filesUploaded", function () {
+            if (activeTab === "files") {
+                refreshFilesData(DOM.injectedBlockchain.value, DOM.injectedAddress.value).then();
             }
         });
         DOM.btnSearch.addEventListener("click", function () {

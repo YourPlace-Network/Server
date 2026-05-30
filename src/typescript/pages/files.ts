@@ -28,7 +28,7 @@ type FileRow = {
     loadOrder?: number;
 };
 type SortDirection = "asc" | "desc" | null;
-type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source" | "visibility";
+type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "visibility";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -37,6 +37,8 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source"
         const DOM = {
             filesAvatar: document.getElementById("filesAvatar") as HTMLImageElement,
             filesEmptyState: document.getElementById("filesEmptyState") as HTMLDivElement,
+            modalFileInfo: document.getElementById("modalFileInfo") as HTMLDivElement,
+            modalFileInfoBody: document.getElementById("modalFileInfoBody") as HTMLDivElement,
             modalFileRename: document.getElementById("modalFileRename") as HTMLDivElement,
             modalFileRenameBaseName: document.getElementById("modalFileRenameBaseName") as HTMLInputElement,
             modalFileRenameCurrentName: document.getElementById("modalFileRenameCurrentName") as HTMLSpanElement,
@@ -61,6 +63,7 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source"
         let renameTarget: FileRow | null = null;
         let sortKey: SortKey | null = null;
         let sortDirection: SortDirection = null;
+        const infoModal = new window.bootstrap.Modal(DOM.modalFileInfo, {});
         const renameModal = new window.bootstrap.Modal(DOM.modalFileRename, {});
 
         function getSourceLabel(source: string): string {
@@ -150,7 +153,10 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source"
             closeActionMenu();
             const actionMenu = document.createElement("div");
             actionMenu.classList.add("filesActionDropdown", "filesActionDropdownFloating");
-            actionMenu.appendChild(createActionMenuButton("bi bi-copy", "Copy", async () => {
+            actionMenu.appendChild(createActionMenuButton("bi bi-info-circle", "Info", async () => {
+                await openInfoModal(row);
+            }));
+            actionMenu.appendChild(createActionMenuButton("bi bi-copy", "Copy CID", async () => {
                 await copyCidLink(row);
             }));
             actionMenu.appendChild(createActionMenuButton("bi bi-pencil-square", "Rename", () => {
@@ -219,6 +225,43 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source"
                 DOM.modalFileRenameBaseName.select();
             }, 50);
         }
+        function appendInfoRow(label: string, value: string, href?: string) {
+            const item = document.createElement("div");
+            item.classList.add("filesInfoItem");
+            const labelElement = document.createElement("div");
+            labelElement.classList.add("filesInfoLabel");
+            labelElement.textContent = label;
+            const valueElement = document.createElement(href ? "a" : "div");
+            valueElement.classList.add("filesInfoValue");
+            valueElement.textContent = value || "Not available";
+            if (href) {
+                valueElement.setAttribute("href", href);
+                valueElement.setAttribute("target", "_blank");
+                valueElement.setAttribute("rel", "noopener noreferrer");
+            }
+            item.append(labelElement, valueElement);
+            DOM.modalFileInfoBody.appendChild(item);
+        }
+        async function openInfoModal(row: FileRow) {
+            const fileSize = await formatFileSize(row.size || 0);
+            const openUrl = getOpenUrl(row);
+            DOM.modalFileInfoBody.innerHTML = "";
+            appendInfoRow("Name", row.fileName);
+            appendInfoRow("CID", row.cid);
+            appendInfoRow("IPFS URI", `ipfs://${row.cid}`);
+            appendInfoRow("Open URL", openUrl, openUrl);
+            appendInfoRow("Type", row.mimeType || "application/octet-stream");
+            appendInfoRow("Size", `${fileSize} (${row.size || 0} bytes)`);
+            appendInfoRow("Uploaded", new Date(row.addedDate * 1000).toLocaleString());
+            appendInfoRow("Visibility", row.visibility);
+            appendInfoRow("Source", getSourceLabel(row.source) || "Unknown");
+            appendInfoRow("Owner Address", row.ownerAddress);
+            appendInfoRow("Owner Blockchain", row.ownerBlockchain);
+            if (row.txHash) {
+                appendInfoRow("Transaction", row.txHash);
+            }
+            infoModal.show();
+        }
         async function renderFilesAvatar() {
             const defaultAvatar = "/static/image/avatar.svg";
             DOM.filesAvatar.onerror = () => {
@@ -259,8 +302,10 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source"
                 video.src = previewUrl;
                 video.muted = true;
                 video.autoplay = true;
+                video.controls = true;
                 video.loop = true;
                 video.playsInline = true;
+                video.preload = "auto";
                 return video;
             }
             const meta = document.createElement("div");
@@ -285,6 +330,8 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source"
             const rect = anchor.getBoundingClientRect();
             DOM.preview.replaceChildren(renderPreviewContent(row));
             DOM.preview.classList.add("visible");
+            const video = DOM.preview.querySelector("video") as HTMLVideoElement | null;
+            video?.play().catch(() => {});
             DOM.preview.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 280))}px`;
             DOM.preview.style.top = `${Math.max(8, Math.min(rect.bottom + 12, window.innerHeight - 220))}px`;
         }
@@ -478,9 +525,6 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source"
                     case "visibility":
                         result = compareText(left.visibility, right.visibility, activeSortDirection);
                         break;
-                    case "source":
-                        result = compareText(getSourceLabel(left.source), getSourceLabel(right.source), activeSortDirection);
-                        break;
                     case "addedDate":
                     default:
                         result = compareNumber(left.addedDate, right.addedDate, activeSortDirection);
@@ -509,7 +553,6 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "source"
                     {className: "filesSizeCell", value: fileSize},
                     {className: "filesUploadedCell", value: new Date(row.addedDate * 1000).toLocaleString()},
                     {className: "filesVisibilityCell", value: row.visibility},
-                    {className: "filesSourceCell", value: getSourceLabel(row.source)},
                 ];
                 const nameCell = document.createElement("td");
                 nameCell.classList.add("filesNameCell");

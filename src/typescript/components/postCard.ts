@@ -75,6 +75,11 @@ function createIpfsVideoEmbed(url: string): HTMLVideoElement | null {
     video.controls = true;
     video.playsInline = true;
     video.preload = "metadata";
+    video.addEventListener("loadedmetadata", () => {
+        if (video.videoWidth > 0) {
+            video.style.maxWidth = `${video.videoWidth}px`;
+        }
+    });
     video.src = sanitizedUrl;
     return video;
 }
@@ -503,7 +508,10 @@ export async function CreateCarousel(elements: HTMLElement[]): Promise<HTMLDivEl
         selector.setAttribute("data-bs-target", "#" + elementsUUID);
         selector.setAttribute("data-bs-slide-to", i.toString());
         item.classList.add("carousel-item");
-        element.classList.add("d-block", "w-100");
+        element.classList.add("d-block");
+        if (!element.classList.contains("postCardIntrinsicMedia")) {
+            element.classList.add("w-100");
+        }
         item.appendChild(element);
         prevIconDiv.appendChild(previousIcon);
         previousButton.appendChild(prevIconDiv);
@@ -873,6 +881,30 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
                     } else {
                         renderedAttachmentElements.push(imageLoader);
                     }
+                    break;
+                case "video/mp4":
+                case "video/mpeg":
+                case "video/quicktime":
+                case "video/webm":
+                case "video/x-matroska":
+                    if (postData.resultType === "file") {
+                        const localPreviewUrl = typeof attachment[4] === "string" ? attachment[4] : "";
+                        const videoUrl = localPreviewUrl || (postData.localPost && attachmentCID !== "" ? `/files/preview/${encodeURIComponent(attachmentCID)}` : fileUrl);
+                        const video = createIpfsVideoEmbed(videoUrl);
+                        if (video) {
+                            video.classList.add("postCardFileVideo", "postCardIntrinsicMedia");
+                            renderedAttachmentElements.push(video);
+                            break;
+                        }
+                    }
+                    let videoAttachmentCard = await CreateAttachmentCard(postData.attachments[i], !!postData.localPost).catch( e =>{
+                        return "failed"
+                    });
+                    if (!(videoAttachmentCard instanceof HTMLDivElement)) {
+                        break;
+                    }
+                    (videoAttachmentCard as unknown as HTMLDivElement).classList.add("postAttachment");
+                    listedAttachmentElements.push(videoAttachmentCard as unknown as HTMLDivElement);
                     break;
                 default:
                     let attachmentCard = await CreateAttachmentCard(postData.attachments[i], !!postData.localPost).catch( e =>{

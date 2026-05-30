@@ -12,7 +12,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 13
+const SchemaVersion = 14
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -41,6 +41,7 @@ var migrations = []Migration{
 	{Version: 11, Description: "Move file tracking to local_files and onchain chain-specific files tables", Up: migrateV11},
 	{Version: 12, Description: "Add deleted markers to chain-specific file tables", Up: migrateV12},
 	{Version: 13, Description: "Drop deleted markers from chain-specific file tables", Up: migrateV13},
+	{Version: 14, Description: "Add followers feed indexes", Up: migrateV14},
 }
 
 // --- Migration Functions --- //
@@ -277,6 +278,22 @@ func migrateV13(db *SQLite) error {
 	}
 	for _, col := range columns {
 		if err := db.migrateDropColumn(col.table, col.column); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func migrateV14(db *SQLite) error {
+	for _, blockchain := range core.ValidNetworks {
+		postTable := "onchain_" + blockchain + "_post"
+		followTable := "onchain_" + blockchain + "_follow"
+		if err := db.migrateCreateIndex("idx_"+postTable+"_timestamp_txhash", postTable, "timestamp, txHash"); err != nil {
+			return err
+		}
+		if err := db.migrateCreateIndex("idx_"+postTable+"_from_timestamp_txhash", postTable, "fromAddress, timestamp, txHash"); err != nil {
+			return err
+		}
+		if err := db.migrateCreateIndex("idx_"+followTable+"_feed", followTable, "followerAddress, followerBlockchain, followeeBlockchain, followeeAddress"); err != nil {
 			return err
 		}
 	}

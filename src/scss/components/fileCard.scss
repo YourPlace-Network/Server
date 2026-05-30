@@ -45,3 +45,11 @@
   max-height: none;
   object-fit: contain;
 }
+.fileCard .postCardFileVideo {
+  display: block;
+  height: auto;
+  max-height: 30em;
+  max-width: 100%;
+  object-fit: contain;
+  width: auto;
+}

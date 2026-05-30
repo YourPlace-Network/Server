@@ -5,6 +5,7 @@ import {FinalizeFiles, UploadFile} from "../util/files";
 import {AddFileToIPFS} from "../util/ipfs";
 import {ShowDialogModal} from "./modalDialog";
 import {IsValidIpfsCid} from "../util/security";
+import {ShowToastWithDelay} from "./toast";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -38,6 +39,18 @@ import {IsValidIpfsCid} from "../util/security";
             text.textContent = label;
             submitButton.replaceChildren(icon, text);
         }
+        function setSubmitButtonSpinner() {
+            const spinner = document.createElement("span");
+            spinner.classList.add("spinner-border", "spinner-border-sm");
+            spinner.setAttribute("aria-hidden", "true");
+            const text = document.createElement("span");
+            text.classList.add("visually-hidden");
+            text.textContent = "Uploading files";
+            submitButton.replaceChildren(spinner, text);
+        }
+        function getResponseStatus(response: any, fallback: string): string {
+            return response?.status || fallback;
+        }
 
         function renderSelectedFiles() {
             list.innerHTML = "";
@@ -62,11 +75,11 @@ import {IsValidIpfsCid} from "../util/security";
             const visibilityInput = document.querySelector("input[name='modalFileVisibility']:checked") as HTMLInputElement | null;
             const visibility = visibilityInput?.value === "private" ? "private" : "public";
             submitButton.disabled = true;
-            setSubmitButtonLabel("Uploading...", "bi bi-upload modalFileUploadSubmitIcon");
+            setSubmitButtonSpinner();
             try {
                 const response = await UploadFile(files, csrfToken.value);
                 if (response[0] !== 200 || !response[1]?.data || response[1].data.length === 0) {
-                    ShowDialogModal("Failed to upload files");
+                    ShowDialogModal(getResponseStatus(response[1], "Failed to upload files"));
                     return;
                 }
                 const stagedFiles = response[1].data;
@@ -74,7 +87,7 @@ import {IsValidIpfsCid} from "../util/security";
                 if (visibility === "private") {
                     const finalizeResponse = await FinalizeFiles(stagedCids, "private", "direct_upload", csrfToken.value);
                     if (finalizeResponse[0] !== 200) {
-                        ShowDialogModal("Failed to save files privately");
+                        ShowDialogModal(getResponseStatus(finalizeResponse[1], "Failed to save files privately"));
                         return;
                     }
                 } else {
@@ -101,7 +114,7 @@ import {IsValidIpfsCid} from "../util/security";
                     }
                     const finalizeResponse = await FinalizeFiles(stagedCids, "public", "direct_upload", csrfToken.value, txHash, activeChain);
                     if (finalizeResponse[0] !== 200) {
-                        ShowDialogModal("Failed to finalize published files");
+                        ShowDialogModal(getResponseStatus(finalizeResponse[1], "Failed to finalize published files"));
                         return;
                     }
                 }
@@ -109,6 +122,7 @@ import {IsValidIpfsCid} from "../util/security";
                 fileInput.value = "";
                 renderSelectedFiles();
                 window.dispatchEvent(new CustomEvent("filesUploaded"));
+                ShowToastWithDelay(visibility === "private" ? "Saved privately on your server." : "Your files should show up shortly. Please wait for them to spread through the network.", 5000);
             } finally {
                 submitButton.disabled = false;
                 setSubmitButtonLabel("Upload Files", "bi bi-upload modalFileUploadSubmitIcon");
