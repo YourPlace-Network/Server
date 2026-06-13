@@ -475,6 +475,7 @@ export async function algoGetCollectibles(address: string): Promise<CollectibleD
             try {
                 const assetInfo = await algod.getAssetByID(asset.assetId).do();
                 const params = assetInfo.params;
+                if (!params) continue;
                 if (BigInt(params.total) !== 1n || BigInt(params.decimals) !== 0n) continue;
                 let metadata: any = {};
                 let imageUrl = "";
