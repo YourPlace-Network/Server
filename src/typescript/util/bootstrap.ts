@@ -1,7 +1,24 @@
 export function ExpandAccordionByHash() {
     if (!window.location.hash) return;
     const hashId = decodeURIComponent(window.location.hash.slice(1));
-    const targetElement = document.getElementById(hashId) || document.querySelector(window.location.hash);
+    const hashAliases: Record<string, string> = {
+        ai: "collapseAi",
+        algo: "collapseAlgo",
+        base: "collapseBase",
+        blockchain: "collapseBlockchain",
+        content: "collapseContent",
+        ethereum: "collapseEthereum",
+        files: "collapseFiles",
+        ipfs: "collapseIpfsPinning",
+        networking: "collapseNetworking",
+        privacy: "collapsePrivacy",
+        serverInfo: "collapseServerInfo",
+        services: "collapseServices",
+        spotify: "collapseSpotify",
+        wallet: "collapseWallet",
+        xcom: "collapseXcom",
+    };
+    const targetElement = document.getElementById(hashId) || document.getElementById(hashAliases[hashId]) || document.querySelector(window.location.hash);
     if (!targetElement) return;
 
     // Find all parent accordions

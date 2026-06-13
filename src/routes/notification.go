@@ -188,7 +188,7 @@ func getSystemNotifications(database *db.Database) []Notification {
 		notifications = append(notifications, Notification{
 			UID:         "rpc_slow",
 			Type:        "system",
-			Message:     "You are using a blockchain node which is causing slow performance. <a href=\"/settings#collapseBase\" class=\"toastLink\">Click here</a> to set your own blockchain RPC node",
+			Message:     "You are using a blockchain node which is causing slow performance. <a href=\"/settings#base\" class=\"toastLink\">Click here</a> to set your own blockchain RPC node",
 			Dismissable: true,
 		})
 	}
