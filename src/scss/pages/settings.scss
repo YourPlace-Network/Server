@@ -113,6 +113,18 @@ i.bi {
 .walletConnectionStatus.disconnected {
   color: global.$secondary;
 }
+.walletConnectionStatusBtn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  width: fit-content;
+}
+.walletConnectionStatusBtn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
 @media (max-width: 704px) {
   .walletConnectionRow {
     grid-template-columns: minmax(0, 1fr);

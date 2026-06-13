@@ -16,7 +16,7 @@ import {GetBootstrappedIpfsGateway, GetConfiguredIpfsGateway} from "../util/ipfs
 import {IsGatewayMode} from "../util/miscellaneous";
 import {Sleep} from "../util/time";
 import {XSSSanitizeValue} from "../util/security";
-import {WalletGetConnectionStatuses, type WalletConnectionStatus} from "../util/blockchain/wallet";
+import {ConnectWallet, WalletGetConnectionStatuses, type WalletConnectionStatus} from "../util/blockchain/wallet";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -264,15 +264,40 @@ import {WalletGetConnectionStatuses, type WalletConnectionStatus} from "../util/
                 const name = document.createElement("span");
                 name.className = "walletConnectionName";
                 name.textContent = status.name;
-                const state = document.createElement("span");
-                state.className = status.connected ? "walletConnectionStatus connected" : "walletConnectionStatus disconnected";
-                state.textContent = status.connected ? "Connected" : "Not Connected";
+                let state: HTMLElement;
+                if (status.connected) {
+                    state = document.createElement("span");
+                    state.className = "walletConnectionStatus connected";
+                    state.textContent = "Connected";
+                } else {
+                    const stateBtn = document.createElement("button");
+                    stateBtn.className = "walletConnectionStatus walletConnectionStatusBtn disconnected";
+                    stateBtn.textContent = "Not Connected";
+                    stateBtn.type = "button";
+                    stateBtn.addEventListener("click", () => {
+                        connectWalletFromSettings(status.wallet, stateBtn).then();
+                    });
+                    state = stateBtn;
+                }
                 const address = document.createElement("span");
                 address.className = "walletConnectionAddress";
                 address.textContent = status.connected && status.address !== "" ? status.address : "";
                 row.append(name, state, address);
                 DOM.walletConnectionsList.appendChild(row);
             }
+        }
+        async function connectWalletFromSettings(wallet: string, button: HTMLButtonElement) {
+            button.disabled = true;
+            const previousText = button.textContent || "Not Connected";
+            button.textContent = "Connecting...";
+            const result = await ConnectWallet(wallet);
+            if (result === "success") {
+                window.location.assign("/settings#wallet");
+                return;
+            }
+            button.disabled = false;
+            button.textContent = previousText;
+            ShowDialogModal(result || "Failed to connect wallet");
         }
         function formatAuthLevel(authLevel: string): string {
             if (authLevel === "wallet_cookie") {
