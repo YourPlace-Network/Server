@@ -73,6 +73,7 @@ import {WalletGetConnectionStatuses, type WalletConnectionStatus} from "../util/
             serverUpdateBtn: document.getElementById("serverUpdateBtn")! as HTMLButtonElement,
             serverUninstallBtn: document.getElementById("serverUninstallBtn")! as HTMLButtonElement,
             serverVersionText: document.getElementById("serverVersionText")! as HTMLSpanElement,
+            settingsAccordion: document.getElementById("settingsAccordion")! as HTMLDivElement,
             serverLogsViewBtn: document.getElementById("serverLogsViewBtn")! as HTMLButtonElement,
             helperLogsViewBtn: document.getElementById("helperLogsViewBtn")! as HTMLButtonElement,
             logsView: document.getElementById("logsView")! as HTMLDivElement,
@@ -191,13 +192,13 @@ import {WalletGetConnectionStatuses, type WalletConnectionStatus} from "../util/
         }
 
         function disableSettingsControls() {
-            document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement>("input, textarea, select, button").forEach((element) => {
+            DOM.settingsAccordion.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement>("input, textarea, select, button").forEach((element) => {
                 if (element instanceof HTMLButtonElement && element.dataset.bsToggle === "collapse") {
                     return;
                 }
                 element.disabled = true;
             });
-            document.querySelectorAll<HTMLAnchorElement>(".dropdown-item").forEach((element) => {
+            DOM.settingsAccordion.querySelectorAll<HTMLAnchorElement>(".dropdown-item").forEach((element) => {
                 element.classList.add("disabled");
                 element.setAttribute("aria-disabled", "true");
                 element.tabIndex = -1;
