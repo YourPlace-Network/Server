@@ -78,6 +78,47 @@ i.bi {
   position: relative;
   margin-top: 10px;
 }
+#walletInfoGrid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 1em;
+  row-gap: 0.5em;
+  overflow-wrap: anywhere;
+}
+.walletInfoLabel {
+  font-weight: bold;
+  white-space: nowrap;
+}
+#walletProfileLink:not(.hidden) {
+  display: inline-block;
+  margin-top: 1em;
+}
+#walletConnectionsHeader {
+  font-size: 1.1em;
+  margin-bottom: 0.75em;
+}
+.walletConnectionRow {
+  display: grid;
+  grid-template-columns: 8em 8em minmax(0, 1fr);
+  gap: 0.75em;
+  margin-bottom: 0.5em;
+  overflow-wrap: anywhere;
+}
+.walletConnectionName {
+  font-weight: bold;
+}
+.walletConnectionStatus.connected {
+  color: global.$success;
+}
+.walletConnectionStatus.disconnected {
+  color: global.$secondary;
+}
+@media (max-width: 704px) {
+  .walletConnectionRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2em;
+  }
+}
 #defaultUploadDirectoryBtn {
   position: relative;
   float: left;

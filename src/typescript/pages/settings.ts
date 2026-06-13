@@ -16,6 +16,7 @@ import {GetBootstrappedIpfsGateway, GetConfiguredIpfsGateway} from "../util/ipfs
 import {IsGatewayMode} from "../util/miscellaneous";
 import {Sleep} from "../util/time";
 import {XSSSanitizeValue} from "../util/security";
+import {WalletGetConnectionStatuses, type WalletConnectionStatus} from "../util/blockchain/wallet";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -78,11 +79,22 @@ import {XSSSanitizeValue} from "../util/security";
             runtimeEnvVarsText: document.getElementById("runtimeEnvVarsText")! as HTMLDivElement,
             runtimeFlagsText: document.getElementById("runtimeFlagsText")! as HTMLSpanElement,
             torHiddenServiceCheck: document.getElementById("torHiddenServiceCheck")! as HTMLInputElement,
+            collapseWallet: document.getElementById("collapseWallet")! as HTMLDivElement,
             collapseContent: document.getElementById("collapseContent")! as HTMLDivElement,
             collapseBlockchain: document.getElementById("collapseBlockchain")! as HTMLDivElement,
             collapseBase: document.getElementById("collapseBase")! as HTMLDivElement,
             collapseServerInfo: document.getElementById("collapseServerInfo")! as HTMLDivElement,
             collapseNetworking: document.getElementById("collapseNetworking")! as HTMLDivElement,
+            walletAddressText: document.getElementById("walletAddressText")! as HTMLSpanElement,
+            walletAuthLevelText: document.getElementById("walletAuthLevelText")! as HTMLSpanElement,
+            walletBlockchainText: document.getElementById("walletBlockchainText")! as HTMLSpanElement,
+            walletConnectionsList: document.getElementById("walletConnectionsList")! as HTMLDivElement,
+            walletEnsNameText: document.getElementById("walletEnsNameText")! as HTMLSpanElement,
+            walletNameText: document.getElementById("walletNameText")! as HTMLSpanElement,
+            walletProfileLink: document.getElementById("walletProfileLink")! as HTMLAnchorElement,
+            walletSessionExpirationText: document.getElementById("walletSessionExpirationText")! as HTMLSpanElement,
+            walletSessionLastSeenText: document.getElementById("walletSessionLastSeenText")! as HTMLSpanElement,
+            walletStatusText: document.getElementById("walletStatusText")! as HTMLSpanElement,
             // Algorand DOM elements
             algoURL: document.getElementById("algoURL")! as HTMLInputElement,
             algoThrottle: document.getElementById("algoThrottle")! as HTMLInputElement,
@@ -193,6 +205,86 @@ import {XSSSanitizeValue} from "../util/security";
         }
 
         /* Getting Current Settings Values */
+        async function getWalletInfo() {
+            let response = await HttpGetJson("/settings/wallet");
+            if (response[0] !== 200 || response[1] == null) {
+                DOM.walletStatusText.textContent = "Unavailable";
+                DOM.walletAuthLevelText.textContent = "Unknown";
+                DOM.walletNameText.textContent = "Unknown";
+                DOM.walletEnsNameText.textContent = "Unknown";
+                DOM.walletBlockchainText.textContent = "Unknown";
+                DOM.walletAddressText.textContent = "Unknown";
+                DOM.walletSessionExpirationText.textContent = "Unknown";
+                DOM.walletSessionLastSeenText.textContent = "Unknown";
+                DOM.walletProfileLink.classList.add("hidden");
+                return;
+            }
+            if (!response[1].authenticated) {
+                DOM.walletStatusText.textContent = "Not connected";
+                DOM.walletAuthLevelText.textContent = DOMPurify.sanitize(response[1].authLevel || "none");
+                DOM.walletNameText.textContent = "None";
+                DOM.walletEnsNameText.textContent = "None";
+                DOM.walletBlockchainText.textContent = "None";
+                DOM.walletAddressText.textContent = "None";
+                DOM.walletSessionExpirationText.textContent = "None";
+                DOM.walletSessionLastSeenText.textContent = "None";
+                DOM.walletProfileLink.classList.add("hidden");
+                return;
+            }
+            DOM.walletStatusText.textContent = "Connected";
+            DOM.walletAuthLevelText.textContent = formatAuthLevel(response[1].authLevel);
+            DOM.walletNameText.textContent = DOMPurify.sanitize(response[1].displayName || response[1].name || "Unnamed");
+            DOM.walletEnsNameText.textContent = DOMPurify.sanitize(response[1].ensName || "None");
+            DOM.walletBlockchainText.textContent = DOMPurify.sanitize(response[1].blockchain || "Unknown");
+            DOM.walletAddressText.textContent = DOMPurify.sanitize(response[1].address || "Unknown");
+            DOM.walletSessionExpirationText.textContent = formatUnixTimestamp(response[1].sessionExpiration);
+            DOM.walletSessionLastSeenText.textContent = formatUnixTimestamp(response[1].sessionLastSeen);
+            if (response[1].profilePath) {
+                DOM.walletProfileLink.href = DOMPurify.sanitize(response[1].profilePath);
+                DOM.walletProfileLink.classList.remove("hidden");
+            } else {
+                DOM.walletProfileLink.classList.add("hidden");
+            }
+        }
+        async function getWalletConnectionStatuses() {
+            DOM.walletConnectionsList.textContent = "Loading...";
+            try {
+                renderWalletConnectionStatuses(await WalletGetConnectionStatuses());
+            } catch (error) {
+                DOM.walletConnectionsList.textContent = "Unavailable";
+                LogError("Failed to get wallet connection statuses: " + error);
+            }
+        }
+        function renderWalletConnectionStatuses(statuses: WalletConnectionStatus[]) {
+            DOM.walletConnectionsList.replaceChildren();
+            for (const status of statuses) {
+                const row = document.createElement("div");
+                row.className = "walletConnectionRow";
+                const name = document.createElement("span");
+                name.className = "walletConnectionName";
+                name.textContent = status.name;
+                const state = document.createElement("span");
+                state.className = status.connected ? "walletConnectionStatus connected" : "walletConnectionStatus disconnected";
+                state.textContent = status.connected ? "Connected" : "Not Connected";
+                const address = document.createElement("span");
+                address.className = "walletConnectionAddress";
+                address.textContent = status.connected && status.address !== "" ? status.address : "";
+                row.append(name, state, address);
+                DOM.walletConnectionsList.appendChild(row);
+            }
+        }
+        function formatAuthLevel(authLevel: string): string {
+            if (authLevel === "wallet_cookie") {
+                return "Wallet Cookie";
+            }
+            return DOMPurify.sanitize(authLevel || "none");
+        }
+        function formatUnixTimestamp(timestamp: number): string {
+            if (!timestamp) {
+                return "Unknown";
+            }
+            return new Date(timestamp * 1000).toLocaleString();
+        }
         async function getBaseDataDirectory() {
             let response = await HttpGetJson("/settings/base/dataDirectory");
             if (response[0] === 200) {
@@ -1705,6 +1797,10 @@ import {XSSSanitizeValue} from "../util/security";
         });
 
         /* On-Demand Loading */
+        DOM.collapseWallet.addEventListener("show.bs.collapse", function() {
+            getWalletInfo().then();
+            getWalletConnectionStatuses().then();
+        });
         DOM.collapseContent.addEventListener("show.bs.collapse", function() {
             if (gatewayMode) {
                 return;

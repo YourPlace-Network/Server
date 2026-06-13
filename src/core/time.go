@@ -30,6 +30,12 @@ func TimestampToTimeStr(timestamp uint64) string {
 	formatted := t.Format("2006-01-02 15:04:05")
 	return fmt.Sprintf("%s", formatted)
 }
+func TimestampToRFC3339(timestamp int64) string {
+	if timestamp == 0 {
+		return ""
+	}
+	return time.Unix(timestamp, 0).Format(time.RFC3339)
+}
 func StartTimer(label string) func() {
 	// Usage: start := StartTimer()
 	//        EndTimer(start)

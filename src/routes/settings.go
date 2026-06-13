@@ -45,6 +45,60 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"userBlockchain":        userBlockchain,
 		})
 	})
+	router.GET("/settings/wallet", func(c *gin.Context) {
+		addressValue, addressExists := c.Get("accountAddress")
+		blockchainValue, blockchainExists := c.Get("blockchain")
+		address, addressOk := addressValue.(string)
+		blockchain, blockchainOk := blockchainValue.(string)
+		authenticated := addressExists && blockchainExists && addressOk && blockchainOk && security.IsValidBlockchain(blockchain) && security.IsValidAddress(address, blockchain)
+		authLevel := "none"
+		if authenticated {
+			authLevel = "wallet_cookie"
+		}
+		var sessionExpiration int64
+		var sessionLastSeen int64
+		authCookie, err := c.Request.Cookie("yp_auth")
+		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
+			expiration, err := security.GetCookieValue(authCookie, cryptoSeed, "expiration", database)
+			if err == nil {
+				sessionExpiration, _ = strconv.ParseInt(expiration, 10, 64)
+			}
+			lastSeen, err := security.GetCookieValue(authCookie, cryptoSeed, "timestamp", database)
+			if err == nil {
+				sessionLastSeen, _ = strconv.ParseInt(lastSeen, 10, 64)
+			}
+		}
+		name := ""
+		ensName := ""
+		displayName := ""
+		profilePath := ""
+		if authenticated {
+			name = database.ProfileGetName(address, blockchain)
+			ensName = database.ProfileGetEnsName(address, blockchain)
+			displayName = name
+			if displayName == "" {
+				displayName = ensName
+			}
+			if displayName == "" {
+				displayName = blockchain2.ShortWalletAddress(address)
+			}
+			profilePath = "/p/" + blockchain + "/" + address
+		}
+		c.SecureJSON(http.StatusOK, gin.H{
+			"authenticated":     authenticated,
+			"authLevel":         authLevel,
+			"address":           address,
+			"blockchain":        blockchain,
+			"displayName":       displayName,
+			"ensName":           ensName,
+			"name":              name,
+			"profilePath":       profilePath,
+			"sessionExpiration": sessionExpiration,
+			"sessionExpiresAt":  core.TimestampToRFC3339(sessionExpiration),
+			"sessionLastSeen":   sessionLastSeen,
+			"sessionLastSeenAt": core.TimestampToRFC3339(sessionLastSeen),
+		})
+	})
 	router.GET("/settings/uploadDirectory", func(c *gin.Context) { // Get file upload directory
 		uploadDirectory := database.SettingsGetValue("uploadDirectory")
 		if uploadDirectory == "" {

@@ -24,6 +24,7 @@ var gatewaySettingsGetAllowed = map[string]bool{
 	"/settings/indexer/running":          true,
 	"/settings/indexer/status":           true,
 	"/settings/server/version":           true,
+	"/settings/wallet":                   true,
 }
 
 func IsGatewaySettingsGetAllowed(path string) bool {

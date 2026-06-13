@@ -87,6 +87,33 @@ export async function algoReconnectSession() {
     } catch {
     }
 }
+export async function algoIsWalletConnected(): Promise<boolean> {
+    const status = await algoGetWalletConnectionStatus();
+    return status.connected;
+}
+export async function algoGetWalletConnectionStatus(): Promise<{connected: boolean, address: string}> {
+    if (!algoInitialized) {
+        await initAlgoWallet();
+    }
+    let accounts = ((peraWallet.connector as any)?.accounts || []) as string[];
+    if (accounts.length > 0 && IsValidAlgoAddress(accounts[0])) {
+        return {connected: true, address: accounts[0]};
+    }
+    if (peraWallet.isConnected || peraWallet.connector?.connected) {
+        const address = GetAddress();
+        if (address && IsValidAlgoAddress(address)) {
+            return {connected: true, address};
+        }
+        return {connected: true, address: ""};
+    }
+    try {
+        accounts = await peraWallet.reconnectSession();
+        if (accounts && accounts.length > 0 && IsValidAlgoAddress(accounts[0])) {
+            return {connected: true, address: accounts[0]};
+        }
+    } catch (_) {}
+    return {connected: false, address: ""};
+}
 export function algoHandleDisconnectWallet(event: any) {
     event.preventDefault();
     algoDisconnectWallet();

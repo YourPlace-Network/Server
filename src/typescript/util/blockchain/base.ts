@@ -426,6 +426,23 @@ export async function baseIsWalletConnected(): Promise<boolean> {
     } catch (_) {}
     return false;
 }
+export async function baseGetWalletConnectionStatus(): Promise<{connected: boolean, address: string}> {
+    if (!baseInit) {
+        await initBaseWallet();
+    }
+    let address = getBaseConnectedAddress();
+    if (address !== "") {
+        return {connected: true, address};
+    }
+    try {
+        const accounts = await wagmiConfig?.connectors?.[0]?.getAccounts();
+        address = accounts?.[0]?.toString() || "";
+        if (address !== "" && IsValidBaseAddress(address)) {
+            return {connected: true, address};
+        }
+    } catch (_) {}
+    return {connected: false, address: ""};
+}
 export async function baseTxn(dest: string, payload: string) {
     if (!baseInit) {
         await initBaseWallet();

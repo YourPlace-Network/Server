@@ -15,6 +15,13 @@ type Post struct {
 
 var rpcDedup = core.NewDedupeQueue()
 
+func ShortWalletAddress(address string) string {
+	if len(address) <= 12 {
+		return address
+	}
+	return address[:6] + "..." + address[len(address)-4:]
+}
+
 func WalletGetAddress(blockchain string, name string, _blockchain *Blockchain) (string, error) {
 	key := blockchain + ":address:" + name
 	val, _ := rpcDedup.Do(key, func() (interface{}, error) {

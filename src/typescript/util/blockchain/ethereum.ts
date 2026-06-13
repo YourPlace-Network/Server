@@ -259,6 +259,23 @@ export async function ethereumIsWalletConnected(): Promise<boolean> {
     } catch (_) {}
     return false;
 }
+export async function ethereumGetWalletConnectionStatus(): Promise<{connected: boolean, address: string}> {
+    if (!ethereumInit) {
+        await initEthWallet();
+    }
+    let address = getEthereumConnectedAddress();
+    if (address !== "") {
+        return {connected: true, address};
+    }
+    try {
+        const accounts = await ethereumWagmiConfig?.connectors?.[0]?.getAccounts();
+        address = accounts?.[0]?.toString() || "";
+        if (address !== "" && IsValidBaseAddress(address)) {
+            return {connected: true, address};
+        }
+    } catch (_) {}
+    return {connected: false, address: ""};
+}
 export async function ethereumTxn(dest: string, payload: string) {
     if (!ethereumInit) {
         await initEthWallet();

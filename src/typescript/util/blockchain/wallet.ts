@@ -12,8 +12,10 @@ import {
     algoFollowUser,
     algoGetAvatar,
     algoGetCollectibles,
+    algoGetWalletConnectionStatus,
     algoGetName,
     algoGetTransferFeeEstimate,
+    algoIsWalletConnected,
     algoMintCollectible,
     algoDeleteFiles,
     algoReconnectSession,
@@ -36,7 +38,6 @@ import {
     algoSubmitLike,
     algoTransferCollectible,
     algoUnfollowUser,
-    peraWallet,
     setAlgoAvatar,
     algoSubmitPost,
     algoSubmitPostAttachTx,
@@ -51,6 +52,7 @@ import {
     baseGetAvatar,
     baseGetCollectibles,
     baseGetDescription,
+    baseGetWalletConnectionStatus,
     baseIsWalletConnected,
     baseGetName,
     baseReconnectWallet,
@@ -90,6 +92,7 @@ import {
     ethereumGetAvatar,
     ethereumGetCollectibles,
     ethereumGetDescription,
+    ethereumGetWalletConnectionStatus,
     ethereumIsWalletConnected,
     ethereumGetName,
     ethereumReconnectWallet,
@@ -172,6 +175,13 @@ export interface CollectibleData {
     mimeType: string;
     name: string;
     tokenId: string;
+}
+export interface WalletConnectionStatus {
+    address: string;
+    blockchain: string;
+    connected: boolean;
+    name: string;
+    wallet: string;
 }
 
 // ---------- Request Deduplication ---------- //
@@ -487,7 +497,22 @@ export async function WalletGetAvatar(chain?: string, address?: string): Promise
         return "";
     });
 }
-export async function WalletGetName(chain: string, address: string): Promise<string|null> {
+export function WalletGetName(wallet: string): string;
+export function WalletGetName(chain: string, address: string): Promise<string|null>;
+export function WalletGetName(chainOrWallet: string, address?: string): string | Promise<string|null> {
+    if (address === undefined) {
+        switch (chainOrWallet) {
+            case "cbwalletbase":
+                return "Base";
+            case "metamaskethereum":
+                return "MetaMask";
+            case "pera":
+                return "Pera";
+            default:
+                return chainOrWallet;
+        }
+    }
+    const chain = chainOrWallet;
     return Dedup(chain + ":name:" + address, async () => {
         let name;
         switch (chain) {
@@ -1323,6 +1348,36 @@ function showOnRampFallback(address: string) {
 }
 
 // ---------- Utility ---------- //
+export async function WalletGetConnectionStatuses(): Promise<WalletConnectionStatus[]> {
+    const [baseStatus, algoStatus, ethereumStatus] = await Promise.all([
+        baseGetWalletConnectionStatus(),
+        algoGetWalletConnectionStatus(),
+        ethereumGetWalletConnectionStatus(),
+    ]);
+    return [
+        {
+            address: baseStatus.address,
+            blockchain: "base",
+            connected: baseStatus.connected,
+            name: WalletGetName("cbwalletbase"),
+            wallet: "cbwalletbase",
+        },
+        {
+            address: algoStatus.address,
+            blockchain: "algorand",
+            connected: algoStatus.connected,
+            name: WalletGetName("pera"),
+            wallet: "pera",
+        },
+        {
+            address: ethereumStatus.address,
+            blockchain: "ethereum",
+            connected: ethereumStatus.connected,
+            name: WalletGetName("metamaskethereum"),
+            wallet: "metamaskethereum",
+        },
+    ];
+}
 export async function WalletIsConnected(): Promise<boolean> {
     let wallet = GetWallet();
     switch (wallet) {
@@ -1333,7 +1388,7 @@ export async function WalletIsConnected(): Promise<boolean> {
         case "metamaskethereum":
             return await ethereumIsWalletConnected();
         case "pera":
-            return !!peraWallet.connector?.connected;
+            return await algoIsWalletConnected();
     }
     return false;
 }

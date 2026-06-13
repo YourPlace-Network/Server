@@ -10,6 +10,41 @@
             <div class="col-10 centerColumn">
                 <h2 class="pageHeader">⚙️ Settings</h2>
                 <div class="accordion accordion-flush" id="settingsAccordion"> <!-- Settings Accordion -->
+                    <!-- URL # shortcuts use accordion collapse IDs: #collapseWallet, #collapseContent, #collapsePrivacy, #collapseNetworking, #collapseBlockchain, #collapseAlgo, #collapseBase, #collapseEthereum, #collapseServices, #collapseSpotify, #collapseXcom, #collapseServerInfo -->
+                    <!-- Wallet -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingWallet">
+                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWallet" aria-expanded="false" aria-controls="collapseWallet">
+                                <i class="bi bi-wallet2"></i><b>Wallet</b>
+                            </button>
+                        </h2>
+                        <div id="collapseWallet" class="accordion-collapse collapse" aria-labelledby="headingWallet" data-bs-parent="#settingsAccordion">
+                            <div class="accordion-body">
+                                <div id="walletInfoGrid">
+                                    <span class="walletInfoLabel">Status</span>
+                                    <span id="walletStatusText">Loading...</span>
+                                    <span class="walletInfoLabel">Cookie Auth Level</span>
+                                    <span id="walletAuthLevelText">Loading...</span>
+                                    <span class="walletInfoLabel">Name</span>
+                                    <span id="walletNameText">Loading...</span>
+                                    <span class="walletInfoLabel">ENS</span>
+                                    <span id="walletEnsNameText">Loading...</span>
+                                    <span class="walletInfoLabel">Blockchain</span>
+                                    <span id="walletBlockchainText">Loading...</span>
+                                    <span class="walletInfoLabel">Address</span>
+                                    <span id="walletAddressText">Loading...</span>
+                                    <span class="walletInfoLabel">Session Expires</span>
+                                    <span id="walletSessionExpirationText">Loading...</span>
+                                    <span class="walletInfoLabel">Session Last Seen</span>
+                                    <span id="walletSessionLastSeenText">Loading...</span>
+                                </div>
+                                <a id="walletProfileLink" class="hidden" href="/p/">View Profile</a>
+                                <hr>
+                                <h3 id="walletConnectionsHeader">Blockchain Wallet Connections</h3>
+                                <div id="walletConnectionsList">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
                     <!-- Content -->
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingContent">

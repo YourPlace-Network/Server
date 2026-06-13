@@ -72,6 +72,7 @@ func IndexerEthereumFrontFill(ethereum *Ethereum, uuid string, ethereumLatestBlo
 	headBlock := database.IndexerGetHeadBlock(uuid)
 	if headBlock <= 0 {
 		core.LogWarn("[Ethereum] IndexerEthereumFrontFill(): Head block is <= 0 - aborting")
+		database.IndexerUpdateJobStatus(uuid, "failed")
 		return
 	}
 	targetLatestBlock := ethereumLatestBlock
@@ -86,7 +87,8 @@ func IndexerEthereumFrontFill(ethereum *Ethereum, uuid string, ethereumLatestBlo
 	core.LogDebug("[Ethereum] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt)
 	if blockCount.Int64() <= 0 {
-		core.LogError("[Ethereum] Block count is negative or zero")
+		core.LogDebug("[Ethereum] Block count is negative or zero - likely up to date")
+		database.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	core.LogDebug("[Ethereum] Number of Blocks: " + blockCount.String())
@@ -194,7 +196,8 @@ func IndexerEthereumBackFill(ethereum *Ethereum, uuid string, ethereumLatestBloc
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt)
 	core.LogDebug("[Ethereum] Block Count: " + blockCount.String())
 	if blockCount.Int64() <= 0 {
-		core.LogError("[Ethereum] Block count is negative or zero")
+		core.LogWarn("[Ethereum] Backfill block count is negative or zero - marking complete")
+		database.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	batchCount := new(big.Int).Div(blockCount, batchSize)
@@ -284,7 +287,8 @@ func IndexerEthereumFullFill(ethereum *Ethereum, uuid string, ethereumLatestBloc
 	core.LogDebug("[Ethereum] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, &targetEarliestBlockBigInt)
 	if blockCount.Int64() <= 0 {
-		core.LogError("[Ethereum] Block count is negative or zero")
+		core.LogWarn("[Ethereum] Full fill block count is negative or zero - marking complete")
+		database.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	core.LogDebug("[Ethereum] Number of Blocks: " + blockCount.String())
@@ -386,6 +390,7 @@ func ethereumIndexerPreflight(chainName string, _blockchain *Blockchain, _databa
 	}
 	databaseStatus := _database.IndexerGetJobStatus(uuid)
 	if databaseStatus == "running" {
+		core.LogWarn("[Ethereum] Indexer job already marked running; skipping cron pass. uuid: " + uuid + " head: " + strconv.Itoa(int(_database.IndexerGetHeadBlock(uuid))) + " tail: " + strconv.Itoa(int(_database.IndexerGetTailBlock(uuid))))
 		return "", "", nil, 0, 0, nil
 	}
 	switch _blockchain.Ethereum.RpcUrl {

@@ -217,6 +217,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 	headBlock := _Database.IndexerGetHeadBlock(uuid)
 	if headBlock <= 0 {
 		core.LogWarn("[Base] IndexerBaseFrontFill(): Head block is <= 0 - aborting")
+		_Database.IndexerUpdateJobStatus(uuid, "failed")
 		return
 	}
 	targetLatestBlock := baseLatestBlock
@@ -231,7 +232,8 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 	core.LogDebug("[Base] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
-		core.LogError("[Base] Block count is negative or zero")
+		core.LogDebug("[Base] Block count is negative or zero - likely up to date")
+		_Database.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	core.LogDebug("[Base] Number of Blocks: " + blockCount.String())
@@ -347,7 +349,8 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	core.LogDebug("[Base] Block Count: " + blockCount.String())
 	if blockCount.Int64() <= 0 {
-		core.LogError("[Base] Block count is negative or zero")
+		core.LogWarn("[Base] Backfill block count is negative or zero - marking complete")
+		_Database.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	batchCount := new(big.Int).Div(blockCount, batchSize)
@@ -447,7 +450,8 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	core.LogDebug("[Base] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, &targetEarliestBlockBigInt) // figure out how many blocks we need to fetch
 	if blockCount.Int64() <= 0 {
-		core.LogError("[Base] Block count is negative or zero")
+		core.LogWarn("[Base] Full fill block count is negative or zero - marking complete")
+		_Database.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	core.LogDebug("[Base] Number of Blocks: " + blockCount.String())
@@ -558,6 +562,7 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 	databaseStatus := _Database.IndexerGetJobStatus(uuid) // Get the status of the job
 	// ---- Job Status Dispatch ---- //
 	if databaseStatus == "running" { // Only 1 post caching job running at a time
+		core.LogWarn("[Base] Indexer job already marked running; skipping cron pass. uuid: " + uuid + " head: " + strconv.Itoa(int(_Database.IndexerGetHeadBlock(uuid))) + " tail: " + strconv.Itoa(int(_Database.IndexerGetTailBlock(uuid))))
 		return "", "", nil, 0, 0, nil // bail out
 	}
 	switch _Blockchain.Base.RpcUrl { // Set throttle defaults for known public nodes

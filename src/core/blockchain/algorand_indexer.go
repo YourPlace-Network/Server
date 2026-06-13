@@ -141,6 +141,7 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 	headBlock := _AlgoDatabase.IndexerGetHeadBlock(uuid)
 	if headBlock <= 0 {
 		core.LogWarn("[Algo] IndexerAlgorandFrontFill(): Head block is <= 0 - aborting")
+		_AlgoDatabase.IndexerUpdateJobStatus(uuid, "failed")
 		return
 	}
 	targetLatestBlock := algoLatestBlock
@@ -273,7 +274,8 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	blockCount := new(big.Int).Sub(targetLatestBlock, targetEarliestBlock)
 	core.LogDebug("[Algo] Block Count: " + blockCount.String())
 	if blockCount.Int64() <= 0 {
-		core.LogError("[Algo] Block count is negative or zero")
+		core.LogWarn("[Algo] Backfill block count is negative or zero - marking complete")
+		_AlgoDatabase.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	batchCount := new(big.Int).Div(blockCount, batchSize)
@@ -363,7 +365,8 @@ func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	core.LogDebug("[Algo] Batch Size: " + batchSize.String())
 	blockCount := new(big.Int).Sub(targetLatestBlock, &targetEarliestBlockBigInt)
 	if blockCount.Int64() <= 0 {
-		core.LogError("[Algo] Block count is negative or zero")
+		core.LogWarn("[Algo] Full fill block count is negative or zero - marking complete")
+		_AlgoDatabase.IndexerUpdateJobStatus(uuid, "complete")
 		return
 	}
 	core.LogDebug("[Algo] Number of Blocks: " + blockCount.String())
@@ -465,6 +468,7 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 	}
 	databaseStatus := _AlgoDatabase.IndexerGetJobStatus(uuid)
 	if databaseStatus == "running" {
+		core.LogWarn("[Algo] Indexer job already marked running; skipping cron pass. uuid: " + uuid + " head: " + strconv.Itoa(int(_AlgoDatabase.IndexerGetHeadBlock(uuid))) + " tail: " + strconv.Itoa(int(_AlgoDatabase.IndexerGetTailBlock(uuid))))
 		return "", "", nil, 0, 0, nil
 	}
 	chainLatestBlock, err := _AlgoBlockchain.GetLatestBlock(chainName)
