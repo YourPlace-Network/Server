@@ -2,6 +2,7 @@ import {isValidAddress} from "algosdk";
 import {CID} from "multiformats/cid";
 import {isAddress} from "web3-validator";
 import DOMPurify from "dompurify";
+import type {UponSanitizeAttributeHook, UponSanitizeElementHook} from "dompurify";
 import {GetBootstrappedIpfsGateway} from "./ipfs";
 
 function ResolveIpfsUrl(url: string): string {
@@ -219,7 +220,6 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
         FORBID_ATTR: forbiddenAttributes([]),
         SANITIZE_DOM: true,
         FORCE_BODY: true,
-        IN_PLACE: true,
         RETURN_DOM: false,
         RETURN_DOM_FRAGMENT: false,
         RETURN_DOM_IMPORT: false,
@@ -228,8 +228,12 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
         ALLOW_ARIA_ATTR: false,
         ALLOW_DATA_ATTR: false,
     };
-    DOMPurify.addHook("uponSanitizeElement", node => sanitizeIframe);
-    DOMPurify.addHook("uponSanitizeAttribute", function (node: Element, data: any) {
+    const sanitizeElementHook: UponSanitizeElementHook = function (_node, data) {
+        if (_node instanceof Element) {
+            sanitizeIframe(_node, data);
+        }
+    };
+    const sanitizeAttributeHook: UponSanitizeAttributeHook = function (node) {
         const attributes = node.attributes;
         let styleValue: string | null = null;
         let styleAttrName: string | null = null;
@@ -247,7 +251,9 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
                 node.setAttribute("style", sanitizedStyle);
             }
         }
-    });
+    };
+    DOMPurify.addHook("uponSanitizeElement", sanitizeElementHook);
+    DOMPurify.addHook("uponSanitizeAttribute", sanitizeAttributeHook);
 
     let sanitized = DOMPurify.sanitize(html, config) as string;
     if (typeof document !== "undefined" && sanitized !== "") {
@@ -270,8 +276,8 @@ export function XSSSanitizeTinyMCEHtml(html: string): string {
         sanitized = template.innerHTML;
     }
 
-    DOMPurify.removeHook("uponSanitizeElement");
-    DOMPurify.removeHook("beforeSanitizeAttributes");
+    DOMPurify.removeHook("uponSanitizeElement", sanitizeElementHook);
+    DOMPurify.removeHook("uponSanitizeAttribute", sanitizeAttributeHook);
     return sanitized;
 }
 function forbiddenAttributes(allowedAttrs: string[]): string[] {
