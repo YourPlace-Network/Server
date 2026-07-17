@@ -105,6 +105,7 @@ func (ethereum *Ethereum) init(database *db.Database, gateway bool) {
 	core.LogDebug("Ethereum indexer initialized with URL: " + rpcUrl)
 	httpClient := &http.Client{
 		Transport: &loggingTransport{http.DefaultTransport},
+		Timeout:   blockchainRPCTimeout,
 	}
 	rpcClient, err := rpc.DialOptions(context.Background(), rpcUrl, rpc.WithHTTPClient(httpClient))
 	if err != nil {
@@ -133,7 +134,9 @@ func (ethereum *Ethereum) GetBlockNumber() (*big.Int, error) {
 		return &big.Int{}, core.LogErrorReturn("Ethereum RPC Client is nil")
 	}
 	for {
-		err := ethereum.RpcClient.CallContext(context.Background(), &result, "eth_blockNumber")
+		rpcContext, cancel := context.WithTimeout(context.Background(), blockchainRPCTimeout)
+		err := ethereum.RpcClient.CallContext(rpcContext, &result, "eth_blockNumber")
+		cancel()
 		if err != nil {
 			core.LogDebug("GetBlockNumber(): Error getting Ethereum block number: " + err.Error())
 			rpcError++
@@ -267,6 +270,7 @@ func (ethereum *Ethereum) reconnectRPC() {
 	rpcUrl := ResolveRPCUrl(ethereum.RpcUrl)
 	httpClient := &http.Client{
 		Transport: &loggingTransport{http.DefaultTransport},
+		Timeout:   blockchainRPCTimeout,
 	}
 	rpcClient, err := rpc.DialOptions(context.Background(), rpcUrl, rpc.WithHTTPClient(httpClient))
 	if err != nil {

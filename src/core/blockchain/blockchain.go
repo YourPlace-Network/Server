@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"time"
 )
 
 type Blockchain struct {
@@ -14,6 +15,8 @@ type Blockchain struct {
 	Base     *Base
 	Ethereum *Ethereum
 }
+
+const blockchainRPCTimeout = 30 * time.Second
 
 var DefaultBlockchainNodes = map[string][]string{
 	"algorand": {"https://mainnet-api.algonode.cloud", "60"},

@@ -646,7 +646,9 @@ RETRYBLOCK:
 	if algoBreakPoint(uuid) {
 		return nil, nil
 	}
-	block, err := algo.algodClient.Block(blockNumber).Do(context.Background())
+	rpcContext, cancel := context.WithTimeout(context.Background(), blockchainRPCTimeout)
+	block, err := algo.algodClient.Block(blockNumber).Do(rpcContext)
+	cancel()
 	if err != nil {
 		rpcErrorCount++
 		backoff := (rpcErrorCount + 1) * 2

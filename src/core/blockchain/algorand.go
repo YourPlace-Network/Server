@@ -206,7 +206,9 @@ func (algo *Algorand) GetAlgodPort() int {
 	return algo.algodPort
 }
 func (algo *Algorand) GetBlockNumber() (*big.Int, error) {
-	info, err := algo.algodClient.Status().Do(context.Background())
+	rpcContext, cancel := context.WithTimeout(context.Background(), blockchainRPCTimeout)
+	info, err := algo.algodClient.Status().Do(rpcContext)
+	cancel()
 	if err != nil {
 		return big.NewInt(0), err
 	}

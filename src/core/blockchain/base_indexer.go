@@ -998,7 +998,9 @@ BATCHRPCCALL:
 	if breakPoint(uuid) {
 		return nil
 	}
-	err := base.RpcClient.BatchCallContext(context.Background(), batch)
+	rpcContext, cancel := context.WithTimeout(context.Background(), blockchainRPCTimeout)
+	err := base.RpcClient.BatchCallContext(rpcContext, batch)
+	cancel()
 	if err != nil {
 		core.LogDebug("[Base] Could not perform RPC call from rpcBatchGetBlockByNumber, backing off")
 		// Check if this is a rate-limiting error

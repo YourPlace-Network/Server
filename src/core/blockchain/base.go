@@ -91,6 +91,7 @@ func (base *Base) init(database *db.Database, gateway bool) {
 	core.LogDebug("Base indexer initialized with URL: " + rpcUrl)
 	httpClient := &http.Client{
 		Transport: &loggingTransport{http.DefaultTransport},
+		Timeout:   blockchainRPCTimeout,
 	}
 	rpcClient, err := rpc.DialOptions(context.Background(), rpcUrl, rpc.WithHTTPClient(httpClient))
 	if err != nil {
@@ -119,7 +120,9 @@ func (base *Base) GetBlockNumber() (*big.Int, error) {
 		return &big.Int{}, core.LogErrorReturn("Base RPC Client is nil")
 	}
 	for {
-		err := base.RpcClient.CallContext(context.Background(), &result, "eth_blockNumber")
+		rpcContext, cancel := context.WithTimeout(context.Background(), blockchainRPCTimeout)
+		err := base.RpcClient.CallContext(rpcContext, &result, "eth_blockNumber")
+		cancel()
 		if err != nil {
 			core.LogDebug("GetBlockNumber(): Error getting Base block number: " + err.Error())
 			rpcError++
@@ -245,6 +248,7 @@ func (base *Base) reconnectRPC() {
 	rpcUrl := ResolveRPCUrl(base.RpcUrl)
 	httpClient := &http.Client{
 		Transport: &loggingTransport{http.DefaultTransport},
+		Timeout:   blockchainRPCTimeout,
 	}
 	rpcClient, err := rpc.DialOptions(context.Background(), rpcUrl, rpc.WithHTTPClient(httpClient))
 	if err != nil {

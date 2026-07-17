@@ -564,7 +564,9 @@ BATCHRPCCALL:
 	if ethereumBreakPoint(uuid, database) {
 		return nil
 	}
-	err := ethereum.RpcClient.BatchCallContext(context.Background(), batch)
+	rpcContext, cancel := context.WithTimeout(context.Background(), blockchainRPCTimeout)
+	err := ethereum.RpcClient.BatchCallContext(rpcContext, batch)
+	cancel()
 	if err != nil {
 		core.LogDebug("[Ethereum] Could not perform RPC call from ethereumRpcBatchGetBlockByNumber, backing off")
 		if strings.Contains(strings.ToLower(err.Error()), "rps limit") || strings.Contains(strings.ToLower(err.Error()), "rate limit") {
