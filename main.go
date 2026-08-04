@@ -569,6 +569,9 @@ func StartCronJobs(database *db.Database, _blockchain *blockchain2.Blockchain) {
 		blockchain2.AlgoIndexerRestartJobs(database, "algorand")     // set any Algorand jobs to "failed" that were left hanging on startup
 		blockchain2.BaseIndexerRestartJobs(database, "base")         // set any Base jobs to "failed" that were left hanging on startup
 		blockchain2.EthereumIndexerRestartJobs(database, "ethereum") // set any Ethereum jobs to "failed" that were left hanging on startup
+		c.AddFunc(blockchain2.IndexerBlockRequestRPSUpdateInterval(), func() {
+			blockchain2.IndexerUpdateBlockRequestRPS(database)
+		})
 		c.AddFunc("@every 1m", func() {
 			indexerOnBattery := database.SettingsGetValue("indexerOnBattery")
 			indexerOnBatteryBool, _ := strconv.ParseBool(indexerOnBattery)

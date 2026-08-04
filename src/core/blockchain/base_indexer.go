@@ -39,10 +39,12 @@ const (
 	throttleOffset       = 4
 	batchSizeLimit       = 25
 	workerCount          = 10
+	queuedBatchLimit     = workerCount * 20
 )
 
 var (
 	indexerCancel             chan bool
+	indexerCancelClosed       bool
 	IndexerMutex              sync.Mutex
 	IsIndexing                bool
 	_Blockchain               *Blockchain
@@ -51,10 +53,10 @@ var (
 	throttleControlMutex      sync.RWMutex    // Protects dynamicThrottleMultiplier
 	globalRequestTracker      *RequestTracker // Global request tracker to monitor request rates across all workers
 	rateLimiterMutex          sync.Mutex      // Serializes rate limiter token acquisition across workers
-	activeRequestsCount       int64           // Atomic counter for currently active RPC requests across all workers
+	activeRequestsCount       int64           // Atomic counter for currently active block requests across all workers
 	progressLogMutex          sync.Mutex      // Prevents duplicate progress logs from multiple workers
 	lastProgressBlock         int64           // Last block number we logged progress for
-	totalRequestsCount        int64           // Atomic counter for total RPC requests processed across all workers
+	totalRequestsCount        int64           // Atomic counter for total block requests processed across all workers
 )
 
 type SequentialBlockTracker struct {
@@ -183,6 +185,7 @@ func BaseIndexerFetchData(database *db.Database, blockchain *Blockchain) bool {
 	if uuid == "" || databaseStatus == "" {
 		return false // bail out if the preflight bails out (indexer already running or other issue)
 	}
+	defer finishBaseIndexing()
 	_ = databaseHeadBlock
 	switch databaseStatus { // Post fill job dispatch, based on last job status
 	case "pending":
@@ -255,7 +258,7 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 	atomic.StoreInt64(&totalRequestsCount, 0)
 	atomic.StoreInt64(&lastProgressBlock, 0)
 
-	go startThrottleController(uuid, baseThrottle, rateLimiter, database) // Start the throttle controller in a separate goroutine
+	go startThrottleController(uuid, baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
 
 	// Start worker threads to process the batch jobs
 	var wg sync.WaitGroup
@@ -278,6 +281,9 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 	go func() {
 		for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 			if breakPoint(uuid) {
+				return
+			}
+			if !waitForIndexerQueueCapacity(uuid, batchJobQueue, queuedBatchLimit, breakPoint) {
 				return
 			}
 			batchEndBlock := new(big.Int).Add(batchStartBlock, batchSize)
@@ -311,6 +317,9 @@ func IndexerBaseFrontFill(base *Base, uuid string, baseLatestBlock *big.Int, dat
 		break
 	}
 	// Update final status
+	if _Database.IndexerGetJobStatus(uuid) == "failed" {
+		return
+	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
 	_Database.IndexerUpdateHeadBlock(uuid, uint64(finalBlockIndex))
 	_Database.IndexerUpdateJobStatus(uuid, "complete")
@@ -371,7 +380,7 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	atomic.StoreInt64(&totalRequestsCount, 0)
 
 	// Start the throttle controller in a separate goroutine
-	go startThrottleController(uuid, baseThrottle, rateLimiter, database)
+	go startThrottleController(uuid, baseThrottle, rateLimiter)
 
 	// Start worker threads to process the batch jobs
 	var wg sync.WaitGroup
@@ -394,6 +403,9 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	go func() {
 		for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 			if breakPoint(uuid) {
+				return
+			}
+			if !waitForIndexerQueueCapacity(uuid, batchJobQueue, queuedBatchLimit, breakPoint) {
 				return
 			}
 			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
@@ -428,6 +440,9 @@ func IndexerBaseBackFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	}
 
 	// Update final status
+	if _Database.IndexerGetJobStatus(uuid) == "failed" {
+		return
+	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
 	_Database.IndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
 	_Database.IndexerUpdateJobStatus(uuid, "complete")
@@ -473,7 +488,7 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	atomic.StoreInt64(&totalRequestsCount, 0)
 	atomic.StoreInt64(&lastProgressBlock, 0)
 
-	go startThrottleController(uuid, baseThrottle, rateLimiter, database) // Start the throttle controller in a separate goroutine
+	go startThrottleController(uuid, baseThrottle, rateLimiter) // Start the throttle controller in a separate goroutine
 
 	// Start worker threads to process the batch jobs
 	var wg sync.WaitGroup
@@ -496,6 +511,9 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 	go func() {
 		for i := 1; i <= int(batchCount.Int64()); i++ { // Loop over batches of blocks
 			if breakPoint(uuid) {
+				return
+			}
+			if !waitForIndexerQueueCapacity(uuid, batchJobQueue, queuedBatchLimit, breakPoint) {
 				return
 			}
 			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
@@ -529,6 +547,9 @@ func IndexerBaseFullFill(base *Base, uuid string, baseLatestBlock *big.Int, data
 		break
 	}
 	// Update final status
+	if _Database.IndexerGetJobStatus(uuid) == "failed" {
+		return
+	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
 	_Database.IndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
 	_Database.IndexerUpdateJobStatus(uuid, "complete")
@@ -544,11 +565,13 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 		return "", "", nil, 0, 0, nil // Already running
 	}
 	IsIndexing = true
+	indexerCancelClosed = false
 	IndexerMutex.Unlock()
-	defer func() { // Cleanup mutex when we're done
-		IndexerMutex.Lock()
-		IsIndexing = false
-		IndexerMutex.Unlock()
+	preflightComplete := false
+	defer func() {
+		if !preflightComplete {
+			finishBaseIndexing()
+		}
 	}()
 	indexerRunning := _Database.SettingsGetValue("indexerRunning")
 	baseIndexerRunning := _Database.SettingsGetValue("baseIndexerRunning")
@@ -595,7 +618,22 @@ func indexerPreflight(chainName string) (string, string, *big.Int, uint64, uint6
 	core.LogDebug("[Base] Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
 	core.LogDebug("[Base] Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
 	core.LogDebug("[Base] Chain Earliest Block: " + chainEarliestBlock.String())
+	preflightComplete = true
 	return databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock
+}
+func finishBaseIndexing() {
+	IndexerMutex.Lock()
+	IsIndexing = false
+	IndexerMutex.Unlock()
+}
+func waitForIndexerQueueCapacity(uuid string, batchJobQueue *core.ThreadSafeQueue, maxQueuedBatches int, cancelled func(string) bool) bool {
+	for batchJobQueue.Size() >= maxQueuedBatches {
+		if cancelled(uuid) {
+			return false
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return true
 }
 func dispatchTransaction(block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string, base *Base) int {
 	// ret 0 == success == transaction was a YP txn and was processed
@@ -910,7 +948,7 @@ func configureRateLimiter(throttleValue int) *rate.Limiter { // Function to conf
 	burstCapacity := throttleValue // Allow burst up to the full throttle value
 	return rate.NewLimiter(rate.Limit(requestsPerSecond), burstCapacity)
 }
-func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *rate.Limiter, database *db.Database) {
+func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *rate.Limiter) {
 	ticker := time.NewTicker(30 * time.Second) // Adjust every N-seconds
 	defer ticker.Stop()
 	const (
@@ -933,8 +971,6 @@ func startThrottleController(uuid string, targetThrottleValue int, rateLimiter *
 			if actualRPS < 0.1 { // Not enough data yet
 				continue
 			}
-			// Update the RPS in the database (rounded to nearest integer)
-			database.IndexerUpdateJobSpeed(uuid, uint64(actualRPS+0.5))
 			ratio := actualRPS / targetRPS
 			// Only adjust if we're significantly outside the tolerance range
 			if ratio < (1.0-tolerance) || ratio > (1.0+tolerance) {
@@ -1092,11 +1128,19 @@ BATCHRPCCALL:
 }
 func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker, requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string) error {
 	// Worker thread to process batches of blocks
+	emptyRetries := 0
+	maxEmptyRetries := 10
 	for {
 		batch, populated := batchJobQueue.Dequeue()
 		if !populated {
-			return nil
+			emptyRetries++
+			if emptyRetries >= maxEmptyRetries {
+				return nil
+			}
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
+		emptyRetries = 0
 		batchArray := batch.([]big.Int) // Get the batch of blocks
 		_batchSize := len(batchArray)
 		// Serialize token acquisition across all workers to prevent simultaneous RPS spikes
@@ -1120,7 +1164,7 @@ func workerThread(uuid string, rateLimiter *rate.Limiter, base *Base, batchJobQu
 		blocks := rpcBatchGetBlockByNumber(uuid, base, batchArray)
 		// Decrement active requests after RPC call completes
 		atomic.AddInt64(&activeRequestsCount, -int64(_batchSize))
-		// Record the actual number of RPC requests completed (one per block in batch) with completion time
+		// Record the actual number of block requests completed
 		requestTracker.RecordRequests(_batchSize)
 		if globalRequestTracker != nil {
 			globalRequestTracker.RecordRequests(_batchSize)
@@ -1220,11 +1264,9 @@ func BaseIndexerRestartJobs(__database *db.Database, blockchain string) {
 func BaseIndexerStop() {
 	IndexerMutex.Lock()
 	defer IndexerMutex.Unlock()
-	if IsIndexing && indexerCancel != nil {
-		select {
-		case indexerCancel <- true:
-		default: // Channel already has a value, don't block
-		}
+	if IsIndexing && indexerCancel != nil && !indexerCancelClosed {
+		close(indexerCancel)
+		indexerCancelClosed = true
 	}
 }
 func ToggleIndexer(database *db.Database) {
@@ -1337,6 +1379,7 @@ func BaseIndexerCatchUpAll(database *db.Database) (bool, string) {
 				}
 				database.IndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
 				database.IndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
+				database.IndexerUpdateJobStatus(jobUUID, "complete")
 				host.DeleteAll(snapshotDir)
 				core.LogInfo("[Base] Snapshot import complete")
 				return

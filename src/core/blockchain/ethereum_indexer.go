@@ -21,6 +21,7 @@ import (
 
 var (
 	ethereumIndexerCancel             chan bool
+	ethereumIndexerCancelClosed       bool
 	EthereumIndexerMutex              sync.Mutex
 	ethereumIsIndexing                bool
 	ethereumDynamicThrottleMultiplier = 1.0
@@ -41,6 +42,7 @@ func EthereumIndexerFetchData(database *db.Database, blockchain *Blockchain) boo
 	if uuid == "" || databaseStatus == "" {
 		return false
 	}
+	defer finishEthereumIndexing()
 	_ = databaseHeadBlock
 	switch databaseStatus {
 	case "pending":
@@ -131,6 +133,11 @@ func IndexerEthereumFrontFill(ethereum *Ethereum, uuid string, ethereumLatestBlo
 			if ethereumBreakPoint(uuid, database) {
 				return
 			}
+			if !waitForIndexerQueueCapacity(uuid, batchJobQueue, queuedBatchLimit, func(uuid string) bool {
+				return ethereumBreakPoint(uuid, database)
+			}) {
+				return
+			}
 			batchEndBlock := new(big.Int).Add(batchStartBlock, batchSize)
 			if batchEndBlock.Cmp(targetLatestBlock) == 1 {
 				batchEndBlock = targetLatestBlock
@@ -158,6 +165,9 @@ func IndexerEthereumFrontFill(ethereum *Ethereum, uuid string, ethereumLatestBlo
 		return
 	case <-done:
 		break
+	}
+	if database.IndexerGetJobStatus(uuid) == "failed" {
+		return
 	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
 	database.IndexerUpdateHeadBlock(uuid, uint64(finalBlockIndex))
@@ -238,6 +248,11 @@ func IndexerEthereumBackFill(ethereum *Ethereum, uuid string, ethereumLatestBloc
 			if ethereumBreakPoint(uuid, database) {
 				return
 			}
+			if !waitForIndexerQueueCapacity(uuid, batchJobQueue, queuedBatchLimit, func(uuid string) bool {
+				return ethereumBreakPoint(uuid, database)
+			}) {
+				return
+			}
 			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
 			if batchEndBlock.Cmp(targetEarliestBlockBigInt) == -1 {
 				batchEndBlock = targetEarliestBlockBigInt
@@ -265,6 +280,9 @@ func IndexerEthereumBackFill(ethereum *Ethereum, uuid string, ethereumLatestBloc
 		return
 	case <-done:
 		break
+	}
+	if database.IndexerGetJobStatus(uuid) == "failed" {
+		return
 	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
 	database.IndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
@@ -331,6 +349,11 @@ func IndexerEthereumFullFill(ethereum *Ethereum, uuid string, ethereumLatestBloc
 			if ethereumBreakPoint(uuid, database) {
 				return
 			}
+			if !waitForIndexerQueueCapacity(uuid, batchJobQueue, queuedBatchLimit, func(uuid string) bool {
+				return ethereumBreakPoint(uuid, database)
+			}) {
+				return
+			}
 			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
 			if batchEndBlock.Cmp(&targetEarliestBlockBigInt) == -1 {
 				batchEndBlock = &targetEarliestBlockBigInt
@@ -359,6 +382,9 @@ func IndexerEthereumFullFill(ethereum *Ethereum, uuid string, ethereumLatestBloc
 	case <-done:
 		break
 	}
+	if database.IndexerGetJobStatus(uuid) == "failed" {
+		return
+	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
 	database.IndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
 	database.IndexerUpdateJobStatus(uuid, "complete")
@@ -372,11 +398,13 @@ func ethereumIndexerPreflight(chainName string, _blockchain *Blockchain, _databa
 		return "", "", nil, 0, 0, nil
 	}
 	ethereumIsIndexing = true
+	ethereumIndexerCancelClosed = false
 	EthereumIndexerMutex.Unlock()
+	preflightComplete := false
 	defer func() {
-		EthereumIndexerMutex.Lock()
-		ethereumIsIndexing = false
-		EthereumIndexerMutex.Unlock()
+		if !preflightComplete {
+			finishEthereumIndexing()
+		}
 	}()
 	indexerRunning := _database.SettingsGetValue("indexerRunning")
 	ethereumIndexerRunning := _database.SettingsGetValue("ethereumIndexerRunning")
@@ -423,7 +451,13 @@ func ethereumIndexerPreflight(chainName string, _blockchain *Blockchain, _databa
 	core.LogDebug("[Ethereum] Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
 	core.LogDebug("[Ethereum] Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
 	core.LogDebug("[Ethereum] Chain Earliest Block: " + chainEarliestBlock.String())
+	preflightComplete = true
 	return databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, chainEarliestBlock
+}
+func finishEthereumIndexing() {
+	EthereumIndexerMutex.Lock()
+	ethereumIsIndexing = false
+	EthereumIndexerMutex.Unlock()
 }
 func ethereumDispatchTransaction(block map[string]interface{}, transaction map[string]interface{}, databaseHistoryDaysInt *int, blockIndex *big.Int, blockchain string, ethereum *Ethereum) int {
 	txHash := transaction["hash"].(string)
@@ -509,7 +543,6 @@ func ethereumStartThrottleController(uuid string, targetThrottleValue int, rateL
 			if actualRPS < 0.1 {
 				continue
 			}
-			database.IndexerUpdateJobSpeed(uuid, uint64(actualRPS+0.5))
 			ratio := actualRPS / targetRPS
 			if ratio < (1.0-tolerance) || ratio > (1.0+tolerance) {
 				ethereumThrottleControlMutex.Lock()
@@ -645,11 +678,19 @@ BATCHRPCCALL:
 	return blocks
 }
 func ethereumWorkerThread(uuid string, rateLimiter *rate.Limiter, ethereum *Ethereum, batchJobQueue *core.ThreadSafeQueue, sequentialTracker *SequentialBlockTracker, requestTracker *RequestTracker, txnCount *core.ThreadSafeCounter, databaseHistoryDaysInt int, targetEarliestBlock *big.Int, targetLatestBlock *big.Int, batchSize *big.Int, direction string, database *db.Database) error {
+	emptyRetries := 0
+	maxEmptyRetries := 10
 	for {
 		batch, populated := batchJobQueue.Dequeue()
 		if !populated {
-			return nil
+			emptyRetries++
+			if emptyRetries >= maxEmptyRetries {
+				return nil
+			}
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
+		emptyRetries = 0
 		batchArray := batch.([]big.Int)
 		_batchSize := len(batchArray)
 		ethereumRateLimiterMutex.Lock()
@@ -753,11 +794,9 @@ func EthereumIndexerRestartJobs(__database *db.Database, blockchain string) {
 func EthereumIndexerStop() {
 	EthereumIndexerMutex.Lock()
 	defer EthereumIndexerMutex.Unlock()
-	if ethereumIsIndexing && ethereumIndexerCancel != nil {
-		select {
-		case ethereumIndexerCancel <- true:
-		default:
-		}
+	if ethereumIsIndexing && ethereumIndexerCancel != nil && !ethereumIndexerCancelClosed {
+		close(ethereumIndexerCancel)
+		ethereumIndexerCancelClosed = true
 	}
 }
 func ToggleEthereumIndexer(database *db.Database) {

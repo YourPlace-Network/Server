@@ -34,6 +34,7 @@ const (
 
 var (
 	algoIndexerCancel             chan bool
+	algoIndexerCancelClosed       bool
 	AlgoIndexerMutex              sync.Mutex
 	IsAlgoIndexing                bool
 	_AlgoBlockchain               *Blockchain
@@ -109,6 +110,7 @@ func AlgorandIndexerFetchData(database *db.Database, blockchain *Blockchain) boo
 	if uuid == "" || databaseStatus == "" {
 		return false
 	}
+	defer finishAlgorandIndexing()
 	_ = databaseHeadBlock
 	switch databaseStatus {
 	case "pending":
@@ -183,7 +185,7 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 	atomic.StoreInt64(&algoTotalRequestsCount, 0)
 	atomic.StoreInt64(&algoLastProgressBlock, 0)
 	core.LogDebug("[Algo] Starting throttle controller...")
-	go algoStartThrottleController(uuid, algoThrottle, rateLimiter, database)
+	go algoStartThrottleController(uuid, algoThrottle, rateLimiter)
 	core.LogDebug("[Algo] Starting " + strconv.Itoa(algoWorkerCount) + " worker threads...")
 	var wg sync.WaitGroup
 	for i := 0; i < algoWorkerCount; i++ {
@@ -203,6 +205,9 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 	go func() {
 		for i := 1; i <= int(batchCount.Int64()); i++ {
 			if algoBreakPoint(uuid) {
+				return
+			}
+			if !waitForIndexerQueueCapacity(uuid, batchJobQueue, queuedBatchLimit, algoBreakPoint) {
 				return
 			}
 			batchEndBlock := new(big.Int).Add(batchStartBlock, batchSize)
@@ -234,6 +239,9 @@ func IndexerAlgorandFrontFill(algo *Algorand, uuid string, algoLatestBlock *big.
 		return
 	case <-done:
 		break
+	}
+	if _AlgoDatabase.IndexerGetJobStatus(uuid) == "failed" {
+		return
 	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
 	_AlgoDatabase.IndexerUpdateHeadBlock(uuid, uint64(finalBlockIndex))
@@ -293,7 +301,7 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	errorChan := make(chan error, algoWorkerCount)
 	atomic.StoreInt64(&algoActiveRequestsCount, 0)
 	atomic.StoreInt64(&algoTotalRequestsCount, 0)
-	go algoStartThrottleController(uuid, algoThrottle, rateLimiter, database)
+	go algoStartThrottleController(uuid, algoThrottle, rateLimiter)
 	var wg sync.WaitGroup
 	for i := 0; i < algoWorkerCount; i++ {
 		wg.Add(1)
@@ -311,6 +319,9 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	go func() {
 		for i := 1; i <= int(batchCount.Int64()); i++ {
 			if algoBreakPoint(uuid) {
+				return
+			}
+			if !waitForIndexerQueueCapacity(uuid, batchJobQueue, queuedBatchLimit, algoBreakPoint) {
 				return
 			}
 			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
@@ -340,6 +351,9 @@ func IndexerAlgorandBackFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 		return
 	case <-done:
 		break
+	}
+	if _AlgoDatabase.IndexerGetJobStatus(uuid) == "failed" {
+		return
 	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
 	_AlgoDatabase.IndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
@@ -386,7 +400,7 @@ func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	atomic.StoreInt64(&algoActiveRequestsCount, 0)
 	atomic.StoreInt64(&algoTotalRequestsCount, 0)
 	atomic.StoreInt64(&algoLastProgressBlock, 0)
-	go algoStartThrottleController(uuid, algoThrottle, rateLimiter, database)
+	go algoStartThrottleController(uuid, algoThrottle, rateLimiter)
 	var wg sync.WaitGroup
 	for i := 0; i < algoWorkerCount; i++ {
 		wg.Add(1)
@@ -404,6 +418,9 @@ func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	go func() {
 		for i := 1; i <= int(batchCount.Int64()); i++ {
 			if algoBreakPoint(uuid) {
+				return
+			}
+			if !waitForIndexerQueueCapacity(uuid, batchJobQueue, queuedBatchLimit, algoBreakPoint) {
 				return
 			}
 			batchEndBlock := new(big.Int).Sub(batchStartBlock, batchSize)
@@ -434,6 +451,9 @@ func IndexerAlgorandFullFill(algo *Algorand, uuid string, algoLatestBlock *big.I
 	case <-done:
 		break
 	}
+	if _AlgoDatabase.IndexerGetJobStatus(uuid) == "failed" {
+		return
+	}
 	finalBlockIndex := sequentialTracker.GetNextExpectedBlock()
 	_AlgoDatabase.IndexerUpdateTailBlock(uuid, uint64(finalBlockIndex))
 	_AlgoDatabase.IndexerUpdateJobStatus(uuid, "complete")
@@ -448,11 +468,13 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 		return "", "", nil, 0, 0, nil
 	}
 	IsAlgoIndexing = true
+	algoIndexerCancelClosed = false
 	AlgoIndexerMutex.Unlock()
+	preflightComplete := false
 	defer func() {
-		AlgoIndexerMutex.Lock()
-		IsAlgoIndexing = false
-		AlgoIndexerMutex.Unlock()
+		if !preflightComplete {
+			finishAlgorandIndexing()
+		}
 	}()
 	globalIndexerRunning := _AlgoDatabase.SettingsGetValue("indexerRunning")
 	algoIndexerRunning := _AlgoDatabase.SettingsGetValue("algoIndexerRunning")
@@ -493,7 +515,13 @@ func algoIndexerPreflight(chainName string) (string, string, *big.Int, uint64, u
 	core.LogDebug("[Algo] Database Head Block: " + strconv.Itoa(int(databaseHeadBlock)))
 	core.LogDebug("[Algo] Database Tail Block: " + strconv.Itoa(int(databaseTailBlock)))
 	core.LogDebug("[Algo] Chain Earliest Block: " + chainEarliestBlock.String())
+	preflightComplete = true
 	return databaseStatus, uuid, chainLatestBlock, databaseTailBlock, databaseHeadBlock, &chainEarliestBlock
+}
+func finishAlgorandIndexing() {
+	AlgoIndexerMutex.Lock()
+	IsAlgoIndexing = false
+	AlgoIndexerMutex.Unlock()
 }
 func algoDispatchTransaction(transaction models.Transaction, blockIndex *big.Int) int {
 	// ret 0 == success == transaction was a YP txn and was processed
@@ -578,7 +606,7 @@ func algoConfigureRateLimiter(throttleValue int) *rate.Limiter {
 	burstCapacity := throttleValue
 	return rate.NewLimiter(rate.Limit(requestsPerSecond), burstCapacity)
 }
-func algoStartThrottleController(uuid string, targetThrottleValue int, rateLimiter *rate.Limiter, database *db.Database) {
+func algoStartThrottleController(uuid string, targetThrottleValue int, rateLimiter *rate.Limiter) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	const (
@@ -601,7 +629,6 @@ func algoStartThrottleController(uuid string, targetThrottleValue int, rateLimit
 			if actualRPS < 0.1 {
 				continue
 			}
-			database.IndexerUpdateJobSpeed(uuid, uint64(actualRPS+0.5))
 			ratio := actualRPS / targetRPS
 			if ratio < (1.0-tolerance) || ratio > (1.0+tolerance) {
 				algoThrottleControlMutex.Lock()
@@ -775,11 +802,9 @@ func AlgoIndexerRestartJobs(__database *db.Database, blockchain string) {
 func AlgoIndexerStop() {
 	AlgoIndexerMutex.Lock()
 	defer AlgoIndexerMutex.Unlock()
-	if IsAlgoIndexing && algoIndexerCancel != nil {
-		select {
-		case algoIndexerCancel <- true:
-		default:
-		}
+	if IsAlgoIndexing && algoIndexerCancel != nil && !algoIndexerCancelClosed {
+		close(algoIndexerCancel)
+		algoIndexerCancelClosed = true
 	}
 }
 func AlgoToggleIndexer(database *db.Database) {
@@ -893,6 +918,7 @@ func AlgoIndexerCatchUpAll(database *db.Database) (bool, string) {
 				}
 				database.IndexerUpdateHeadBlock(jobUUID, uint64(headBlock))
 				database.IndexerUpdateTailBlock(jobUUID, uint64(tailBlock))
+				database.IndexerUpdateJobStatus(jobUUID, "complete")
 				host.DeleteAll(snapshotDir)
 				core.LogInfo("[Algo] Snapshot import complete")
 				return
