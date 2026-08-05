@@ -24,6 +24,9 @@
 {{if .ogImage}}<meta name="twitter:image" content="{{.ogImage}}" />{{end}}
 {{if .ogUrl}}<meta name="twitter:url" content="{{.ogUrl}}" />{{end}}
     <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
+    {{with asset "vendors.css"}}{{if .}}<link href="{{.}}" rel="stylesheet" />{{end}}{{end}}
+    {{with asset "common.css"}}{{if .}}<link href="{{.}}" rel="stylesheet" />{{end}}{{end}}
+    {{with asset (printf "%s.css" .pageName)}}{{if .}}<link href="{{.}}" rel="stylesheet" />{{end}}{{end}}
     {{with asset "runtime.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
     {{with asset "vendors.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}
     {{with asset "common.js"}}{{if .}}<script src="{{.}}" type="application/javascript"></script>{{end}}{{end}}

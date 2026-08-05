@@ -84,7 +84,7 @@ export default {
             include: path.resolve(__dirname, "../scss"),
             exclude: [/node_modules/, /tinymce\.scss$/],
             use: [{
-                loader: "style-loader"  // Adds CSS to the DOM by injecting a `<style>` tag
+                loader: MiniCssExtractPlugin.loader
             },{
                 loader: "css-loader",  // Interprets `@import` and `url()` like `import/require()` and will resolve them
                 options: {

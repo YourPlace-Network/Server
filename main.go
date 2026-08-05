@@ -310,13 +310,16 @@ func LoadTemplates(engine *gin.Engine, embedFS embed.FS, pattern string) {
 	engine.SetFuncMap(template.FuncMap{
 		"asset": func(name string) string {
 			if assetManifest == nil {
+				if strings.HasSuffix(name, ".css") {
+					return ""
+				}
 				return "/static/js/" + name
 			}
 			if hashed, ok := assetManifest[name]; ok {
-				return hashed
+				return strings.ReplaceAll(hashed, "/static/js/../", "/static/")
 			}
 			// Return empty string for split chunks that don't exist in dev builds
-			if name == "common.js" || name == "vendors.js" || name == "runtime.js" {
+			if name == "common.js" || name == "vendors.js" || name == "runtime.js" || strings.HasSuffix(name, ".css") {
 				return ""
 			}
 			return "/static/js/" + name
