@@ -26,7 +26,8 @@ var prefixPageRoutes = []struct {
 	{"/p/", "profile"},
 	{"/post/", "post"},
 }
-var sharedAssets = []string{"runtime.js", "vendors.js", "common.js"}
+var sharedScriptAssets = []string{"runtime.js", "vendors.js", "common.js"}
+var sharedStyleAssets = []string{"vendors.css", "common.css"}
 
 func EarlyHintsMiddleware(assetManifest map[string]string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -49,20 +50,38 @@ func EarlyHintsMiddleware(assetManifest map[string]string) gin.HandlerFunc {
 			return
 		}
 		hasHints := false
-		for _, name := range sharedAssets {
-			if assetPath := resolveAsset(assetManifest, name); assetPath != "" {
-				c.Writer.Header().Add("Link", "<"+assetPath+">; rel=preload; as=script")
-				hasHints = true
-			}
+		for _, name := range sharedStyleAssets {
+			// Styles are render-blocking, so hint them before scripts when the manifest has them.
+			hasHints = addPreload(c, assetManifest, name, "style") || hasHints
 		}
-		if assetPath := resolveAsset(assetManifest, pageName+".js"); assetPath != "" {
-			c.Writer.Header().Add("Link", "<"+assetPath+">; rel=preload; as=script")
-			hasHints = true
+		hasHints = addPreload(c, assetManifest, pageName+".css", "style") || hasHints
+		for _, name := range sharedScriptAssets {
+			hasHints = addPreload(c, assetManifest, name, "script") || hasHints
 		}
+		hasHints = addPreload(c, assetManifest, pageName+".js", "script") || hasHints
 		if hasHints {
-			c.Writer.WriteHeader(http.StatusEarlyHints)
+			writeEarlyHints(c)
 		}
 		c.Next()
+	}
+}
+
+func addPreload(c *gin.Context, assetManifest map[string]string, name string, as string) bool {
+	if assetPath := resolveAsset(assetManifest, name); assetPath != "" {
+		c.Writer.Header().Add("Link", "<"+assetPath+">; rel=preload; as="+as)
+		return true
+	}
+	return false
+}
+
+type responseWriterUnwrapper interface {
+	Unwrap() http.ResponseWriter
+}
+
+func writeEarlyHints(c *gin.Context) {
+	if unwrapper, ok := c.Writer.(responseWriterUnwrapper); ok {
+		// Write 103 on the underlying writer so Gin still controls the final 200/redirect/error response.
+		unwrapper.Unwrap().WriteHeader(http.StatusEarlyHints)
 	}
 }
 
@@ -71,10 +90,7 @@ func resolveAsset(assetManifest map[string]string, name string) string {
 		return ""
 	}
 	if hashed, ok := assetManifest[name]; ok {
-		return hashed
+		return strings.ReplaceAll(hashed, "/static/js/../", "/static/")
 	}
-	if name == "common.js" || name == "runtime.js" || name == "vendors.js" {
-		return ""
-	}
-	return "/static/js/" + name
+	return ""
 }

@@ -281,6 +281,7 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
         blockchain: comment.blockchain,
         initialComments: comment.replyCount,
         initialDislikes: comment.dislikeCount,
+        initialEmojiCount: comment.emojiCount || 0,
         initialLikes: comment.likeCount,
         onCommentClick: () => {
             toggleAddCommentUI(commentDiv, comment.txHash, blockchain, sort);
@@ -291,6 +292,9 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
         },
         targetType: 'comment',
         txHash: comment.txHash,
+        userEmojiReaction: comment.userEmojiReaction || null,
+        userHasCommented: comment.userHasCommented || false,
+        userReaction: comment.userReaction || null,
     });
     commentDiv.appendChild(controlsBar);
     const addCommentContainer = document.createElement("div");

@@ -14,6 +14,7 @@ import {ShowSavedToast, ShowToast} from "../components/toast";
 import {ExpandAccordionByHash, InitTooltips} from "../util/bootstrap";
 import {GetBootstrappedIpfsGateway, GetConfiguredIpfsGateway} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
+import {ShowNotifications} from "../util/notifications";
 import {Sleep} from "../util/time";
 import {XSSSanitizeValue} from "../util/security";
 import {ConnectWallet, WalletGetConnectionStatuses, type WalletConnectionStatus} from "../util/blockchain/wallet";
@@ -180,6 +181,7 @@ import {ConnectWallet, WalletGetConnectionStatuses, type WalletConnectionStatus}
             }
             InitTooltips();
             ExpandAccordionByHash();
+            ShowNotifications().then();
 
             setInterval(getAlgoIndexerProgress, 300000);
             setInterval(getBaseIndexerProgress, 300000);

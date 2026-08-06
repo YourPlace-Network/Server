@@ -51,9 +51,6 @@ func Headers(port int) gin.HandlerFunc {
 		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
-		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
-		c.Header("Pragma", "no-cache")
-		c.Header("Expires", "0")
 		c.Next()
 	}
 }

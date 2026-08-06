@@ -108,12 +108,23 @@ jobs:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_CACHE_PURGE_TOKEN }}
         CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
       run: |
-        echo "Flushing Cloudflare cache for app.yourplace.network..."
+        echo "Purging route HTML from Cloudflare cache..."
         sleep 30
+        # Hashed static assets do not need purging; only route HTML can point at a new manifest.
+        purge_body=$(jq -nc '{
+          files: [
+            "https://app.yourplace.network/",
+            "https://app.yourplace.network/faq",
+            "https://app.yourplace.network/login",
+            "https://app.yourplace.network/logout",
+            "https://app.yourplace.network/mentalHealth",
+            "https://app.yourplace.network/settings"
+          ]
+        }')
         response=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
           -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
           -H "Content-Type: application/json" \
-          --data '{"hosts":["app.yourplace.network"]}')
+          --data "$purge_body")
         if echo "$response" | grep -q '"success":true'; then
           echo "Cache flush successful!"
         else

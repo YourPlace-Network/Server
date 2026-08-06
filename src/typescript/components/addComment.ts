@@ -15,12 +15,16 @@ export interface Comment {
     avatarSrc: string;
     blockchain: string;
     dislikeCount: number;
+    emojiCount?: number;
     likeCount: number;
     parentTxHash: string;
     payload: string;
     replyCount: number;
     timestamp: number;
     txHash: string;
+    userEmojiReaction?: string | null;
+    userHasCommented?: boolean;
+    userReaction?: string | null;
 }
 let commentEditorId = 0;
 interface InlineMediaData {
@@ -361,6 +365,10 @@ function createPreviewCommentElement(comment: Comment, blockchain: string): HTML
         initialLikes: comment.likeCount,
         initialDislikes: comment.dislikeCount,
         initialComments: comment.replyCount,
+        initialEmojiCount: comment.emojiCount || 0,
+        userEmojiReaction: comment.userEmojiReaction || null,
+        userHasCommented: comment.userHasCommented || false,
+        userReaction: comment.userReaction || null,
         onCommentClick: () => {
             const commentBtn = controlsBar.querySelector(".comment") as HTMLElement;
             const commentIcon = commentBtn?.querySelector("i") as HTMLElement | null;

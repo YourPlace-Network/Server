@@ -1,13 +1,13 @@
 import "../../scss/components/imageLoader.scss";
 import "../../scss/components/postCard.scss";
 import { CreateCommentThread } from "./commentThread";
-import { CreatePostControlsBar, FetchReactionCounts, FetchUserHasCommented } from "./postControls";
+import { CreatePostControlsBar } from "./postControls";
 import { OEmbedCard } from "./oEmbedCard";
 import { ProcessPostContentForPreviews } from "./postPreviewCard";
 import { ShowAddCommentUI } from "./addComment";
 import {ShowAvatarMediaViewer, ShowModalMediaViewer} from "./modalMediaViewer";
 import { XcomOEmbedCard } from "./xcomOEmbedCard";
-import { GetAddress, IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar } from "../util/blockchain/wallet";
+import { IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar } from "../util/blockchain/wallet";
 import { IsValidIpfsCid, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue } from "../util/security";
 import { CIDToSubdomainURL, getIpfsAvatarUrl, ProbeIpfsMediaType, ResolveIpfsContentUrl } from "../util/ipfs";
 import { getFileIcon, formatFileSize } from "../util/files";
@@ -126,71 +126,6 @@ async function expandView(event: MouseEvent | PointerEvent) {
         if (prevControl) prevControl.id = "mediaViewerCarouselPrev";
         if (nextControl) nextControl.id = "mediaViewerCarouselNext";
         ShowModalMediaViewer(carousel);
-    }
-}
-async function fetchAndUpdatePostControls(controlsBar: HTMLDivElement, blockchain: string, txHash: string): Promise<void> {
-    try {
-        const address = GetAddress();
-        const [counts, hasCommented] = await Promise.all([
-            FetchReactionCounts(blockchain, txHash, address || undefined),
-            address ? FetchUserHasCommented(blockchain, txHash, address) : Promise.resolve(false)
-        ]);
-        if (!counts) return;
-        const userEmojiReaction = counts.userEmojiReaction || null;
-        const userReaction = counts.userReaction || null;
-        const commentControl = controlsBar.querySelector(".postControlItem.comment");
-        const dislikeControl = controlsBar.querySelector(".postControlItem.dislike");
-        const likeControl = controlsBar.querySelector(".postControlItem.like");
-        const reactControl = controlsBar.querySelector(".postControlItem.react");
-        if (commentControl && hasCommented) {
-            commentControl.classList.add("active");
-        }
-        if (likeControl) {
-            const countSpan = likeControl.querySelector(".count");
-            if (countSpan) {
-                countSpan.textContent = counts.likes > 0 ? counts.likes.toString() : "";
-            }
-            if (userReaction === "like") {
-                likeControl.classList.add("active");
-            }
-        }
-        if (dislikeControl) {
-            const countSpan = dislikeControl.querySelector(".count");
-            if (countSpan) {
-                countSpan.textContent = counts.dislikes > 0 ? counts.dislikes.toString() : "";
-            }
-            if (userReaction === "dislike") {
-                dislikeControl.classList.add("active");
-            }
-        }
-        if (reactControl) {
-            let emojiCount = 0;
-            if (counts.emoji) {
-                for (const count of Object.values(counts.emoji) as number[]) {
-                    emojiCount += count;
-                }
-            }
-            const countSpan = reactControl.querySelector(".count");
-            if (countSpan) {
-                countSpan.textContent = emojiCount > 0 ? emojiCount.toString() : "";
-            }
-            if (userEmojiReaction) {
-                reactControl.classList.add("active");
-                const existingEmoji = reactControl.querySelector(".reactEmoji");
-                const existingIcon = reactControl.querySelector("i.bi");
-                if (existingIcon) existingIcon.remove();
-                if (existingEmoji) {
-                    existingEmoji.textContent = userEmojiReaction;
-                } else {
-                    const emojiSpan = document.createElement("span");
-                    emojiSpan.classList.add("reactEmoji");
-                    emojiSpan.textContent = userEmojiReaction;
-                    reactControl.insertBefore(emojiSpan, reactControl.firstChild);
-                }
-            }
-        }
-    } catch (e) {
-        LogError("Failed to fetch post controls data: " + e);
     }
 }
 async function grid2Attachments(attachments: HTMLElement[]): Promise<HTMLDivElement> {
@@ -1062,9 +997,6 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
             blockchainBadge.appendChild(blockchainIcon);
         }
         postDiv.appendChild(blockchainBadge);
-    }
-    if (!postData.localPost) {
-        fetchAndUpdatePostControls(controlsBar, postData.blockchain, postData.txHash);
     }
     const attachmentUrls = new Set<string>();
     if ("attachments" in postData) {

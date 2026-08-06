@@ -412,6 +412,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 	} else {
 		_ = router.SetTrustedProxies(nil)
 	}
+	LoadAssetManifest()
 	router.Use(CustomGinRecovery())
 	router.Use(middleware.CORSMiddleware(gateway, domain))
 	router.Use(middleware.EarlyHintsMiddleware(assetManifest))
@@ -433,7 +434,6 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 	router.Use(middleware.CacheControlMiddleware())
 	router.Use(middleware.BlockedContent(database))
 	router.Use(security.Headers(port))
-	LoadAssetManifest()
 	LoadTemplates(router, templateFS, "src/templates/*tmpl")
 	router.StaticFS("/static", staticFS())
 	router.MaxMultipartMemory = 8 << 20

@@ -25,6 +25,10 @@ export interface ReactionCounts {
     userReaction?: string | null;
 }
 
+const CONTROLS_REFRESH_INTERVAL_MS = 30000;
+const refreshingControlsBars = new Set<HTMLDivElement>();
+let controlsRefreshTimer: number | null = null;
+
 export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElement {
     const controlsBar = document.createElement("div");
     controlsBar.classList.add("postControlsBar");
@@ -88,6 +92,7 @@ export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElem
     controlsBar.appendChild(dislikeControl);
     controlsBar.appendChild(reactControl);
     controlsBar.appendChild(repostControl);
+    StartPostControlsRefresh(controlsBar);
     return controlsBar;
 }
 function createControlItem(iconClass: string, count: number, tooltip: string, onClick: (e: MouseEvent) => void): HTMLDivElement {
@@ -140,6 +145,17 @@ function updateReactControlIcon(reactControl: Element, emoji: string): void {
         reactControl.insertBefore(emojiSpan, reactControl.firstChild);
     }
 }
+function clearReactControlIcon(reactControl: Element): void {
+    const existingEmoji = reactControl.querySelector(".reactEmoji");
+    if (existingEmoji) {
+        existingEmoji.remove();
+    }
+    if (!reactControl.querySelector("i.bi")) {
+        const icon = document.createElement("i");
+        icon.classList.add("bi", "bi-emoji-smile");
+        reactControl.insertBefore(icon, reactControl.firstChild);
+    }
+}
 function getTotalEmojiCount(counts: ReactionCounts): number {
     if (!counts || !counts.emoji) return 0;
     let total = 0;
@@ -157,6 +173,7 @@ function updateCount(element: HTMLElement, newCount: number): void {
 export function UpdateReactionCounts(controlsBar: HTMLDivElement, counts: ReactionCounts): void {
     const likeControl = controlsBar.querySelector(".postControlItem.like");
     const dislikeControl = controlsBar.querySelector(".postControlItem.dislike");
+    const reactControl = controlsBar.querySelector(".postControlItem.react");
     if (likeControl) {
         updateCount(likeControl as HTMLElement, counts.likes);
         if (counts.userReaction === "like") {
@@ -171,6 +188,17 @@ export function UpdateReactionCounts(controlsBar: HTMLDivElement, counts: Reacti
             dislikeControl.classList.add("active");
         } else {
             dislikeControl.classList.remove("active");
+        }
+    }
+    if (reactControl) {
+        const userEmojiReaction = counts.userEmojiReaction || null;
+        updateCount(reactControl as HTMLElement, getTotalEmojiCount(counts));
+        if (userEmojiReaction) {
+            reactControl.classList.add("active");
+            updateReactControlIcon(reactControl, userEmojiReaction);
+        } else {
+            reactControl.classList.remove("active");
+            clearReactControlIcon(reactControl);
         }
     }
 }
@@ -200,6 +228,66 @@ export async function FetchUserHasCommented(blockchain: string, txHash: string, 
     }
     return false;
 }
+export async function FetchCommentCount(blockchain: string, txHash: string): Promise<number | null> {
+    try {
+        const response = await HttpGetJson(`/comments/${blockchain}/${txHash}/count`);
+        if (response[0] === 200 && response[1]) {
+            return Number(response[1].count || 0);
+        }
+    } catch (e) {
+        console.error("Failed to fetch comment count:", e);
+    }
+    return null;
+}
+async function RefreshPostControlsBar(controlsBar: HTMLDivElement): Promise<void> {
+    const blockchain = controlsBar.dataset.blockchain;
+    const txHash = controlsBar.dataset.txhash;
+    if (!blockchain || !txHash) return;
+    const address = GetAddress();
+    const [counts, commentCount, hasCommented] = await Promise.all([
+        FetchReactionCounts(blockchain, txHash, address || undefined),
+        FetchCommentCount(blockchain, txHash),
+        address ? FetchUserHasCommented(blockchain, txHash, address) : Promise.resolve(false),
+    ]);
+    if (counts) {
+        UpdateReactionCounts(controlsBar, counts);
+    }
+    const commentControl = controlsBar.querySelector(".postControlItem.comment");
+    if (commentControl) {
+        if (commentCount !== null) {
+            updateCount(commentControl as HTMLElement, commentCount);
+        }
+        if (hasCommented) {
+            commentControl.classList.add("active");
+        } else {
+            commentControl.classList.remove("active");
+        }
+    }
+}
+function RefreshRegisteredControlsBars(): void {
+    refreshingControlsBars.forEach((controlsBar) => {
+        if (!document.body.contains(controlsBar)) {
+            refreshingControlsBars.delete(controlsBar);
+            return;
+        }
+        RefreshPostControlsBar(controlsBar).catch(e => console.error("Failed to refresh post controls:", e));
+    });
+    if (refreshingControlsBars.size === 0 && controlsRefreshTimer !== null) {
+        window.clearInterval(controlsRefreshTimer);
+        controlsRefreshTimer = null;
+    }
+}
+export function StartPostControlsRefresh(controlsBar: HTMLDivElement): void {
+    refreshingControlsBars.add(controlsBar);
+    window.setTimeout(() => {
+        if (document.body.contains(controlsBar)) {
+            RefreshPostControlsBar(controlsBar).catch(e => console.error("Failed to refresh post controls:", e));
+        }
+    }, 0);
+    if (controlsRefreshTimer === null) {
+        controlsRefreshTimer = window.setInterval(RefreshRegisteredControlsBars, CONTROLS_REFRESH_INTERVAL_MS);
+    }
+}
 
 let activeReactionsPopup: HTMLElement | null = null;
 function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockchain: string, targetType: string): void {
@@ -222,7 +310,8 @@ function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockcha
     pickerContainer.classList.add("pickerContainer");
     pickerContainer.style.display = "none";
     popup.appendChild(pickerContainer);
-    loadExistingReactions(existingReactionsDiv, txHash, blockchain, targetType);
+    const targetControlsBar = targetElement.closest(".postControlsBar") as HTMLDivElement | null;
+    loadExistingReactions(existingReactionsDiv, txHash, blockchain, targetType, targetControlsBar);
     addReactionBtn.addEventListener("click", () => {
         if (pickerContainer.style.display === "none") {
             const picker = createEmojiPicker(async (emoji: string) => {
@@ -232,7 +321,7 @@ function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockcha
                     return;
                 }
                 await WalletSubmitEmojiReaction(txHash, targetType, emoji);
-                const controlsBar = document.querySelector(`.postControlsBar[data-txhash="${txHash}"][data-blockchain="${blockchain}"]`);
+                const controlsBar = targetControlsBar || document.querySelector(`.postControlsBar[data-txhash="${txHash}"][data-blockchain="${blockchain}"]`);
                 if (controlsBar) {
                     const reactControl = controlsBar.querySelector(".react");
                     if (reactControl) {
@@ -279,7 +368,7 @@ function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockcha
         document.addEventListener("click", closeOnOutsideClick);
     }, 100);
 }
-async function loadExistingReactions(container: HTMLElement, txHash: string, blockchain: string, targetType: string): Promise<void> {
+async function loadExistingReactions(container: HTMLElement, txHash: string, blockchain: string, targetType: string, targetControlsBar: HTMLDivElement | null): Promise<void> {
     const address = GetAddress();
     const counts = await FetchReactionCounts(blockchain, txHash, address || undefined);
     if (!counts || !counts.emoji) return;
@@ -309,7 +398,7 @@ async function loadExistingReactions(container: HTMLElement, txHash: string, blo
                 await WalletSubmitEmojiReaction(txHash, targetType, emoji);
                 container.querySelectorAll(".reactionChip.selected").forEach(el => el.classList.remove("selected"));
                 chip.classList.add("selected");
-                const controlsBar = document.querySelector(`.postControlsBar[data-txhash="${txHash}"][data-blockchain="${blockchain}"]`);
+                const controlsBar = targetControlsBar || document.querySelector(`.postControlsBar[data-txhash="${txHash}"][data-blockchain="${blockchain}"]`);
                 if (controlsBar) {
                     const reactControl = controlsBar.querySelector(".react");
                     if (reactControl) {

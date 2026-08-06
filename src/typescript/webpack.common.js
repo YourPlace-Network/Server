@@ -150,7 +150,8 @@ export default {
             }],
         }),
         new MiniCssExtractPlugin({
-            filename: "../css/[name].css",
+            filename: "../css/[name].[contenthash:8].css",
+            chunkFilename: "../css/[name].[contenthash:8].chunk.css",
         }),
         new WebpackManifestPlugin({
             fileName: "../manifest.json",

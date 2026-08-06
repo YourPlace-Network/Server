@@ -13,14 +13,6 @@ import {OEmbedCard} from "./oEmbedCard";
 import {XcomCrossPost, XcomIsCrossPostEnabled} from "../services/xcom";
 import {XcomOEmbedCard} from "./xcomOEmbedCard";
 import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
-// TinyMCE will be lazy loaded when needed
-let tinymceModulePromise: Promise<any> | null = null;
-
-async function preloadTinyMCE() {
-    if (tinymceModulePromise) return tinymceModulePromise;
-    tinymceModulePromise = import("tinymce/tinymce");
-    return tinymceModulePromise;
-}
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -498,7 +490,7 @@ async function preloadTinyMCE() {
             if (tinymceInitialized) return;
             if (tinymceInitPromise) return tinymceInitPromise;
             tinymceInitPromise = (async () => {
-                const tinymce = tinymceModulePromise ? await tinymceModulePromise : await import("tinymce/tinymce");
+                const tinymce = await import("tinymce/tinymce");
                 const isMobile = window.innerWidth < 768;
                 await tinymce.default.init({
                     selector: "#addPostText",
@@ -641,8 +633,9 @@ async function preloadTinyMCE() {
             addPostModal.show();
             if (!tinymceInitialized) {
                 DOM.tinymceSpinner.style.display = "flex";
+                // TinyMCE is large; keep it off the initial page load and initialize when the composer opens.
+                await initTinyMCE();
             }
-            await initTinyMCE();
             DOM.tinymceSpinner.style.display = "none";
             (window as any).tinymce.get("addPostText")?.focus();
             enableSpiceometer().then();
@@ -973,7 +966,6 @@ async function preloadTinyMCE() {
         DOM.submitPostButton.addEventListener("click", submitPost);
         DOM.uploadFileButton.addEventListener("click", clickFileInput);
         DOM.fileInput.addEventListener("change", uploadFile);
-        preloadTinyMCE().then(() => initTinyMCE());
         document.addEventListener("focusin", (e) => {
             if (e.target instanceof Element && e.target.closest(".emojiPickerPopup, .tox-tinymce-aux, .moxman-window, .tam-assetmanager-root") !== null) {
                 e.stopImmediatePropagation();
