@@ -14,7 +14,9 @@
                         {{end}}
                         <h2 class="pageHeader">Notifications</h2>
                     </div>
+                    {{if .isCookieAuthenticated}}
                     <button class="btn btn-primary" id="clearAllBtn">Clear All</button>
+                    {{end}}
                 </div>
                 <div id="notificationsDiv"></div>
                 <div id="notificationsEmpty" style="display: none;">

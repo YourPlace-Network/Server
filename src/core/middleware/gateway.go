@@ -58,7 +58,6 @@ func GatewayMiddleware(gateway bool) gin.HandlerFunc {
 			blacklistedPathTuples := [][]string{
 				{"/files", "POST"},
 				{"/setup", "POST"}, {"/setup", "GET"},
-				{"/notifications", "POST"},
 			}
 
 			for _, blacklistedPath := range blacklistedPathTuples {

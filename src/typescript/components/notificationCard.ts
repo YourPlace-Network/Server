@@ -12,7 +12,7 @@ export interface UserNotification {
     type: string;
 }
 
-export function CreateNotificationCard(notification: UserNotification, onDismiss: (id: string) => void): HTMLDivElement {
+export function CreateNotificationCard(notification: UserNotification, onDismiss?: (id: string) => void): HTMLDivElement {
     let card = document.createElement("div");
     card.className = "notificationCard";
     card.setAttribute("data-notification-id", notification.id);
@@ -42,21 +42,23 @@ export function CreateNotificationCard(notification: UserNotification, onDismiss
     timeDiv.textContent = formatRelativeTime(parseInt(notification.timestamp));
     bodyDiv.appendChild(messageDiv);
     bodyDiv.appendChild(timeDiv);
-    let dismissBtn = document.createElement("button");
-    dismissBtn.className = "notificationCardDismiss";
-    dismissBtn.title = "Dismiss";
-    let dismissIcon = document.createElement("i");
-    dismissIcon.className = "bi bi-x-lg";
-    dismissBtn.appendChild(dismissIcon);
-    dismissBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onDismiss(notification.id);
-        card.remove();
-    });
     card.appendChild(iconDiv);
     card.appendChild(bodyDiv);
-    card.appendChild(dismissBtn);
+    if (onDismiss) {
+        let dismissBtn = document.createElement("button");
+        dismissBtn.className = "notificationCardDismiss";
+        dismissBtn.title = "Dismiss";
+        let dismissIcon = document.createElement("i");
+        dismissIcon.className = "bi bi-x-lg";
+        dismissBtn.appendChild(dismissIcon);
+        dismissBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDismiss(notification.id);
+            card.remove();
+        });
+        card.appendChild(dismissBtn);
+    }
     return card;
 }
 

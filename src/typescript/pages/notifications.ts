@@ -14,7 +14,7 @@ import {ShowNotifications} from "../util/notifications";
 
     function main() {
         let DOM = {
-            clearAllBtn: document.getElementById("clearAllBtn")! as HTMLButtonElement,
+            clearAllBtn: document.getElementById("clearAllBtn") as HTMLButtonElement | null,
             csrfToken: (document.getElementById("csrfToken")! as HTMLInputElement).value,
             isCookieAuthenticated: document.getElementById("isCookieAuthenticated")! as HTMLInputElement,
             notificationsAvatar: document.getElementById("notificationsAvatar") as HTMLImageElement | null,
@@ -27,6 +27,7 @@ import {ShowNotifications} from "../util/notifications";
         let offset = 0;
         let loading = false;
         let hasMore = true;
+        const canManageNotifications = DOM.isCookieAuthenticated.value === "true";
 
         async function renderNotificationsAvatar() {
             if (!DOM.notificationsAvatar || DOM.userAddress.value === "" || DOM.userBlockchain.value === "") {
@@ -63,7 +64,7 @@ import {ShowNotifications} from "../util/notifications";
                 hasMore = false;
             }
             for (const notif of notifications) {
-                let card = CreateNotificationCard(notif, dismissNotification);
+                let card = CreateNotificationCard(notif, canManageNotifications ? dismissNotification : undefined);
                 DOM.notificationsDiv.appendChild(card);
             }
             offset += notifications.length;
@@ -78,16 +79,20 @@ import {ShowNotifications} from "../util/notifications";
             await HttpPostJson("/notifications/seen", {}, DOM.csrfToken);
         }
 
-        DOM.clearAllBtn.addEventListener("click", async () => {
-            let response = await HttpPostJson("/notifications/clear", {}, DOM.csrfToken);
-            if (response[0] !== 200) {
-                LogError("Could not clear notifications");
-                return;
-            }
-            DOM.notificationsDiv.innerHTML = "";
-            hasMore = false;
-            checkEmpty();
-        });
+        if (DOM.clearAllBtn && canManageNotifications) {
+            DOM.clearAllBtn.addEventListener("click", async () => {
+                let response = await HttpPostJson("/notifications/clear", {}, DOM.csrfToken);
+                if (response[0] !== 200) {
+                    LogError("Could not clear notifications");
+                    return;
+                }
+                DOM.notificationsDiv.innerHTML = "";
+                hasMore = false;
+                checkEmpty();
+            });
+        } else if (DOM.clearAllBtn) {
+            DOM.clearAllBtn.style.display = "none";
+        }
 
         let scrollObserver = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting) {
@@ -101,7 +106,7 @@ import {ShowNotifications} from "../util/notifications";
 
         renderNotificationsAvatar().then();
         loadNotifications().then();
-        if (DOM.isCookieAuthenticated.value === "true") {
+        if (canManageNotifications) {
             markSeen().then();
         }
         ShowNotifications().then();
