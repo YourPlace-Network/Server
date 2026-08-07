@@ -36,9 +36,9 @@ func Headers(port int) gin.HandlerFunc {
 		c.Header("Content-Security-Policy",
 			"default-src 'none'; "+
 				"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.bridge.walletconnect.org https://*.spotifycdn.com https://open.spotify.com https://sdk.scdn.co https://www.googletagmanager.com https://www.youtube-nocookie.com; "+ // unsafe-inline and unsafe-eval are due to bootstrap
-				"img-src 'self' https://* data: blob: http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // wildcard all HTTPS connections to allow for 3rd party image embeds
+				"img-src 'self' https://* data: blob: ipfs: http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // wildcard all HTTPS connections to allow for 3rd party image embeds
 				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
-				"media-src 'self' data: blob: https://* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // blob: is required by Spotify Web Playback SDK for audio chunks
+				"media-src 'self' data: blob: ipfs: https://* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // blob: is required by Spotify Web Playback SDK for audio chunks
 				"font-src 'self' https://fonts.gstatic.com data:; "+
 				"connect-src 'self' data: blob: https://*:* wss://*:* http://localhost:"+ipfsGatewayPort+" http://*.ipfs.localhost:"+ipfsGatewayPort+"; "+ // blob: is required for editor attachment previews and wildcard TLS connections allow P2P traffic
 				"frame-src https://*; "+
