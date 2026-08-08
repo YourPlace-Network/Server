@@ -1157,4 +1157,5 @@ var mentalHealthTips = []string{
 	"Your trauma is not an excuse to be manipulative, nonchalant, or narcissistic towards good people",
 	"Anything not built on truth will eventually collapse. Just give it time",
 	"The person who tells you other people's secrets is telling other people yours",
+	"Every time you hesitate, someone less talented will take your spot. The world rewards audacity, not potential. Confidence over cowardice",
 }
