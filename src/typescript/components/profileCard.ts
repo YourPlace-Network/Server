@@ -1,6 +1,6 @@
 import "../../scss/components/profileCard.scss";
 import {processTextWithTags} from "../util/domFactory";
-import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
+import {ApplyIpfsImageLoadPolicy, CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
 import {XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
 import {WalletGetAvatar, WalletGetDescription, WalletGetName} from "../util/blockchain/wallet";
 
@@ -26,7 +26,9 @@ export async function CreateProfileCard(profileData: any): Promise<HTMLAnchorEle
         const converted = CIDToSubdomainURL(profileAvatarSrc);
         profileAvatarSrc = converted || "/static/image/avatar.svg";
     }
-    avatarImg.src = XSSSanitizeUrl(profileAvatarSrc || "/static/image/avatar.svg");
+    const profileAvatarUrl = XSSSanitizeUrl(profileAvatarSrc || "/static/image/avatar.svg");
+    ApplyIpfsImageLoadPolicy(avatarImg, profileAvatarUrl);
+    avatarImg.src = profileAvatarUrl;
     nameDiv.classList.add("profileCardName");
     nameDiv.textContent = profileData.name || "Anonymous";
     addressDiv.classList.add("profileCardAddress");
@@ -76,6 +78,7 @@ export async function FetchAndUpdateProfileCard(profileCard: HTMLElement, blockc
                 avatarImg.src = defaultPath;
                 avatarImg.onerror = null;
             };
+            ApplyIpfsImageLoadPolicy(avatarImg, avatarUrl);
             avatarImg.src = avatarUrl;
         } else {
             avatarImg.src = defaultPath;

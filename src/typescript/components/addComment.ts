@@ -1,7 +1,7 @@
 import {GetAddress, WalletSubmitComment, WalletSubmitCommentAttachTx} from "../util/blockchain/wallet";
 import {ShowDialogModal, ShowDialogModalHTML} from "./modalDialog";
 import {FinalizeFiles, UploadFile} from "../util/files";
-import {AddFileToIPFS, CIDToSubdomainURL} from "../util/ipfs";
+import {AddFileToIPFS, ApplyIpfsImageLoadPolicy, CIDToSubdomainURL} from "../util/ipfs";
 import {IsValidIpfsCid, XSSSanitizeTextUrl} from "../util/security";
 import {CreatePostControlsBar} from "./postControls";
 import {HttpGetJson} from "../util/network";
@@ -313,10 +313,11 @@ function createPreviewCommentElement(comment: Comment, blockchain: string): HTML
     if (avatarSrc.startsWith("ipfs://")) {
         avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.svg";
     }
-    avatarImg.src = avatarSrc;
     avatarImg.alt = "avatar";
     avatarImg.crossOrigin = "anonymous";
     avatarImg.referrerPolicy = "no-referrer";
+    ApplyIpfsImageLoadPolicy(avatarImg, avatarSrc);
+    avatarImg.src = avatarSrc;
     avatarLink.appendChild(avatarImg);
     headerDiv.appendChild(avatarLink);
     const authorLink = document.createElement("a");

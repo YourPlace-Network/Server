@@ -9,7 +9,7 @@ import {ShowDialogModal} from "../components/modalDialog";
 import {ShowModalYesNo} from "../components/modalYesNo";
 import {GetAddress, GetChain, WalletDeleteFiles, WalletGetAvatar, WalletGetCachedAvatar, WalletPublishFiles} from "../util/blockchain/wallet";
 import {HttpGetJson} from "../util/network";
-import {CIDToSubdomainURL} from "../util/ipfs";
+import {ApplyIpfsImageLoadPolicy, CIDToSubdomainURL} from "../util/ipfs";
 import {DeleteFile, formatFileSize, PrepareRenameFile, RenameFile} from "../util/files";
 import {ShowToastWithDelay} from "../components/toast";
 
@@ -269,8 +269,10 @@ type SortKey = "addedDate" | "cid" | "fileName" | "mimeType" | "size" | "visibil
                 DOM.filesAvatar.onerror = null;
             };
             const cachedAvatar = WalletGetCachedAvatar(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
+            ApplyIpfsImageLoadPolicy(DOM.filesAvatar, cachedAvatar || defaultAvatar);
             DOM.filesAvatar.src = cachedAvatar || defaultAvatar;
             const avatarUrl = await WalletGetAvatar(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
+            ApplyIpfsImageLoadPolicy(DOM.filesAvatar, avatarUrl || defaultAvatar);
             DOM.filesAvatar.src = avatarUrl || defaultAvatar;
         }
         function hidePreview() {

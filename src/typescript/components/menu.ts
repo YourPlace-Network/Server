@@ -3,7 +3,7 @@ import "../../scss/components/menu.scss";
 import {DisconnectWallet, GetAddress, GetChain, GetWallet, WalletGetAvatar, WalletIsConnected} from "../util/blockchain/wallet";
 import {hasLocalWalletEthereum, localWalletEthereumAuthLogin} from "../util/blockchain/localWallet";
 import {XSSSanitizeUrl} from "../util/security";
-import {getIpfsAvatarUrl} from "../util/ipfs";
+import {ApplyIpfsImageLoadPolicy, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
 
 declare global {
@@ -89,7 +89,9 @@ declare global {
                     avatar = await WalletGetAvatar(blockchain, address);
                 }
                 if (avatar) {
-                    DOM.menuAvatar.src = XSSSanitizeUrl(avatar);
+                    const avatarUrl = XSSSanitizeUrl(avatar);
+                    ApplyIpfsImageLoadPolicy(DOM.menuAvatar, avatarUrl);
+                    DOM.menuAvatar.src = avatarUrl;
                 } else {
                     DOM.menuAvatar.src = "/static/image/avatar.svg";
                 }

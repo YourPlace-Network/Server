@@ -1,4 +1,4 @@
-import { CIDToSubdomainURL } from "../util/ipfs";
+import { ApplyIpfsImageLoadPolicy, CIDToSubdomainURL } from "../util/ipfs";
 import { HttpGetJson } from "../util/network";
 import { XSSSanitizeUrl, XSSSanitizeValue } from "../util/security";
 
@@ -41,10 +41,12 @@ function renderPreviewCard(post: any, postUrl: string): HTMLDivElement {
     if (avatarSrc.startsWith("ipfs://")) {
         avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.svg";
     }
-    avatar.src = XSSSanitizeUrl(avatarSrc);
     avatar.alt = "avatar";
     avatar.crossOrigin = "anonymous";
     avatar.referrerPolicy = "no-referrer";
+    const avatarUrl = XSSSanitizeUrl(avatarSrc);
+    ApplyIpfsImageLoadPolicy(avatar, avatarUrl);
+    avatar.src = avatarUrl;
     header.appendChild(avatar);
     const authorSpan = document.createElement("span");
     authorSpan.classList.add("previewAuthor");
@@ -71,10 +73,12 @@ function renderPreviewCard(post: any, postUrl: string): HTMLDivElement {
             if (attachmentSrc.startsWith("ipfs://")) {
                 attachmentSrc = CIDToSubdomainURL(attachmentSrc) || "";
             }
-            img.src = XSSSanitizeUrl(attachmentSrc);
             img.alt = "attachment";
             img.crossOrigin = "anonymous";
             img.referrerPolicy = "no-referrer";
+            const attachmentUrl = XSSSanitizeUrl(attachmentSrc);
+            ApplyIpfsImageLoadPolicy(img, attachmentUrl);
+            img.src = attachmentUrl;
             mediaDiv.appendChild(img);
             card.appendChild(mediaDiv);
         }

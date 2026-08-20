@@ -9,7 +9,7 @@ import {ShowAvatarMediaViewer, ShowModalMediaViewer} from "./modalMediaViewer";
 import { XcomOEmbedCard } from "./xcomOEmbedCard";
 import { IsValidAddress, WalletGetExplorerTxLink, WalletGetYourPlaceAddressLink, WalletGetAvatar } from "../util/blockchain/wallet";
 import { IsValidIpfsCid, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl, XSSSanitizeValue } from "../util/security";
-import { CIDToSubdomainURL, getIpfsAvatarUrl, ProbeIpfsMediaType, ResolveIpfsContentUrl } from "../util/ipfs";
+import { ApplyIpfsImageLoadPolicy, CIDToSubdomainURL, getIpfsAvatarUrl, ProbeIpfsMediaType, ResolveIpfsContentUrl } from "../util/ipfs";
 import { getFileIcon, formatFileSize } from "../util/files";
 import { LogError } from "../util/log";
 import { getBlockchainIconPath, getBlockchainUrl, processTextWithTags } from "../util/domFactory";
@@ -61,6 +61,7 @@ function createIpfsImageEmbed(url: string, cid: string): HTMLImageElement | null
     img.classList.add("postCardEmbeddedImage");
     img.crossOrigin = "anonymous";
     img.referrerPolicy = "no-referrer";
+    ApplyIpfsImageLoadPolicy(img, sanitizedUrl);
     img.src = sanitizedUrl;
     img.alt = `ipfs://${cid}`;
     return img;
@@ -260,6 +261,7 @@ function setAvatarImageSource(avatarImg: HTMLImageElement, avatarElement: HTMLEl
         setAvatarViewerState(avatarElement, null);
     };
     if (avatarMediaViewerUrl) {
+        ApplyIpfsImageLoadPolicy(avatarImg, avatarMediaViewerUrl);
         avatarImg.src = avatarMediaViewerUrl;
         setAvatarViewerState(avatarElement, avatarMediaViewerUrl);
         return;
@@ -805,6 +807,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
                 case "image/webp":
                 case "image/gif":
                     let image = document.createElement("img") as HTMLImageElement;
+                    ApplyIpfsImageLoadPolicy(image, fileUrl);
                     image.src = fileUrl;
                     image.classList.add("postAttachment", "postCardAttachmentImage");
                     let imageLoader = await CreateImageLoader(image);
@@ -1067,6 +1070,7 @@ export async function CreatePostCard(postData: any): Promise<HTMLDivElement> {
         if (src && src.startsWith("ipfs://")) {
             const converted = CIDToSubdomainURL(src);
             if (converted) {
+                ApplyIpfsImageLoadPolicy(img, converted);
                 img.src = converted;
             }
         }

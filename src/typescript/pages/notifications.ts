@@ -8,6 +8,7 @@ import {WalletGetAvatar, WalletGetCachedAvatar} from "../util/blockchain/wallet"
 import {HttpGetJson, HttpPostJson} from "../util/network";
 import {LogError} from "../util/log";
 import {ShowNotifications} from "../util/notifications";
+import {ApplyIpfsImageLoadPolicy} from "../util/ipfs";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -39,8 +40,10 @@ import {ShowNotifications} from "../util/notifications";
                 DOM.notificationsAvatar!.onerror = null;
             };
             const cachedAvatar = WalletGetCachedAvatar(DOM.userBlockchain.value, DOM.userAddress.value);
+            ApplyIpfsImageLoadPolicy(DOM.notificationsAvatar, cachedAvatar || defaultAvatar);
             DOM.notificationsAvatar.src = cachedAvatar || defaultAvatar;
             const avatarUrl = await WalletGetAvatar(DOM.userBlockchain.value, DOM.userAddress.value);
+            ApplyIpfsImageLoadPolicy(DOM.notificationsAvatar, avatarUrl || defaultAvatar);
             DOM.notificationsAvatar.src = avatarUrl || defaultAvatar;
         }
         async function dismissNotification(id: string) {

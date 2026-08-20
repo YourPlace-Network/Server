@@ -1,5 +1,6 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import {XSSSanitizeUrl} from "../util/security";
+import {ApplyIpfsImageLoadPolicy} from "../util/ipfs";
 import "../../scss/components/modalMediaViewer.scss";
 
 function cleanupModalMediaViewer(mediaDiv: HTMLDivElement) {
@@ -73,6 +74,7 @@ function createAvatarViewerContent(mediaUrl: string, altText: string): HTMLDivEl
     image.alt = altText;
     image.crossOrigin = "anonymous";
     image.referrerPolicy = "no-referrer";
+    ApplyIpfsImageLoadPolicy(image, sanitizedMediaUrl);
     image.src = sanitizedMediaUrl;
     wrapper.appendChild(image);
     return wrapper;

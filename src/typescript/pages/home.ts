@@ -12,7 +12,7 @@ import {WalletGetAvatar, WalletGetCachedAvatar, WalletGetCachedName, WalletGetDe
 import {baseGetEnsAddress} from "../util/blockchain/base";
 import {algoGetNfdAddress} from "../util/blockchain/algorand";
 import {ethereumGetEnsAddress} from "../util/blockchain/ethereum";
-import {CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
+import {ApplyIpfsImageLoadPolicy, CIDToSubdomainURL, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode} from "../util/miscellaneous";
 import {ShowNotifications} from "../util/notifications";
 import {ShowDialogModalHTML} from "../components/modalDialog";
@@ -192,6 +192,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                                             avatarElement.src = defaultPath;
                                             avatarElement.onerror = null;
                                         };
+                                        ApplyIpfsImageLoadPolicy(avatarElement, avatarUrl);
                                         avatarElement.src = avatarUrl;
                                     } else {
                                         avatarElement.src = defaultPath;
@@ -277,6 +278,7 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
                     element.src = defaultPath;
                     element.onerror = null;
                 };
+                ApplyIpfsImageLoadPolicy(element, avatarUrl);
                 element.src = avatarUrl;
             } else {
                 element.src = defaultPath;

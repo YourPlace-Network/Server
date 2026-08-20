@@ -2,7 +2,7 @@ import { HttpGetJson } from "../util/network";
 import { CreatePostControlsBar } from "./postControls";
 import type { Comment } from "./addComment";
 import { ShowAddCommentUI } from "./addComment";
-import { CIDToSubdomainURL } from "../util/ipfs";
+import { ApplyIpfsImageLoadPolicy, CIDToSubdomainURL } from "../util/ipfs";
 import { IsValidIpfsCid, IsValidURL, XSSSanitizeTinyMCEHtml, XSSSanitizeUrl } from "../util/security";
 import { XcomOEmbedCard } from "./xcomOEmbedCard";
 import { formatTimestamp } from "../util/time";
@@ -80,10 +80,11 @@ function styleCommentBodyMedia(contentDiv: HTMLElement): void {
             img.remove();
             return;
         }
-        img.src = src;
         img.classList.add("commentBodyImage");
         (img as HTMLImageElement).crossOrigin = "anonymous";
         (img as HTMLImageElement).referrerPolicy = "no-referrer";
+        ApplyIpfsImageLoadPolicy(img as HTMLImageElement, src);
+        img.src = src;
     });
     const videos = contentDiv.querySelectorAll("video");
     videos.forEach((video) => {
@@ -223,10 +224,11 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
     if (avatarSrc.startsWith("ipfs://")) {
         avatarSrc = CIDToSubdomainURL(avatarSrc) || "/static/image/avatar.svg";
     }
-    avatarImg.src = avatarSrc;
     avatarImg.alt = "avatar";
     avatarImg.crossOrigin = "anonymous";
     avatarImg.referrerPolicy = "no-referrer";
+    ApplyIpfsImageLoadPolicy(avatarImg, avatarSrc);
+    avatarImg.src = avatarSrc;
     avatarLink.appendChild(avatarImg);
     headerDiv.appendChild(avatarLink);
     const authorLink = document.createElement("a");
@@ -256,10 +258,12 @@ async function createCommentElement(comment: Comment, depth: number, blockchain:
             if (mimeType.startsWith("image/")) {
                 const img = document.createElement("img");
                 img.classList.add("commentAttachmentImage");
-                img.src = XSSSanitizeUrl(fileUrl);
                 img.alt = fileName || "attachment";
                 img.crossOrigin = "anonymous";
                 img.referrerPolicy = "no-referrer";
+                const attachmentUrl = XSSSanitizeUrl(fileUrl);
+                ApplyIpfsImageLoadPolicy(img, attachmentUrl);
+                img.src = attachmentUrl;
                 attachmentDiv.appendChild(img);
             } else if (mimeType.startsWith("video/")) {
                 const video = createCommentAttachmentVideo(fileUrl);

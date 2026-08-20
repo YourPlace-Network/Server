@@ -21,7 +21,7 @@ import {CreateFileCard, type FileCardData} from "../components/fileCard";
 import {CreatePostCard} from "../components/postCard";
 import {CreateCollectibleCard, getBlockchainIconPath, getBlockchainUrl, processTextWithTags} from "../util/domFactory";
 import {IsValidURL, IsValidIpfsCid, IsValidBaseAddress, IsValidAlgoAddress, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
-import {CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util/ipfs";
+import {ApplyIpfsImageLoadPolicy, CIDToSubdomainURL, loadImageWithTimeout, getIpfsAvatarUrl} from "../util/ipfs";
 import {IsGatewayMode, IsLandingPreview} from "../util/miscellaneous";
 import {ShowDialogModalWithCallback} from "../components/modalDialog";
 import {ShowToast} from "../components/toast";
@@ -865,6 +865,7 @@ type ProfileFileRow = {
                     }
                     setProfileAvatarViewerSource(null);
                 };
+                ApplyIpfsImageLoadPolicy(DOM.profileAvatar, finalAvatarUrl);
                 DOM.profileAvatar.src = finalAvatarUrl;
             }
         }
@@ -1023,6 +1024,7 @@ type ProfileFileRow = {
                     if (success) {
                         const sanitizedUrl = XSSSanitizeUrl(bannerURL);
                         if (DOM.profileBanner.src !== sanitizedUrl && !DOM.profileBanner.src.endsWith(sanitizedUrl)) {
+                            ApplyIpfsImageLoadPolicy(DOM.profileBanner, sanitizedUrl);
                             DOM.profileBanner.src = sanitizedUrl;
                         }
                     } else {

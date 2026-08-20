@@ -32,6 +32,41 @@ function isValidNetworkUrl(url: string): boolean {
         return false;
     }
 }
+export function IsIpfsContentUrl(url: string): boolean {
+    const normalizedUrl = url.trim();
+    if (normalizedUrl.startsWith("ipfs://")) {
+        return true;
+    }
+    try {
+        const urlObj = new URL(normalizedUrl);
+        if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
+            return false;
+        }
+        if (urlObj.hostname.endsWith(".ipfs.localhost")) {
+            const cidValue = urlObj.hostname.substring(0, urlObj.hostname.length - ".ipfs.localhost".length);
+            return isValidIpfsCidValue(cidValue);
+        }
+        const pathParts = urlObj.pathname.split("/").filter(part => part !== "");
+        const ipfsIndex = pathParts.indexOf("ipfs");
+        return ipfsIndex >= 0 && ipfsIndex + 1 < pathParts.length && isValidIpfsCidValue(pathParts[ipfsIndex + 1]);
+    } catch (error) {
+        return false;
+    }
+}
+export function ApplyIpfsImageLoadPolicy(image: HTMLImageElement, url: string): void {
+    const originalCrossOrigin = image.dataset.ipfsOriginalCrossOrigin;
+    if (IsIpfsContentUrl(url)) {
+        if (!originalCrossOrigin && image.crossOrigin) {
+            image.dataset.ipfsOriginalCrossOrigin = image.crossOrigin;
+        }
+        image.removeAttribute("crossorigin");
+        return;
+    }
+    if (originalCrossOrigin) {
+        image.crossOrigin = originalCrossOrigin;
+        delete image.dataset.ipfsOriginalCrossOrigin;
+    }
+}
 function initializeIpfsGatewayCache(): void {
     if (ipfsGatewayCache !== null || typeof document === "undefined") {
         return;

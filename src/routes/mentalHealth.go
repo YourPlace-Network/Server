@@ -1158,4 +1158,5 @@ var mentalHealthTips = []string{
 	"Anything not built on truth will eventually collapse. Just give it time",
 	"The person who tells you other people's secrets is telling other people yours",
 	"Every time you hesitate, someone less talented will take your spot. The world rewards audacity, not potential. Confidence over cowardice",
+	"Always be the last person to judge someone else, if you even must. Because when it's your turn to be judged, and it will happen, others will judge you the way you judged them",
 }
