@@ -66,8 +66,12 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 		cookie, err := c.Request.Cookie("yp_auth")
 		if err == nil {
 			if security.ValidateCookie(cookie, cryptoSeed, database) {
-				c.SecureJSON(http.StatusOK, gin.H{"status": "Logged in"})
-				return
+				address, addressErr := security.GetCookieValue(cookie, cryptoSeed, "address", database)
+				blockchain, blockchainErr := security.GetCookieValue(cookie, cryptoSeed, "blockchain", database)
+				if addressErr == nil && blockchainErr == nil {
+					c.SecureJSON(http.StatusOK, gin.H{"status": "Logged in", "address": address, "blockchain": blockchain})
+					return
+				}
 			}
 		}
 		c.SecureJSON(http.StatusUnauthorized, gin.H{"status": "Not logged in"})

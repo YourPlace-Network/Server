@@ -4,9 +4,10 @@ window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import {DisableDialogModalExit, DisableDialogModalOkBtn, HideDialogModal, ShowDialogModal} from "../components/modalDialog";
 import "../../scss/pages/login.scss";
 import {ConfigureModalLoginForLocalWallet, HideModalLogin, ShowModalLogin} from "../components/modalLogin";
-import {GetAddress, IsValidAddress, SetAddress, SetChain, SetWallet, WalletLogin} from "../util/blockchain/wallet";
-import {hasLocalWalletEthereum, localWalletEthereumConnect} from "../util/blockchain/localWallet";
+import {GetAddress, IsValidAddress} from "../util/blockchain/wallet";
+import {hasLocalWalletEthereum} from "../util/blockchain/localWallet";
 import {LogError, LogInfo} from "../util/log";
+import {useRedirect} from "../util/redirect";
 import {Sleep} from "../util/time";
 
 declare global { // Extend the window interface with public callback objects
@@ -37,36 +38,10 @@ declare global { // Extend the window interface with public callback objects
                 DisableDialogModalOkBtn();
                 ShowDialogModal("Success! 👍 Logging You In Now...");
                 await Sleep(3000);
-
-                const queryParams = new URLSearchParams(window.location.search);
-                let redirect = queryParams.get("redirect");
-
-                if (!redirect) {
+                await Sleep(500); // Allow delay for cookie/context to be set
+                if (!await useRedirect()) {
                     LogInfo("No redirect, defaulting to /p/");
                     window.location.href = "/p/";
-                    return;
-                }
-
-                if (!redirect.endsWith("/")) {
-                    redirect += "/";
-                } // Add trailing slash if needed
-                await Sleep(500); // Allow delay for cookie/context to be set
-
-                // Handle all redirects
-                let redir: any;
-                if (redirect.startsWith("/p/")) {
-                    console.log("Redirecting to: " + redirect);
-                    redir = redirect;
-                } else if (redirect === "/settings/") {
-                    console.log("Redirecting to: " + redirect);
-                    redir = "/settings/";
-                } else {
-                    console.log("Redirecting to: /");
-                    redir = "/";
-                }
-                if (redir !== null) {
-                    console.log("Redirecting to: " + redir);
-                    window.location.replace(redir);
                     return;
                 }
             } catch(error) {
@@ -91,6 +66,7 @@ declare global { // Extend the window interface with public callback objects
                 document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
             });
             const localWallets: Record<string, string> = {};
+            const redirect = localStorage.getItem("yp_redirect");
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key?.startsWith("yp_local_wallet_")) {
@@ -102,6 +78,9 @@ declare global { // Extend the window interface with public callback objects
             for (const [key, value] of Object.entries(localWallets)) {
                 localStorage.setItem(key, value);
             }
+            if (redirect) {
+                localStorage.setItem("yp_redirect", redirect);
+            }
             window.location.reload();
         });
 
@@ -111,6 +90,7 @@ declare global { // Extend the window interface with public callback objects
             document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
         });
         const localWallets: Record<string, string> = {};
+        const redirect = localStorage.getItem("yp_redirect");
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key?.startsWith("yp_local_wallet_")) {
@@ -121,6 +101,9 @@ declare global { // Extend the window interface with public callback objects
         sessionStorage.clear();
         for (const [key, value] of Object.entries(localWallets)) {
             localStorage.setItem(key, value);
+        }
+        if (redirect) {
+            localStorage.setItem("yp_redirect", redirect);
         }
         InitTooltips();
         ConfigureModalLoginForLocalWallet(hasLocalWalletEthereum());

@@ -1,7 +1,7 @@
 import { GetAddress, WalletSubmitDislike, WalletSubmitEmojiReaction, WalletSubmitLike } from "../util/blockchain/wallet";
 import { HttpGetJson } from "../util/network";
 import { createEmojiPicker } from "../util/emojiPicker";
-import { ShowDialogModal } from "./modalDialog";
+import { setRedirect, useRedirect } from "../util/redirect";
 
 export interface PostControlsOptions {
     blockchain: string;
@@ -47,7 +47,7 @@ export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElem
     const likeControl = createControlItem("bi-hand-thumbs-up", options.initialLikes || 0, "Like", async () => {
         const address = GetAddress();
         if (!address) {
-            ShowDialogModal("Please connect your wallet to like posts");
+            await handleAuthRedirect("like", {targetTxHash: options.txHash, targetType: options.targetType}, controlsBar);
             return;
         }
         await WalletSubmitLike(options.txHash, options.targetType);
@@ -62,7 +62,7 @@ export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElem
     const dislikeControl = createControlItem("bi-hand-thumbs-down", options.initialDislikes || 0, "Dislike", async () => {
         const address = GetAddress();
         if (!address) {
-            ShowDialogModal("Please connect your wallet to dislike posts");
+            await handleAuthRedirect("dislike", {targetTxHash: options.txHash, targetType: options.targetType}, controlsBar);
             return;
         }
         await WalletSubmitDislike(options.txHash, options.targetType);
@@ -94,6 +94,24 @@ export function CreatePostControlsBar(options: PostControlsOptions): HTMLDivElem
     controlsBar.appendChild(repostControl);
     StartPostControlsRefresh(controlsBar);
     return controlsBar;
+}
+async function handleAuthRedirect(action: string, variable: Record<string, unknown>, controlsBar?: HTMLDivElement | null): Promise<boolean> {
+    if (!setRedirect(action, {...variable, path: getCurrentRelativePath()})) {
+        window.location.href = "/login";
+        return false;
+    }
+    const usedRedirect = await useRedirect();
+    if (!usedRedirect) {
+        window.location.href = "/login";
+        return false;
+    }
+    if (controlsBar) {
+        await RefreshPostControlsBar(controlsBar);
+    }
+    return true;
+}
+function getCurrentRelativePath(): string {
+    return window.location.pathname + window.location.search + window.location.hash;
 }
 function createControlItem(iconClass: string, count: number, tooltip: string, onClick: (e: MouseEvent) => void): HTMLDivElement {
     const item = document.createElement("div");
@@ -290,6 +308,12 @@ export function StartPostControlsRefresh(controlsBar: HTMLDivElement): void {
 }
 
 let activeReactionsPopup: HTMLElement | null = null;
+function closeActiveReactionsPopup(): void {
+    if (activeReactionsPopup) {
+        activeReactionsPopup.remove();
+        activeReactionsPopup = null;
+    }
+}
 function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockchain: string, targetType: string): void {
     if (activeReactionsPopup) {
         const wasForSameTarget = activeReactionsPopup.dataset.txhash === txHash;
@@ -317,7 +341,9 @@ function showReactionsPopup(targetElement: HTMLElement, txHash: string, blockcha
             const picker = createEmojiPicker(async (emoji: string) => {
                 const address = GetAddress();
                 if (!address) {
-                    ShowDialogModal("Please connect your wallet to react");
+                    if (await handleAuthRedirect("reaction", {targetTxHash: txHash, targetType, emoji}, targetControlsBar)) {
+                        closeActiveReactionsPopup();
+                    }
                     return;
                 }
                 await WalletSubmitEmojiReaction(txHash, targetType, emoji);
@@ -392,7 +418,9 @@ async function loadExistingReactions(container: HTMLElement, txHash: string, blo
             chip.addEventListener("click", async () => {
                 const addr = GetAddress();
                 if (!addr) {
-                    ShowDialogModal("Please connect your wallet to react");
+                    if (await handleAuthRedirect("reaction", {targetTxHash: txHash, targetType, emoji}, targetControlsBar)) {
+                        closeActiveReactionsPopup();
+                    }
                     return;
                 }
                 await WalletSubmitEmojiReaction(txHash, targetType, emoji);
