@@ -48,6 +48,7 @@ Project instructions for Codex in this repository.
 - Match the style of nearby files in the same directory, including naming, ordering, spacing, compactness, newline density, and general structure.
 - Prefer existing helpers in `src/core/`, `src/typescript/components/`, and `src/typescript/util/` before introducing new abstractions.
 - Treat all user input, external input, RPC data, and on-chain data as untrusted until validated.
+- When making code changes, keep structurally related types of code together, within a given file. For example, keep all the functions together in the file. And keep all the declarations at the top of their parent function / class / file. Sort / group those blocks of code by type and alphabetically where appropriate. For example, the public functions should be together and alphabetized, above the private functions which are alphabatized themselves.
 - Use existing security functions when handling user input, external systems, database access, or blockchain data.
 - Use parameterized SQL only.
 - Preserve the original case of on-chain data such as wallet addresses and ENS or NFD-style names. Keep comparisons and lookups case-sensitive where appropriate.
@@ -64,6 +65,7 @@ Project instructions for Codex in this repository.
 - Perform source-to-sink analysis when doing vulnerability work. Verify exploitability through actual data flow.
 - Keep camelCase for Go and TypeScript identifiers. Use snake_case only where the repo already does so for SQL tables and columns.
 - Security files must not contain non-security-related code.
+- Create a detailed plan for me to review, before implementing any feature or code change. And give me code changes along with the plan to review.
 
 ## Must Not
 

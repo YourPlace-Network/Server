@@ -7,10 +7,11 @@ let solanaProvider: any = null;
 async function initSolanaWallet() {
     if (solanaInit) { return; }
     if (!await solanaPhantomWalletExists()) {
-        console.log("No Solana wallet detected");
+        solanaInit = true;
         return;
     }
     solanaProvider = phantomSolanaGetProvider();
+    solanaInit = true;
 }
 initSolanaWallet().then();
 
@@ -25,6 +26,13 @@ export async function phantomSolanaConnectWallet(): Promise<string> {
         window.open("https://phantom.app/", "_blank");
         return "";
     }
+    if (!solanaProvider) {
+        solanaProvider = phantomSolanaGetProvider();
+    }
+    if (!solanaProvider) {
+        LogError("No Solana wallet detected");
+        return "";
+    }
     if (await solanaIsWalletConnected()) {
         LogInfo("Solana wallet already connected");
         return "";
@@ -37,10 +45,11 @@ export async function phantomSolanaConnectWallet(): Promise<string> {
     }
 }
 export async function solanaDisconnectWallet() {
+    if (!solanaProvider) { return; }
     solanaProvider.disconnect();
 }
 export async function solanaIsWalletConnected(): Promise<boolean> {
-    return solanaProvider.isConnected;
+    return Boolean(solanaProvider?.isConnected);
 }
 export async function phantomSolanaTxn(dest: string, payload: string) {
     let address = GetAddress();

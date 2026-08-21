@@ -481,6 +481,26 @@ ul.ellipsesMenu {
 .commentEditorDiv {
   margin-bottom: 0.5em;
 }
+.commentFallbackActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5em;
+}
+.commentFallbackPostBtn {
+  background: var(--yp-quaternary);
+  border: none;
+  border-radius: 0.25em;
+  color: var(--yp-text);
+  cursor: pointer;
+  padding: 0.35em 0.9em;
+  &:hover {
+    filter: brightness(1.1);
+  }
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
 .commentTinyMCE {
   .tox-toolbar__primary {
     flex-wrap: nowrap !important;

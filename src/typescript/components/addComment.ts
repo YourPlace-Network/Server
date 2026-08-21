@@ -27,6 +27,7 @@ export interface Comment {
     userReaction?: string | null;
 }
 let commentEditorId = 0;
+type CommentButtonStateSetter = (disabled: boolean, text: string) => void;
 interface InlineMediaData {
     cid: string;
     fileName: string;
@@ -53,7 +54,7 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
     editorDiv.id = editorId;
     editorDiv.classList.add("commentEditorDiv");
     container.appendChild(editorDiv);
-    const submitHandler = async (setButtonState: (disabled: boolean, text: string) => void) => {
+    const submitHandler = async (setButtonState: CommentButtonStateSetter) => {
         const address = GetAddress();
         if (!address) {
             ShowDialogModal("Please connect your wallet to comment");
@@ -123,7 +124,10 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
         }
     };
     setTimeout(() => {
-        initCommentEditor(editorId, submitHandler);
+        initCommentEditor(editorId, submitHandler).catch(e => {
+            console.error("Failed to initialize comment editor:", e);
+            createFallbackCommentEditor(editorId, submitHandler);
+        });
     }, 100);
     const threadPreview = document.createElement("div");
     threadPreview.classList.add("commentThreadPreview");
@@ -131,19 +135,52 @@ export function ShowAddCommentUI(parentTxHash: string, blockchain: string, onSuc
     loadThreadPreview(threadPreview, parentTxHash, blockchain);
     return container;
 }
-function initCommentEditor(editorId: string, onSubmit?: (setButtonState: (disabled: boolean, text: string) => void) => void): void {
-    if (typeof window.tinymce === 'undefined') {
-        const editorDiv = document.getElementById(editorId);
-        if (editorDiv) {
-            const textarea = document.createElement("textarea");
-            textarea.id = `${editorId}_fallback`;
-            textarea.classList.add("form-control");
-            textarea.rows = 1;
-            textarea.placeholder = "Write a comment...";
-            editorDiv.appendChild(textarea);
-        }
+async function loadTinyMCE(): Promise<any | null> {
+    if (typeof window.tinymce !== 'undefined') {
+        return window.tinymce;
+    }
+    try {
+        const tinymce = await import("tinymce/tinymce");
+        window.tinymce = tinymce.default;
+        return window.tinymce;
+    } catch (e) {
+        console.error("Failed to load TinyMCE:", e);
+        return null;
+    }
+}
+function createFallbackCommentEditor(editorId: string, onSubmit?: (setButtonState: CommentButtonStateSetter) => void): void {
+    const editorDiv = document.getElementById(editorId);
+    if (!editorDiv) return;
+    editorDiv.innerHTML = "";
+    const textarea = document.createElement("textarea");
+    textarea.id = `${editorId}_fallback`;
+    textarea.classList.add("form-control");
+    textarea.rows = 1;
+    textarea.placeholder = "Write a comment...";
+    editorDiv.appendChild(textarea);
+    if (!onSubmit) return;
+    const actionRow = document.createElement("div");
+    actionRow.classList.add("commentFallbackActions");
+    const submitButton = document.createElement("button");
+    submitButton.type = "button";
+    submitButton.classList.add("commentFallbackPostBtn");
+    submitButton.textContent = "Post";
+    submitButton.addEventListener("click", () => {
+        onSubmit((disabled: boolean, text: string) => {
+            submitButton.disabled = disabled;
+            submitButton.textContent = text;
+        });
+    });
+    actionRow.appendChild(submitButton);
+    editorDiv.appendChild(actionRow);
+}
+async function initCommentEditor(editorId: string, onSubmit?: (setButtonState: CommentButtonStateSetter) => void): Promise<void> {
+    const tinymce = await loadTinyMCE();
+    if (!tinymce) {
+        createFallbackCommentEditor(editorId, onSubmit);
         return;
     }
+    if (!document.getElementById(editorId)) return;
     let DOM = {
         csrfToken: document.getElementById("csrfToken")! as HTMLInputElement,
         gatewayMode: document.getElementById("gatewayModeAddComment")! as HTMLInputElement,
@@ -164,7 +201,7 @@ function initCommentEditor(editorId: string, onSubmit?: (setButtonState: (disabl
         );
     }
     const isMobile = window.innerWidth < 768;
-    window.tinymce.init({
+    await tinymce.init({
         selector: `#${editorId}`,
         plugins: "code table lists",
         toolbar: isMobile

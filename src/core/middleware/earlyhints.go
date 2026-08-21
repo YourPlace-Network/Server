@@ -49,39 +49,42 @@ func EarlyHintsMiddleware(assetManifest map[string]string) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		hasHints := false
+		preloads := make([]string, 0, 7)
 		for _, name := range sharedStyleAssets {
 			// Styles are render-blocking, so hint them before scripts when the manifest has them.
-			hasHints = addPreload(c, assetManifest, name, "style") || hasHints
+			preloads = addPreload(preloads, assetManifest, name, "style")
 		}
-		hasHints = addPreload(c, assetManifest, pageName+".css", "style") || hasHints
+		preloads = addPreload(preloads, assetManifest, pageName+".css", "style")
 		for _, name := range sharedScriptAssets {
-			hasHints = addPreload(c, assetManifest, name, "script") || hasHints
+			preloads = addPreload(preloads, assetManifest, name, "script")
 		}
-		hasHints = addPreload(c, assetManifest, pageName+".js", "script") || hasHints
-		if hasHints {
-			writeEarlyHints(c)
+		preloads = addPreload(preloads, assetManifest, pageName+".js", "script")
+		if len(preloads) > 0 {
+			writeEarlyHints(c, preloads)
 		}
 		c.Next()
 	}
 }
 
-func addPreload(c *gin.Context, assetManifest map[string]string, name string, as string) bool {
+func addPreload(preloads []string, assetManifest map[string]string, name string, as string) []string {
 	if assetPath := resolveAsset(assetManifest, name); assetPath != "" {
-		c.Writer.Header().Add("Link", "<"+assetPath+">; rel=preload; as="+as)
-		return true
+		return append(preloads, "<"+assetPath+">; rel=preload; as="+as)
 	}
-	return false
+	return preloads
 }
 
 type responseWriterUnwrapper interface {
 	Unwrap() http.ResponseWriter
 }
 
-func writeEarlyHints(c *gin.Context) {
+func writeEarlyHints(c *gin.Context, preloads []string) {
 	if unwrapper, ok := c.Writer.(responseWriterUnwrapper); ok {
+		for _, preload := range preloads {
+			c.Writer.Header().Add("Link", preload)
+		}
 		// Write 103 on the underlying writer so Gin still controls the final 200/redirect/error response.
 		unwrapper.Unwrap().WriteHeader(http.StatusEarlyHints)
+		c.Writer.Header().Del("Link")
 	}
 }
 
