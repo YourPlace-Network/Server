@@ -65,16 +65,16 @@ Project instructions for Codex in this repository.
 - Perform source-to-sink analysis when doing vulnerability work. Verify exploitability through actual data flow.
 - Keep camelCase for Go and TypeScript identifiers. Use snake_case only where the repo already does so for SQL tables and columns.
 - Security files must not contain non-security-related code.
-- Create a detailed plan for me to review, before implementing any feature or code change. And give me code changes along with the plan to review.
 
 ## Must Not
 
 - Do not broaden scope beyond the requested task.
 - Do not delete or refactor unrelated code unless the task explicitly requires it.
 - Do not introduce unsafe XSS sinks without appropriate built-in protection.
+- Do not introduce unsafe SQL queries without parameterization.
+- Do not introduce unsafe shell commands or file system access without proper validation and sanitization.
 - Do not scatter blockchain-specific strings or branching logic across unrelated files.
 - Do not co-mingle blockchain logic across chains in `*_indexer.go` files.
-- Do not use non-parameterized SQL.
 - Do not use hyphens in multi-word Make targets. Use underscores instead.
 - Do not add inline styles unless there is no reasonable alternative.
 - Do not use `!important` unless there is no reasonable alternative.
@@ -82,7 +82,8 @@ Project instructions for Codex in this repository.
 - Do not recolor unrelated global UI controls when adjusting a user's profile colors.
 - Do not flip the default centered modal alignment globally.
 - Do not add comments unless they are clearly necessary or explicitly requested.
-- Do not use any hardcoded IPFS gateway or blockchain URLS in the codebase. Use existing helpers to generate URLs based on configuration and context.
+- Do not use any hardcoded IPFS gateway or blockchain URLS in the codebase. Use existing helpers to generate URLs based on configuration and context. Do not hardcode any 3rd party URLs in the codebase and do not remove any existing ones.
+- Do not create or edit files when creating an implementation plan.
 
 ## Prefer
 
@@ -101,6 +102,7 @@ Project instructions for Codex in this repository.
 
 ## If Unsure
 
+- Ask for clarification before proceeding.
 - Follow explicit user instructions over preferences.
 - Follow `Must` and `Must Not` rules unless the user explicitly asks to override them.
 - If a requested change appears to conflict with the blockchain isolation, security, or migration rules above, pause and ask before proceeding.

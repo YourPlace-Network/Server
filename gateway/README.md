@@ -56,6 +56,10 @@ docker exec -it yourplace-gateway /bin/bash
 
 ## AWS Deployment
 
+### IPFS Retrieval
+
+After deploying the Infra `ipfs-gateway` service, set `YOURPLACE_IPFS_GATEWAY` to `ipfs.yourplace.network` in the Server repository's **production environment variables**, then run the updated **Gateway** workflow. Use a hostname only, without scheme, port, or path. It overrides the database gateway setting only in gateway mode; removing it restores the existing selection on redeployment. No database migration or new secret is needed.
+
 ### Prerequisites
 
 #### GitHub Secrets
