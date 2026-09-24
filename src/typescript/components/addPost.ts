@@ -1,7 +1,7 @@
 window.bootstrap = require("bootstrap/dist/js/bootstrap.bundle");
 import "../../scss/components/addPost.scss";
 import {IsValidIpfsCid, IsValidURL, XSSSanitizeUrl, XSSSanitizeValue} from "../util/security";
-import {GetAddress, GetChain, GetWallet, WalletGetAvatar, WalletGetName, WalletSubmitPost, WalletSubmitPostAttachTx} from "../util/blockchain/wallet";
+import {EnsureWalletConnected, GetAddress, GetChain, WalletGetAvatar, WalletGetName, WalletSubmitPost, WalletSubmitPostAttachTx} from "../util/blockchain/wallet";
 import {CreateLocalPost, FinalizeFiles, UploadFile} from "../util/files";
 import {AddFileToIPFS, getIpfsAvatarUrl} from "../util/ipfs";
 import {HttpPostJson} from "../util/network";
@@ -109,6 +109,7 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
         let gatewayHotlinkDialogUrls: Set<string> = new Set();
         let linkPreviewRenderVersion = 0;
         let removedAttachments: string[] = [];
+        let submittingPost = false;
         let tinymceInitialized = false;
         let tinymceInitPromise: Promise<void> | null = null;
 
@@ -641,6 +642,19 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
             enableSpiceometer().then();
         }
         async function submitPost() {
+            if (submittingPost) return;
+            submittingPost = true;
+            DOM.submitPostButton.disabled = true;
+            try {
+                await publishPost();
+            } catch (_) {
+                ShowToastWithDelay("Couldn't publish your post. Your draft is still here; please try again.", 5000);
+            } finally {
+                submittingPost = false;
+                DOM.submitPostButton.disabled = false;
+            }
+        }
+        async function publishPost() {
             console.log("[addPost] submitPost called");
             if (!tinymceInitialized) {
                 console.log("[addPost] TinyMCE not initialized, returning");
@@ -653,17 +667,14 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
                 hideModal();
                 return;
             }
-            if (!GetWallet()) {
-                console.log("[addPost] No wallet connected - redirecting to login page");
-                window.location.href = "/login";
+            const publicPost = shouldCreatePublicPost();
+            if (publicPost && !await EnsureWalletConnected()) {
+                ShowToastWithDelay("Couldn't restore your wallet session. Your draft is still here.", 5000);
                 return;
             }
-            DOM.submitPostButton.disabled = true;
             let csrfToken = DOM.csrfToken.value;
             const blockchain = GetChain();
-            const publicPost = shouldCreatePublicPost();
             if (publicPost && !hasMatchingWalletIdentity()) {
-                DOM.submitPostButton.disabled = false;
                 ShowToastWithDelay("Switch your wallet back to this account before publishing", 5000);
                 return;
             }
@@ -682,7 +693,6 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
                 if (cidString === undefined || !IsValidIpfsCid(cidString)) {
                     console.log("[addPost] Invalid CID, showing error");
                     ShowToastWithDelay("Failed to prepare attachment", 5000);
-                    DOM.submitPostButton.disabled = false;
                     return;
                 }
                 attachmentCids.add(cidString);
@@ -699,12 +709,10 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
                     continue;
                 }
                 if (isGatewayMode()) {
-                    DOM.submitPostButton.disabled = false;
                     return;
                 }
                 if (!externalState.importedFile) {
                     ShowToastWithDelay("Failed to import external image", 5000);
-                    DOM.submitPostButton.disabled = false;
                     return;
                 }
                 let cidString = externalState.importedFile.cid;
@@ -714,7 +722,6 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
                 }
                 if (!IsValidIpfsCid(cidString)) {
                     ShowToastWithDelay("Failed to prepare external image", 5000);
-                    DOM.submitPostButton.disabled = false;
                     return;
                 }
                 attachmentCids.add(cidString);
@@ -739,7 +746,6 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
                 }
                 if (!IsValidIpfsCid(cidString)) {
                     ShowToastWithDelay("Failed to prepare attachment", 5000);
-                    DOM.submitPostButton.disabled = false;
                     return;
                 }
                 attachmentCids.add(cidString);
@@ -750,13 +756,11 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
                 if (attachments.length > 0) {
                     const txHash = await WalletSubmitPostAttachTx(payload, attachments);
                     if (!txHash || !blockchain) {
-                        DOM.submitPostButton.disabled = false;
                         ShowToastWithDelay("Failed to submit post", 5000);
                         return;
                     }
                     const finalizeResponse = await FinalizeFiles(Array.from(attachmentCids), "public", "post_attachment", csrfToken, txHash, blockchain);
                     if (finalizeResponse[0] !== 200) {
-                        DOM.submitPostButton.disabled = false;
                         ShowToastWithDelay("Failed to finalize post attachments", 5000);
                         return;
                     }
@@ -769,7 +773,6 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
                 const createResponse = await CreateLocalPost(payload, Array.from(attachmentCids), csrfToken);
                 success = createResponse[0] === 200;
             }
-            DOM.submitPostButton.disabled = false;
             if (!success) {
                 console.log("[addPost] Post submission failed - wallet not connected or invalid");
                 ShowToastWithDelay("Failed to submit post", 5000);

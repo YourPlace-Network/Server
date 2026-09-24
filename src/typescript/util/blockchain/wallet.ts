@@ -186,6 +186,7 @@ export interface WalletConnectionStatus {
 
 // ---------- Request Deduplication ---------- //
 const inflight = new Map<string, Promise<any>>();
+const supportedWallets = ["cbwalletbase", "localwalletethereum", "metamaskethereum", "pera", "phantomsolana"];
 function Dedup<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const existing = inflight.get(key);
     if (existing) {
@@ -283,6 +284,7 @@ export async function WalletLogin() {
 }
 export async function DisconnectWallet() {
     let wallet = GetWallet()!;
+    const lastWallet = wallet || localStorage.getItem("lastWalletSelection");
     switch (wallet) {
         case "cbwalletbase":
             await baseDisconnectWallet();
@@ -312,6 +314,9 @@ export async function DisconnectWallet() {
     localStorage.clear();
     for (const [key, value] of Object.entries(localWallets)) {
         localStorage.setItem(key, value);
+    }
+    if (lastWallet && supportedWallets.includes(lastWallet)) {
+        localStorage.setItem("lastWalletSelection", lastWallet);
     }
     window.DisconnectWalletCallback();
 }
@@ -416,6 +421,46 @@ export async function ConnectWallet(wallet: string): Promise<string> {
     }
     return "Wallet connect failed";
 }
+export async function EnsureWalletConnected(): Promise<boolean> {
+    const wallet = GetWallet() || localStorage.getItem("lastWalletSelection");
+    let address = "";
+    let chain = "";
+    if (!wallet || !supportedWallets.includes(wallet)) {
+        return false;
+    }
+    localStorage.setItem("lastWalletSelection", wallet);
+    try {
+        switch (wallet) {
+            case "cbwalletbase":
+                address = await baseReconnectWallet();
+                chain = "base";
+                break;
+            case "localwalletethereum":
+                address = await localWalletEthereumConnect();
+                chain = "base";
+                break;
+            case "metamaskethereum":
+                address = await ethereumReconnectWallet();
+                chain = "ethereum";
+                break;
+            case "pera":
+                await algoReconnectSession();
+                const status = await algoGetWalletConnectionStatus();
+                address = status.connected ? status.address : "";
+                chain = "algorand";
+                break;
+        }
+        if (!address || !IsValidAddress(address, chain)) {
+            return false;
+        }
+        SetWallet(wallet);
+        SetChain(chain);
+        SetAddress(address);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
 export async function ReconnectWallet() {
     let wallet = GetWallet();
     let address = GetAddress();
@@ -455,7 +500,6 @@ export function GetAddress() {
     return null;
 }
 export function GetWallet() {
-    const supportedWallets = ["cbwalletbase", "localwalletethereum", "metamaskethereum", "pera", "phantomsolana"];
     let wallet = localStorage.getItem("walletSelection");
     if (wallet !== null && supportedWallets.includes(wallet)) {
         return wallet;
@@ -599,6 +643,7 @@ export function SetWallet(wallet: string) {
         localStorage.removeItem("walletSelection");
     } else {
         localStorage.setItem("walletSelection", wallet);
+        localStorage.setItem("lastWalletSelection", wallet);
     }
 }
 export function SetAddress(address: string) {
@@ -793,17 +838,13 @@ export async function WalletSubmitPost(payload: string): Promise<boolean> {
     }
     switch (wallet) {
         case "cbwalletbase":
-            await baseSubmitPost(payload);
-            return true;
+            return !!await baseSubmitPost(payload);
         case "localwalletethereum":
-            await localWalletEthereumSubmitPost(payload);
-            return true;
+            return !!await localWalletEthereumSubmitPost(payload);
         case "metamaskethereum":
-            await ethereumSubmitPost(payload);
-            return true;
+            return !!await ethereumSubmitPost(payload);
         case "pera":
-            await algoSubmitPost(payload);
-            return true;
+            return !!await algoSubmitPost(payload);
         default:
             LogError("Invalid wallet selection: " + wallet);
             return false;
