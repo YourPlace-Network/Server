@@ -25,6 +25,7 @@ import {ApplyIpfsImageLoadPolicy, CIDToSubdomainURL, loadImageWithTimeout, getIp
 import {IsGatewayMode, IsLandingPreview} from "../util/miscellaneous";
 import {ShowDialogModalWithCallback} from "../components/modalDialog";
 import {ShowToast} from "../components/toast";
+import {InitWelcomeNFT} from "../components/welcomeNFT";
 import {IsSpotifyConnected, IsValidSpotifyUrl, MountSpotifyConnectPill, MountSpotifyEmbed, MountSpotifyFullPlayer} from "../services/spotify";
 
 declare global {
@@ -135,6 +136,7 @@ type ProfileFileRow = {
 
         // --------- Page Functions --------- //
         async function init() {
+            InitWelcomeNFT();
             if (isLandingPreview) {
                 document.body.classList.add("landingProfilePreview");
                 muteLandingPreviewMedia();
@@ -1108,8 +1110,9 @@ type ProfileFileRow = {
                 if (!card) return;
                 const tokenId = (card.querySelector(".collectibleTokenId") as HTMLInputElement).value;
                 const blockchain = (card.querySelector(".collectibleBlockchain") as HTMLInputElement).value;
+                const contract = (card.querySelector(".collectibleContractAddress") as HTMLInputElement).value;
                 ShowDialogModalWithCallback("Are you sure you want to burn this Collectible? This cannot be undone.", async () => {
-                    const success = await WalletBurnCollectible(tokenId, blockchain);
+                    const success = await WalletBurnCollectible(tokenId, blockchain, contract);
                     if (success) {
                         ShowToast("Collectible burned");
                         displayCollectibles(DOM.injectedBlockchain.value, DOM.injectedAddress.value);
@@ -1125,6 +1128,7 @@ type ProfileFileRow = {
                 if (!card) return;
                 const tokenId = (card.querySelector(".collectibleTokenId") as HTMLInputElement).value;
                 const blockchain = (card.querySelector(".collectibleBlockchain") as HTMLInputElement).value;
+                const contract = (card.querySelector(".collectibleContractAddress") as HTMLInputElement).value;
                 const cardName = card.querySelector(".collectibleCardName");
                 const cardMedia = card.querySelector(".collectibleMediaElement") as HTMLImageElement | HTMLVideoElement;
                 const transferTokenIdInput = document.getElementById("transferNFTTokenId") as HTMLInputElement;
@@ -1171,7 +1175,7 @@ type ProfileFileRow = {
                             transferAddressValid.textContent = "\u2713";
                             transferAddressValid.style.color = "var(--yp-success)";
                             transferConfirmBtn.disabled = false;
-                            const fee = await WalletGetTransferFeeEstimate(addr, tokenId, blockchain);
+                            const fee = await WalletGetTransferFeeEstimate(addr, tokenId, blockchain, contract);
                             transferFeeEstimate.textContent = fee;
                         } else {
                             transferAddressValid.textContent = addr.length > 0 ? "\u2717" : "";
@@ -1187,7 +1191,7 @@ type ProfileFileRow = {
                     const toAddress = transferAddressInput.value.trim();
                     transferConfirmBtn.disabled = true;
                     transferConfirmBtn.textContent = "Transferring...";
-                    const success = await WalletTransferCollectible(tokenId, toAddress, blockchain);
+                    const success = await WalletTransferCollectible(tokenId, toAddress, blockchain, contract);
                     if (success) {
                         ShowToast("Collectible transferred!");
                         const transferModal = window.bootstrap.Modal.getInstance(document.getElementById("modalTransferNFT")!);

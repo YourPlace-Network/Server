@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool, database *db.Database, cryptoSeed []byte, gateway bool) {
-	router.GET("/", func(c *gin.Context) {
+func undergroundHomeHandler(title string, database *db.Database, cryptoSeed []byte, gateway bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		token := middleware.GetCSRFToken(c)
 		ipfsGateway := getConfiguredIPFSGateway(database)
 		authenticated := false
@@ -22,9 +22,9 @@ func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool
 			userAddress, _ = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
 			userBlockchain, _ = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
 		}
-		c.HTML(http.StatusOK, "src/templates/pages/home.tmpl", gin.H{
+		c.HTML(http.StatusOK, "src/templates/pages/underground.tmpl", gin.H{
 			"title":                 title,
-			"pageName":              "home",
+			"pageName":              "underground",
 			"csrfToken":             token,
 			"ipfsGateway":           ipfsGateway,
 			"isCookieAuthenticated": authenticated,
@@ -32,16 +32,5 @@ func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool
 			"userAddress":           userAddress,
 			"userBlockchain":        userBlockchain,
 		})
-	})
-	router.GET("/underground", undergroundHomeHandler(title, database, cryptoSeed, gateway))
-	router.GET("/favicon.ico", func(c *gin.Context) {
-		c.Data(http.StatusOK, "image/x-icon", favicon)
-	})
-	router.GET("/ping", func(c *gin.Context) {
-		if installed {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "pong"})
-		} else {
-			c.SecureJSON(http.StatusServiceUnavailable, gin.H{"status": "Not installed"})
-		}
-	})
+	}
 }

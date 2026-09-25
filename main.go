@@ -234,6 +234,10 @@ func main() {
 	core.LogDebug("Initializing IPFS")
 	ipfs := new(network.IPFS)
 	ipfs.Init(uint64(port + 1)) // Initialize IPFS daemon listening on YourPlace port + 1
+	_blockchain.Minter = blockchain2.NewMinter(database, _blockchain, ipfs)
+	if err := _blockchain.Minter.StartBootstrap(); err != nil {
+		core.LogDebug("Minter credential listener unavailable")
+	}
 	database.SettingsUpdateValue("ipfsPort", fmt.Sprint(port+1))
 	if !ipfs.IPFSNodeAlive() {
 		core.LogFatal("IPFS node is not alive")
@@ -445,9 +449,10 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 	routes.NotFoundRoutes(router, title, gateway)
 	routes.HomeRoutes(router, title, favicon, installed, database, cryptoSeed, gateway)
 	routes.FAQRoutes(router, title, database, cryptoSeed, gateway)
-	routes.RPCRoutes(router, database)
+	routes.RPCRoutes(router, database, _blockchain)
 	routes.SettingsRoutes(router, title, database, _blockchain, cryptoSeed, gateway, ipfs, debug)
 	routes.LoginRoutes(router, title, database, cryptoSeed, domain, port, installed, gateway)
+	routes.NFTRoutes(router, database, _blockchain.Minter)
 	if !installed {
 		routes.SetupRoutes(router, database, title, favicon, port)
 	} else {
@@ -552,6 +557,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 func StartCronJobs(database *db.Database, _blockchain *blockchain2.Blockchain) {
 	// --- Scheduled Jobs --- //
 	c := _cron.New(_cron.WithSeconds())
+	c.AddFunc("@every 1m", _blockchain.Minter.Tick)
 	// ------- ETH Price Updater ------- //
 	ethPriceUSD, err := services.CoinbaseGetPriceUSD("ETH")
 	if err == nil && ethPriceUSD != 0 {

@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"sync"
 	"time"
 )
 
 type Database struct {
+	nftMu  sync.Mutex
 	mysql  MySQL
 	sqlite SQLite
 	Engine string
@@ -775,6 +777,15 @@ func (db *Database) SearchGetProfiles(query string, limit int, offset int) []map
 		return profiles
 	}
 	return nil
+}
+func (db *Database) DiscoverGetPosts(limit int, offset int) ([]map[string]interface{}, error) {
+	switch db.Engine {
+	case "mysql":
+		return db.mysql.DiscoverGetPosts(limit, offset)
+	case "sqlite":
+		return db.sqlite.DiscoverGetPosts(limit, offset)
+	}
+	return nil, fmt.Errorf("unsupported database engine")
 }
 func (db *Database) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
 	switch db.Engine {

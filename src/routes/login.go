@@ -2,6 +2,7 @@ package routes
 
 import (
 	"YourPlace/src/core"
+	"YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
@@ -168,6 +169,10 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			}
 			core.LogDebug("ERC-1271 smart wallet signature validated successfully")
 		}
+		if err := blockchain.MinterRecordLogin(c.Request.Context(), database, "base", payload.Address); err != nil {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Login storage unavailable; please retry"})
+			return
+		}
 		authCookie := security.CreateAuthCookie(payload.Address, "base", cryptoSeed, database)
 		if authCookie == nil {
 			core.LogError("Base wallet login - failed to create auth cookie")
@@ -229,6 +234,10 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 		if err != nil {
 			core.LogDebug("Ethereum EIP-191 verification failed: " + err.Error())
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid signature"})
+			return
+		}
+		if err := blockchain.MinterRecordLogin(c.Request.Context(), database, "ethereum", payload.Address); err != nil {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Login storage unavailable; please retry"})
 			return
 		}
 		authCookie := security.CreateAuthCookie(payload.Address, "ethereum", cryptoSeed, database)
@@ -294,6 +303,10 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid signature"})
 			return
 		}
+		if err := blockchain.MinterRecordLogin(c.Request.Context(), database, "base", payload.Address); err != nil {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Login storage unavailable; please retry"})
+			return
+		}
 		authCookie := security.CreateAuthCookie(payload.Address, "base", cryptoSeed, database)
 		if authCookie == nil {
 			core.LogError("Local wallet login - failed to create auth cookie")
@@ -350,6 +363,10 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			return
 		}
 		core.LogDebug("SIWA signature verified successfully for address: " + payload.Address)
+		if err := blockchain.MinterRecordLogin(c.Request.Context(), database, "algorand", payload.Address); err != nil {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Login storage unavailable; please retry"})
+			return
+		}
 		authCookie := security.CreateAuthCookie(payload.Address, "algorand", cryptoSeed, database)
 		if authCookie == nil {
 			core.LogError("Pera wallet login - failed to create auth cookie")

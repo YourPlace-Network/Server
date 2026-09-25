@@ -41,6 +41,7 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"ipfsGateway":           ipfsGateway,
 			"isCookieAuthenticated": authenticated,
 			"gatewayMode":           gateway,
+			"canManageNFT":          _blockchain.Minter.IsOperator(userBlockchain, userAddress),
 			"userAddress":           userAddress,
 			"userBlockchain":        userBlockchain,
 		})

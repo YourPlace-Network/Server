@@ -34,13 +34,22 @@ func IsGatewaySettingsGetAllowed(path string) bool {
 	}
 	return gatewaySettingsGetAllowed[path]
 }
+func IsNFTSettingsRequest(path, method string) bool {
+	if method == http.MethodGet {
+		return path == "/settings/content/nft" || path == "/settings/content/nft/grants"
+	}
+	if method == http.MethodPost {
+		return path == "/settings/content/nft" || path == "/settings/content/nft/retry" || path == "/settings/content/nft/template"
+	}
+	return false
+}
 
 func GatewayMiddleware(gateway bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if gateway {
 			path := c.Request.URL.Path
 			method := c.Request.Method
-			if strings.HasPrefix(path, "/settings") {
+			if strings.HasPrefix(path, "/settings") && !IsNFTSettingsRequest(path, method) {
 				if method != "GET" {
 					c.AbortWithStatusJSON(http.StatusMethodNotAllowed, gin.H{
 						"status": "Function disabled in gateway mode",

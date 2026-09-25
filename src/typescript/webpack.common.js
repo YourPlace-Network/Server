@@ -27,6 +27,7 @@ export default {
         spotifyCallback: "./pages/spotifyCallback.ts",
         test: "./pages/test.ts",
         tinymce: "../scss/tinymce.scss",
+        underground: "./pages/underground.ts",
     },
     mode: "production",
     module: {

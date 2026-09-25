@@ -26,6 +26,8 @@ type SQLite struct {
 	path     string
 }
 
+var snapshotColumnPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
 func (db *SQLite) ensureFileTrackingTables() {
 	if sqliteTableExists(db, "local_files") &&
 		sqliteTableExists(db, "local_posts") &&
@@ -238,6 +240,9 @@ func (db *SQLite) withTransaction(fn func(*sql.Tx) error) error {
 	return nil
 }
 func (db *SQLite) createTables(ctx context.Context) error {
+	if err := createNFTTables(db.database, false); err != nil {
+		return err
+	}
 	/* createTables creates all database tables using CREATE TABLE IF NOT EXISTS.
 	// These table definitions should always reflect the LATEST schema version.
 	//
@@ -674,12 +679,11 @@ func (db *SQLite) ImportSnapshotNoMetadata(importPath string) error {
 		if tableName == "" {
 			return core.LogDebugReturn("Could not extract table name from schema: " + schema)
 		}
-		core.LogDebug("Importing table: " + tableName)
-		// Ensure table exists
-		_, err = db.database.Exec(schema)
-		if err != nil {
-			core.LogDebug("Table already exists, continuing with import: " + tableName)
+		tableName = strings.Trim(tableName, "\"")
+		if !snapshotTableAllowed(tableName) {
+			return core.LogDebugReturn("Snapshot contains a non-content table")
 		}
+		core.LogDebug("Importing table: " + tableName)
 		// Read column count
 		var columnCount uint32
 		err = binary.Read(gzReader, binary.LittleEndian, &columnCount)
@@ -699,7 +703,10 @@ func (db *SQLite) ImportSnapshotNoMetadata(importPath string) error {
 			if err != nil {
 				return core.LogDebugReturn("Could not read column name: " + err.Error())
 			}
-			columns[i] = string(nameBytes)
+			if !snapshotColumnPattern.Match(nameBytes) {
+				return core.LogDebugReturn("Invalid snapshot column")
+			}
+			columns[i] = "\"" + string(nameBytes) + "\""
 		}
 		// Read row count
 		var rowCount uint32
@@ -961,12 +968,11 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 		if tableName == "" {
 			return core.LogDebugReturn("Could not extract table name from schema: " + schema)
 		}
-		core.LogDebug("Importing table: " + tableName)
-		// Ensure table exists
-		_, err = db.database.Exec(schema)
-		if err != nil {
-			core.LogDebug("Table already exists, continuing with import: " + tableName)
+		tableName = strings.Trim(tableName, "\"")
+		if !snapshotTableAllowed(tableName) {
+			return core.LogDebugReturn("Snapshot contains a non-content table")
 		}
+		core.LogDebug("Importing table: " + tableName)
 		// Read column count
 		var columnCount uint32
 		err = binary.Read(gzReader, binary.LittleEndian, &columnCount)
@@ -986,7 +992,10 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 			if err != nil {
 				return core.LogDebugReturn("Could not read column name: " + err.Error())
 			}
-			columns[i] = string(nameBytes)
+			if !snapshotColumnPattern.Match(nameBytes) {
+				return core.LogDebugReturn("Invalid snapshot column")
+			}
+			columns[i] = "\"" + string(nameBytes) + "\""
 		}
 		// Read row count
 		var rowCount uint32
@@ -1154,6 +1163,24 @@ func (db *SQLite) ImportSnapshot(importPath string) error {
 	}
 	core.LogInfo("SQLite Snapshot Imported Successfully From: " + importPath)
 	return nil
+}
+
+func snapshotTableAllowed(table string) bool {
+	if table == "local_files" || table == "local_posts" || table == "local_post_files" {
+		return true
+	}
+	for _, chain := range core.ValidNetworks {
+		chain = strings.ToLower(chain)
+		if table == chain+"_indexer_jobs" {
+			return true
+		}
+		for _, suffix := range []string{"block", "comment", "files", "follow", "meta", "post", "reaction"} {
+			if table == "onchain_"+chain+"_"+suffix {
+				return true
+			}
+		}
+	}
+	return false
 }
 func extractTableName(createSQL string) string { // extractTableName extracts the table name from a CREATE TABLE statement
 	re := regexp.MustCompile(`CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)`)
@@ -1858,6 +1885,51 @@ func (db *SQLite) SearchGetProfiles(query string, limit int, offset int) []map[s
 		profiles = append(profiles, profile)
 	}
 	return profiles
+}
+func (db *SQLite) DiscoverGetPosts(limit int, offset int) ([]map[string]interface{}, error) {
+	posts := make([]map[string]interface{}, 0)
+	var unionParts []string
+	for _, blockchain := range core.ValidNetworks {
+		unionParts = append(unionParts, fmt.Sprintf("SELECT txHash, timestamp, data, fromAddress, '%s' AS blockchain FROM onchain_%s_post WHERE COALESCE(parentTxHash, '') = '' AND data IS NOT NULL", blockchain, blockchain))
+	}
+	query := fmt.Sprintf("SELECT txHash, timestamp, data, fromAddress, blockchain FROM (%s) t ORDER BY timestamp DESC, blockchain DESC, txHash DESC LIMIT ? OFFSET ?", strings.Join(unionParts, " UNION ALL "))
+	rows, err := db.runParamSQLSelect(query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var timestamp uint64
+		var txHash, payload, address, blockchain string
+		err = rows.Scan(&txHash, &timestamp, &payload, &address, &blockchain)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, map[string]interface{}{
+			"address":    address,
+			"blockchain": blockchain,
+			"parentHash": "",
+			"payload":    payload,
+			"resultType": "post",
+			"timestamp":  timestamp,
+			"txHash":     txHash,
+		})
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	rows.Close()
+	for _, post := range posts {
+		txHash := post["txHash"].(string)
+		blockchain := post["blockchain"].(string)
+		attachments := db.GetPostAttachments(txHash, blockchain)
+		if len(attachments) > 0 {
+			post["attachments"] = attachments
+		}
+		post["commentCount"] = db.GetCommentCount(txHash, blockchain)
+	}
+	return posts, nil
 }
 func (db *SQLite) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
 	var eligibleParts []string

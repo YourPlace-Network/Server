@@ -5,6 +5,7 @@ for the application. This code is stateful using localstorage to keep a few valu
     "accountAddress" = wallet address of the user
 */
 import {
+    algoAcceptWelcomeNFT,
     algoAuthLogin,
     algoBurnCollectible,
     algoConnectWallet,
@@ -43,6 +44,7 @@ import {
     algoSubmitPostAttachTx,
     setAlgoPostAttach,
 } from "./algorand";
+import {HttpGetJson} from "../network";
 import {
     baseAuthLogin,
     baseBurnCollectible,
@@ -167,6 +169,7 @@ import {ShowDialogModal, ShowDialogModalHTML} from "../../components/modalDialog
 
 // ---------- Types ---------- //
 export interface CollectibleData {
+    canBurn?: boolean;
     blockchain: string;
     contractAddress: string;
     creator: string;
@@ -607,6 +610,14 @@ export function WalletGetExplorerAddressLink(address: string, blockchain?: strin
         return mainnetEth.explorerUrl + "/address/" + address;
     }
     return "";
+}
+export function WalletGetSmallestUnit(chain: string): string {
+    switch (chain) {
+        case "algorand": return "microAlgos";
+        case "base":
+        case "ethereum": return "wei";
+        default: return "native units";
+    }
 }
 export function WalletGetExplorerTxLink(tx: string, blockchain?: string) {
     if (tx == "") {
@@ -1225,44 +1236,52 @@ export async function WalletUnfollowUser(toAddress: string, toBlockchain: string
 }
 
 // ---------- Collectible Functions ---------- //
-export async function WalletBurnCollectible(tokenId: string, blockchain: string): Promise<boolean> {
+export async function WalletBurnCollectible(tokenId: string, blockchain: string, contractAddress?: string): Promise<boolean> {
     let wallet = GetWallet();
-    if (!wallet) return false;
+    if (!wallet || GetChain() !== blockchain) return false;
     switch (wallet) {
         case "cbwalletbase":
-            return await baseBurnCollectible(BigInt(tokenId));
+            return await baseBurnCollectible(BigInt(tokenId), contractAddress);
         case "localwalletethereum":
-            return await localWalletEthereumBurnCollectible(BigInt(tokenId));
+            return await localWalletEthereumBurnCollectible(BigInt(tokenId), contractAddress);
         case "metamaskethereum":
-            return await ethereumBurnCollectible(BigInt(tokenId));
+            return await ethereumBurnCollectible(BigInt(tokenId), contractAddress);
         case "pera":
             return await algoBurnCollectible(Number(tokenId));
     }
     return false;
 }
 export async function WalletGetCollectibles(address: string, blockchain: string): Promise<CollectibleData[]> {
+    const results: CollectibleData[] = [];
+    const [status, response] = await HttpGetJson("/profile/nft/collections");
+    const collections: string[] = status === 200 ? (response?.collections || []).filter((item: any) => item.network === blockchain).map((item: any) => item.contract) : [];
     switch (blockchain) {
         case "base":
             let wallet = GetWallet();
             if (wallet === "localwalletethereum") {
-                return await localWalletEthereumGetCollectibles(address);
+                results.push(...await localWalletEthereumGetCollectibles(address));
+                for (const contract of collections) results.push(...await localWalletEthereumGetCollectibles(address, contract));
+            } else {
+                results.push(...await baseGetCollectibles(address));
+                for (const contract of collections) results.push(...await baseGetCollectibles(address, contract));
             }
-            return await baseGetCollectibles(address);
+            break;
         case "algorand":
             return await algoGetCollectibles(address);
         case "ethereum":
-            return await ethereumGetCollectibles(address);
+            for (const contract of collections) results.push(...await ethereumGetCollectibles(address, contract));
+            break;
     }
-    return [];
+    return [...new Map(results.map(item => [item.contractAddress.toLowerCase() + ":" + item.tokenId, item])).values()];
 }
-export async function WalletGetTransferFeeEstimate(toAddress: string, tokenId: string, blockchain: string): Promise<string> {
+export async function WalletGetTransferFeeEstimate(toAddress: string, tokenId: string, blockchain: string, contractAddress?: string): Promise<string> {
     switch (blockchain) {
         case "base":
-            return await baseGetTransferFeeEstimate(toAddress, BigInt(tokenId));
+            return await baseGetTransferFeeEstimate(toAddress, BigInt(tokenId), contractAddress);
         case "algorand":
             return await algoGetTransferFeeEstimate();
         case "ethereum":
-            return await ethereumGetTransferFeeEstimate(toAddress, BigInt(tokenId));
+            return await ethereumGetTransferFeeEstimate(toAddress, BigInt(tokenId), contractAddress);
     }
     return "--";
 }
@@ -1281,20 +1300,24 @@ export async function WalletMintCollectible(metadataUri: string, name?: string, 
     }
     return false;
 }
-export async function WalletTransferCollectible(tokenId: string, toAddress: string, blockchain: string): Promise<boolean> {
+export async function WalletTransferCollectible(tokenId: string, toAddress: string, blockchain: string, contractAddress?: string): Promise<boolean> {
     let wallet = GetWallet();
-    if (!wallet) return false;
+    if (!wallet || GetChain() !== blockchain) return false;
     switch (wallet) {
         case "cbwalletbase":
-            return await baseTransferCollectible(BigInt(tokenId), toAddress);
+            return await baseTransferCollectible(BigInt(tokenId), toAddress, contractAddress);
         case "localwalletethereum":
-            return await localWalletEthereumTransferCollectible(BigInt(tokenId), toAddress);
+            return await localWalletEthereumTransferCollectible(BigInt(tokenId), toAddress, contractAddress);
         case "metamaskethereum":
-            return await ethereumTransferCollectible(BigInt(tokenId), toAddress);
+            return await ethereumTransferCollectible(BigInt(tokenId), toAddress, contractAddress);
         case "pera":
             return await algoTransferCollectible(Number(tokenId), toAddress);
     }
     return false;
+}
+export async function WalletAcceptWelcomeNFT(csrfToken: string): Promise<boolean> {
+    if (GetWallet() !== "pera") return false;
+    return algoAcceptWelcomeNFT(csrfToken);
 }
 
 // ---------- On-Ramp ---------- //

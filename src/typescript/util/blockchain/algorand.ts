@@ -10,6 +10,7 @@ import {SiwaMessage} from "@avmkit/siwa";
 import {PersistentCache} from "../cache";
 import {IsValidAlgoAddress, IsValidURL} from "../security";
 import {CIDToSubdomainURL} from "../ipfs";
+import {IsGatewayMode} from "../miscellaneous";
 
 // ---------- Algorand Variables & Objects ---------- //
 export let algod: Algodv2;
@@ -28,6 +29,12 @@ const MAINNET_GENESIS_HASH_STRING = 'wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8
 
 // ---------- Initialization Functions ---------- //
 async function initAlgoWallet() {
+    if (IsGatewayMode()) {
+        const csrfToken = (document.getElementById("csrfToken") as HTMLInputElement)?.value || "";
+        algod = new Algodv2({"X-CSRF-Token": csrfToken}, window.location.origin + "/rpc/algorand", "");
+        algoInitialized = true;
+        return;
+    }
     let response = await HttpGetJson("/settings/services/algorand");
     if (response[0] == 200) {
         algodURL = response[1].algodURL;
@@ -434,6 +441,32 @@ export async function algoUnfollowUser(toAddress: string, toBlockchain: string):
 }
 
 // ---------- Collectible Functions ---------- //
+export async function algoAcceptWelcomeNFT(csrfToken: string): Promise<boolean> {
+    try {
+        const [status, prepared] = await HttpPostJson("/nft/welcome/prepare", {}, csrfToken);
+        if (status !== 200 || !prepared) return false;
+        if (prepared.recipientIndex < 0) return true;
+        if (!peraWallet.isConnected) {
+            const accounts = await peraWallet.reconnectSession();
+            if (!accounts.length) await peraWallet.connect();
+        }
+        const group = prepared.transactions.map((encoded: string, index: number) => ({
+            txn: algosdk.decodeUnsignedTransaction(new Uint8Array(Buffer.from(encoded, "base64"))),
+            signers: index === prepared.recipientIndex ? [GetAddress()!] : [],
+        }));
+        const expected = group[prepared.recipientIndex].txn;
+        if (expected.sender.toString() !== GetAddress()) return false;
+        const signed = await peraWallet.signTransaction([group]);
+        const approval = signed.find(raw => {
+            if (!raw?.length) return false;
+            const decoded = algosdk.decodeSignedTransaction(raw);
+            return decoded.txn.txID() === expected.txID();
+        });
+        if (!approval) return false;
+        const [accepted] = await HttpPostJson("/nft/welcome/accept", {signed: Buffer.from(approval).toString("base64")}, csrfToken);
+        return accepted === 200;
+    } catch (_) { return false; }
+}
 export async function algoBurnCollectible(assetId: number): Promise<boolean> {
     if (!algoInitialized) await initAlgoWallet();
     try {
@@ -497,6 +530,7 @@ export async function algoGetCollectibles(address: string): Promise<CollectibleD
                 }
                 results.push({
                     blockchain: "algorand",
+                    canBurn: !!params.manager && params.manager.toString() === address,
                     contractAddress: asset.assetId.toString(),
                     creator: params.creator || "",
                     description: metadata.description || "",

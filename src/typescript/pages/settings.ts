@@ -18,6 +18,7 @@ import {ShowNotifications} from "../util/notifications";
 import {Sleep} from "../util/time";
 import {XSSSanitizeValue} from "../util/security";
 import {ConnectWallet, WalletGetConnectionStatuses, type WalletConnectionStatus} from "../util/blockchain/wallet";
+import {InitNFTSettings} from "../components/nftSettings";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -179,6 +180,7 @@ import {ConnectWallet, WalletGetConnectionStatuses, type WalletConnectionStatus}
             if (gatewayMode) {
                 disableSettingsControls();
             }
+            InitNFTSettings();
             InitTooltips();
             ExpandAccordionByHash();
             ShowNotifications().then();

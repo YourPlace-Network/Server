@@ -8,7 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RPCRoutes(router *gin.Engine, database *db.Database) {
+func RPCRoutes(router *gin.Engine, database *db.Database, blockchain *blockchain2.Blockchain) {
+	router.GET("/rpc/algorand/*path", func(c *gin.Context) { blockchain.Algorand.HandleWalletRPC(c.Writer, c.Request) })
+	router.POST("/rpc/algorand/v2/transactions", func(c *gin.Context) { blockchain.Algorand.HandleWalletRPC(c.Writer, c.Request) })
 	// Base RPC Setup
 	baseURL := database.SettingsGetValue("baseURL")
 	baseThrottle := database.SettingsGetValue("baseThrottle")

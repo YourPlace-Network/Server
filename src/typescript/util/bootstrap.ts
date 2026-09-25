@@ -11,6 +11,7 @@ export function ExpandAccordionByHash() {
         files: "collapseFiles",
         ipfs: "collapseIpfsPinning",
         networking: "collapseNetworking",
+        nft: "collapseNFT",
         privacy: "collapsePrivacy",
         serverInfo: "collapseServerInfo",
         services: "collapseServices",

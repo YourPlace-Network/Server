@@ -671,7 +671,7 @@ export async function baseGetDescription(_address: string): Promise<string> {
     }
     return "";
 }
-export async function baseBurnCollectible(tokenId: bigint): Promise<boolean> {
+export async function baseBurnCollectible(tokenId: bigint, contractAddress: string = YP_NFT_CONTRACT_ADDRESS): Promise<boolean> {
     if (!baseInit) await initBaseWallet();
     try {
         let connections = getConnections(wagmiConfig);
@@ -689,7 +689,7 @@ export async function baseBurnCollectible(tokenId: bigint): Promise<boolean> {
             method: "eth_sendTransaction",
             params: [{
                 from: GetAddress() as `0x${string}`,
-                to: YP_NFT_CONTRACT_ADDRESS,
+                to: contractAddress,
                 value: "0x0",
                 data: data as `0x${string}`,
             }],
@@ -701,12 +701,12 @@ export async function baseBurnCollectible(tokenId: bigint): Promise<boolean> {
         return false;
     }
 }
-export async function baseGetCollectibles(ownerAddress: string): Promise<CollectibleData[]> {
+export async function baseGetCollectibles(ownerAddress: string, contractAddress: string = YP_NFT_CONTRACT_ADDRESS): Promise<CollectibleData[]> {
     if (!baseInit) await initBaseWallet();
     const results: CollectibleData[] = [];
     try {
         const balance = await readContract(wagmiConfig, {
-            address: YP_NFT_CONTRACT_ADDRESS,
+            address: contractAddress as `0x${string}`,
             abi: YP_NFT_CONTRACT_ABI,
             functionName: "balanceOf",
             args: [ownerAddress as `0x${string}`],
@@ -714,13 +714,13 @@ export async function baseGetCollectibles(ownerAddress: string): Promise<Collect
         for (let i = 0n; i < balance; i++) {
             try {
                 const tokenId = await readContract(wagmiConfig, {
-                    address: YP_NFT_CONTRACT_ADDRESS,
+                    address: contractAddress as `0x${string}`,
                     abi: YP_NFT_CONTRACT_ABI,
                     functionName: "tokenOfOwnerByIndex",
                     args: [ownerAddress as `0x${string}`, i],
                 }) as bigint;
                 const tokenUri = await readContract(wagmiConfig, {
-                    address: YP_NFT_CONTRACT_ADDRESS,
+                    address: contractAddress as `0x${string}`,
                     abi: YP_NFT_CONTRACT_ABI,
                     functionName: "tokenURI",
                     args: [tokenId],
@@ -735,7 +735,7 @@ export async function baseGetCollectibles(ownerAddress: string): Promise<Collect
                 }
                 results.push({
                     blockchain: "base",
-                    contractAddress: YP_NFT_CONTRACT_ADDRESS,
+                    contractAddress,
                     creator: "",
                     description: metadata.description || "",
                     imageUrl: metadata.image || "",
@@ -752,11 +752,11 @@ export async function baseGetCollectibles(ownerAddress: string): Promise<Collect
     }
     return results;
 }
-export async function baseGetTransferFeeEstimate(toAddress: string, tokenId: bigint): Promise<string> {
+export async function baseGetTransferFeeEstimate(toAddress: string, tokenId: bigint, contractAddress: string = YP_NFT_CONTRACT_ADDRESS): Promise<string> {
     if (!baseInit) await initBaseWallet();
     try {
         const gasEstimate = await viemClient.estimateContractGas({
-            address: YP_NFT_CONTRACT_ADDRESS,
+            address: contractAddress as `0x${string}`,
             abi: YP_NFT_CONTRACT_ABI,
             functionName: "safeTransferFrom",
             args: [GetAddress() as `0x${string}`, toAddress as `0x${string}`, tokenId],
@@ -801,7 +801,7 @@ export async function baseMintCollectible(metadataUri: string): Promise<string |
         return undefined;
     }
 }
-export async function baseTransferCollectible(tokenId: bigint, toAddress: string): Promise<boolean> {
+export async function baseTransferCollectible(tokenId: bigint, toAddress: string, contractAddress: string = YP_NFT_CONTRACT_ADDRESS): Promise<boolean> {
     if (!baseInit) await initBaseWallet();
     try {
         let connections = getConnections(wagmiConfig);
@@ -819,7 +819,7 @@ export async function baseTransferCollectible(tokenId: bigint, toAddress: string
             method: "eth_sendTransaction",
             params: [{
                 from: GetAddress() as `0x${string}`,
-                to: YP_NFT_CONTRACT_ADDRESS,
+                to: contractAddress,
                 value: "0x0",
                 data: data as `0x${string}`,
             }],

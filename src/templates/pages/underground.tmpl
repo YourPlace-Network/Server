@@ -1,0 +1,102 @@
+{{template "header" .}}
+<body class="body undergroundPage">
+    {{template "modalDialog" .}}
+    {{template "modalMediaViewer" .}}
+    <main class="container homeContainer">
+        <header class="homeMasthead">
+            <a href="/" class="homeWordmark" aria-label="YourPlace home"><img class="img-fluid" src="/static/image/yourplace-banner-alpha.svg" alt="YourPlace"></a>
+            <p class="homeEyebrow">A distributed social network</p>
+            {{template "htmlMenu" .}}
+        </header>
+        <section class="homeIntro" aria-labelledby="homeTitle">
+            <div class="homeTerminalBar"><span>yourplace / community</span></div>
+            <div class="homeTerminalIntro">
+                <div class="homeTerminalCopy">
+                    <p class="homeEdition">&gt; A place of your own</p>
+                    {{if .isCookieAuthenticated}}
+                    <h1 id="homeTitle" class="homeTitle homeTitlePersonal">Welcome back<br><span>to your people.</span></h1>
+                    {{else}}
+                    <h1 id="homeTitle" class="homeTitle">The web is ours<br><span>to make.</span></h1>
+                    {{end}}
+                    <p class="homeSubtitle">Find people. Share ideas. Make yourself at home.</p>
+                </div>
+                <div class="homeAsciiPanel">
+                    <pre id="homeAsciiArt" aria-hidden="true"><span id="homeAsciiAccent"></span><span id="homeAsciiStructure"></span></pre>
+                    <div class="homeAsciiCaption">
+                        <span aria-hidden="true">[ independent by nature ]</span>
+                    </div>
+                </div>
+            </div>
+            <div id="searchDiv" role="search">
+                <label for="searchInput" class="visually-hidden">Search posts, people, names, or addresses</label>
+                <div id="searchInputWrapper" class="input-group">
+                    <span class="input-group-text" aria-hidden="true"><i class="bi bi-search"></i></span>
+                    <input type="search" id="searchInput" class="form-control" placeholder="Search posts and people…" maxlength="250" autocomplete="off" aria-controls="resultsDiv">
+                    <button id="searchClearBtn" class="btn homeButton" type="button" aria-label="Clear search" hidden><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+            </div>
+        </section>
+        {{template "ads" .}}
+        <div id="trendingTopicsDiv"></div>
+        <section id="resultsDiv" aria-label="Search results" hidden></section>
+        <div id="homeDiscovery" class="row homeDiscovery">
+            <aside id="discoverSection" class="col homePeople" aria-labelledby="discoverTitle">
+                <h2 id="discoverTitle" class="homeSectionLabel">People to discover</h2>
+                <div class="d-flex justify-content-between align-items-center homeProfileControls">
+                    <div class="dropdown">
+                        <button id="discoverCategoryBtn" class="btn homeButton dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Random</button>
+                        <ul class="dropdown-menu">
+                            <li><button class="dropdown-item active" type="button" data-discover-category="random" aria-pressed="true">Random</button></li>
+                            <li><button class="dropdown-item" type="button" data-discover-category="followers" aria-pressed="false">Most Followed</button></li>
+                            <li><button class="dropdown-item" type="button" data-discover-category="posts" aria-pressed="false">Most Active</button></li>
+                        </ul>
+                    </div>
+                    <button id="discoverRandomRefreshBtn" class="btn homeButton" type="button">Shuffle <i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
+                </div>
+                <div id="discoverStatus" class="homeStatus" role="status"></div>
+                <button id="discoverRetryBtn" class="btn homeButton" type="button" hidden>Retry profiles</button>
+                <div id="discoverRandomRow" class="homeProfileRail" tabindex="0" aria-label="Random profiles"></div>
+                <div id="discoverFollowersRow" class="homeProfileRail" tabindex="0" aria-label="Most followed profiles" hidden></div>
+                <div id="discoverPostsRow" class="homeProfileRail" tabindex="0" aria-label="Most active profiles" hidden></div>
+            </aside>
+            <section class="col homeContent" aria-label="Posts">
+                <div class="nav nav-tabs homeTabs" role="tablist" aria-label="Choose a feed">
+                    <button id="discoverTab" class="nav-link{{if not .isCookieAuthenticated}} active{{end}}" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#publicPostsSection" aria-controls="publicPostsSection" aria-selected="{{if .isCookieAuthenticated}}false{{else}}true{{end}}">Discover</button>
+                    {{if .isCookieAuthenticated}}<button id="feedTab" class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#followersFeedSection" aria-controls="followersFeedSection" aria-selected="true">Your Feed</button>{{end}}
+                </div>
+                <div class="tab-content">
+                    <section id="publicPostsSection" class="tab-pane{{if not .isCookieAuthenticated}} active{{end}}" role="tabpanel" aria-labelledby="discoverTab" tabindex="0">
+                        <div class="homeFeedHeading">
+                            <h2 class="homeSectionLabel">Recent public posts</h2>
+                            <button id="publicRefreshBtn" class="btn homeButton" type="button" aria-label="Refresh public posts"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
+                        </div>
+                        <div id="publicPostsDiv"></div>
+                        <div id="publicStatus" class="homeStatus" role="status"></div>
+                        <button id="publicLoadMoreBtn" class="btn homeButton homeLoadMore" type="button" hidden>Load more ↓</button>
+                    </section>
+                    {{if .isCookieAuthenticated}}
+                    <section id="followersFeedSection" class="tab-pane active" role="tabpanel" aria-labelledby="feedTab" tabindex="0">
+                    {{else}}
+                    <section id="followersFeedSection" class="tab-pane" hidden>
+                    {{end}}
+                        <div class="homeFeedHeading">
+                            <h2 class="homeSectionLabel">From people you follow</h2>
+                            <button id="feedRefreshBtn" class="btn homeButton" type="button" aria-label="Refresh your feed"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
+                        </div>
+                        <div id="followersFeedDiv" class="feedScrollWindow"></div>
+                        <div id="feedStatus" class="homeStatus" role="status"></div>
+                        <button id="feedRetryBtn" class="btn homeButton" type="button" hidden>Retry feed</button>
+                        <button id="feedDiscoverBtn" class="btn homeButton" type="button" hidden>Discover people and posts ↗</button>
+                    </section>
+                </div>
+            </section>
+        </div>
+    </main>
+    {{template "scrollTop" .}}
+    {{template "addPost" .}}
+    {{template "toast" .}}
+    {{template "footer" .}}
+    <input type="hidden" id="csrfToken" value="{{ .csrfToken }}">
+    <input type="hidden" id="isCookieAuthenticated" value="{{ .isCookieAuthenticated }}">
+</body>
+</html>

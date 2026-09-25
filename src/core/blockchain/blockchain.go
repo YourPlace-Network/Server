@@ -11,6 +11,7 @@ import (
 )
 
 type Blockchain struct {
+	Minter   *Minter
 	Algorand *Algorand
 	Base     *Base
 	Ethereum *Ethereum

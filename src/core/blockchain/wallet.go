@@ -3,7 +3,15 @@ package blockchain
 import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"strings"
 	"sync"
+
+	algotypes "github.com/algorand/go-algorand-sdk/v2/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type Post struct {
@@ -14,6 +22,75 @@ type Post struct {
 }
 
 var rpcDedup = core.NewDedupeQueue()
+
+type nftChain interface {
+	Build(context.Context, db.NFTGrant, []byte) (*db.NFTTransaction, error)
+	Broadcast(context.Context, db.NFTChainConfig, *db.NFTTransaction) error
+	Credential(string) ([]byte, string, error)
+	Reconcile(context.Context, db.NFTGrant) (string, string, error)
+	Source(context.Context, db.NFTSource, string) (string, error)
+	Validate(context.Context, db.NFTChainConfig) error
+}
+type nftRecipientChain interface {
+	Prepare(context.Context, db.NFTGrant) (NFTAcceptanceResponse, []byte, error)
+	VerifyAcceptance(context.Context, db.NFTGrant, []byte) error
+}
+
+func WalletNFTAssetLabels(name string) (string, string) {
+	assetName, unit := "", ""
+	for _, char := range name {
+		if len(assetName)+len(string(char)) > algotypes.AssetNameMaxLen {
+			break
+		}
+		assetName += string(char)
+	}
+	for _, char := range strings.ToUpper(name) {
+		if (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') {
+			unit += string(char)
+			if len(unit) == algotypes.AssetUnitNameMaxLen {
+				break
+			}
+		}
+	}
+	return assetName, unit
+}
+func WalletNFTIdentity(network, address string) (string, error) {
+	var identity []byte
+	switch network {
+	case "base", "ethereum":
+		if !common.IsHexAddress(address) || common.HexToAddress(address) == (common.Address{}) {
+			return "", errors.New("invalid wallet")
+		}
+		identity = common.HexToAddress(address).Bytes()
+	case "algorand":
+		decoded, err := algotypes.DecodeAddress(address)
+		if err != nil || decoded == (algotypes.Address{}) {
+			return "", errors.New("invalid wallet")
+		}
+		identity = decoded[:]
+	default:
+		return "", errors.New("unsupported wallet")
+	}
+	hash := sha256.Sum256(append([]byte(network+":"), identity...))
+	return hex.EncodeToString(hash[:]), nil
+}
+func (blockchain *Blockchain) nftChain(network string) (nftChain, error) {
+	switch network {
+	case "base":
+		if blockchain.Base != nil && blockchain.Base.EthClient != nil {
+			return &evmNFT{client: blockchain.Base.EthClient, extraFee: blockchain.Base.nftExtraFee}, nil
+		}
+	case "ethereum":
+		if blockchain.Ethereum != nil && blockchain.Ethereum.EthClient != nil {
+			return &evmNFT{client: blockchain.Ethereum.EthClient}, nil
+		}
+	case "algorand":
+		if blockchain.Algorand != nil && blockchain.Algorand.algodClient != nil {
+			return &algoNFT{client: blockchain.Algorand.algodClient}, nil
+		}
+	}
+	return nil, errors.New("chain unavailable")
+}
 
 func ShortWalletAddress(address string) string {
 	if len(address) <= 12 {

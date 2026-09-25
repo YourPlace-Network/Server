@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -43,6 +44,48 @@ type IPFS struct {
 
 func GetDefaultIPFSGateway() string {
 	return defaultIPFSGateway
+}
+func (node *IPFS) IPFSImportFile(ctx context.Context, cid string, maximum int64) ([]byte, error) {
+	return node.readFile(ctx, cid, maximum, true)
+}
+func (node *IPFS) IPFSReadFile(ctx context.Context, cid string, maximum int64) ([]byte, error) {
+	return node.readFile(ctx, cid, maximum, false)
+}
+func (node *IPFS) readFile(ctx context.Context, cid string, maximum int64, pinMissing bool) ([]byte, error) {
+	if node == nil || node.rpcNode == nil {
+		return nil, errors.New("IPFS unavailable")
+	}
+	decoded, err := ipfscid.Decode(cid)
+	if err != nil {
+		return nil, err
+	}
+	if !pinMissing {
+		if _, pinned, pinErr := node.rpcNode.Pin().IsPinned(ctx, ipfspath.FromCid(decoded)); pinErr != nil || !pinned {
+			return nil, errors.New("metadata must already be pinned locally")
+		}
+	}
+	file, err := node.rpcNode.Unixfs().Get(ctx, ipfspath.FromCid(decoded))
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	reader, ok := file.(ipfsfiles.File)
+	if !ok {
+		return nil, errors.New("not a file")
+	}
+	data, err := io.ReadAll(io.LimitReader(reader, maximum+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maximum {
+		return nil, errors.New("file too large")
+	}
+	if pinMissing {
+		if err = node.rpcNode.Pin().Add(ctx, ipfspath.FromCid(decoded)); err != nil {
+			return nil, err
+		}
+	}
+	return data, nil
 }
 
 func (node *IPFS) Init(port uint64) {

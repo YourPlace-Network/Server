@@ -214,7 +214,7 @@ export function CreateCollectibleCard(data: CollectibleData, isOwner: boolean): 
         let burnBtn = document.createElement("button");
         burnBtn.classList.add("collectibleBurnBtn");
         burnBtn.innerHTML = '<i class="bi bi-trash"></i>';
-        card.appendChild(burnBtn);
+        if (data.canBurn !== false) card.appendChild(burnBtn);
         let sendBtn = document.createElement("button");
         sendBtn.classList.add("collectibleSendBtn");
         sendBtn.innerHTML = '<i class="bi bi-send"></i>';

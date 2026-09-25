@@ -1,0 +1,534 @@
+@use "../global.scss";
+
+.undergroundPage {
+  .homeContainer {
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 24px 96px;
+  }
+  .homeMasthead {
+    position: relative;
+    padding: 24px 120px 20px 0;
+    border-bottom: 4px solid var(--yp-text);
+  }
+  .homeWordmark {
+    display: flex;
+    align-items: center;
+    width: 260px;
+    max-width: 100%;
+    min-height: 44px;
+    text-decoration: none;
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+  }
+  .homeEyebrow,
+  .homeSectionLabel {
+    margin: 0;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    line-height: 1.5;
+    text-transform: uppercase;
+  }
+  #htmlMenu {
+    position: absolute;
+    top: 24px;
+    right: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 2px;
+  }
+  #notificationBell {
+    position: absolute;
+    top: 24px;
+    right: 56px;
+    left: auto;
+    border-radius: 2px;
+    width: 44px;
+    height: 44px;
+  }
+  .hamburger-icon {
+    width: 24px;
+    height: 28px;
+  }
+  .homeIntro {
+    padding: 32px 0;
+  }
+  .homeTitle {
+    margin: 0 0 24px;
+    color: var(--yp-text);
+    font-size: clamp(36px, 5.4vw, 64px);
+    font-weight: 900;
+    letter-spacing: -0.055em;
+    line-height: 1.02;
+    text-transform: uppercase;
+    span {
+      color: var(--yp-text);
+    }
+  }
+  .homeTitlePersonal {
+    font-size: clamp(36px, 4.5vw, 52px);
+  }
+  .homeSubtitle {
+    margin: 0 0 24px;
+    font-size: 16px;
+  }
+  #searchInputWrapper {
+    border: 1px solid var(--yp-text);
+    border-radius: 2px;
+    &:focus-within {
+      outline: 2px solid var(--yp-quaternary);
+      outline-offset: 3px;
+    }
+    .input-group-text,
+    .form-control {
+      min-height: 52px;
+      background: var(--yp-tertiary);
+      color: var(--yp-text);
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .form-control {
+      min-width: 0;
+      padding-left: 0;
+      &::placeholder {
+        color: var(--yp-text);
+        opacity: 0.8;
+      }
+    }
+  }
+  #searchInput::-webkit-search-cancel-button {
+    display: none;
+  }
+  #adsDiv:not(:empty) {
+    margin-bottom: 24px;
+  }
+  .homeDiscovery {
+    --bs-gutter-x: 0;
+    flex-wrap: nowrap;
+    border-top: 1px solid var(--yp-primary);
+  }
+  .homeContent {
+    order: 1;
+    flex: 2 1 0;
+    min-width: 0;
+    padding-right: 32px;
+  }
+  .homePeople {
+    order: 2;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 24px 0 0 24px;
+    border-left: 1px solid var(--yp-primary);
+  }
+  .homeProfileControls {
+    gap: 8px;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .homeButton,
+  .homeTabs .nav-link,
+  .dropdown-item,
+  .loadMoreBtn {
+    min-height: 44px;
+    border-radius: 2px;
+  }
+  .homeButton {
+    border: 1px solid var(--yp-primary);
+    color: var(--yp-text);
+    background: var(--yp-tertiary);
+    &:hover {
+      color: var(--yp-text);
+      border-color: var(--yp-quaternary);
+      background: var(--yp-secondary);
+    }
+  }
+  button:focus-visible,
+  a:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--yp-quaternary);
+    outline-offset: 3px;
+  }
+  .homeTabs {
+    gap: 24px;
+    border-bottom: 1px solid var(--yp-primary);
+    .nav-link {
+      padding: 20px 0 16px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--yp-text);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      &.active {
+        color: var(--yp-text);
+        border-bottom-color: var(--yp-quaternary);
+      }
+    }
+  }
+  .homeFeedHeading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 0;
+  }
+  .homeProfileRail {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .discoverCol {
+    min-width: 0;
+  }
+  .discoverCol .profileCard {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px 0;
+    border: 0;
+    border-top: 1px solid var(--yp-primary);
+    border-radius: 0;
+    height: 100%;
+    &:hover {
+      border-color: var(--yp-quaternary);
+    }
+  }
+  .discoverCol .profileCardAvatar {
+    width: 44px;
+    height: 44px;
+    float: none;
+    border-radius: 2px;
+  }
+  .discoverCol .profileCardIdentity {
+    min-width: 0;
+    float: none;
+    justify-content: center;
+  }
+  .discoverCol .profileCardName,
+  .discoverCol .profileCardAddress {
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .discoverCol .profileCardDescription {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+    font-size: 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    &:empty {
+      display: none;
+    }
+  }
+  .homeProfileLink {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .homeContent .postCard {
+    margin-bottom: 16px;
+    border-radius: 4px;
+  }
+  .postCardDate {
+    font-family: monospace;
+  }
+  .postCardAuthorLink {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .postCardAuthor {
+    max-width: 100%;
+  }
+  .homeStatus,
+  .no-results-dropdown {
+    margin: 16px 0;
+    line-height: 1.6;
+    &:empty {
+      display: none;
+    }
+  }
+  .homeLoadMore,
+  .loadMoreBtn {
+    width: 100%;
+    margin: 16px 0;
+  }
+  .searchSectionLabel {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--yp-primary);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .search-spinner-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 0;
+  }
+  .homeSkeleton {
+    height: 120px;
+    margin-bottom: 16px;
+    border: 1px solid var(--yp-primary);
+    background: linear-gradient(110deg, var(--yp-tertiary), var(--yp-secondary), var(--yp-tertiary));
+    background-size: 200% 100%;
+    animation: homeSkeletonPulse 1.5s ease-in-out infinite;
+  }
+  .homeDiscovery[hidden],
+  .homeProfileRail[hidden],
+  button[hidden],
+  section[hidden] {
+    display: none;
+  }
+  @media (max-width: 704px) {
+    .homeContainer {
+      padding: 0 16px 96px;
+    }
+    .homeMasthead {
+      padding-top: 20px;
+    }
+    .homeEyebrow {
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+    .homeIntro {
+      padding: 24px 0;
+    }
+    .homeTitle {
+      font-size: 36px;
+      margin-bottom: 16px;
+    }
+    .homeSubtitle {
+      font-size: 14px;
+      max-width: 280px;
+      margin-bottom: 16px;
+    }
+    .homeDiscovery {
+      flex-direction: column;
+    }
+    .homePeople {
+      order: 1;
+      padding: 24px 0;
+      border: 0;
+      width: 100%;
+    }
+    .homeContent {
+      order: 2;
+      padding: 0;
+      border-top: 1px solid var(--yp-primary);
+      width: 100%;
+    }
+    .homeProfileRail {
+      flex-direction: row;
+      overflow-x: auto;
+      scroll-snap-type: x proximity;
+      padding: 4px 4px 12px;
+    }
+    .discoverCol {
+      flex: 0 0 240px;
+      scroll-snap-align: start;
+    }
+    .discoverCol .profileCard {
+      padding: 16px;
+      border: 1px solid var(--yp-primary);
+      border-radius: 2px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .homeSkeleton {
+      animation: none;
+    }
+  }
+}
+@keyframes homeSkeletonPulse {
+  0%, 100% { background-position: 0 0; }
+  50% { background-position: 100% 0; }
+}
+
+.undergroundPage {
+  .homeEdition {
+    margin: 0 0 20px;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .homePeople .dropdown-menu {
+    --bs-dropdown-bg: var(--yp-secondary);
+    --bs-dropdown-color: var(--yp-text);
+    --bs-dropdown-link-color: var(--yp-text);
+    --bs-dropdown-link-hover-bg: var(--yp-primary);
+    --bs-dropdown-link-hover-color: var(--yp-text);
+    --bs-dropdown-link-active-bg: var(--yp-quaternary);
+    --bs-dropdown-link-active-color: var(--yp-text);
+    border: 1px solid var(--yp-primary);
+    border-radius: 0;
+  }
+}
+.undergroundPage {
+  .homeMasthead {
+    border-bottom: 1px dashed var(--yp-primary);
+  }
+  .homeIntro {
+    margin: 24px 0;
+    padding: 0;
+    border: 1px solid var(--yp-primary);
+  }
+  .homeTerminalBar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--yp-primary);
+    background: var(--yp-secondary);
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .homeTerminalIntro {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+  }
+  .homeTerminalCopy,
+  .homeAsciiPanel {
+    min-width: 0;
+  }
+  .homeAsciiPanel {
+    user-select: none;
+  }
+  #homeAsciiArt {
+    position: relative;
+    height: 260px;
+    margin: 0;
+    overflow: hidden;
+    color: var(--yp-quaternary);
+    font-family: monospace;
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 10px;
+    letter-spacing: 0;
+    white-space: pre;
+    pointer-events: none;
+    span {
+      position: absolute;
+      inset: 0;
+      transform: translate(var(--home-ascii-x, 0px), var(--home-ascii-y, 0px));
+    }
+  }
+  #homeAsciiStructure {
+    color: color-mix(in srgb, var(--yp-primary) 60%, var(--yp-text));
+  }
+  .homeAsciiCaption {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+    border-top: 1px dashed var(--yp-primary);
+    font-family: monospace;
+    font-size: 10px;
+    color: var(--yp-text);
+  }
+  .homeEdition {
+    color: var(--yp-quaternary);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .homeTitle {
+    font-family: monospace;
+    font-size: clamp(32px, 4.8vw, 56px);
+    font-weight: 700;
+    letter-spacing: -0.06em;
+    line-height: 1.15;
+    text-transform: none;
+    span {
+      color: var(--yp-quaternary);
+    }
+  }
+  .homeSubtitle {
+    margin-bottom: 0;
+  }
+  #searchDiv {
+    padding: 0 24px 24px;
+  }
+  #searchInputWrapper {
+    border: 1px solid var(--yp-primary);
+    border-radius: 0;
+    input {
+      font-family: monospace;
+      font-size: 14px;
+    }
+  }
+  .homeTabs {
+    gap: 0;
+    padding-top: 16px;
+    .nav-link {
+      padding: 12px 16px;
+      font-family: monospace;
+      letter-spacing: 0;
+      text-transform: none;
+      &.active {
+        border: 1px solid var(--yp-quaternary);
+        color: var(--yp-quaternary);
+        background: var(--yp-secondary);
+      }
+    }
+  }
+  .homeSectionLabel {
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .homeSectionLabel::before {
+    content: "// ";
+    color: var(--yp-quaternary);
+  }
+  .homeButton {
+    font-family: monospace;
+    font-size: 13px;
+    border-radius: 0;
+  }
+  .homeContent .postCard,
+  .discoverCol .profileCard {
+    padding: 16px;
+    border: 1px solid var(--yp-primary);
+    border-radius: 0;
+  }
+  .homeProfileLink {
+    color: var(--yp-quaternary);
+    font-family: monospace;
+    font-weight: 400;
+  }
+  @media (max-width: 704px) {
+    .homeTerminalBar {
+      padding: 12px 16px;
+      font-size: 10px;
+    }
+    .homeTerminalIntro {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+      padding: 20px 16px;
+    }
+    #homeAsciiArt {
+      height: 180px;
+      font-size: 8px;
+      line-height: 8px;
+    }
+    .homeTitle {
+      font-size: clamp(28px, 6vw, 40px);
+    }
+    #searchDiv {
+      padding: 0 16px 20px;
+    }
+  }
+}

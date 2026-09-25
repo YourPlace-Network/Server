@@ -13,6 +13,28 @@ import (
 )
 
 func SearchRoutes(router *gin.Engine, database *db.Database, _blockchain *blockchain2.Blockchain) {
+	router.GET("/discover/posts", func(c *gin.Context) {
+		limit, err := strconv.Atoi(c.DefaultQuery("limit", "12"))
+		if err != nil || limit < 1 || limit > 25 {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "invalid limit"})
+			return
+		}
+		offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+		if err != nil || offset < 0 {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "invalid offset"})
+			return
+		}
+		posts, err := database.DiscoverGetPosts(limit+1, offset)
+		if err != nil {
+			c.SecureJSON(http.StatusInternalServerError, gin.H{"status": "could not load public posts"})
+			return
+		}
+		hasMore := len(posts) > limit
+		if hasMore {
+			posts = posts[:limit]
+		}
+		c.SecureJSON(http.StatusOK, gin.H{"posts": posts, "hasMore": hasMore})
+	})
 	router.GET("/discover/random", func(c *gin.Context) {
 		randomProfiles := database.DiscoverGetRandomProfiles(5)
 		c.SecureJSON(http.StatusOK, gin.H{

@@ -181,6 +181,9 @@ func (db *MySQL) withTransaction(fn func(*sql.Tx) error) error {
 	return nil
 }
 func (db *MySQL) createTables(ctx context.Context) error {
+	if err := createNFTTables(db.database, true); err != nil {
+		return err
+	}
 	tables := map[string]string{
 		"auth_expired":           "CREATE TABLE IF NOT EXISTS auth_expired (uuid VARCHAR(255) PRIMARY KEY, status VARCHAR(255))",
 		"auth_nonce":             "CREATE TABLE IF NOT EXISTS auth_nonce (nonce VARCHAR(255) PRIMARY KEY, status VARCHAR(255), timestamp BIGINT)",
@@ -366,6 +369,12 @@ func (db *MySQL) RunMigrations() error {
 			return core.LogDebugReturn("MySQL migration v14 failed: " + err.Error())
 		}
 		db.setSchemaVersion(14)
+	}
+	if currentVersion < 15 {
+		if err := createNFTTables(db.database, true); err != nil {
+			return err
+		}
+		db.setSchemaVersion(15)
 	}
 	core.LogDebug(fmt.Sprintf("MySQL: Database schema upgrade completed (now at version %d)", targetVersion))
 	return nil
@@ -1561,6 +1570,51 @@ func (db *MySQL) SearchGetProfiles(query string, limit int, offset int) []map[st
 		profiles = append(profiles, profile)
 	}
 	return profiles
+}
+func (db *MySQL) DiscoverGetPosts(limit int, offset int) ([]map[string]interface{}, error) {
+	posts := make([]map[string]interface{}, 0)
+	var unionParts []string
+	for _, blockchain := range core.ValidNetworks {
+		unionParts = append(unionParts, fmt.Sprintf("SELECT txHash, timestamp, data, fromAddress, '%s' AS blockchain FROM onchain_%s_post WHERE COALESCE(parentTxHash, '') = '' AND data IS NOT NULL", blockchain, blockchain))
+	}
+	query := fmt.Sprintf("SELECT txHash, timestamp, data, fromAddress, blockchain FROM (%s) t ORDER BY timestamp DESC, blockchain DESC, txHash DESC LIMIT ? OFFSET ?", strings.Join(unionParts, " UNION ALL "))
+	rows, err := db.runParamSQLSelect(query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var timestamp uint64
+		var txHash, payload, address, blockchain string
+		err = rows.Scan(&txHash, &timestamp, &payload, &address, &blockchain)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, map[string]interface{}{
+			"address":    address,
+			"blockchain": blockchain,
+			"parentHash": "",
+			"payload":    payload,
+			"resultType": "post",
+			"timestamp":  timestamp,
+			"txHash":     txHash,
+		})
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	rows.Close()
+	for _, post := range posts {
+		txHash := post["txHash"].(string)
+		blockchain := post["blockchain"].(string)
+		attachments := db.GetPostAttachments(txHash, blockchain)
+		if len(attachments) > 0 {
+			post["attachments"] = attachments
+		}
+		post["commentCount"] = db.GetCommentCount(txHash, blockchain)
+	}
+	return posts, nil
 }
 func (db *MySQL) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
 	var eligibleParts []string

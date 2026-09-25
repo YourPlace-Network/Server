@@ -245,13 +245,13 @@ export async function localWalletEthereumTxn(dest: string, payload: string): Pro
     }
 }
 
-export async function localWalletEthereumBurnCollectible(tokenId: bigint): Promise<boolean> {
+export async function localWalletEthereumBurnCollectible(tokenId: bigint, contractAddress: string = YP_NFT_CONTRACT_ADDRESS): Promise<boolean> {
     const wallet = localWalletEthereumGetWallet();
     if (!wallet) return false;
     try {
         const provider = await getProvider();
         const connectedWallet = wallet.connect(provider);
-        const contract = new ethers.Contract(YP_NFT_CONTRACT_ADDRESS, YP_NFT_CONTRACT_ABI, connectedWallet);
+        const contract = new ethers.Contract(contractAddress, YP_NFT_CONTRACT_ABI, connectedWallet);
         await contract.burn(tokenId);
         return true;
     } catch (error) {
@@ -260,11 +260,11 @@ export async function localWalletEthereumBurnCollectible(tokenId: bigint): Promi
         return false;
     }
 }
-export async function localWalletEthereumGetCollectibles(ownerAddress: string): Promise<CollectibleData[]> {
+export async function localWalletEthereumGetCollectibles(ownerAddress: string, contractAddress: string = YP_NFT_CONTRACT_ADDRESS): Promise<CollectibleData[]> {
     const results: CollectibleData[] = [];
     try {
         const provider = await getProvider();
-        const contract = new ethers.Contract(YP_NFT_CONTRACT_ADDRESS, YP_NFT_CONTRACT_ABI, provider);
+        const contract = new ethers.Contract(contractAddress, YP_NFT_CONTRACT_ABI, provider);
         const balance = await contract.balanceOf(ownerAddress);
         for (let i = 0n; i < balance; i++) {
             try {
@@ -280,7 +280,7 @@ export async function localWalletEthereumGetCollectibles(ownerAddress: string): 
                 }
                 results.push({
                     blockchain: "base",
-                    contractAddress: YP_NFT_CONTRACT_ADDRESS,
+                    contractAddress,
                     creator: "",
                     description: metadata.description || "",
                     imageUrl: metadata.image || "",
@@ -312,13 +312,13 @@ export async function localWalletEthereumMintCollectible(metadataUri: string): P
         return undefined;
     }
 }
-export async function localWalletEthereumTransferCollectible(tokenId: bigint, toAddress: string): Promise<boolean> {
+export async function localWalletEthereumTransferCollectible(tokenId: bigint, toAddress: string, contractAddress: string = YP_NFT_CONTRACT_ADDRESS): Promise<boolean> {
     const wallet = localWalletEthereumGetWallet();
     if (!wallet) return false;
     try {
         const provider = await getProvider();
         const connectedWallet = wallet.connect(provider);
-        const contract = new ethers.Contract(YP_NFT_CONTRACT_ADDRESS, YP_NFT_CONTRACT_ABI, connectedWallet);
+        const contract = new ethers.Contract(contractAddress, YP_NFT_CONTRACT_ABI, connectedWallet);
         await contract.safeTransferFrom(wallet.address, toAddress, tokenId);
         return true;
     } catch (error) {

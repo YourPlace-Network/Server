@@ -3,6 +3,7 @@ package db
 import (
 	"YourPlace/src/core"
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -12,7 +13,7 @@ import (
 
 // SchemaVersion is the current schema version of the database.
 // Increment this value when adding a new migration.
-const SchemaVersion = 14
+const SchemaVersion = 15
 
 // Migration represents a single schema migration that upgrades the database from version N-1 to version N.
 type Migration struct {
@@ -42,6 +43,55 @@ var migrations = []Migration{
 	{Version: 12, Description: "Add deleted markers to chain-specific file tables", Up: migrateV12},
 	{Version: 13, Description: "Drop deleted markers from chain-specific file tables", Up: migrateV13},
 	{Version: 14, Description: "Add followers feed indexes", Up: migrateV14},
+	{Version: 15, Description: "Add server-local welcome NFT queue", Up: migrateV15},
+}
+
+func migrateV15(db *SQLite) error {
+	return createNFTTables(db.database, false)
+}
+func createNFTTables(database *sql.DB, mysql bool) error {
+	keyType, bodyType, suffix := "TEXT", "TEXT", ""
+	if mysql {
+		keyType, bodyType, suffix = "VARCHAR(128) COLLATE utf8mb4_bin", "MEDIUMTEXT", " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"
+	}
+	statements := []string{
+		"CREATE TABLE IF NOT EXISTS auto_nft_control (id INTEGER PRIMARY KEY, config " + bodyType + " NOT NULL, revision BIGINT NOT NULL, leaseOwner " + keyType + " NOT NULL, leaseUntil BIGINT NOT NULL)" + suffix,
+		"CREATE TABLE IF NOT EXISTS local_profiles (identityKey " + keyType + " PRIMARY KEY, network " + keyType + " NOT NULL, address " + keyType + " NOT NULL, firstLoginAt BIGINT NOT NULL, welcomeNFTDeliveredAt BIGINT NOT NULL)" + suffix,
+		"CREATE TABLE IF NOT EXISTS auto_nft_grants (id " + keyType + " PRIMARY KEY, revision BIGINT NOT NULL, identityKey " + keyType + " NOT NULL UNIQUE, network " + keyType + " NOT NULL, collection " + keyType + " NOT NULL, signerKey " + keyType + " NOT NULL, pending INTEGER NOT NULL, stage " + keyType + " NOT NULL, dueAt BIGINT NOT NULL, issuanceDay " + keyType + " NOT NULL, body " + bodyType + " NOT NULL)" + suffix,
+		"CREATE TABLE IF NOT EXISTS auto_nft_transactions (grantID " + keyType + " NOT NULL, txHash " + keyType + " NOT NULL, body " + bodyType + " NOT NULL, createdAt BIGINT NOT NULL, PRIMARY KEY(grantID, txHash))" + suffix,
+	}
+	for _, statement := range statements {
+		if _, err := database.Exec(statement); err != nil {
+			return err
+		}
+	}
+	indexes := []struct{ name, columns string }{
+		{"idx_auto_nft_due", "dueAt, stage"},
+		{"idx_auto_nft_issuance", "issuanceDay"},
+		{"idx_auto_nft_signer", "signerKey, pending"},
+	}
+	for _, index := range indexes {
+		statement := "CREATE INDEX IF NOT EXISTS " + index.name + " ON auto_nft_grants (" + index.columns + ")"
+		if mysql {
+			var exists int
+			if err := database.QueryRow("SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?", "auto_nft_grants", index.name).Scan(&exists); err != nil {
+				return err
+			}
+			if exists > 0 {
+				continue
+			}
+			statement = "CREATE INDEX " + index.name + " ON auto_nft_grants (" + index.columns + ")"
+		}
+		if _, err := database.Exec(statement); err != nil {
+			return err
+		}
+	}
+	insert := "INSERT INTO auto_nft_control (id, config, revision, leaseOwner, leaseUntil) VALUES (1, ?, 0, '', 0) ON CONFLICT(id) DO NOTHING"
+	if mysql {
+		insert = "INSERT INTO auto_nft_control (id, config, revision, leaseOwner, leaseUntil) VALUES (1, ?, 0, '', 0) ON DUPLICATE KEY UPDATE id = id"
+	}
+	_, err := database.Exec(insert, `{"enabled":false,"dailyLimit":0,"chains":[]}`)
+	return err
 }
 
 // --- Migration Functions --- //

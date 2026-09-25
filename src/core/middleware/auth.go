@@ -33,6 +33,7 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 
 // Prefix match on path, exact match on method
 var prefixGetExclusions = []string{ // Auth exclude all GET requests to these paths (public read-only APIs)
+	"/rpc/algorand/",
 	"/static/", "/login", "/logout", // Necessary for login page and static assets
 	"/profile/", "/posts/", "/post/", "/comments/", "/reactions/", "/files/", // Public content browsing
 	"/services/algorand/nfd/", "/services/oembed", "/services/spotify/", "/services/xcom/oembed", // Public data-fetching proxies for post embeds and profile data

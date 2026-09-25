@@ -5,7 +5,7 @@ import {HttpGetJson, HttpPostJson} from "../network";
 import {CIDToSubdomainURL} from "../ipfs";
 import {ethers} from "ethers";
 import {YP} from "../../services/yourplace";
-import {createPublicClient, getAddress, http as viemHttp, UserRejectedRequestError} from "viem";
+import {createPublicClient, getAddress, http as viemHttp, parseAbi, UserRejectedRequestError} from "viem";
 import {mainnet as viemMainnet} from "viem/chains";
 import {SiweMessage} from "siwe";
 import {
@@ -45,6 +45,13 @@ let ethereumPrefetchedNonce: {nonce: string, issuedAt: string, fetchedAt: number
 const ETHEREUM_NONCE_PREFETCH_VALIDITY_MS = 300000;
 const ETHEREUM_WAGMI_STORAGE_KEY = "yourplace_ethereum.store";
 const ETHEREUM_WAGMI_RECENT_CONNECTOR_KEY = "yourplace_ethereum.recentConnectorId";
+const ethereumNFTABI = parseAbi([
+    "function balanceOf(address) view returns (uint256)",
+    "function tokenOfOwnerByIndex(address,uint256) view returns (uint256)",
+    "function tokenURI(uint256) view returns (string)",
+    "function burn(uint256)",
+    "function safeTransferFrom(address,address,uint256)",
+]);
 
 async function initEthWallet() {
     if (ethereumInit) { return; }
@@ -501,20 +508,61 @@ export async function ethereumGetDescription(_address: string): Promise<string> 
     }
     return "";
 }
-export async function ethereumGetCollectibles(_address: string): Promise<CollectibleData[]> {
-    return [];
+export async function ethereumGetCollectibles(address: string, contractAddress?: string): Promise<CollectibleData[]> {
+    const results: CollectibleData[] = [];
+    if (!contractAddress || !ethers.isAddress(contractAddress)) return results;
+    if (!ethereumInit) await initEthWallet();
+    try {
+        const options = {address: contractAddress, abi: ethereumNFTABI};
+        const balance = await ethereumViemClient.readContract({...options, functionName: "balanceOf", args: [address]}) as bigint;
+        for (let index = 0n; index < balance && index < 1000n; index++) {
+            const tokenId = await ethereumViemClient.readContract({...options, functionName: "tokenOfOwnerByIndex", args: [address, index]}) as bigint;
+            const uri = await ethereumViemClient.readContract({...options, functionName: "tokenURI", args: [tokenId]}) as string;
+            const url = uri.startsWith("ipfs://") ? CIDToSubdomainURL(uri) : uri;
+            let metadata: any = {};
+            if (url && IsValidURL(url)) {
+                const response = await fetch(url);
+                if (response.ok) metadata = await response.json();
+            }
+            results.push({blockchain: "ethereum", contractAddress, creator: "", tokenId: tokenId.toString(), name: metadata.name || "Collectible #" + tokenId, description: metadata.description || "", imageUrl: metadata.image || "", mimeType: metadata.image_mimetype || "image/png"});
+        }
+    } catch (_) { LogError("Could not load Ethereum collectibles"); }
+    return results;
 }
-export async function ethereumBurnCollectible(_tokenId: bigint): Promise<boolean> {
-    return false;
+export async function ethereumBurnCollectible(tokenId: bigint, contractAddress?: string): Promise<boolean> {
+    return ethereumSendNFT(contractAddress, "burn", [tokenId]);
 }
-export async function ethereumTransferCollectible(_tokenId: bigint, _toAddress: string): Promise<boolean> {
-    return false;
+export async function ethereumTransferCollectible(tokenId: bigint, toAddress: string, contractAddress?: string): Promise<boolean> {
+    return ethereumSendNFT(contractAddress, "safeTransferFrom", [GetAddress(), toAddress, tokenId]);
 }
 export async function ethereumMintCollectible(_metadataUri: string): Promise<string | undefined> {
     return undefined;
 }
-export async function ethereumGetTransferFeeEstimate(_toAddress: string, _tokenId: bigint): Promise<string> {
-    return "-- ETH";
+export async function ethereumGetTransferFeeEstimate(toAddress: string, tokenId: bigint, contractAddress?: string): Promise<string> {
+    if (!contractAddress || !ethers.isAddress(contractAddress)) return "-- ETH";
+    if (!ethereumInit) await initEthWallet();
+    try {
+        const gas = await ethereumViemClient.estimateContractGas({address: contractAddress, abi: ethereumNFTABI, functionName: "safeTransferFrom", args: [GetAddress(), toAddress, tokenId], account: GetAddress()});
+        return ethers.formatEther(gas * await ethereumViemClient.getGasPrice()) + " ETH";
+    } catch (_) { return "-- ETH"; }
+}
+async function ethereumSendNFT(contractAddress: string | undefined, method: string, args: any[]): Promise<boolean> {
+    if (!contractAddress || !ethers.isAddress(contractAddress)) return false;
+    if (!ethereumInit) await initEthWallet();
+    try {
+        let connection = getConnections(ethereumWagmiConfig)[0];
+        if (!connection) { await ethereumConnectWallet(); connection = getConnections(ethereumWagmiConfig)[0]; }
+        const injectedProvider = await connection?.connector.getProvider() as ethers.Eip1193Provider;
+        if (!injectedProvider) return false;
+        const provider = new ethers.BrowserProvider(injectedProvider);
+        if ((await provider.getNetwork()).chainId !== BigInt(mainnetEth.chainId)) return false;
+        const signer = await provider.getSigner();
+        if ((await signer.getAddress()).toLowerCase() !== GetAddress()?.toLowerCase()) return false;
+        const contract = new ethers.Contract(contractAddress, ethereumNFTABI, signer);
+        const transaction = await contract.getFunction(method)(...args);
+        await transaction.wait();
+        return true;
+    } catch (_) { LogError("Ethereum collectible transaction failed"); return false; }
 }
 
 export async function ethereumGetEnsName(address: string): Promise<string> {
