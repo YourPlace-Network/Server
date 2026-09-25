@@ -26,6 +26,12 @@ import (
 //go:embed bin/GeoLite2-Country.mmdb
 var geoliteDB []byte
 
+const (
+	DefaultServerDomain   = "localhost"
+	DefaultServerPort     = 42424
+	DefaultServerProtocol = "http"
+)
+
 func IsDebugMode() bool {
 	if GetEnvVar("YourPlaceDebug") == "true" || DoesExist(GetDataDir()+"debug") {
 		return true

@@ -29,3 +29,8 @@ chown "$CONSOLE_USER:staff" "/Users/$CONSOLE_USER/Library/LaunchAgents/com.yourp
 chmod 0644 "/Users/$CONSOLE_USER/Library/LaunchAgents/com.yourplace.server.plist"
 launchctl asuser "$CONSOLE_UID" launchctl bootout "gui/$CONSOLE_UID/com.yourplace.server" 2>/dev/null || true
 launchctl asuser "$CONSOLE_UID" launchctl bootstrap "gui/$CONSOLE_UID" "/Users/$CONSOLE_USER/Library/LaunchAgents/com.yourplace.server.plist"
+
+if [ "$CONSOLE_UID" -ge 501 ] && [ "$CONSOLE_USER" != "loginwindow" ]; then
+    launchctl asuser "$CONSOLE_UID" /usr/bin/sudo -H -u "$CONSOLE_USER" \
+        /Applications/YourPlace.app/Contents/MacOS/YourPlaceLauncher --install-dock || true
+fi

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"YourPlace/launcher"
 	"YourPlace/src/core/host"
 	"YourPlace/src/core/network"
 	"bufio"
@@ -47,6 +48,9 @@ const (
 )
 
 func main() {
+	if launcher.HandleCommand(host.DefaultServerProtocol, host.DefaultServerDomain, host.DefaultServerPort) {
+		return
+	}
 	if !host.CreateMutex(serviceName) { // Singleton pattern
 		LogFatal("Another instance of the helper service is already running")
 	}
@@ -174,66 +178,26 @@ func restartYourPlaceServer() error {
 		log.Println("Could not find user to launch YourPlace server with: " + err.Error())
 		return err
 	}
-	uid, _ := strconv.Atoi(_user.Uid)
-	gid, _ := strconv.Atoi(_user.Gid)
-	_ = stopYourPlaceServer()
-	for {
-		time.Sleep(1 * time.Second)
-		_, err = getProcessUserInfo("YourPlace")
-		if err != nil {
-			break
-		}
+	uid, err := strconv.Atoi(_user.Uid)
+	if err != nil || uid < 501 {
+		return fmt.Errorf("invalid YourPlace server user ID: %s", _user.Uid)
 	}
-	time.Sleep(2 * time.Second)
-	opener := "/usr/bin/open"
-	appPath := "/Applications/YourPlace.app"
-	args := []string{opener, appPath}
-	env := []string{
-		"PATH=/usr/bin:/bin:/usr/sbin:/sbin",
-		"USER=" + _user.Username,
-		"HOME=" + _user.HomeDir,
-		"SHELL=/bin/bash",
-		"DISPLAY=:0",
-		fmt.Sprintf("LOGNAME=%s", _user.Username),
+	service := "gui/" + strconv.Itoa(uid) + "/com.yourplace.server"
+	if err := exec.Command("/bin/launchctl", "kickstart", "-k", service).Run(); err != nil {
+		return fmt.Errorf("could not restart YourPlace: %w", err)
 	}
-	procAttr := &syscall.ProcAttr{
-		Env: env,           // Pass current working environment
-		Dir: _user.HomeDir, // Pass current working directory
-		Files: []uintptr{ // Standard file descriptors
-			os.Stdin.Fd(),
-			os.Stdout.Fd(),
-			os.Stderr.Fd(),
-		},
-		Sys: &syscall.SysProcAttr{
-			Credential: &syscall.Credential{
-				Uid: uint32(uid),
-				Gid: uint32(gid),
-			},
-			Setsid: true, // Create new session
-		},
-	}
-	go func() {
-		_, _err := syscall.ForkExec(opener, args, procAttr)
-		if _err != nil {
-			LogError("Error launching process: " + err.Error())
-			return
-		}
-	}()
 	return nil
 }
 func stopYourPlaceServer() error {
-	_user, err := getProcessUserInfo("YourPlace")
+	pid, err := getProcessPID("YourPlace")
 	if err != nil {
-		log.Println("Could not find user to kill YourPlace server with: " + err.Error())
 		return err
 	}
-	cmd := exec.Command("pkill", "-9", "-u", _user.Username, "YourPlace")
-	err = cmd.Run()
+	process, err := os.FindProcess(pid)
 	if err != nil {
-		log.Println("Could not kill YourPlace server: " + err.Error())
 		return err
 	}
-	return nil
+	return process.Kill()
 }
 func uninstallYourPlace(keepUpload, keepBlockchain bool) error {
 	if os.Geteuid() != 0 {
@@ -332,19 +296,43 @@ func whitelistTorBinary() error {
 }
 
 // System Functions
-func getProcessUserInfo(processName string) (*user.User, error) {
-	// Get the PID using pgrep
-	pidCmd := exec.Command("pgrep", "-x", processName)
-	pidOutput, err := pidCmd.Output()
+func getProcessPID(processName string) (int, error) {
+	pidOutput, err := exec.Command("pgrep", "-x", processName).Output()
 	if err != nil {
-		return nil, LogErrorReturn("Could not get PID for process 1: " + err.Error())
+		return 0, fmt.Errorf("could not find %s: %w", processName, err)
 	}
-	pid := strings.TrimSpace(string(pidOutput))
-	if pid == "" {
-		return nil, LogErrorReturn("Could not get PID for process 2")
+	matchedPID := 0
+	for _, value := range strings.Fields(string(pidOutput)) {
+		pid, err := strconv.Atoi(value)
+		if err != nil || pid <= 0 {
+			continue
+		}
+		if processName == "YourPlace" {
+			command, err := exec.Command("ps", "-ww", "-o", "args=", "-p", value).Output()
+			if err != nil {
+				continue
+			}
+			if strings.HasSuffix(strings.TrimSpace(string(command)), " -open-ui") {
+				continue
+			}
+		}
+		if matchedPID != 0 {
+			return 0, fmt.Errorf("multiple %s server processes found", processName)
+		}
+		matchedPID = pid
+	}
+	if matchedPID == 0 {
+		return 0, fmt.Errorf("no %s server process found", processName)
+	}
+	return matchedPID, nil
+}
+func getProcessUserInfo(processName string) (*user.User, error) {
+	pid, err := getProcessPID(processName)
+	if err != nil {
+		return nil, err
 	}
 	// Get user info using the PID
-	cmd := exec.Command("ps", "-o", "user=", "-p", pid)
+	cmd := exec.Command("ps", "-o", "user=", "-p", strconv.Itoa(pid))
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, LogErrorReturn("Could not get user info for process 1: " + err.Error())

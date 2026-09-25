@@ -6,11 +6,11 @@
   <string>com.yourplace.server</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Applications/YourPlace.app/Contents/MacOS/YourPlace</string>
+    <string>/Applications/YourPlace.app/Contents/Helpers/YourPlaceServer.app/Contents/MacOS/YourPlace</string>
     <string>-du</string>$DEV_ARG
   </array>
   <key>WorkingDirectory</key>
-  <string>/Applications/YourPlace.app/Contents/MacOS</string>
+  <string>/Applications/YourPlace.app/Contents/Helpers/YourPlaceServer.app/Contents/MacOS</string>
   <key>RunAtLoad</key>
   <true/>
   <key>NetworkState</key>

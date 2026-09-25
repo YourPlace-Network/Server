@@ -254,10 +254,10 @@ import {CreateXcomCard} from "../components/xcomOEmbedCard";
         }
         async function populateDiscoverRow(rowElement: HTMLDivElement, profiles: any[]) {
             const columns = rowElement.querySelectorAll(".discoverCol");
+            columns.forEach(col => col.replaceChildren());
             for (let i = 0; i < Math.min(profiles.length, columns.length); i++) {
                 const profile = profiles[i];
                 const col = columns[i] as HTMLDivElement;
-                col.innerHTML = "";
                 profile.name = WalletGetCachedName(profile.blockchain, profile.address) || "Loading...";
                 profile.avatarSrc = WalletGetCachedAvatar(profile.blockchain, profile.address) || "/static/image/avatar.svg";
                 profile.description = "";

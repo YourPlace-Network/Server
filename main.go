@@ -1,6 +1,7 @@
 package main
 
 import (
+	"YourPlace/launcher"
 	"YourPlace/src/core"
 	blockchain2 "YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
@@ -50,11 +51,11 @@ var assetManifest map[string]string // webpack asset manifest
 
 var (
 	title      = "YourPlace"
-	version    = "0.1.0"                  // Triggers a release build
-	protocol   = "http"                   // http or https
-	cryptoSeed = security.RandomBytes(32) // set in 'c' command line flag
-	domain     = "localhost"
-	port       = 42424
+	version    = "0.1.0"                    // Triggers a release build
+	protocol   = host.DefaultServerProtocol // http or https
+	cryptoSeed = security.RandomBytes(32)   // set in 'c' command line flag
+	domain     = host.DefaultServerDomain
+	port       = host.DefaultServerPort
 	debug      = false // set in 'd' command line flag or set debug file in data directory
 	gateway    = false // set in 'g' command line flag
 	patch      = false // set in 'p' command line flag
@@ -64,6 +65,9 @@ var (
 )
 
 func main() {
+	if launcher.HandleCommand(protocol, domain, port) {
+		return
+	}
 	time.Sleep(3 * time.Second)   // Sleep to allow the previous instance to close
 	_ = core.LogInit("yourplace") // Initialize the logger
 	core.LogInfo("~~~~~~~~~~~~~ Starting YourPlace " + version + " ~~~~~~~~~~~~~")
@@ -136,6 +140,7 @@ func main() {
 		core.LogFatal("Another instance of YourPlace is already running")
 	}
 	defer host.ReleaseMutex()
+	launcher.Start(gateway)
 	if host.IsAdmin() {
 		core.LogWarn("YourPlace is running as an administrator - Not recommended")
 	}

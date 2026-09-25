@@ -20,6 +20,7 @@ fi
 
 # Create app bundle structure
 mkdir -p "./target/YourPlace.app/Contents/MacOS"
+mkdir -p "./target/YourPlace.app/Contents/Helpers/YourPlaceServer.app/Contents/MacOS"
 mkdir -p "./target/YourPlace.app/Contents/Resources"
 mkdir -p "./target/YourPlace.app/Contents/Resources/scripts"
 mkdir -p "./target/Resources"
@@ -44,14 +45,40 @@ cp ./resources/osx/uninstall.sh ./target/YourPlace.app/Contents/Resources/script
 chmod 0755 ./target/YourPlace.app/Contents/Resources/scripts/uninstall.sh
 
 # --------- Installer --------- #
-cp ./target/YourPlace ./target/YourPlace.app/Contents/MacOS/YourPlace
+cp ./target/YourPlace ./target/YourPlace.app/Contents/Helpers/YourPlaceServer.app/Contents/MacOS/YourPlace
+rm -f ./target/YourPlace.app/Contents/MacOS/YourPlace
 cp ./target/YourPlaceHelper ./target/YourPlace.app/Contents/MacOS/YourPlaceHelper
+LAUNCHER_ARCH_ARGS=()
+SERVER_ARCHS=$(xcrun lipo -archs ./target/YourPlace) || exit 1
+for ARCH in $SERVER_ARCHS; do
+    LAUNCHER_ARCH_ARGS+=(-arch "$ARCH")
+done
+SERVER_BUILD=$(xcrun vtool -show-build ./target/YourPlace) || exit 1
+LAUNCHER_MIN_OS=$(awk '
+    $1 == "minos" {
+        split($2, parts, ".")
+        value = parts[1] * 10000 + parts[2] * 100 + parts[3]
+        if (value > maximum) { maximum = value; version = $2 }
+    }
+    END { print version }
+' <<< "$SERVER_BUILD")
+if [ -z "$LAUNCHER_MIN_OS" ]; then
+    echo "ERROR: Could not determine the server minimum macOS version"
+    exit 1
+fi
+xcrun clang -fobjc-arc -framework Cocoa "${LAUNCHER_ARCH_ARGS[@]}" \
+    -mmacosx-version-min="$LAUNCHER_MIN_OS" ./launcher/osx/launcher.m \
+    -o ./target/YourPlace.app/Contents/MacOS/YourPlaceLauncher || exit 1
 cp ./resources/osx/AppIcon.icns ./target/YourPlace.app/Contents/Resources/AppIcon.icns
 cp ./src/www/image/yourplace-logo-zoomed-out.png ./target/Resources/yourplace.png
 sips -Z 225 ./target/Resources/yourplace.png
 
 # --------- Packaging --------- #
 cp ./resources/osx/Info.plist ./target/YourPlace.app/Contents/
+/usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $LAUNCHER_MIN_OS" ./target/YourPlace.app/Contents/Info.plist || exit 1
+cp ./resources/osx/ServerInfo.plist ./target/YourPlace.app/Contents/Helpers/YourPlaceServer.app/Contents/Info.plist
+/usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $LAUNCHER_MIN_OS" ./target/YourPlace.app/Contents/Helpers/YourPlaceServer.app/Contents/Info.plist || exit 1
+/usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $VERSION" ./target/YourPlace.app/Contents/Helpers/YourPlaceServer.app/Contents/Info.plist || exit 1
 cp ./resources/osx/distribution.xml ./target/
 
 # --------- Signing & Notarization --------- #
@@ -61,7 +88,8 @@ if [ $DEV_MODE -eq 0 ]; then
   # Sign the app bundle and binaries
   codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/Resources/scripts/uninstall.sh
   codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/MacOS/YourPlaceHelper
-  codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/MacOS/YourPlace
+  codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/Helpers/YourPlaceServer.app || exit 1
+  codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app/Contents/MacOS/YourPlaceLauncher || exit 1
   codesign --force --timestamp --options runtime --entitlements ./resources/osx/entitlements.plist --sign "${APP_CERTIFICATE}" ./target/YourPlace.app
   # Verify the signatures to ensure it's valid
   codesign -vvv --deep --strict ./target/YourPlace.app

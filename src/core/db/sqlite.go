@@ -1860,16 +1860,18 @@ func (db *SQLite) SearchGetProfiles(query string, limit int, offset int) []map[s
 	return profiles
 }
 func (db *SQLite) DiscoverGetRandomProfiles(limit int) []map[string]interface{} {
+	var eligibleParts []string
 	var profiles []map[string]interface{}
 	var unionParts []string
 	for _, _blockchain := range core.ValidNetworks {
+		eligibleParts = append(eligibleParts, fmt.Sprintf("SELECT address, '%s' AS blockchain FROM onchain_%s_meta WHERE name <> '' OR ensName <> '' OR avatar <> '' OR ensAvatar <> ''", _blockchain, _blockchain))
 		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, '%s' AS blockchain FROM onchain_%s_comment", _blockchain, _blockchain))
 		unionParts = append(unionParts, fmt.Sprintf("SELECT followeeAddress AS address, followeeBlockchain AS blockchain FROM onchain_%s_follow", _blockchain))
 		unionParts = append(unionParts, fmt.Sprintf("SELECT followerAddress AS address, followerBlockchain AS blockchain FROM onchain_%s_follow", _blockchain))
 		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, '%s' AS blockchain FROM onchain_%s_post", _blockchain, _blockchain))
 		unionParts = append(unionParts, fmt.Sprintf("SELECT fromAddress AS address, '%s' AS blockchain FROM onchain_%s_reaction", _blockchain, _blockchain))
 	}
-	sqlQuery := fmt.Sprintf("SELECT address, blockchain FROM (%s) GROUP BY address, blockchain ORDER BY RANDOM() LIMIT ?", strings.Join(unionParts, " UNION ALL "))
+	sqlQuery := fmt.Sprintf("SELECT address, blockchain FROM (%s) candidates WHERE EXISTS (SELECT 1 FROM (%s) eligible WHERE eligible.address = candidates.address AND eligible.blockchain = candidates.blockchain) GROUP BY address, blockchain ORDER BY RANDOM() LIMIT ?", strings.Join(unionParts, " UNION ALL "), strings.Join(eligibleParts, " UNION ALL "))
 	rows, err := db.runParamSQLSelect(sqlQuery, limit)
 	if err != nil {
 		core.LogDebug("Could not get random profiles from database: " + err.Error())
