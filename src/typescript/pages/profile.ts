@@ -16,7 +16,6 @@ import {ShowAvatarMediaViewer} from "../components/modalMediaViewer";
 import {FetchComments, FetchPosts} from "../components/post";
 import {ShowNotifications} from "../util/notifications";
 import {GetAddress, GetChain, GetWallet, IsValidAddress, WalletBurnCollectible, WalletFollowUser, WalletGetAvatar, WalletGetCollectibles, WalletGetDescription, WalletGetExplorerAddressLink, WalletGetName, WalletGetTransferFeeEstimate, WalletSendPostNudge, WalletTransferCollectible, WalletUnfollowUser} from "../util/blockchain/wallet";
-import type {CollectibleData} from "../util/blockchain/wallet";
 import {CreateFileCard, type FileCardData} from "../components/fileCard";
 import {CreatePostCard} from "../components/postCard";
 import {CreateCollectibleCard, getBlockchainIconPath, getBlockchainUrl, processTextWithTags} from "../util/domFactory";

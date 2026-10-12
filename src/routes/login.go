@@ -6,8 +6,6 @@ import (
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
-	"crypto/ed25519"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -16,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/algorand/go-algorand-sdk/v2/encoding/msgpack"
-	_algotypes "github.com/algorand/go-algorand-sdk/v2/types"
 	"github.com/gin-gonic/gin"
 	"github.com/spruceid/siwe-go"
 )
@@ -38,7 +34,7 @@ type SiwaMessageParsed struct {
 	IssuedAt  string
 }
 
-func LoginRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, domain string, port int, installed bool, gateway bool) {
+func LoginRoutes(router *gin.Engine, title string, database *db.Database, cryptoSeed []byte, domain string, port int, installed bool, gateway bool, chains *blockchain.Blockchain) {
 	var expectedDomain string
 	if gateway {
 		expectedDomain = domain
@@ -64,16 +60,10 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 		})
 	})
 	router.GET("/login/check", func(c *gin.Context) {
-		cookie, err := c.Request.Cookie("yp_auth")
-		if err == nil {
-			if security.ValidateCookie(cookie, cryptoSeed, database) {
-				address, addressErr := security.GetCookieValue(cookie, cryptoSeed, "address", database)
-				blockchain, blockchainErr := security.GetCookieValue(cookie, cryptoSeed, "blockchain", database)
-				if addressErr == nil && blockchainErr == nil {
-					c.SecureJSON(http.StatusOK, gin.H{"status": "Logged in", "address": address, "blockchain": blockchain})
-					return
-				}
-			}
+		address, network := c.GetString("accountAddress"), c.GetString("blockchain")
+		if address != "" && network != "" {
+			c.SecureJSON(http.StatusOK, gin.H{"status": "Logged in", "address": address, "blockchain": network})
+			return
 		}
 		c.SecureJSON(http.StatusUnauthorized, gin.H{"status": "Not logged in"})
 		return
@@ -173,7 +163,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Login storage unavailable; please retry"})
 			return
 		}
-		authCookie := security.CreateAuthCookie(payload.Address, "base", cryptoSeed, database)
+		authCookie := security.CreateAuthCookie(payload.Address, "base", "", cryptoSeed, database)
 		if authCookie == nil {
 			core.LogError("Base wallet login - failed to create auth cookie")
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to create auth cookie"})
@@ -240,7 +230,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Login storage unavailable; please retry"})
 			return
 		}
-		authCookie := security.CreateAuthCookie(payload.Address, "ethereum", cryptoSeed, database)
+		authCookie := security.CreateAuthCookie(payload.Address, "ethereum", "", cryptoSeed, database)
 		if authCookie == nil {
 			core.LogError("Ethereum wallet login - failed to create auth cookie")
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to create auth cookie"})
@@ -307,7 +297,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Login storage unavailable; please retry"})
 			return
 		}
-		authCookie := security.CreateAuthCookie(payload.Address, "base", cryptoSeed, database)
+		authCookie := security.CreateAuthCookie(payload.Address, "base", "", cryptoSeed, database)
 		if authCookie == nil {
 			core.LogError("Local wallet login - failed to create auth cookie")
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to create auth cookie"})
@@ -357,8 +347,13 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			return
 		}
 		database.AuthDeleteLoginNonce(nonce)
-		if !VerifySiwaTransaction(payload.EncodedTransaction, payload.Signature, payload.Address, payload.Message) {
+		authorizer, verifyErr := chains.Algorand.VerifyLoginTransaction(c.Request.Context(), payload.EncodedTransaction, payload.Signature, payload.Address, payload.Message)
+		if verifyErr != nil {
 			core.LogDebug("SIWA transaction verification failed")
+			if verifyErr.Error() == "authority_unavailable" {
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Wallet authority unavailable; please retry"})
+				return
+			}
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid signature"})
 			return
 		}
@@ -367,7 +362,7 @@ func LoginRoutes(router *gin.Engine, title string, database *db.Database, crypto
 			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "Login storage unavailable; please retry"})
 			return
 		}
-		authCookie := security.CreateAuthCookie(payload.Address, "algorand", cryptoSeed, database)
+		authCookie := security.CreateAuthCookie(payload.Address, "algorand", authorizer, cryptoSeed, database)
 		if authCookie == nil {
 			core.LogError("Pera wallet login - failed to create auth cookie")
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Failed to create auth cookie"})
@@ -427,45 +422,4 @@ func ParseSiwaMessage(message string) (*SiwaMessageParsed, error) {
 		return nil, core.LogErrorReturn("Invalid SIWA message format")
 	}
 	return parsed, nil
-}
-func VerifySiwaTransaction(encodedTransaction string, signatureBase64 string, address string, expectedMessage string) bool {
-	txnBytes, err := base64.StdEncoding.DecodeString(encodedTransaction)
-	if err != nil {
-		core.LogDebug("Failed to decode transaction from base64: " + err.Error())
-		return false
-	}
-	var signedTxn _algotypes.SignedTxn
-	err = msgpack.Decode(txnBytes, &signedTxn)
-	if err != nil {
-		core.LogDebug("Failed to decode signed transaction: " + err.Error())
-		return false
-	}
-	txnSignature := base64.StdEncoding.EncodeToString(signedTxn.Sig[:])
-	if txnSignature != signatureBase64 {
-		core.LogDebug("Signature mismatch: txn signature doesn't match provided signature")
-		return false
-	}
-	txn := signedTxn.Txn
-	if txn.Sender.String() != address {
-		core.LogDebug("Sender mismatch: expected " + address + ", got " + txn.Sender.String())
-		return false
-	}
-	noteStr := string(txn.Note)
-	if noteStr != expectedMessage {
-		core.LogDebug("Note mismatch: transaction note doesn't match SIWA message")
-		return false
-	}
-	algoAddr, err := _algotypes.DecodeAddress(address)
-	if err != nil {
-		core.LogDebug("Failed to decode Algorand address: " + err.Error())
-		return false
-	}
-	publicKey := ed25519.PublicKey(algoAddr[:])
-	txnBytesToSign := append([]byte("TX"), msgpack.Encode(txn)...)
-	signatureBytes, err := base64.StdEncoding.DecodeString(signatureBase64)
-	if err != nil {
-		core.LogDebug("Failed to decode signature from base64: " + err.Error())
-		return false
-	}
-	return ed25519.Verify(publicKey, txnBytesToSign, signatureBytes)
 }

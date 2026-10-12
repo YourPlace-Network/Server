@@ -524,7 +524,13 @@ export async function ethereumGetCollectibles(address: string, contractAddress?:
                 const response = await fetch(url);
                 if (response.ok) metadata = await response.json();
             }
-            results.push({blockchain: "ethereum", contractAddress, creator: "", tokenId: tokenId.toString(), name: metadata.name || "Collectible #" + tokenId, description: metadata.description || "", imageUrl: metadata.image || "", mimeType: metadata.image_mimetype || "image/png"});
+            results.push({
+                blockchain: "ethereum", contractAddress, creator: "", tokenId: tokenId.toString(),
+                name: typeof metadata?.name === "string" ? metadata.name : "Collectible #" + tokenId,
+                description: typeof metadata?.description === "string" ? metadata.description : "",
+                imageUrl: typeof metadata?.image === "string" ? metadata.image : "",
+                mimeType: typeof metadata?.image_mimetype === "string" ? metadata.image_mimetype : "image/png",
+            });
         }
     } catch (_) { LogError("Could not load Ethereum collectibles"); }
     return results;

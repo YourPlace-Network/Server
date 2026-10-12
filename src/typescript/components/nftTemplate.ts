@@ -134,6 +134,11 @@ export function InitNFTTemplate(onSelected: (template: NFTTemplate) => void) {
         DOM.page.textContent = String(offset / 12 + 1);
     }
     function update(template: NFTTemplate | undefined, registration: Operator) {
+        if (operator?.operatorNetwork !== registration.operatorNetwork || operator?.operatorAddress !== registration.operatorAddress) {
+            collection = [];
+            loaded = false;
+            offset = 0;
+        }
         selected = template;
         operator = registration;
         candidate = undefined;
@@ -145,7 +150,7 @@ export function InitNFTTemplate(onSelected: (template: NFTTemplate) => void) {
         DOM.choose.setAttribute("aria-expanded", "false");
         DOM.preview.hidden = !template;
         if (template) preview(template.name, template.description, template.image, template.mimeType, template.source.tokenId);
-        DOM.status.textContent = template ? "Selected for new visitors" : "No NFT selected";
+        DOM.status.textContent = "";
         if (loaded) renderCollection();
     }
     DOM.choose.addEventListener("click", () => {

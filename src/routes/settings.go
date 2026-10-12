@@ -22,18 +22,14 @@ import (
 func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain2.Blockchain, cryptoSeed []byte, gateway bool, ipfs *network.IPFS, debug bool) {
 	defaultUploadDirectory := host.GetDataDir() + "upload" + host.PathSeparator
 
+		c.Header("Cache-Control", "no-store")
 	router.GET("/settings", func(c *gin.Context) { // Settings View
 		token := middleware.GetCSRFToken(c)
 		ipfsGateway := getConfiguredIPFSGateway(database)
-		authenticated := false
-		userAddress := ""
-		userBlockchain := ""
-		authCookie, err := c.Request.Cookie("yp_auth")
-		if err == nil && security.ValidateCookie(authCookie, cryptoSeed, database) {
-			authenticated = true
-			userAddress, _ = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
-			userBlockchain, _ = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
-		}
+		userAddress := c.GetString("accountAddress")
+		userBlockchain := c.GetString("blockchain")
+		authenticated := security.IsValidBlockchain(userBlockchain) && security.IsValidAddress(userAddress, userBlockchain)
+		nftOperatorStatus := _blockchain.Minter.OperatorStatus(userBlockchain, userAddress)
 		c.HTML(http.StatusOK, "src/templates/pages/settings.tmpl", gin.H{
 			"title":                 title,
 			"pageName":              "settings",
@@ -41,7 +37,8 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"ipfsGateway":           ipfsGateway,
 			"isCookieAuthenticated": authenticated,
 			"gatewayMode":           gateway,
-			"canManageNFT":          _blockchain.Minter.IsOperator(userBlockchain, userAddress),
+			"canManageNFT":          nftOperatorStatus == "authorized",
+			"nftOperatorStatus":     nftOperatorStatus,
 			"userAddress":           userAddress,
 			"userBlockchain":        userBlockchain,
 		})

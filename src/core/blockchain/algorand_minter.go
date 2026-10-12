@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"math"
 	"strconv"
 	"strings"
 
@@ -89,11 +90,18 @@ func (chain *algoNFT) Build(ctx context.Context, grant db.NFTGrant, key []byte) 
 	if err != nil {
 		return nil, errors.New("rpc_unavailable")
 	}
-	if uint64(txns[0].LastValid) <= status.LastRound+10 {
+	if uint64(txns[0].LastValid) <= status.LastRound || uint64(txns[0].LastValid)-status.LastRound <= 10 {
 		return nil, errors.New("approval_expired")
+	}
+	maximum, err := strconv.ParseUint(grant.Config.MaxCost, 10, 64)
+	if err != nil || maximum == 0 {
+		return nil, errors.New("cost_limit")
 	}
 	var cost uint64
 	for index, tx := range txns {
+		if tx.FirstValid == 0 || tx.LastValid <= tx.FirstValid || tx.LastValid-tx.FirstValid > 1000 || tx.FirstValid != txns[0].FirstValid || tx.LastValid != txns[0].LastValid || base64.StdEncoding.EncodeToString(tx.GenesisHash[:]) != grant.Config.ChainID {
+			return nil, errors.New("invalid_validity_window")
+		}
 		if index == recipientIndex {
 			continue
 		}
@@ -103,18 +111,17 @@ func (chain *algoNFT) Build(ctx context.Context, grant db.NFTGrant, key []byte) 
 		if uint64(tx.Amount) > grant.Config.MaxTopUp {
 			return nil, errors.New("top_up_limit")
 		}
+		if uint64(tx.Fee) > maximum-cost || uint64(tx.Amount) > maximum-cost-uint64(tx.Fee) {
+			return nil, errors.New("cost_limit")
+		}
 		cost += uint64(tx.Fee) + uint64(tx.Amount)
-	}
-	maximum, err := strconv.ParseUint(grant.Config.MaxCost, 10, 64)
-	if err != nil || cost > maximum {
-		return nil, errors.New("cost_limit")
 	}
 	account, err := chain.client.AccountInformation(grant.Config.Sender).Do(ctx)
 	reserve := uint64(0)
 	if operation == "mint" {
 		reserve = 200000
 	}
-	if err != nil || account.Amount < account.MinBalance || account.Amount-account.MinBalance < cost+reserve {
+	if err != nil || account.Amount < account.MinBalance || account.Amount-account.MinBalance < cost || account.Amount-account.MinBalance-cost < reserve {
 		return nil, errors.New("insufficient_balance")
 	}
 	var raw []byte
@@ -147,6 +154,13 @@ func (chain *algoNFT) Credential(secret string) ([]byte, string, error) {
 	var address types.Address
 	copy(address[:], key[32:])
 	return key, address.String(), nil
+}
+func (chain *algoNFT) EstimateMintCost(ctx context.Context, config db.NFTChainConfig) (float64, error) {
+	params, err := chain.params(ctx, config)
+	if err != nil {
+		return 0, err
+	}
+	return float64(params.Fee) / 1000000, nil
 }
 func (chain *algoNFT) Prepare(ctx context.Context, grant db.NFTGrant) (NFTAcceptanceResponse, []byte, error) {
 	response := NFTAcceptanceResponse{RecipientIndex: -1}
@@ -187,6 +201,9 @@ func (chain *algoNFT) prepare(ctx context.Context, grant db.NFTGrant) (nftAccept
 		if minimum < 100000 {
 			minimum = 100000
 		}
+		if minimum > math.MaxUint64-100000 {
+			return result, errors.New("invalid_recipient_balance")
+		}
 		topUp := uint64(0)
 		if account.Amount < minimum+100000 {
 			topUp = minimum + 100000 - account.Amount
@@ -220,11 +237,17 @@ func (chain *algoNFT) prepare(ctx context.Context, grant db.NFTGrant) (nftAccept
 	return result, err
 }
 func (chain *algoNFT) Reconcile(ctx context.Context, grant db.NFTGrant) (string, string, error) {
+	if grant.Transaction == nil || (grant.Transaction.Operation != "mint" && grant.Transaction.Operation != "transfer") {
+		return "", "", errors.New("invalid_transaction")
+	}
 	if _, err := chain.params(ctx, grant.Config); err != nil {
 		return "", "", err
 	}
 	pending, _, err := chain.client.PendingTransactionInformation(grant.Transaction.Hash).Do(ctx)
 	if err == nil && pending.ConfirmedRound > 0 {
+		if crypto.GetTxID(pending.Transaction.Txn) != grant.Transaction.Hash {
+			return "", "", errors.New("confirmation_mismatch")
+		}
 		if grant.Transaction.Operation == "mint" {
 			if pending.AssetIndex == 0 {
 				return "attention", "", nil
@@ -255,7 +278,7 @@ func (chain *algoNFT) Reconcile(ctx context.Context, grant db.NFTGrant) (string,
 	}
 	// An expired, missing transaction may have confirmed before node history was pruned.
 	if status.LastRound > grant.Transaction.LastRound {
-		return "attention", "", nil
+		return "expired", "", nil
 	}
 	return "pending", "", nil
 }
@@ -288,11 +311,14 @@ func (chain *algoNFT) Validate(ctx context.Context, config db.NFTChainConfig) er
 	if len(config.Name) == 0 || len(config.Name) > types.AssetNameMaxLen || len(config.Unit) > types.AssetUnitNameMaxLen || len(config.MetadataURI)+5 > types.AssetURLMaxLen {
 		return errors.New("invalid_asset_metadata")
 	}
+	return chain.ValidateRegistration(ctx, config)
+}
+func (chain *algoNFT) ValidateRegistration(ctx context.Context, config db.NFTChainConfig) error {
 	if _, err := chain.params(ctx, config); err != nil {
 		return err
 	}
 	account, err := chain.client.AccountInformation(config.Sender).Do(ctx)
-	if err != nil {
+	if err != nil || account.Address != config.Sender {
 		return errors.New("issuer_unavailable")
 	}
 	if account.AuthAddr != "" && account.AuthAddr != config.Sender {
@@ -311,6 +337,14 @@ func (chain *algoNFT) VerifyAcceptance(ctx context.Context, grant db.NFTGrant, r
 		return errors.New("invalid_approval")
 	}
 	expected := acceptance.Transactions[index]
+	asset, assetErr := strconv.ParseUint(grant.TokenID, 10, 64)
+	recipient, recipientErr := types.DecodeAddress(grant.Recipient)
+	if assetErr != nil || asset == 0 || recipientErr != nil || expected.Type != types.AssetTransferTx || expected.Sender != recipient || expected.AssetReceiver != recipient || uint64(expected.XferAsset) != asset || expected.AssetAmount != 0 || expected.Fee != 0 || expected.Group == (types.Digest{}) {
+		return errors.New("invalid_approval")
+	}
+	if expected.Amount != 0 || expected.Receiver != (types.Address{}) || expected.AssetSender != (types.Address{}) || expected.RekeyTo != (types.Address{}) || expected.CloseRemainderTo != (types.Address{}) || expected.AssetCloseTo != (types.Address{}) {
+		return errors.New("invalid_approval")
+	}
 	if !bytes.Equal(msgpack.Encode(expected), msgpack.Encode(signed.Txn)) || !bytes.Equal(raw, msgpack.Encode(types.SignedTxn{Txn: expected, Sig: signed.Sig, AuthAddr: signed.AuthAddr})) {
 		return errors.New("approval_mismatch")
 	}
@@ -343,8 +377,11 @@ func (chain *algoNFT) params(ctx context.Context, config db.NFTChainConfig) (typ
 	if err != nil {
 		return params, errors.New("rpc_unavailable")
 	}
-	if base64.StdEncoding.EncodeToString(params.GenesisHash) != config.ChainID {
+	if len(params.GenesisHash) != 32 || base64.StdEncoding.EncodeToString(params.GenesisHash) != config.ChainID {
 		return params, errors.New("network_mismatch")
+	}
+	if params.FirstRoundValid == 0 || params.LastRoundValid <= params.FirstRoundValid || params.LastRoundValid-params.FirstRoundValid > 1000 {
+		return params, errors.New("invalid_validity_window")
 	}
 	params.FlatFee = true
 	params.Fee = types.MicroAlgos(params.MinFee)

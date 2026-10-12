@@ -3,10 +3,13 @@ package blockchain
 import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
+	"YourPlace/src/core/security"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -27,9 +30,11 @@ type nftChain interface {
 	Build(context.Context, db.NFTGrant, []byte) (*db.NFTTransaction, error)
 	Broadcast(context.Context, db.NFTChainConfig, *db.NFTTransaction) error
 	Credential(string) ([]byte, string, error)
+	EstimateMintCost(context.Context, db.NFTChainConfig) (float64, error)
 	Reconcile(context.Context, db.NFTGrant) (string, string, error)
 	Source(context.Context, db.NFTSource, string) (string, error)
 	Validate(context.Context, db.NFTChainConfig) error
+	ValidateRegistration(context.Context, db.NFTChainConfig) error
 }
 type nftRecipientChain interface {
 	Prepare(context.Context, db.NFTGrant) (NFTAcceptanceResponse, []byte, error)
@@ -73,6 +78,86 @@ func WalletNFTIdentity(network, address string) (string, error) {
 	}
 	hash := sha256.Sum256(append([]byte(network+":"), identity...))
 	return hex.EncodeToString(hash[:]), nil
+}
+func WalletValidateNFTRegistration(registration *db.NFTRegistration) error {
+	if !walletValidNFTAddress(registration.OperatorNetwork, registration.OperatorAddress) {
+		return errors.New("invalid_operator_wallet")
+	}
+	if len(registration.Chains) > 3 {
+		return errors.New("too_many_chains")
+	}
+	seen := map[string]bool{}
+	for index, config := range registration.Chains {
+		identity, err := WalletNFTIdentity(config.Network, config.Sender)
+		if err != nil || !walletValidNFTAddress(config.Network, config.Sender) || seen[config.Network] {
+			return errors.New("invalid_or_duplicate_sender")
+		}
+		seen[config.Network] = true
+		switch config.Network {
+		case "base", "ethereum":
+			chainID := nftMainnetChainID(config.Network)
+			if config.ChainID != "" && config.ChainID != chainID {
+				return errors.New("invalid_chain_id")
+			}
+			config.ChainID = chainID
+			if !walletValidNFTAddress(config.Network, config.Contract) {
+				return errors.New("invalid_collection")
+			}
+			hash, err := hex.DecodeString(strings.TrimPrefix(config.CodeHash, "0x"))
+			if err != nil || len(config.CodeHash) != 66 || len(hash) != 32 || !strings.HasPrefix(config.CodeHash, "0x") || common.BytesToHash(hash) == (common.Hash{}) {
+				return errors.New("invalid_reviewed_code_hash")
+			}
+			config.CodeHash = "0x" + hex.EncodeToString(hash)
+		case "algorand":
+			hash, err := base64.StdEncoding.Strict().DecodeString(config.ChainID)
+			if err != nil || len(config.ChainID) != 44 || len(hash) != 32 || base64.StdEncoding.EncodeToString(hash) != config.ChainID || common.BytesToHash(hash) == (common.Hash{}) || config.Contract != "" || config.CodeHash != "" {
+				return errors.New("invalid_algorand_registration")
+			}
+		}
+		registration.Chains[index] = db.NFTChainConfig{Network: config.Network, ChainID: config.ChainID, Sender: config.Sender, SignerIdentity: identity, Contract: config.Contract, CodeHash: config.CodeHash}
+	}
+	return nil
+}
+func walletValidNFTAddress(network, address string) bool {
+	if network != "base" && network != "ethereum" && network != "algorand" {
+		return false
+	}
+	if !security.IsValidAddress(address, network) {
+		return false
+	}
+	if _, err := WalletNFTIdentity(network, address); err != nil {
+		return false
+	}
+	if network == "algorand" {
+		decoded, err := algotypes.DecodeAddress(address)
+		return err == nil && decoded.String() == address
+	}
+	hexAddress := address[2:]
+	return hexAddress == strings.ToLower(hexAddress) || hexAddress == strings.ToUpper(hexAddress) || common.HexToAddress(address).Hex() == address
+}
+func (blockchain *Blockchain) ValidateSessionAuthority(ctx context.Context, network, address, authorizer string) (bool, error) {
+	switch network {
+	case "base", "ethereum":
+		return true, nil
+	case "algorand":
+		if authorizer == "" {
+			return false, nil
+		}
+		current, err := blockchain.Algorand.LoginAuthorizer(ctx, address)
+		return err == nil && current == authorizer, err
+	default:
+		return false, nil
+	}
+}
+func nftMainnetChainID(network string) string {
+	switch network {
+	case "base":
+		return strconv.Itoa(baseMainnetChainID)
+	case "ethereum":
+		return strconv.Itoa(ethereumMainnetChainID)
+	default:
+		return ""
+	}
 }
 func (blockchain *Blockchain) nftChain(network string) (nftChain, error) {
 	switch network {

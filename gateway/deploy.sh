@@ -198,7 +198,7 @@ docker image prune -af --filter "until=24h" 2>/dev/null || docker image prune -a
 echo '=== Pulling latest image ==='
 docker pull ECR_REGISTRY_PLACEHOLDER/yourplace-gateway:latest
 export YOURPLACE_MINTER_REGISTRATION=$(printf '%s' 'MINTER_REGISTRATION_BASE64_PLACEHOLDER' | base64 -d)
-if [ -n "$YOURPLACE_MINTER_REGISTRATION" ] && [ -n "$(swapon --show --noheadings)" ]; then
+if [ -n "$(swapon --show --noheadings)" ]; then
   echo 'ERROR: Disable host swap before provisioning in-memory minter credentials.'
   exit 1
 fi

@@ -8,11 +8,27 @@
   min-width: 0;
   overflow-wrap: anywhere;
   h3 { font-size: 1.1rem; margin-top: 1.5rem; }
-  details { border-bottom: 1px solid global.$secondary; padding: 1rem 0; }
-  summary { cursor: pointer; font-weight: bold; text-transform: capitalize; }
+  .accordion-collapse { padding-inline: 0; }
+  .accordion-body { padding: 0.75rem 0 1rem 1.5rem; }
   .nftFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
   .nftField { display: grid; gap: 0.25rem; min-width: 0; font-size: 0.9rem; }
-  .nftInclude { display: inline-block; margin: 0.75rem 1rem 0.75rem 0; }
+  .nftInclude { margin: 0.75rem 0; }
+  .nftNested { margin-inline-start: 1.5rem; min-width: 0; }
+  #nftAutoMintControls { width: auto; margin-top: 1rem; }
+  #nftTemplateStatus:empty { display: none; }
+  #nftChains, #nftRegistrationChains { margin-top: 1rem; }
+  #headingNFTRegistration { display: grid; align-items: center; margin-bottom: 0.5rem; }
+  #headingNFTRegistration .accordion-button { grid-area: 1 / 1; margin-bottom: 0; padding-inline-end: 4.75rem; }
+  #headingNFTRegistration .accordion-button::after { position: absolute; right: 1.25rem; }
+  #nftRegistrationHelp { grid-area: 1 / 1; justify-self: end; margin-right: 2.75rem; z-index: 4; }
+  .nftFieldHeading { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
+  .nftFieldHeading label { min-width: 0; }
+  .nftHelpButton { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 2rem; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; font-size: 0.9rem; line-height: 1; vertical-align: middle; }
+  .nftHelpButton:focus-visible { outline: 2px solid global.$primary; outline-offset: 2px; }
+  .nftHelpButton i.bi { padding-right: 0; }
+  .nftHelpButton i.bi::before { display: block; }
+  #nftForm { margin-bottom: 1rem; }
+  #nftDailyLimitControls { margin-top: 0.75rem; }
   .nftReadiness { display: inline-block; }
   .btn { width: 2.75rem; height: 2.5rem; }
   .btn.nftTextButton { width: auto; height: auto; min-height: 2.5rem; white-space: normal; }
@@ -37,6 +53,8 @@
 @media (max-width: 704px) {
   #collapseContent:has(#collapseNFT.show), #collapseContent:has(#collapseNFT.show) > .accordion-body, #collapseNFT, #nftSettings { padding-left: 0.5rem; padding-right: 0.5rem; }
   #nftSettings .nftFields { grid-template-columns: minmax(0, 1fr); }
+  #nftSettings .nftNested { margin-inline-start: 1rem; }
+  #nftSettings .accordion-body { padding-inline-start: 1rem; }
   #nftSettings .nftTemplatePreview:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
   #nftSettings .nftTemplateMedia { width: 100%; max-width: 12rem; }
   #nftSettings .nftQueueRow { grid-template-columns: minmax(0, 1fr) 2.75rem; }

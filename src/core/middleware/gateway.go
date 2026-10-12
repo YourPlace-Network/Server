@@ -36,10 +36,10 @@ func IsGatewaySettingsGetAllowed(path string) bool {
 }
 func IsNFTSettingsRequest(path, method string) bool {
 	if method == http.MethodGet {
-		return path == "/settings/content/nft" || path == "/settings/content/nft/grants"
+		return path == "/settings/content/nft" || path == "/settings/content/nft/estimate" || path == "/settings/content/nft/grants"
 	}
 	if method == http.MethodPost {
-		return path == "/settings/content/nft" || path == "/settings/content/nft/retry" || path == "/settings/content/nft/template"
+		return path == "/settings/content/nft" || path == "/settings/content/nft/registration" || path == "/settings/content/nft/retry" || path == "/settings/content/nft/template"
 	}
 	return false
 }

@@ -443,19 +443,46 @@ export async function algoUnfollowUser(toAddress: string, toBlockchain: string):
 // ---------- Collectible Functions ---------- //
 export async function algoAcceptWelcomeNFT(csrfToken: string): Promise<boolean> {
     try {
+        const [grantStatus, welcome] = await HttpGetJson("/nft/welcome");
+        const grant = welcome?.grants?.[0];
+        if (grantStatus !== 200 || grant?.stage !== "awaiting_recipient" || grant.config?.network !== "algorand" || typeof grant.config.chainId !== "string" || Buffer.from(grant.config.chainId, "base64").length !== 32) return false;
         const [status, prepared] = await HttpPostJson("/nft/welcome/prepare", {}, csrfToken);
         if (status !== 200 || !prepared) return false;
-        if (prepared.recipientIndex < 0) return true;
+        const address = GetAddress();
+        if (!address || grant.recipient !== address || !Array.isArray(prepared.transactions) || prepared.transactions.length < 1 || prepared.transactions.length > 3 || !Number.isInteger(prepared.recipientIndex)) return false;
+        if (prepared.recipientIndex === -1) return true;
+        if (prepared.transactions.length < 2 || prepared.recipientIndex !== prepared.transactions.length - 2) return false;
+        if (prepared.transactions.some((encoded: unknown) => typeof encoded !== "string" || encoded.length > 8192)) return false;
+        const group: {txn: algosdk.Transaction; signers: string[]}[] = prepared.transactions.map((encoded: string, index: number) => ({
+            txn: algosdk.decodeUnsignedTransaction(new Uint8Array(Buffer.from(encoded, "base64"))),
+            signers: index === prepared.recipientIndex ? [address] : [],
+        }));
+        const expected = group[prepared.recipientIndex].txn;
+        const optIn = expected.assetTransfer;
+        const delivery = group[group.length - 1].txn;
+        const transfer = delivery.assetTransfer;
+        const groupID = expected.group;
+        if (optIn?.assetIndex !== BigInt(grant.tokenId) || delivery.sender.toString() !== grant.config.sender || !Buffer.from(expected.note).equals(Buffer.from(grant.id))) return false;
+        if (expected.type !== algosdk.TransactionType.axfer || expected.sender.toString() !== address || expected.fee !== 0n || !optIn || optIn.amount !== 0n || optIn.assetIndex <= 0n || optIn.receiver.toString() !== address || expected.lease?.some(byte => byte !== 0)) return false;
+        if (delivery.type !== algosdk.TransactionType.axfer || delivery.sender.toString() === address || !transfer || transfer.assetIndex !== optIn.assetIndex || transfer.amount !== 1n || transfer.receiver.toString() !== address) return false;
+        if (!groupID || groupID.length !== 32 || expected.firstValid > expected.lastValid || expected.lastValid - expected.firstValid > 1000n) return false;
+        if (group.length === 3) {
+            const funding = group[0].txn;
+            if (funding.type !== algosdk.TransactionType.pay || funding.sender.toString() !== delivery.sender.toString() || !funding.payment || funding.payment.receiver.toString() !== address || funding.payment.amount <= 0n) return false;
+        }
+        for (const {txn} of group) {
+            if (txn.rekeyTo || txn.payment?.closeRemainderTo || txn.assetTransfer?.closeRemainderTo || txn.assetTransfer?.assetSender) return false;
+            if (txn.genesisID !== expected.genesisID || Buffer.from(txn.genesisHash || []).toString("base64") !== grant.config.chainId) return false;
+            if (txn.firstValid !== expected.firstValid || txn.lastValid !== expected.lastValid || !Buffer.from(txn.note).equals(Buffer.from(expected.note)) || !Buffer.from(txn.group || []).equals(Buffer.from(groupID))) return false;
+            txn.group = undefined;
+        }
+        if (!Buffer.from(algosdk.computeGroupID(group.map(item => item.txn))).equals(Buffer.from(groupID))) return false;
+        for (const {txn} of group) txn.group = groupID;
         if (!peraWallet.isConnected) {
             const accounts = await peraWallet.reconnectSession();
             if (!accounts.length) await peraWallet.connect();
         }
-        const group = prepared.transactions.map((encoded: string, index: number) => ({
-            txn: algosdk.decodeUnsignedTransaction(new Uint8Array(Buffer.from(encoded, "base64"))),
-            signers: index === prepared.recipientIndex ? [GetAddress()!] : [],
-        }));
-        const expected = group[prepared.recipientIndex].txn;
-        if (expected.sender.toString() !== GetAddress()) return false;
+        if (GetAddress() !== address) return false;
         const signed = await peraWallet.signTransaction([group]);
         const approval = signed.find(raw => {
             if (!raw?.length) return false;

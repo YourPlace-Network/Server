@@ -4,6 +4,8 @@ import (
 	"YourPlace/src/core/blockchain"
 	"YourPlace/src/core/db"
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -23,8 +25,9 @@ func NFTRoutes(router *gin.Engine, database *db.Database, minter *blockchain.Min
 	})
 	operator := func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
-		if !minter.IsOperator(c.GetString("blockchain"), c.GetString("accountAddress")) {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Operator access required"})
+		status := minter.OperatorStatus(c.GetString("blockchain"), c.GetString("accountAddress"))
+		if status != "authorized" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Operator access required", "reason": status})
 			return
 		}
 		c.Next()
@@ -35,23 +38,50 @@ func NFTRoutes(router *gin.Engine, database *db.Database, minter *blockchain.Min
 			c.AbortWithStatus(http.StatusServiceUnavailable)
 			return
 		}
-		counts, err := database.NFTCounts(c.Request.Context())
+		registration, source, err := minter.Registration(c.Request.Context())
 		if err != nil {
 			c.AbortWithStatus(http.StatusServiceUnavailable)
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"config": config, "counts": counts, "ready": minter.Readiness(), "registration": blockchain.NFTRegistered()})
+		c.JSON(http.StatusOK, gin.H{"config": config, "ready": minter.Readiness(), "registration": registration, "registrationSource": source})
+	})
+	router.GET("/settings/content/nft/estimate", operator, func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
+		defer cancel()
+		cost, err := minter.EstimateMintUSD(ctx, c.Query("network"), c.GetString("blockchain"), c.GetString("accountAddress"))
+		if err != nil {
+			c.AbortWithStatus(http.StatusServiceUnavailable)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"mintUSD": cost})
+	})
+	router.POST("/settings/content/nft/registration", operator, func(c *gin.Context) {
+		var registration blockchain.NFTRegistration
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 8192)
+		decoder := json.NewDecoder(c.Request.Body)
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&registration) != nil || decoder.Decode(new(any)) != io.EOF {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+		if err := minter.SaveRegistration(c.Request.Context(), registration, c.GetString("blockchain"), c.GetString("accountAddress")); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "Saved", "operatorChanged": !minter.IsOperator(c.GetString("blockchain"), c.GetString("accountAddress"))})
 	})
 	router.POST("/settings/content/nft", operator, func(c *gin.Context) {
 		var config db.NFTConfig
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 16384)
-		if c.ShouldBindJSON(&config) != nil {
+		decoder := json.NewDecoder(c.Request.Body)
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&config) != nil || decoder.Decode(new(any)) != io.EOF {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 		defer cancel()
-		if err := minter.SaveConfig(ctx, config); err != nil {
+		if err := minter.SaveConfig(ctx, config, c.GetString("blockchain"), c.GetString("accountAddress")); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
 			return
 		}
@@ -66,7 +96,7 @@ func NFTRoutes(router *gin.Engine, database *db.Database, minter *blockchain.Min
 		}
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 25*time.Second)
 		defer cancel()
-		if err := minter.SelectTemplate(ctx, source); err != nil {
+		if err := minter.SelectTemplate(ctx, source, c.GetString("blockchain"), c.GetString("accountAddress")); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
 			return
 		}
@@ -91,7 +121,12 @@ func NFTRoutes(router *gin.Engine, database *db.Database, minter *blockchain.Min
 		for index := range grants {
 			sanitizeNFTGrant(&grants[index])
 		}
-		c.JSON(http.StatusOK, gin.H{"grants": grants})
+		counts, err := database.NFTCounts(c.Request.Context())
+		if err != nil {
+			c.AbortWithStatus(http.StatusServiceUnavailable)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"grants": grants, "counts": counts, "ready": minter.Readiness()})
 	})
 	router.POST("/settings/content/nft/retry", operator, func(c *gin.Context) {
 		var payload struct {
@@ -106,7 +141,7 @@ func NFTRoutes(router *gin.Engine, database *db.Database, minter *blockchain.Min
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
-		if err := minter.Retry(c.Request.Context(), payload.ID); err != nil {
+		if err := minter.Retry(c.Request.Context(), payload.ID, c.GetString("blockchain"), c.GetString("accountAddress")); err != nil {
 			c.JSON(http.StatusConflict, gin.H{"status": "Grant cannot be retried"})
 			return
 		}

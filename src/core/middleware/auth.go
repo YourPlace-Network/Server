@@ -7,9 +7,11 @@ import (
 	"YourPlace/src/core"
 	"YourPlace/src/core/db"
 	"YourPlace/src/core/security"
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -42,7 +44,7 @@ var prefixPostExclusions = []string{ // Exclude all POST requests to these paths
 	"/login", // Login endpoints
 }
 
-func AuthMiddleware(cryptoSeed []byte, database *db.Database, gateway bool) gin.HandlerFunc {
+func AuthMiddleware(cryptoSeed []byte, database *db.Database, gateway bool, validateAuthority func(context.Context, string, string, string) (bool, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		isExcluded := IsRequestExcluded(c, gateway)
 		// Always try to set context variables if valid cookie exists
@@ -58,6 +60,34 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database, gateway bool) gin.
 				var err1, err2 error
 				address, err1 = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
 				blockchain, err2 = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
+				if authDataValid {
+					authorizer, authorizerErr := security.GetCookieValue(authCookie, cryptoSeed, "authorizer", database)
+					if authorizerErr != nil || validateAuthority == nil {
+						c.AbortWithStatus(http.StatusServiceUnavailable)
+						return
+					}
+					ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+					authorized, authorityErr := validateAuthority(ctx, blockchain, address, authorizer)
+					cancel()
+					if authorityErr != nil || !authorized {
+						if authorityErr == nil {
+							security.InvalidateCookie(authCookie, cryptoSeed, database)
+						}
+						validAuthCookie, authDataValid = false, false
+						if authorityErr != nil && (!isExcluded || c.Request.URL.Path == "/login/check") {
+							c.AbortWithStatus(http.StatusServiceUnavailable)
+							return
+						}
+						// Public handlers must not recover an unchecked identity from the cookie.
+						cookies := c.Request.Cookies()
+						c.Request.Header.Del("Cookie")
+						for _, cookie := range cookies {
+							if cookie.Name != "yp_auth" {
+								c.Request.AddCookie(cookie)
+							}
+						}
+					}
+				}
 				authDataValid = (err1 == nil && err2 == nil)
 
 				if authDataValid {
@@ -93,7 +123,7 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database, gateway bool) gin.
 			return
 		}
 		// Use cached validation results to avoid redundant PBKDF2 operations
-		if authCookieErr != nil || !validAuthCookie {
+		if authCookieErr != nil || !validAuthCookie || !authDataValid {
 			if authCookieErr != nil { // The cookie doesn't exist, so redirect to /login
 				c.Redirect(http.StatusFound, "/login"+redirect)
 				c.Abort()
@@ -104,42 +134,6 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database, gateway bool) gin.
 			c.Redirect(http.StatusFound, "/login"+redirect)
 			c.Abort()
 			return
-		}
-		// Use cached auth data if available, otherwise extract values
-		if !authDataValid {
-			var err error
-			address, err = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
-			if err != nil { // If the cookie is valid, but can't get the address value, send back to /login
-				core.LogDebug("Auth middleware - Failed to get address value from cookie: " + err.Error())
-				security.InvalidateCookie(authCookie, cryptoSeed, database)
-				c.Redirect(http.StatusFound, "/login"+redirect)
-				c.Abort()
-				return
-			}
-			blockchain, err = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
-			if err != nil { // If the cookie is valid, but can't get the value, send back to /login
-				core.LogDebug("Auth middleware - Failed to get blockchain value from cookie: " + err.Error())
-				security.InvalidateCookie(authCookie, cryptoSeed, database)
-				c.Redirect(http.StatusFound, "/login"+redirect)
-				c.Abort()
-				return
-			}
-			// Set context values
-			c.Set("accountAddress", address)
-			c.Set("blockchain", blockchain)
-		}
-		// Increment cookie to prevent against misuse (only if not already done)
-		if authDataValid && isExcluded {
-			// Cookie was already incremented in the first section for non-excluded paths
-		} else if !authDataValid {
-			err := security.IncrementCookie(c, cryptoSeed, database)
-			if err != nil {
-				core.LogDebug("Auth middleware - Failed to increment cookie: " + err.Error())
-				security.InvalidateCookie(authCookie, cryptoSeed, database)
-				c.Redirect(http.StatusFound, "/login"+redirect)
-				c.Abort()
-				return
-			}
 		}
 		c.Next()
 	}

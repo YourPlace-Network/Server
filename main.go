@@ -234,7 +234,7 @@ func main() {
 	core.LogDebug("Initializing IPFS")
 	ipfs := new(network.IPFS)
 	ipfs.Init(uint64(port + 1)) // Initialize IPFS daemon listening on YourPlace port + 1
-	_blockchain.Minter = blockchain2.NewMinter(database, _blockchain, ipfs)
+	_blockchain.Minter = blockchain2.NewMinter(database, _blockchain, ipfs, gateway)
 	if err := _blockchain.Minter.StartBootstrap(); err != nil {
 		core.LogDebug("Minter credential listener unavailable")
 	}
@@ -431,8 +431,9 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 	router.Use(middleware.GatewayMiddleware(gateway))
 	router.Use(middleware.LoopbackMiddleware(port, gateway, gatewayMintEnabled))
 	router.Use(middleware.LoopbackRedirectMiddleware(port))
+	router.Use(middleware.NFTBodyLimitMiddleware())
 	router.Use(middleware.CSRFMiddleware(middleware.CSRFConfig{CryptoSeed: cryptoSeed}))
-	router.Use(middleware.AuthMiddleware(cryptoSeed, database, gateway))
+	router.Use(middleware.AuthMiddleware(cryptoSeed, database, gateway, _blockchain.ValidateSessionAuthority))
 	if !installed && !gateway {
 		router.Use(middleware.SetupMiddleware(installed))
 	}
@@ -451,7 +452,7 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 	routes.FAQRoutes(router, title, database, cryptoSeed, gateway)
 	routes.RPCRoutes(router, database, _blockchain)
 	routes.SettingsRoutes(router, title, database, _blockchain, cryptoSeed, gateway, ipfs, debug)
-	routes.LoginRoutes(router, title, database, cryptoSeed, domain, port, installed, gateway)
+	routes.LoginRoutes(router, title, database, cryptoSeed, domain, port, installed, gateway, _blockchain)
 	routes.NFTRoutes(router, database, _blockchain.Minter)
 	if !installed {
 		routes.SetupRoutes(router, database, title, favicon, port)

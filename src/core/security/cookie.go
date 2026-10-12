@@ -14,6 +14,7 @@ import (
 
 type SecureCookie struct {
 	Address    string `json:"address" required:"true"` // wallet address
+	Authorizer string `json:"authorizer,omitempty"`
 	Blockchain string `json:"blockchain" required:"true"`
 	Expiration int64  `json:"expiration" required:"true"` // unix timestamp
 	Nonce      string `json:"nonce" required:"true"`
@@ -21,7 +22,7 @@ type SecureCookie struct {
 	UUID       string `json:"uuid" required:"true"`
 }
 
-func CreateAuthCookie(address, blockchain string, cryptoSeed []byte, database *db.Database) *http.Cookie {
+func CreateAuthCookie(address, blockchain, authorizer string, cryptoSeed []byte, database *db.Database) *http.Cookie {
 	expirationHours := 30 * 24 * time.Hour // cookie expires in 30 days
 	now := time.Now()
 	expirationTimestamp := now.Add(expirationHours).Unix()
@@ -29,6 +30,7 @@ func CreateAuthCookie(address, blockchain string, cryptoSeed []byte, database *d
 	uuid := UUID()
 	cookieValue := &SecureCookie{
 		Address:    address,
+		Authorizer: authorizer,
 		Blockchain: blockchain,
 		Expiration: expirationTimestamp,
 		Nonce:      nonce,
@@ -77,6 +79,8 @@ func GetCookieValue(cookie *http.Cookie, cryptoSeed []byte, value string, databa
 	switch value {
 	case "address":
 		return cookieValue.Address, nil
+	case "authorizer":
+		return cookieValue.Authorizer, nil
 	case "blockchain":
 		return cookieValue.Blockchain, nil
 	case "expiration":
@@ -150,7 +154,7 @@ func IncrementCookie(c *gin.Context, cryptoSeed []byte, database *db.Database) e
 		return nil
 	} else { // Revoke the old cookie and return a new one (cookie theft defense)
 		database.AuthDeleteNonce(cookieObj.Nonce)
-		newCookie := CreateAuthCookie(cookieObj.Address, cookieObj.Blockchain, cryptoSeed, database)
+		newCookie := CreateAuthCookie(cookieObj.Address, cookieObj.Blockchain, cookieObj.Authorizer, cryptoSeed, database)
 		if newCookie == nil {
 			return errors.New("could not create new cookie")
 		}

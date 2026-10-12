@@ -10,10 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -26,22 +28,21 @@ type Minter struct {
 	blockchain *Blockchain
 	database   *db.Database
 	ipfs       *network.IPFS
+	gateway    bool
+	owner      NFTRegistration
 	mu         sync.Mutex
 	keysMu     sync.RWMutex
 	keys       map[string][]byte
 }
-type NFTRegistration struct {
-	OperatorNetwork string              `json:"operatorNetwork"`
-	OperatorAddress string              `json:"operatorAddress"`
-	Chains          []db.NFTChainConfig `json:"chains"`
-}
+type NFTRegistration = db.NFTRegistration
 type NFTAcceptanceResponse struct {
 	Transactions   [][]byte `json:"transactions"`
 	RecipientIndex int      `json:"recipientIndex"`
 }
 
-func NewMinter(database *db.Database, blockchain *Blockchain, ipfs *network.IPFS) *Minter {
-	return &Minter{database: database, blockchain: blockchain, ipfs: ipfs, keys: map[string][]byte{}}
+func NewMinter(database *db.Database, blockchain *Blockchain, ipfs *network.IPFS, gateway bool) *Minter {
+	owner := NFTRegistration{OperatorAddress: database.AuthGetServerOwnerAddress(), OperatorNetwork: database.AuthGetServerOwnerNetwork()}
+	return &Minter{database: database, blockchain: blockchain, ipfs: ipfs, gateway: gateway, owner: owner, keys: map[string][]byte{}}
 }
 func MinterRecordLogin(ctx context.Context, database *db.Database, network, address string) error {
 	identity, err := WalletNFTIdentity(network, address)
@@ -68,8 +69,6 @@ func MinterRecordLogin(ctx context.Context, database *db.Database, network, addr
 	})
 }
 func (minter *Minter) Accept(ctx context.Context, identity string, signed []byte) error {
-	minter.mu.Lock()
-	defer minter.mu.Unlock()
 	grant, err := minter.ownGrant(ctx, identity)
 	if err != nil {
 		return err
@@ -97,15 +96,72 @@ func (minter *Minter) Accept(ctx context.Context, identity string, signed []byte
 		return store.SaveGrant(ctx, grant)
 	})
 }
+func (minter *Minter) EstimateMintUSD(ctx context.Context, network, operatorNetwork, operatorAddress string) (float64, error) {
+	config, err := minter.database.NFTConfig(ctx)
+	if err != nil {
+		return 0, err
+	}
+	registration, _, err := minter.registration(config)
+	if err != nil || !isNFTOperator(registration, operatorNetwork, operatorAddress) {
+		return 0, errors.New("operator_required")
+	}
+	if config.Template == nil {
+		return 0, errors.New("select_welcome_nft_first")
+	}
+	for _, registered := range registration.Chains {
+		if registered.Network != network {
+			continue
+		}
+		applyNFTTemplate(&registered, config.Template)
+		backend, err := minter.blockchain.nftChain(network)
+		if err != nil {
+			return 0, err
+		}
+		native, err := backend.EstimateMintCost(ctx, registered)
+		if err != nil || native <= 0 || math.IsNaN(native) || math.IsInf(native, 0) {
+			return 0, errors.New("estimate_unavailable")
+		}
+		price, err := WalletGetPriceUSD(network, minter.blockchain)
+		usd := native * price
+		if err != nil || price <= 0 || usd <= 0 || math.IsNaN(usd) || math.IsInf(usd, 0) || ctx.Err() != nil {
+			return 0, errors.New("price_unavailable")
+		}
+		latest, err := minter.database.NFTConfig(ctx)
+		if err != nil {
+			return 0, err
+		}
+		latestRegistration, _, err := minter.registration(latest)
+		if err != nil || !reflect.DeepEqual(registration, latestRegistration) || !reflect.DeepEqual(config.Template, latest.Template) {
+			return 0, errors.New("configuration_changed")
+		}
+		return usd, nil
+	}
+	return 0, errors.New("chain_not_registered")
+}
 func (minter *Minter) IsOperator(network, address string) bool {
-	registration := NFTRegistered()
+	return minter.OperatorStatus(network, address) == "authorized"
+}
+func (minter *Minter) OperatorStatus(network, address string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	registration, _, err := minter.Registration(ctx)
+	if err != nil {
+		return "configuration_unavailable"
+	}
 	expected, err := WalletNFTIdentity(registration.OperatorNetwork, registration.OperatorAddress)
-	actual, actualErr := WalletNFTIdentity(network, address)
-	return err == nil && actualErr == nil && actual == expected
+	if err != nil {
+		return "operator_not_configured"
+	}
+	actual, err := WalletNFTIdentity(network, address)
+	if err != nil {
+		return "login_required"
+	}
+	if actual != expected {
+		return "operator_wallet_required"
+	}
+	return "authorized"
 }
 func (minter *Minter) Prepare(ctx context.Context, identity string) (NFTAcceptanceResponse, error) {
-	minter.mu.Lock()
-	defer minter.mu.Unlock()
 	response := NFTAcceptanceResponse{RecipientIndex: -1}
 	config, err := minter.database.NFTConfig(ctx)
 	if err != nil || !config.Enabled {
@@ -134,6 +190,14 @@ func (minter *Minter) Prepare(ctx context.Context, identity string) (NFTAcceptan
 	}
 	grant.Acceptance, grant.RecipientSignature, grant.Reason, grant.DueAt = acceptance, nil, "", time.Now().Unix()
 	err = minter.database.NFTUpdate(ctx, "", func(store *db.NFTStore) error {
+		config, err := store.Config(ctx)
+		if err != nil {
+			return err
+		}
+		currentPolicy, active := minter.policy(config, grant)
+		if !active || currentPolicy.MaxCost != grant.Config.MaxCost || currentPolicy.MaxTopUp != grant.Config.MaxTopUp {
+			return errors.New("auto_minting_paused")
+		}
 		current, err := store.Grant(ctx, grant.ID)
 		if err != nil {
 			return err
@@ -157,10 +221,25 @@ func (minter *Minter) Readiness() map[string]bool {
 	}
 	return ready
 }
-func (minter *Minter) Retry(ctx context.Context, id string) error {
+func (minter *Minter) Registration(ctx context.Context) (NFTRegistration, string, error) {
+	config, err := minter.database.NFTConfig(ctx)
+	if err != nil {
+		return NFTRegistration{}, "", err
+	}
+	return minter.registration(config)
+}
+func (minter *Minter) Retry(ctx context.Context, id, network, address string) error {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 	return minter.database.NFTUpdate(ctx, "", func(store *db.NFTStore) error {
+		config, err := store.Config(ctx)
+		if err != nil {
+			return err
+		}
+		registration, _, err := minter.registration(config)
+		if err != nil || !isNFTOperator(registration, network, address) {
+			return errors.New("operator_wallet_required")
+		}
 		grant, err := store.Grant(ctx, id)
 		if err != nil {
 			return err
@@ -179,19 +258,9 @@ func (minter *Minter) Retry(ctx context.Context, id string) error {
 		return store.SaveGrant(ctx, grant)
 	})
 }
-func (minter *Minter) SaveConfig(ctx context.Context, config db.NFTConfig) error {
+func (minter *Minter) SaveConfig(ctx context.Context, config db.NFTConfig, network, address string) error {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
-	if !config.Enabled {
-		return minter.database.NFTUpdate(ctx, "", func(store *db.NFTStore) error {
-			current, err := store.Config(ctx)
-			if err != nil {
-				return err
-			}
-			current.Enabled = false
-			return store.SaveConfig(ctx, current)
-		})
-	}
 	if config.DailyLimit < 0 || config.DailyLimit > 1000000 || len(config.Chains) > 3 {
 		return errors.New("invalid_limits")
 	}
@@ -199,16 +268,24 @@ func (minter *Minter) SaveConfig(ctx context.Context, config db.NFTConfig) error
 		return errors.New("no_chains_configured")
 	}
 	seen := map[string]bool{}
-	registration := NFTRegistered()
-	if _, err := WalletNFTIdentity(registration.OperatorNetwork, registration.OperatorAddress); err != nil {
-		return errors.New("operator_not_registered")
+	registration, _, err := minter.Registration(ctx)
+	if err != nil {
+		return err
+	}
+	if !isNFTOperator(registration, network, address) {
+		return errors.New("operator_wallet_required")
+	}
+	validated := NFTRegistration{OperatorNetwork: registration.OperatorNetwork, OperatorAddress: registration.OperatorAddress, Chains: append([]db.NFTChainConfig(nil), config.Chains...)}
+	if err := WalletValidateNFTRegistration(&validated); err != nil {
+		return err
 	}
 	current, err := minter.database.NFTConfig(ctx)
 	if err != nil {
 		return err
 	}
 	config.Template = current.Template
-	if config.Template == nil {
+	config.Registration = current.Registration
+	if config.Enabled && config.Template == nil {
 		return errors.New("select_welcome_nft_first")
 	}
 	for index := range config.Chains {
@@ -235,6 +312,9 @@ func (minter *Minter) SaveConfig(ctx context.Context, config db.NFTConfig) error
 		maximum, valid := new(big.Int).SetString(chain.MaxCost, 10)
 		if !valid || maximum.Sign() <= 0 || maximum.BitLen() > 128 || chain.MaxTopUp > 10000000 {
 			return errors.New("invalid_cost_limit")
+		}
+		if !config.Enabled {
+			continue
 		}
 		if !strings.HasPrefix(chain.MetadataURI, "ipfs://") {
 			return errors.New("metadata_must_use_ipfs")
@@ -264,9 +344,6 @@ func (minter *Minter) SaveConfig(ctx context.Context, config db.NFTConfig) error
 		if err = backend.Validate(ctx, *chain); err != nil {
 			return err
 		}
-		if config.Enabled && len(minter.keys[chain.Network]) == 0 {
-			return errors.New("credentials_not_provisioned")
-		}
 	}
 	return minter.database.NFTUpdate(ctx, "", func(store *db.NFTStore) error {
 		latest, err := store.Config(ctx)
@@ -276,16 +353,83 @@ func (minter *Minter) SaveConfig(ctx context.Context, config db.NFTConfig) error
 		if (latest.Template == nil) != (config.Template == nil) || (latest.Template != nil && *latest.Template != *config.Template) {
 			return errors.New("template_changed_reload_settings")
 		}
+		latestRegistration, _, err := minter.registration(latest)
+		if err != nil || !reflect.DeepEqual(latestRegistration, registration) {
+			return errors.New("registration_changed_reload_settings")
+		}
+		config.Registration = latest.Registration
 		return store.SaveConfig(ctx, config)
 	})
 }
-func (minter *Minter) SelectTemplate(ctx context.Context, source db.NFTSource) error {
-	registration := NFTRegistered()
+func (minter *Minter) SaveRegistration(ctx context.Context, registration NFTRegistration, network, address string) error {
+	if err := WalletValidateNFTRegistration(&registration); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	expected, source, err := minter.Registration(ctx)
+	if err != nil {
+		return err
+	}
+	if source == "environment" {
+		return errors.New("registration_managed_by_environment")
+	}
+	if !isNFTOperator(expected, network, address) {
+		return errors.New("operator_wallet_required")
+	}
+	for _, config := range registration.Chains {
+		backend, err := minter.blockchain.nftChain(config.Network)
+		if err != nil {
+			return err
+		}
+		if err := backend.ValidateRegistration(ctx, config); err != nil {
+			return err
+		}
+	}
+	minter.mu.Lock()
+	defer minter.mu.Unlock()
+	err = minter.database.NFTUpdate(ctx, "", func(store *db.NFTStore) error {
+		config, err := store.Config(ctx)
+		if err != nil {
+			return err
+		}
+		current, source, err := minter.registration(config)
+		if err != nil {
+			return err
+		}
+		if source == "environment" {
+			return errors.New("registration_managed_by_environment")
+		}
+		if !isNFTOperator(current, network, address) {
+			return errors.New("operator_wallet_required")
+		}
+		if !reflect.DeepEqual(current, expected) {
+			return errors.New("registration_changed_reload_settings")
+		}
+		config.Enabled = false
+		config.Registration = &registration
+		return store.SaveConfig(ctx, config)
+	})
+	if err == nil {
+		minter.keysMu.Lock()
+		defer minter.keysMu.Unlock()
+		for name, key := range minter.keys {
+			clear(key)
+			delete(minter.keys, name)
+		}
+	}
+	return err
+}
+func (minter *Minter) SelectTemplate(ctx context.Context, source db.NFTSource, network, address string) error {
+	registration, _, err := minter.Registration(ctx)
+	if err != nil {
+		return err
+	}
+	if !isNFTOperator(registration, network, address) {
+		return errors.New("operator_wallet_required")
+	}
 	if source.Network != registration.OperatorNetwork {
 		return errors.New("source_wallet_mismatch")
-	}
-	if _, err := WalletNFTIdentity(source.Network, registration.OperatorAddress); err != nil {
-		return errors.New("operator_not_registered")
 	}
 	backend, err := minter.blockchain.nftChain(source.Network)
 	if err != nil {
@@ -336,6 +480,10 @@ func (minter *Minter) SelectTemplate(ctx context.Context, source db.NFTSource) e
 		if err != nil {
 			return err
 		}
+		latest, _, err := minter.registration(config)
+		if err != nil || !reflect.DeepEqual(latest, registration) {
+			return errors.New("registration_changed_reload_settings")
+		}
 		config.Template = template
 		for index := range config.Chains {
 			applyNFTTemplate(&config.Chains[index], template)
@@ -380,7 +528,13 @@ func (minter *Minter) StartBootstrap() error {
 				delete(payload.Credentials, name)
 			}
 		}()
-		registration := NFTRegistered()
+		minter.mu.Lock()
+		defer minter.mu.Unlock()
+		registration, _, err := minter.Registration(r.Context())
+		if err != nil {
+			http.Error(w, "registration unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		for name, secret := range payload.Credentials {
 			backend, err := minter.blockchain.nftChain(name)
 			if err != nil {
@@ -406,14 +560,12 @@ func (minter *Minter) StartBootstrap() error {
 				return
 			}
 		}
-		minter.mu.Lock()
 		minter.keysMu.Lock()
 		for name, key := range keys {
 			clear(minter.keys[name])
 			minter.keys[name] = append([]byte(nil), key...)
 		}
 		minter.keysMu.Unlock()
-		minter.mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	})
 	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 10 * time.Second, MaxHeaderBytes: 4096}
@@ -454,18 +606,16 @@ func (minter *Minter) Tick() {
 		stepCancel()
 	}
 }
-func NFTRegistered() NFTRegistration {
-	var registration NFTRegistration
-	if json.Unmarshal([]byte(os.Getenv("YOURPLACE_MINTER_REGISTRATION")), &registration) != nil {
-		return NFTRegistration{}
-	}
-	return registration
-}
 func applyNFTTemplate(config *db.NFTChainConfig, template *db.NFTTemplate) {
 	if template != nil {
 		config.MetadataURI, config.MetadataHash = template.MetadataURI, template.MetadataHash
 		config.Name, config.Unit = template.AssetName, template.Unit
 	}
+}
+func isNFTOperator(registration NFTRegistration, network, address string) bool {
+	expected, expectedErr := WalletNFTIdentity(registration.OperatorNetwork, registration.OperatorAddress)
+	actual, actualErr := WalletNFTIdentity(network, address)
+	return expectedErr == nil && actualErr == nil && actual == expected
 }
 func (minter *Minter) advance(ctx context.Context, owner string, grant db.NFTGrant) {
 	backend, err := minter.blockchain.nftChain(grant.Config.Network)
@@ -504,7 +654,14 @@ func (minter *Minter) advance(ctx context.Context, owner string, grant db.NFTGra
 			minter.wait(ctx, owner, grant, "confirmed_revert")
 		case "attention":
 			minter.wait(ctx, owner, grant, "transaction_needs_attention")
+		case "expired":
+			grant.Transaction.Expired = true
+			minter.wait(ctx, owner, grant, "transaction_needs_attention")
 		default:
+			if grant.Transaction.Expired {
+				minter.wait(ctx, owner, grant, "transaction_needs_attention")
+				return
+			}
 			if enabled && outcome == "pending" {
 				if minter.database.NFTUpdate(ctx, owner, func(store *db.NFTStore) error {
 					current, err := store.Config(ctx)
@@ -613,12 +770,39 @@ func (minter *Minter) ownGrant(ctx context.Context, identity string) (db.NFTGran
 	return grants[0], nil
 }
 func (minter *Minter) policy(config db.NFTConfig, grant db.NFTGrant) (db.NFTChainConfig, bool) {
+	registration, _, err := minter.registration(config)
+	if err != nil {
+		return db.NFTChainConfig{}, false
+	}
+	registered := false
+	for _, chain := range registration.Chains {
+		identity, err := WalletNFTIdentity(chain.Network, chain.Sender)
+		if err == nil && chain.Network == grant.Config.Network && chain.ChainID == grant.Config.ChainID && identity == grant.Config.SignerIdentity && chain.Contract == grant.Config.Contract && chain.CodeHash == grant.Config.CodeHash {
+			registered = true
+		}
+	}
+	if !registered {
+		return db.NFTChainConfig{}, false
+	}
 	for _, chain := range config.Chains {
 		if chain.Network == grant.Config.Network && chain.ChainID == grant.Config.ChainID && chain.SignerIdentity == grant.Config.SignerIdentity {
 			return chain, config.Enabled
 		}
 	}
 	return db.NFTChainConfig{}, false
+}
+func (minter *Minter) registration(config db.NFTConfig) (NFTRegistration, string, error) {
+	if raw := os.Getenv("YOURPLACE_MINTER_REGISTRATION"); minter.gateway && raw != "" {
+		var registration NFTRegistration
+		if json.Unmarshal([]byte(raw), &registration) != nil || WalletValidateNFTRegistration(&registration) != nil {
+			return NFTRegistration{}, "environment", errors.New("invalid_registration_environment")
+		}
+		return registration, "environment", nil
+	}
+	if config.Registration != nil {
+		return *config.Registration, "settings", nil
+	}
+	return minter.owner, "server_owner", nil
 }
 func (minter *Minter) wait(ctx context.Context, owner string, grant db.NFTGrant, reason string) {
 	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)

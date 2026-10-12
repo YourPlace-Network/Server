@@ -23,10 +23,16 @@ type NFTChainConfig struct {
 	MaxTopUp       uint64 `json:"maxTopUp"`
 }
 type NFTConfig struct {
-	Enabled    bool             `json:"enabled"`
-	DailyLimit int              `json:"dailyLimit"`
-	Chains     []NFTChainConfig `json:"chains"`
-	Template   *NFTTemplate     `json:"template,omitempty"`
+	Enabled      bool             `json:"enabled"`
+	DailyLimit   int              `json:"dailyLimit"`
+	Chains       []NFTChainConfig `json:"chains"`
+	Template     *NFTTemplate     `json:"template,omitempty"`
+	Registration *NFTRegistration `json:"registration,omitempty"`
+}
+type NFTRegistration struct {
+	OperatorNetwork string           `json:"operatorNetwork"`
+	OperatorAddress string           `json:"operatorAddress"`
+	Chains          []NFTChainConfig `json:"chains"`
 }
 type NFTSource struct {
 	Network  string `json:"network"`
@@ -69,6 +75,7 @@ type NFTProfile struct {
 	WelcomeNFTDelivered   bool  `json:"welcomeNFTDelivered"`
 }
 type NFTTransaction struct {
+	Expired   bool   `json:"expired,omitempty"`
 	Hash      string `json:"hash"`
 	Raw       []byte `json:"raw,omitempty"`
 	Operation string `json:"operation"`
@@ -148,7 +155,7 @@ func (db *Database) NFTGrants(ctx context.Context, identity string, offset, limi
 		} else {
 			query += " AND "
 		}
-		query += "stage NOT IN ('delivered', 'attention') AND dueAt <= ?"
+		query += "stage <> 'delivered' AND (stage <> 'attention' OR pending = 1) AND dueAt <= ?"
 		args = append(args, time.Now().Unix())
 	}
 	if due {
@@ -314,7 +321,7 @@ func (store *NFTStore) SaveGrant(ctx context.Context, grant NFTGrant) error {
 		return err
 	}
 	pending := 0
-	if grant.Transaction != nil {
+	if grant.Transaction != nil && !grant.Transaction.Expired {
 		pending = 1
 	}
 	result, err := store.tx.ExecContext(ctx, "UPDATE auto_nft_grants SET revision = ?, pending = ?, stage = ?, dueAt = ?, issuanceDay = ?, body = ? WHERE id = ? AND revision = ?", grant.Revision, pending, grant.Stage, grant.DueAt, grant.IssuanceDay, string(raw), grant.ID, previous)

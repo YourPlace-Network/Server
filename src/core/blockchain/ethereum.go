@@ -22,6 +22,8 @@ import (
 	ens "github.com/wealdtech/go-ens/v3"
 )
 
+const ethereumMainnetChainID = 1
+
 type WalletData struct {
 	Address    string
 	Blockchain string
@@ -75,7 +77,7 @@ func (ethereum *Ethereum) init(database *db.Database, gateway bool) {
 	if ethereum.RpcClient != nil {
 		ethereum.RpcClient.Close()
 	}
-	ethereum.MainnetChainId = 1
+	ethereum.MainnetChainId = ethereumMainnetChainID
 	ethereum.Name = "Ethereum"
 	ethereum.Currency = "ETH"
 	ethereum.ExplorerUrl = "https://etherscan.io"

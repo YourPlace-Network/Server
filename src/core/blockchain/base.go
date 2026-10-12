@@ -22,6 +22,8 @@ import (
 	ens "github.com/wealdtech/go-ens/v3"
 )
 
+const baseMainnetChainID = 8453
+
 type Base struct {
 	MainnetChainId          uint
 	Name                    string
@@ -61,7 +63,7 @@ func (base *Base) init(database *db.Database, gateway bool) {
 	if base.RpcClient != nil {
 		base.RpcClient.Close()
 	}
-	base.MainnetChainId = 8453
+	base.MainnetChainId = baseMainnetChainID
 	base.Name = "Base"
 	base.Currency = "ETH"
 	base.ExplorerUrl = "https://etherscan.io"

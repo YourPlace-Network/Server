@@ -58,6 +58,58 @@ type Algorand struct {
 	},
 }*/
 
+func (algo *Algorand) LoginAuthorizer(ctx context.Context, address string) (string, error) {
+	if algo == nil || algo.algodClient == nil {
+		return "", errors.New("authority_unavailable")
+	}
+	decoded, err := types.DecodeAddress(address)
+	if err != nil || decoded == (types.Address{}) {
+		return "", errors.New("invalid_address")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	account, err := algo.algodClient.AccountInformation(address).Do(ctx)
+	if err != nil || account.Address != address {
+		return "", errors.New("authority_unavailable")
+	}
+	if account.AuthAddr == "" {
+		return address, nil
+	}
+	authorizer, err := types.DecodeAddress(account.AuthAddr)
+	if err != nil || authorizer == (types.Address{}) {
+		return "", errors.New("authority_unavailable")
+	}
+	return account.AuthAddr, nil
+}
+func (algo *Algorand) VerifyLoginTransaction(ctx context.Context, encoded, signature, address, message string) (string, error) {
+	if len(encoded) > 16384 || len(signature) > 128 || len(message) > 8192 {
+		return "", errors.New("invalid_signature")
+	}
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	var signed types.SignedTxn
+	if err != nil || msgpack.Decode(raw, &signed) != nil {
+		return "", errors.New("invalid_signature")
+	}
+	if !bytes.Equal(raw, msgpack.Encode(types.SignedTxn{Txn: signed.Txn, Sig: signed.Sig, AuthAddr: signed.AuthAddr})) {
+		return "", errors.New("unsupported_signature_format")
+	}
+	if signed.Txn.Sender.String() != address || string(signed.Txn.Note) != message || base64.StdEncoding.EncodeToString(signed.Sig[:]) != signature {
+		return "", errors.New("invalid_signature")
+	}
+	authorizer, err := algo.LoginAuthorizer(ctx, address)
+	if err != nil {
+		return "", err
+	}
+	publicKey, _ := types.DecodeAddress(authorizer)
+	expectedAuth := types.Address{}
+	if authorizer != address {
+		expectedAuth = publicKey
+	}
+	if signed.AuthAddr != expectedAuth || !ed25519.Verify(publicKey[:], append([]byte("TX"), msgpack.Encode(signed.Txn)...), signed.Sig[:]) {
+		return "", errors.New("invalid_signature")
+	}
+	return authorizer, nil
+}
 func (algo *Algorand) Init(algodHost string, algodToken string, algodPort int, algodNetwork string) {
 	if !security.IsValidAlgoNetwork(algodNetwork) {
 		log.Panicln("Invalid Algorand network configuration")

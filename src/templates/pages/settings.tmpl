@@ -116,57 +116,111 @@
                                         </h2>
                                         <div id="collapseNFT" class="accordion-collapse collapse" data-bs-parent="#contentItemsAccordion">
                                             <div class="accordion-body" id="nftSettings" data-operator="{{.canManageNFT}}">
-                                                {{if .canManageNFT}}
-                                                <form id="nftForm">
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="nftEnabled" disabled>
-                                                        <label class="form-check-label" for="nftEnabled">Auto-Minting</label>
-                                                    </div>
-                                                    <section id="nftTemplate">
-                                                        <h3>Welcome NFT</h3>
-                                                        <div id="nftTemplatePreview" class="nftTemplatePreview" hidden></div>
-                                                        <div class="nftToolbar">
-                                                            <button id="nftChooseTemplate" type="button" class="btn btn-secondary nftTextButton" aria-expanded="false" aria-controls="nftCollection" disabled><i class="bi bi-collection"></i> Choose from collection</button>
-                                                            <button id="nftUseTemplate" type="button" class="btn btn-primary nftTextButton" hidden><i class="bi bi-check2"></i> Use this NFT</button>
-                                                            <button id="nftCancelTemplate" type="button" class="btn btn-secondary" title="Cancel selection" aria-label="Cancel selection" hidden><i class="bi bi-x-lg"></i></button>
-                                                            <a href="/p/{{.userBlockchain}}/{{.userAddress}}#collection" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right"></i> Your collection</a>
-                                                        </div>
-                                                        <p id="nftTemplateStatus" role="status" aria-live="polite">No NFT selected</p>
-                                                        <div id="nftCollection" hidden>
-                                                            <div class="nftToolbar">
-                                                                <input id="nftCollectionSearch" type="search" class="form-control" placeholder="Search collection" aria-label="Search collection">
-                                                                <button id="nftCollectionRefresh" type="button" class="btn btn-secondary" title="Refresh collection" aria-label="Refresh collection"><i class="bi bi-arrow-clockwise"></i></button>
+                                                <div class="accordion" id="nftItemsAccordion">
+                                                    <div class="accordion-item">
+                                                        <h2 class="accordion-header" id="headingNFTAutoMinting">
+                                                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNFTAutoMinting" aria-expanded="false" aria-controls="collapseNFTAutoMinting">
+                                                                <b><i class="bi bi-magic"></i><span>Auto-Minting</span></b>
+                                                            </button>
+                                                        </h2>
+                                                        <div id="collapseNFTAutoMinting" class="accordion-collapse collapse" data-bs-parent="#nftItemsAccordion">
+                                                            <div class="accordion-body">
+                                                                {{if .canManageNFT}}
+                                                                <div class="form-check form-switch">
+                                                                    <input class="form-check-input" type="checkbox" role="switch" id="nftEnabled" form="nftForm" aria-controls="nftAutoMintControls" aria-expanded="false" disabled>
+                                                                    <label class="form-check-label" for="nftEnabled">Enabled</label>
+                                                                </div>
+                                                                <div id="nftAutoMintControls" class="accordion nftNested" hidden>
+                                                                    <div class="accordion-item">
+                                                                        <h2 class="accordion-header" id="headingNFTRegistration">
+                                                                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNFTRegistration" aria-expanded="false" aria-controls="collapseNFTRegistration"><b>Operator and Issuing Wallets</b></button>
+                                                                            <button id="nftRegistrationHelp" class="nftHelpButton" type="button" aria-label="Operator and issuing wallets setup help" aria-haspopup="dialog" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="yp-tooltip" title="Who manages minting and which wallets pay for it"><i class="bi bi-question-circle" aria-hidden="true"></i></button>
+                                                                        </h2>
+                                                                        <div id="collapseNFTRegistration" class="accordion-collapse collapse" aria-labelledby="headingNFTRegistration" data-bs-parent="#nftAutoMintControls">
+                                                                            <form id="nftRegistrationForm" class="accordion-body">
+                                                                                <p id="nftRegistrationSource" role="status" hidden></p>
+                                                                                <div class="nftFields">
+                                                                                    <div class="nftField"><div class="nftFieldHeading"><label for="nftOperatorNetwork">Operator network</label></div><select id="nftOperatorNetwork" class="form-select" aria-controls="nftRegistrationChains" required disabled></select></div>
+                                                                                    <div class="nftField"><div class="nftFieldHeading"><label for="nftOperatorAddress">Operator wallet address</label></div><input id="nftOperatorAddress" class="form-control" type="text" autocomplete="off" spellcheck="false" required disabled></div>
+                                                                                </div>
+                                                                                <div id="nftRegistrationChains"></div>
+                                                                                <div class="nftToolbar">
+                                                                                    <button id="nftRegistrationSave" type="submit" class="btn btn-primary nftTextButton" title="Save operator and wallets" aria-label="Save operator and wallets" disabled><i class="bi bi-floppy"></i> Save</button>
+                                                                                    <span id="nftRegistrationStatus" role="status" aria-live="polite"></span>
+                                                                                </div>
+                                                                            </form>
+                                                                        </div>
+                                                                    </div>
+                                                                    <form id="nftForm">
+                                                                        <section id="nftTemplate">
+                                                                            <h3>Welcome NFT</h3>
+                                                                            <div id="nftTemplatePreview" class="nftTemplatePreview" hidden></div>
+                                                                            <div class="nftToolbar">
+                                                                                <button id="nftChooseTemplate" type="button" class="btn btn-secondary nftTextButton" aria-expanded="false" aria-controls="nftCollection" disabled><i class="bi bi-collection"></i> Choose</button>
+                                                                                <button id="nftUseTemplate" type="button" class="btn btn-primary nftTextButton" hidden><i class="bi bi-check2"></i> Use this NFT</button>
+                                                                                <button id="nftCancelTemplate" type="button" class="btn btn-secondary" title="Cancel selection" aria-label="Cancel selection" hidden><i class="bi bi-x-lg"></i></button>
+                                                                            </div>
+                                                                            <p id="nftTemplateStatus" role="status" aria-live="polite"></p>
+                                                                            <div id="nftCollection" hidden>
+                                                                                <div class="nftToolbar">
+                                                                                    <input id="nftCollectionSearch" type="search" class="form-control" placeholder="Search collection" aria-label="Search collection">
+                                                                                    <button id="nftCollectionRefresh" type="button" class="btn btn-secondary" title="Refresh collection" aria-label="Refresh collection"><i class="bi bi-arrow-clockwise"></i></button>
+                                                                                </div>
+                                                                                <div id="nftCollectionGrid" class="nftCollectionGrid"></div>
+                                                                                <div class="nftToolbar">
+                                                                                    <button id="nftCollectionPrevious" type="button" class="btn btn-secondary" title="Previous NFTs" aria-label="Previous NFTs"><i class="bi bi-chevron-left"></i></button>
+                                                                                    <span id="nftCollectionPage">1</span>
+                                                                                    <button id="nftCollectionNext" type="button" class="btn btn-secondary" title="Next NFTs" aria-label="Next NFTs"><i class="bi bi-chevron-right"></i></button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </section>
+                                                                        <div id="nftChains" class="accordion"></div>
+                                                                        <div class="form-check form-switch">
+                                                                            <input class="form-check-input" type="checkbox" role="switch" id="nftLimitEnabled" aria-controls="nftDailyLimitControls" aria-expanded="false" disabled>
+                                                                            <label class="form-check-label" for="nftLimitEnabled">Daily Issuance Limit</label>
+                                                                        </div>
+                                                                        <div id="nftDailyLimitControls" class="nftNested" hidden>
+                                                                            <label id="nftDailyLimitLabel" for="nftDailyLimit" class="form-label" aria-live="polite">Mints Per Day (USD estimate unavailable)</label>
+                                                                            <input id="nftDailyLimit" type="number" min="1" max="1000000" step="1" value="100" class="form-control" disabled>
+                                                                        </div>
+                                                                    </form>
+                                                                    <div class="accordion-item">
+                                                                        <h2 class="accordion-header" id="headingNFTQueue">
+                                                                            <button class="accordion-button button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNFTQueue" aria-expanded="false" aria-controls="collapseNFTQueue"><b>Delivery Queue</b></button>
+                                                                        </h2>
+                                                                        <div id="collapseNFTQueue" class="accordion-collapse collapse" aria-labelledby="headingNFTQueue" data-bs-parent="#nftAutoMintControls">
+                                                                            <div class="accordion-body">
+                                                                                <div id="nftCounts"></div>
+                                                                                <div id="nftQueue" aria-live="polite"></div>
+                                                                                <div class="nftToolbar">
+                                                                                    <button id="nftRefresh" type="button" class="btn btn-secondary" title="Refresh queue" aria-label="Refresh queue" disabled><i class="bi bi-arrow-clockwise"></i></button>
+                                                                                    <button id="nftPrevious" type="button" class="btn btn-secondary" title="Previous page" aria-label="Previous page" disabled><i class="bi bi-chevron-left"></i></button>
+                                                                                    <span id="nftPage">1</span>
+                                                                                    <button id="nftNext" type="button" class="btn btn-secondary" title="Next page" aria-label="Next page" disabled><i class="bi bi-chevron-right"></i></button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="nftToolbar">
+                                                                    <button id="nftSave" type="submit" form="nftForm" class="btn btn-primary nftTextButton" title="Save settings" aria-label="Save settings" disabled><i class="bi bi-floppy"></i> Save</button>
+                                                                    <span id="nftStatus" role="status" aria-live="polite">Loading...</span>
+                                                                </div>
+                                                                {{else if eq .nftOperatorStatus "operator_not_configured"}}
+                                                                <p role="status">No server owner or NFT operator is configured. Complete local server setup before running as a Gateway, or supply a Gateway operator registration.</p>
+                                                                {{else if eq .nftOperatorStatus "configuration_unavailable"}}
+                                                                <p role="status">NFT configuration is unavailable. Check the database and any Gateway registration override.</p>
+                                                                {{else if eq .nftOperatorStatus "login_required"}}
+                                                                <p role="status">Sign in with the registered operator wallet to manage welcome NFTs.</p>
+                                                                <a href="/login?redirect=%2Fsettings%23nft">Sign in</a>
+                                                                {{else}}
+                                                                <p role="status">Your signed-in wallet does not match the registered NFT operator. Both the wallet address and network must match.</p>
+                                                                <a href="/login?redirect=%2Fsettings%23nft">Switch wallet</a>
+                                                                {{end}}
                                                             </div>
-                                                            <div id="nftCollectionGrid" class="nftCollectionGrid"></div>
-                                                            <div class="nftToolbar">
-                                                                <button id="nftCollectionPrevious" type="button" class="btn btn-secondary" title="Previous NFTs" aria-label="Previous NFTs"><i class="bi bi-chevron-left"></i></button>
-                                                                <span id="nftCollectionPage">1</span>
-                                                                <button id="nftCollectionNext" type="button" class="btn btn-secondary" title="Next NFTs" aria-label="Next NFTs"><i class="bi bi-chevron-right"></i></button>
-                                                            </div>
                                                         </div>
-                                                    </section>
-                                                    <div id="nftChains"></div>
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="nftLimitEnabled" disabled>
-                                                        <label class="form-check-label" for="nftLimitEnabled">Daily issuance limit</label>
                                                     </div>
-                                                    <label for="nftDailyLimit" class="form-label">New NFTs per UTC day</label>
-                                                    <input id="nftDailyLimit" type="number" min="1" max="1000000" step="1" value="100" class="form-control" disabled>
-                                                    <div class="nftToolbar">
-                                                        <button id="nftSave" type="submit" class="btn btn-primary" title="Save settings" aria-label="Save settings" disabled><i class="bi bi-floppy"></i></button>
-                                                        <button id="nftRefresh" type="button" class="btn btn-secondary" title="Refresh queue" aria-label="Refresh queue" disabled><i class="bi bi-arrow-clockwise"></i></button>
-                                                        <span id="nftStatus" role="status" aria-live="polite">Loading...</span>
-                                                    </div>
-                                                </form>
-                                                <h3>Delivery Queue</h3>
-                                                <div id="nftCounts"></div>
-                                                <div id="nftQueue" aria-live="polite"></div>
-                                                <div class="nftToolbar">
-                                                    <button id="nftPrevious" type="button" class="btn btn-secondary" title="Previous page" aria-label="Previous page" disabled><i class="bi bi-chevron-left"></i></button>
-                                                    <span id="nftPage">1</span>
-                                                    <button id="nftNext" type="button" class="btn btn-secondary" title="Next page" aria-label="Next page" disabled><i class="bi bi-chevron-right"></i></button>
                                                 </div>
-                                                {{else}}<p>Operator access required.</p>{{end}}
                                             </div>
                                         </div>
                                     </div>

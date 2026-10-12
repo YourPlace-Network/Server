@@ -57,7 +57,7 @@ func (chain *evmNFT) Build(ctx context.Context, grant db.NFTGrant, key []byte) (
 	} else {
 		operation = "transfer"
 		token, valid := new(big.Int).SetString(grant.TokenID, 10)
-		if !valid || token.Sign() < 0 {
+		if !valid || token.Sign() < 0 || token.BitLen() > 256 {
 			return nil, errors.New("invalid_token")
 		}
 		ownerData, _ := nftABI.Pack("ownerOf", token)
@@ -79,7 +79,7 @@ func (chain *evmNFT) Build(ctx context.Context, grant db.NFTGrant, key []byte) (
 		return nil, errors.New("signer_has_pending_transactions")
 	}
 	gasPrice, err := chain.client.SuggestGasPrice(ctx)
-	if err != nil {
+	if err != nil || gasPrice == nil || gasPrice.Sign() < 0 || gasPrice.BitLen() > 256 {
 		return nil, errors.New("fee_unavailable")
 	}
 	gas, err := chain.client.EstimateGas(ctx, ethereum.CallMsg{From: sender, To: &contract, Value: value, GasPrice: gasPrice, Data: data})
@@ -101,6 +101,9 @@ func (chain *evmNFT) Build(ctx context.Context, grant db.NFTGrant, key []byte) (
 		if feeErr != nil {
 			return nil, feeErr
 		}
+		if fee == nil || fee.Sign() < 0 {
+			return nil, errors.New("fee_unavailable")
+		}
 		cost.Add(cost, fee)
 	}
 	maximum, valid := new(big.Int).SetString(config.MaxCost, 10)
@@ -108,7 +111,7 @@ func (chain *evmNFT) Build(ctx context.Context, grant db.NFTGrant, key []byte) (
 		return nil, errors.New("cost_limit")
 	}
 	balance, err := chain.client.BalanceAt(ctx, sender, nil)
-	if err != nil || balance.Cmp(cost) < 0 {
+	if err != nil || balance == nil || balance.Cmp(cost) < 0 {
 		return nil, errors.New("insufficient_balance")
 	}
 	signed, err := types.SignTx(tx, types.LatestSignerForChainID(chainID), privateKey)
@@ -142,12 +145,58 @@ func (chain *evmNFT) Credential(secret string) ([]byte, string, error) {
 	defer key.D.SetInt64(0)
 	return crypto.FromECDSA(key), crypto.PubkeyToAddress(key.PublicKey).Hex(), nil
 }
+func (chain *evmNFT) EstimateMintCost(ctx context.Context, config db.NFTChainConfig) (float64, error) {
+	if err := chain.Validate(ctx, config); err != nil {
+		return 0, err
+	}
+	sender, contract := common.HexToAddress(config.Sender), common.HexToAddress(config.Contract)
+	feeData, _ := nftABI.Pack("mintFee")
+	fee, err := chain.client.CallContract(ctx, ethereum.CallMsg{To: &contract, Data: feeData}, nil)
+	if err != nil || len(fee) != 32 {
+		return 0, errors.New("mint_fee_unavailable")
+	}
+	value := new(big.Int).SetBytes(fee)
+	data, err := nftABI.Pack("mint", config.MetadataURI)
+	if err != nil {
+		return 0, err
+	}
+	gasPrice, err := chain.client.SuggestGasPrice(ctx)
+	if err != nil || gasPrice == nil || gasPrice.Sign() <= 0 || gasPrice.BitLen() > 256 {
+		return 0, errors.New("fee_unavailable")
+	}
+	gas, err := chain.client.EstimateGas(ctx, ethereum.CallMsg{From: sender, To: &contract, Value: value, GasPrice: gasPrice, Data: data})
+	if err != nil || gas == 0 || gas > 10000000 {
+		return 0, errors.New("simulation_failed")
+	}
+	gas += gas / 5
+	cost := new(big.Int).Add(value, new(big.Int).Mul(new(big.Int).SetUint64(gas), gasPrice))
+	if chain.extraFee != nil {
+		raw, err := types.NewTransaction(0, contract, value, gas, gasPrice, data).MarshalBinary()
+		if err != nil {
+			return 0, err
+		}
+		extra, err := chain.extraFee(ctx, raw)
+		if err != nil || extra == nil || extra.Sign() < 0 || extra.BitLen() > 256 {
+			return 0, errors.New("fee_unavailable")
+		}
+		cost.Add(cost, extra)
+	}
+	native, _ := new(big.Rat).SetFrac(cost, big.NewInt(1000000000000000000)).Float64()
+	return native, nil
+}
 func (chain *evmNFT) Reconcile(ctx context.Context, grant db.NFTGrant) (string, string, error) {
+	if grant.Transaction == nil || (grant.Transaction.Operation != "mint" && grant.Transaction.Operation != "transfer") {
+		return "", "", errors.New("invalid_transaction")
+	}
+	hash := common.HexToHash(grant.Transaction.Hash)
+	if hash == (common.Hash{}) || hash.Hex() != grant.Transaction.Hash {
+		return "", "", errors.New("invalid_transaction")
+	}
 	chainID, err := chain.client.ChainID(ctx)
-	if err != nil || chainID.String() != grant.Config.ChainID {
+	if err != nil || chainID == nil || chainID.String() != grant.Config.ChainID {
 		return "", "", errors.New("network_mismatch")
 	}
-	receipt, err := chain.client.TransactionReceipt(ctx, common.HexToHash(grant.Transaction.Hash))
+	receipt, err := chain.client.TransactionReceipt(ctx, hash)
 	if errors.Is(err, ethereum.NotFound) {
 		nonce, nonceErr := chain.client.NonceAt(ctx, common.HexToAddress(grant.Config.Sender), nil)
 		if nonceErr == nil && nonce > grant.Transaction.Nonce {
@@ -158,15 +207,23 @@ func (chain *evmNFT) Reconcile(ctx context.Context, grant db.NFTGrant) (string, 
 	if err != nil {
 		return "", "", errors.New("rpc_unavailable")
 	}
+	if receipt == nil || receipt.TxHash != hash || receipt.BlockNumber == nil || !receipt.BlockNumber.IsUint64() || receipt.BlockHash == (common.Hash{}) || (receipt.Status != types.ReceiptStatusFailed && receipt.Status != types.ReceiptStatusSuccessful) {
+		return "", "", errors.New("invalid_receipt")
+	}
+	for _, event := range receipt.Logs {
+		if event == nil || event.Removed || event.TxHash != hash || event.BlockHash != receipt.BlockHash || event.BlockNumber != receipt.BlockNumber.Uint64() || event.TxIndex != receipt.TransactionIndex {
+			return "", "", errors.New("invalid_receipt_logs")
+		}
+	}
 	finalized, err := chain.client.HeaderByNumber(ctx, big.NewInt(-3))
-	if err != nil {
+	if err != nil || finalized == nil || finalized.Number == nil || !finalized.Number.IsUint64() {
 		return "", "", errors.New("finality_unavailable")
 	}
 	if receipt.BlockNumber.Cmp(finalized.Number) > 0 {
 		return "confirming", "", nil
 	}
 	canonical, err := chain.client.HeaderByNumber(ctx, receipt.BlockNumber)
-	if err != nil || canonical.Hash() != receipt.BlockHash {
+	if err != nil || canonical == nil || canonical.Number == nil || canonical.Number.Cmp(receipt.BlockNumber) != 0 || canonical.Hash() != receipt.BlockHash {
 		return "confirming", "", nil
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
@@ -181,7 +238,7 @@ func (chain *evmNFT) Reconcile(ctx context.Context, grant db.NFTGrant) (string, 
 		if event.Address != common.HexToAddress(grant.Config.Contract) || len(event.Topics) != 4 || event.Topics[0] != nftTransferTopic {
 			continue
 		}
-		if common.BytesToAddress(event.Topics[1].Bytes()) != from || common.BytesToAddress(event.Topics[2].Bytes()) != to {
+		if event.Topics[1] != common.BytesToHash(from.Bytes()) || event.Topics[2] != common.BytesToHash(to.Bytes()) || len(event.Data) != 0 {
 			continue
 		}
 		id := new(big.Int).SetBytes(event.Topics[3].Bytes()).String()
@@ -225,20 +282,18 @@ func (chain *evmNFT) Source(ctx context.Context, source db.NFTSource, owner stri
 	return uri, nil
 }
 func (chain *evmNFT) Validate(ctx context.Context, config db.NFTChainConfig) error {
+	if expected := nftMainnetChainID(config.Network); expected == "" || config.ChainID != expected {
+		return errors.New("invalid_chain_id")
+	}
 	if !common.IsHexAddress(config.Contract) || common.HexToAddress(config.Contract) == (common.Address{}) {
 		return errors.New("invalid_contract")
 	}
 	chainID, err := chain.client.ChainID(ctx)
-	if err != nil || chainID.String() != config.ChainID {
+	if err != nil || chainID == nil || chainID.String() != config.ChainID {
 		return errors.New("network_mismatch")
 	}
-	approved := ""
-	for _, chain := range NFTRegistered().Chains {
-		if chain.Network == config.Network {
-			approved = chain.CodeHash
-		}
-	}
-	if len(approved) != 66 || config.CodeHash != approved {
+	approved := config.CodeHash
+	if len(approved) != 66 {
 		return errors.New("contract_not_reviewed")
 	}
 	code, err := chain.client.CodeAt(ctx, common.HexToAddress(config.Contract), nil)
@@ -246,4 +301,7 @@ func (chain *evmNFT) Validate(ctx context.Context, config db.NFTChainConfig) err
 		return errors.New("contract_code_mismatch")
 	}
 	return nil
+}
+func (chain *evmNFT) ValidateRegistration(ctx context.Context, config db.NFTChainConfig) error {
+	return chain.Validate(ctx, config)
 }

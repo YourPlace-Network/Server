@@ -163,6 +163,7 @@ import {PersistentCache} from "../cache";
 import {CIDToSubdomainURL} from "../ipfs";
 import {HttpPostJson} from "../network";
 import {IsValidAlgoAddress, IsValidBaseAddress, IsValidURL} from "../security";
+import {decodeAddress} from "algosdk";
 import {LogError, LogInfo} from "../log";
 import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWallet} from "./solana";
 import {ShowDialogModal, ShowDialogModalHTML} from "../../components/modalDialog";
@@ -618,6 +619,29 @@ export function WalletGetSmallestUnit(chain: string): string {
         case "ethereum": return "wei";
         default: return "native units";
     }
+}
+export function WalletGetNFTNetworks() {
+    return [
+        {network: "base", label: "Base", collection: true, chainIdLabel: ""},
+        {network: "ethereum", label: "Ethereum", collection: true, chainIdLabel: ""},
+        {network: "algorand", label: "Algorand", collection: false, chainIdLabel: "Genesis hash (base64)"},
+    ];
+}
+export function WalletValidateNFTField(network: string, kind: "address" | "codeHash" | "genesis", value: string): boolean {
+    if (network !== "base" && network !== "ethereum" && network !== "algorand") return false;
+    if (kind === "codeHash") return network !== "algorand" && /^0x[0-9a-fA-F]{64}$/.test(value) && !/^0x0{64}$/.test(value);
+    if (kind === "genesis") {
+        if (network !== "algorand" || !/^[A-Za-z0-9+/]{43}=$/.test(value)) return false;
+        try {
+            const bytes = atob(value);
+            return bytes.length === 32 && btoa(bytes) === value && [...bytes].some(byte => byte.charCodeAt(0) !== 0);
+        } catch { return false; }
+    }
+    if (network === "algorand") {
+        if (!/^[A-Z2-7]{58}$/.test(value) || !IsValidAlgoAddress(value)) return false;
+        try { return decodeAddress(value).publicKey.some(byte => byte !== 0); } catch { return false; }
+    }
+    return /^0x[0-9a-fA-F]{40}$/.test(value) && !/^0x0{40}$/.test(value) && IsValidBaseAddress(value);
 }
 export function WalletGetExplorerTxLink(tx: string, blockchain?: string) {
     if (tx == "") {
