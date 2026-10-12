@@ -8,6 +8,7 @@ import {
     algoAcceptWelcomeNFT,
     algoAuthLogin,
     algoBurnCollectible,
+    algoConnectAddress,
     algoConnectWallet,
     algoDisconnectWallet,
     algoFollowUser,
@@ -48,6 +49,7 @@ import {HttpGetJson} from "../network";
 import {
     baseAuthLogin,
     baseBurnCollectible,
+    baseConnectAddress,
     baseConnectWallet,
     baseDisconnectWallet,
     baseFollowUser,
@@ -88,6 +90,7 @@ import {
 import {
     ethereumAuthLogin,
     ethereumBurnCollectible,
+    ethereumConnectAddress,
     ethereumConnectWallet,
     ethereumDisconnectWallet,
     ethereumFollowUser,
@@ -169,6 +172,7 @@ import {phantomSolanaAuthLogin, phantomSolanaConnectWallet, solanaDisconnectWall
 import {ShowDialogModal, ShowDialogModalHTML} from "../../components/modalDialog";
 
 // ---------- Types ---------- //
+export type WalletAddressResult = {status: "success"; address: string} | {status: "cancelled"} | {status: "error"; message: string};
 export interface CollectibleData {
     canBurn?: boolean;
     blockchain: string;
@@ -323,6 +327,27 @@ export async function DisconnectWallet() {
         localStorage.setItem("lastWalletSelection", lastWallet);
     }
     window.DisconnectWalletCallback();
+}
+export async function WalletConnectAddress(network: string): Promise<WalletAddressResult> {
+    let address: string;
+    try {
+        switch (network) {
+            case "base": address = await baseConnectAddress(); break;
+            case "ethereum": address = await ethereumConnectAddress(); break;
+            case "algorand": address = await algoConnectAddress(); break;
+            default: return {status: "error", message: "Unsupported wallet network."};
+        }
+        if (!WalletValidateNFTField(network, "address", address)) return {status: "error", message: "The wallet returned an invalid address for this network."};
+        return {status: "success", address};
+    } catch (error: unknown) {
+        let current = error;
+        for (let depth = 0; depth < 5 && current && typeof current === "object"; depth++) {
+            const reason = current as {code?: unknown; data?: {type?: unknown}; cause?: unknown};
+            if (reason.code === 4001 || ["CONNECT_MODAL_CLOSED", "CONNECT_CANCELLED", "OPERATION_CANCELLED"].includes(String(reason.data?.type))) return {status: "cancelled"};
+            current = reason.cause;
+        }
+        return {status: "error", message: "Unable to connect. Check your wallet and selected network, then try again."};
+    }
 }
 export async function ConnectWallet(wallet: string): Promise<string> {
     switch (wallet) {

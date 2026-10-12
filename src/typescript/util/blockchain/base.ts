@@ -145,6 +145,7 @@ const BASE_WAGMI_RECENT_CONNECTOR_KEY = "yourplace.recentConnectorId";
 let baseInit = false;
 let viemClient: any;
 let wagmiConfig: any;
+let baseAddressConfig: ReturnType<typeof createBaseWalletConfig> | undefined;
 let ockProvider: any;
 const avatarCache = new PersistentCache("base_avatar");
 const nameCache = new PersistentCache("base_name");
@@ -158,6 +159,17 @@ const ensAddressCache = new PersistentCache("base_ens_address");
 function appendBaseDataSuffix(data: `0x${string}`): `0x${string}` {
     return `${data}${BASE_DATA_SUFFIX.slice(2)}` as `0x${string}`;
 }
+function createBaseWalletConfig(addressOnly = false) {
+    return createConfig({
+        chains: [wagmiBase],
+        multiInjectedProviderDiscovery: false,
+        connectors: [baseAccount({appName: metadataYourPlace.name, appLogoUrl: metadataYourPlace.icons[0]})],
+        transports: {[wagmiBase.id]: wagmiHttp(mainnetBase.rpcUrl!)},
+        storage: addressOnly ? null : createStorage({key: "yourplace", storage: window.localStorage}),
+        ssr: true,
+        dataSuffix: BASE_DATA_SUFFIX,
+    });
+}
 async function initBaseWallet() {
     if (baseInit) { return; }
     try {
@@ -169,24 +181,7 @@ async function initBaseWallet() {
             chain: viemMainnet,
             transport: viemHttp("/rpc/ethereum"),
         });
-        wagmiConfig = createConfig({
-            chains: [wagmiBase],
-            multiInjectedProviderDiscovery: false,
-            connectors: [
-                baseAccount({
-                    appName: metadataYourPlace.name,
-                    appLogoUrl: metadataYourPlace.icons[0],
-                })],
-            transports: {
-                [wagmiBase.id]: wagmiHttp(mainnetBase.rpcUrl!),
-            },
-            storage: createStorage({
-                key: "yourplace",
-                storage: window.localStorage,
-            }),
-            ssr: true,
-            dataSuffix: BASE_DATA_SUFFIX,
-        });
+        wagmiConfig = createBaseWalletConfig();
         setOnchainKitConfig({
             chain: viemBase,
             rpcUrl: mainnetBase.rpcUrl!,
@@ -347,6 +342,15 @@ export async function baseAuthLogin(): Promise<string> {
         LogError("Failed to parse login response");
     }
     return "Failed Base Login: Unknown Error";
+}
+export async function baseConnectAddress(): Promise<string> {
+    baseAddressConfig ??= createBaseWalletConfig(true);
+    const connection = getConnections(baseAddressConfig)[0] || await wagmiConnect(baseAddressConfig, {
+        chainId: wagmiBase.id,
+        connector: baseAddressConfig.connectors[0],
+    });
+    if (connection.chainId !== wagmiBase.id) throw new Error("Wallet network mismatch");
+    return connection.accounts[0] || "";
 }
 export async function baseConnectWallet(): Promise<string> {
     if (!baseInit) {

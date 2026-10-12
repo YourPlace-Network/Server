@@ -15,6 +15,7 @@ import {IsGatewayMode} from "../miscellaneous";
 // ---------- Algorand Variables & Objects ---------- //
 export let algod: Algodv2;
 export let peraWallet = new PeraWalletConnect({shouldShowSignTxnToast: false, chainId: 416001});
+let peraAddressWallet: PeraWalletConnect | undefined;
 let algoInitialized = false;
 let algodURL: string, algodToken: string;
 const avatarCache = new PersistentCache("algo_avatar");
@@ -59,6 +60,13 @@ function SetAlgodClient() {
 }
 
 // ---------- Pera WalletConnect ---------- //
+export async function algoConnectAddress(): Promise<string> {
+    if (peraWallet.connector?.connected) return peraWallet.connector.accounts[0] || "";
+    peraAddressWallet ??= new PeraWalletConnect({shouldShowSignTxnToast: false, chainId: peraWallet.chainId, singleAccount: true});
+    const accounts = await peraAddressWallet.reconnectSession();
+    if (accounts.length) return accounts[0];
+    return (await peraAddressWallet.connect())[0] || "";
+}
 export async function algoConnectWallet(name: string): Promise<string> {
     if (!algoInitialized) {
         await initAlgoWallet();

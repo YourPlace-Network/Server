@@ -35,6 +35,7 @@ export const mainnetEth = {
 let ethereumInit = false;
 let ethereumViemClient: any;
 let ethereumWagmiConfig: any;
+let ethereumAddressConfig: ReturnType<typeof createEthereumWalletConfig> | undefined;
 const ethereumAvatarCache = new PersistentCache("ethereum_avatar");
 const ethereumNameCache = new PersistentCache("ethereum_name");
 const ethereumDescriptionCache = new PersistentCache("ethereum_description");
@@ -53,6 +54,16 @@ const ethereumNFTABI = parseAbi([
     "function safeTransferFrom(address,address,uint256)",
 ]);
 
+function createEthereumWalletConfig(addressOnly = false) {
+    return createConfig({
+        chains: [wagmiMainnet],
+        multiInjectedProviderDiscovery: false,
+        connectors: [injected({target: "metaMask"})],
+        transports: {[wagmiMainnet.id]: wagmiHttp(mainnetEth.rpcUrl!)},
+        storage: addressOnly ? null : createStorage({key: "yourplace_ethereum", storage: window.localStorage}),
+        ssr: true,
+    });
+}
 async function initEthWallet() {
     if (ethereumInit) { return; }
     try {
@@ -60,21 +71,7 @@ async function initEthWallet() {
             chain: viemMainnet,
             transport: viemHttp(mainnetEth.rpcUrl!),
         });
-        ethereumWagmiConfig = createConfig({
-            chains: [wagmiMainnet],
-            multiInjectedProviderDiscovery: false,
-            connectors: [
-                injected({target: "metaMask"}),
-            ],
-            transports: {
-                [wagmiMainnet.id]: wagmiHttp(mainnetEth.rpcUrl!),
-            },
-            storage: createStorage({
-                key: "yourplace_ethereum",
-                storage: window.localStorage,
-            }),
-            ssr: true,
-        });
+        ethereumWagmiConfig = createEthereumWalletConfig();
     } catch (e) {
         LogError("Failed to initialize Ethereum wallet: " + e);
         ethereumInit = false;
@@ -198,6 +195,15 @@ export async function ethereumAuthLogin(): Promise<string> {
         LogError("Failed to parse login response");
     }
     return "Failed Ethereum Login: Unknown Error";
+}
+export async function ethereumConnectAddress(): Promise<string> {
+    ethereumAddressConfig ??= createEthereumWalletConfig(true);
+    const connection = getConnections(ethereumAddressConfig)[0] || await wagmiConnect(ethereumAddressConfig, {
+        chainId: wagmiMainnet.id,
+        connector: ethereumAddressConfig.connectors[0],
+    });
+    if (connection.chainId !== wagmiMainnet.id) throw new Error("Wallet network mismatch");
+    return connection.accounts[0] || "";
 }
 export async function ethereumConnectWallet(): Promise<string> {
     if (!ethereumInit) {

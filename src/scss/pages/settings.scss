@@ -32,6 +32,9 @@
   .nftReadiness { display: inline-block; }
   .btn { width: 2.75rem; height: 2.5rem; }
   .btn.nftTextButton { width: auto; height: auto; min-height: 2.5rem; white-space: normal; }
+  .nftAddressGroup { flex-wrap: nowrap; min-width: 0; }
+  .nftAddressGroup .form-control { min-width: 0; }
+  .nftAddressGroup .btn { flex: 0 0 2.75rem; height: auto; align-self: stretch; display: grid; place-items: center; }
   .nftTemplatePreview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 12rem) minmax(0, 1fr); align-items: start; gap: 1rem; }
   .nftTemplatePreview h4 { font-size: 1rem; margin: 0 0 0.5rem; }
   .nftTemplatePreview p { white-space: pre-wrap; }

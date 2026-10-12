@@ -1,8 +1,9 @@
 import {HttpGetJson, HttpPostJson} from "../util/network";
-import {WalletGetExplorerTxLink, WalletGetNFTNetworks, WalletGetSmallestUnit, WalletValidateNFTField} from "../util/blockchain/wallet";
+import {WalletConnectAddress, WalletGetExplorerTxLink, WalletGetNFTNetworks, WalletGetSmallestUnit, WalletValidateNFTField} from "../util/blockchain/wallet";
 import {ShowDialogModal, ShowDialogModalHTML} from "./modalDialog";
 import {InitNFTTemplate} from "./nftTemplate";
 
+type AddressConnection = {input: HTMLInputElement; button: HTMLButtonElement; network: () => string; role: string; revision: number};
 type ChainConfig = {
     network: string; chainId: string; sender: string; contract: string; codeHash: string;
     metadataUri: string; metadataHash: string; name: string; unit: string; maxCost: string; maxTopUp: number;
@@ -44,6 +45,11 @@ export function InitNFTSettings() {
     };
     if (DOM.root?.dataset.operator !== "true") return;
     let forms: ChainForm[] = [];
+    let addressConnections: AddressConnection[] = [];
+    let connectionBusy = false;
+    let registrationGeneration = 0;
+    let registrationLocked = true;
+    let registrationSaving = false;
     let registrationForms: RegistrationForm[] = [];
     let offset = 0;
     let loading = false;
@@ -91,6 +97,52 @@ export function InitNFTSettings() {
         parent.append(item);
         return body;
     }
+    function addressInput(input: HTMLInputElement, network: () => string, role: string) {
+        const group = document.createElement("div");
+        const button = document.createElement("button");
+        const icon = document.createElement("i");
+        const connection = {input, button, network, role, revision: 0};
+        group.className = "input-group nftAddressGroup";
+        button.type = "button";
+        button.className = "btn btn-secondary";
+        icon.className = "bi bi-wallet2";
+        icon.setAttribute("aria-hidden", "true");
+        button.append(icon);
+        input.before(group);
+        group.append(input, button);
+        addressConnections.push(connection);
+        input.addEventListener("input", () => { connection.revision++; });
+        button.addEventListener("click", () => connectAddress(connection));
+    }
+    async function connectAddress(connection: AddressConnection) {
+        const {input, button} = connection;
+        const network = connection.network();
+        const generation = registrationGeneration;
+        const revision = connection.revision;
+        const value = input.value;
+        const icon = button.firstElementChild!;
+        if (connectionBusy || registrationLocked || registrationSaving || input.disabled || input.readOnly) return;
+        connectionBusy = true;
+        icon.className = "spinner-border spinner-border-sm";
+        button.setAttribute("aria-busy", "true");
+        DOM.registrationStatus.textContent = "";
+        updateAddressControls();
+        try {
+            const result = await WalletConnectAddress(network);
+            if (generation !== registrationGeneration || revision !== connection.revision || network !== connection.network() || input.value !== value || !input.isConnected || input.disabled || input.readOnly) return;
+            if (result.status === "success") {
+                input.value = result.address;
+                input.dispatchEvent(new Event("input", {bubbles: true}));
+            } else if (result.status === "error") {
+                DOM.registrationStatus.textContent = result.message;
+            }
+        } finally {
+            icon.className = "bi bi-wallet2";
+            button.removeAttribute("aria-busy");
+            connectionBusy = false;
+            updateAddressControls();
+        }
+    }
     function field(parent: HTMLElement, label: string, value: string, readonly = false, numeric = false, help?: {id: string; text: string}): HTMLInputElement {
         const wrapper = document.createElement(help ? "div" : "label");
         const text = document.createElement("span");
@@ -136,6 +188,9 @@ export function InitNFTSettings() {
     }
     function registrationFields(registration: Registration, source: string) {
         const locked = source === "environment";
+        registrationLocked = locked;
+        registrationGeneration++;
+        addressConnections = addressConnections.filter(connection => connection.input === DOM.operatorAddress);
         DOM.operatorNetwork.replaceChildren();
         DOM.registrationChains.replaceChildren();
         registrationForms = [];
@@ -177,9 +232,12 @@ export function InitNFTSettings() {
             const chainId = chain.chainIdLabel ? field(grid, chain.chainIdLabel, config?.chainId || "", false, false, {id: "nftGenesis-" + chain.network, text: "The base64 genesis hash identifying the Algorand network. Copy it from your configured node's suggested transaction parameters, not the genesis ID. It must match the network used by the issuing wallet and recipients."}) : undefined;
             const contract = chain.collection ? field(grid, "Collection contract", config?.contract || "", false, false, {id: "nftContract-" + chain.network, text: "Address of the deployed YourPlace NFT collection on " + chain.label + " mainnet, not a wallet address or token ID. Its implementation must be reviewed for compatibility and have no issuer seizure, freeze, forced-burn, or upgrade powers."}) : undefined;
             const codeHash = chain.collection ? field(grid, "Reviewed runtime code hash", config?.codeHash || "", false, false, {id: "nftCodeHash-" + chain.network, text: "Keccak-256 hash of the collection's reviewed deployed runtime bytecode: 0x followed by 64 hexadecimal characters. Obtain the code from your configured node and hash it after security review. This is not a transaction hash; matching it does not replace reviewing the contract."}) : undefined;
+            addressInput(sender, () => chain.network, "issuing wallet");
             const update = () => {
+                registrationGeneration++;
                 grid.querySelectorAll<HTMLInputElement>("input").forEach(input => { input.disabled = locked || !include.checked; input.required = include.checked; });
                 validateRegistration();
+                updateAddressControls();
             };
             include.addEventListener("change", update);
             body.append(toggle, grid);
@@ -309,6 +367,17 @@ export function InitNFTSettings() {
             DOM.queue.setAttribute("aria-busy", "false");
         }
     }
+    function updateAddressControls() {
+        const busy = connectionBusy || registrationSaving;
+        DOM.operatorNetwork.disabled = DOM.registrationSave.disabled = registrationLocked || busy;
+        for (const connection of addressConnections) {
+            const label = WalletGetNFTNetworks().find(chain => chain.network === connection.network())?.label || "wallet";
+            const title = "Connect " + label + " " + connection.role;
+            connection.button.title = title;
+            connection.button.setAttribute("aria-label", title);
+            connection.button.disabled = registrationLocked || busy || connection.input.disabled || connection.input.readOnly;
+        }
+    }
     function updateControls() {
         DOM.autoMintControls.hidden = !DOM.enabled.checked;
         DOM.enabled.setAttribute("aria-expanded", String(DOM.enabled.checked));
@@ -347,11 +416,13 @@ export function InitNFTSettings() {
         DOM.limitLabel.textContent = "Mints Per Day (~" + dollars + " USD)";
     }
     function updateRegistrationNetwork() {
+        registrationGeneration++;
         operatorDrafts.set(operatorDraftNetwork, DOM.operatorAddress.value);
         operatorDraftNetwork = DOM.operatorNetwork.value;
         DOM.operatorAddress.value = operatorDrafts.get(operatorDraftNetwork) || "";
         for (const form of registrationForms) form.panel.hidden = form.network !== DOM.operatorNetwork.value;
         validateRegistration();
+        updateAddressControls();
     }
     function validateField(input: HTMLInputElement, network: string, kind: "address" | "codeHash" | "genesis", submitted: boolean) {
         const value = input.value.trim();
@@ -375,6 +446,8 @@ export function InitNFTSettings() {
     }
     DOM.operatorNetwork.previousElementSibling!.append(helpButton("Operator network", "Network used to sign in as the NFT operator. This also selects the issuing-wallet settings shown below; other networks keep their values. Saving changes the operator's login network. Base and Ethereum are separate login identities."));
     DOM.operatorAddress.previousElementSibling!.append(helpButton("Operator wallet address", "One operator network/address pair is saved for this server. Each network keeps a separate draft while this form is open. Saving selects the displayed pair; sign in with it after changing the operator. Base and Ethereum may use the same address, but Algorand requires its own address. Never enter a private key or recovery phrase."));
+    addressInput(DOM.operatorAddress, () => DOM.operatorNetwork.value, "operator wallet");
+    updateAddressControls();
     DOM.enabled.addEventListener("change", updateControls);
     DOM.operatorNetwork.addEventListener("change", updateRegistrationNetwork);
     DOM.operatorAddress.addEventListener("input", () => validateRegistration());
@@ -402,6 +475,7 @@ export function InitNFTSettings() {
     DOM.registrationForm.noValidate = true;
     DOM.registrationForm.addEventListener("submit", async event => {
         event.preventDefault();
+        if (connectionBusy || registrationLocked || registrationSaving) return;
         validateRegistration(true);
         if (!DOM.operatorNetwork.reportValidity() || !DOM.operatorAddress.reportValidity()) return;
         for (const form of registrationForms) {
@@ -420,7 +494,8 @@ export function InitNFTSettings() {
             operatorAddress: DOM.operatorAddress.value.trim(),
             chains: registrationForms.filter(form => form.include.checked).map(form => ({network: form.network, sender: form.sender.value.trim(), chainId: form.chainId?.value.trim(), contract: form.contract?.value.trim() || "", codeHash: form.codeHash?.value.trim() || ""})),
         };
-        DOM.registrationSave.disabled = true;
+        registrationSaving = true;
+        updateAddressControls();
         DOM.registrationStatus.textContent = "Saving...";
         try {
             const [status, response] = await HttpPostJson("/settings/content/nft/registration", registration, DOM.csrf.value);
@@ -432,7 +507,7 @@ export function InitNFTSettings() {
             await load();
             DOM.registrationStatus.textContent = "Saved. Auto-Minting paused; signing credentials require provisioning.";
             DOM.status.textContent = "Operator and wallets saved. Auto-Minting paused.";
-        } finally { DOM.registrationSave.disabled = false; }
+        } finally { registrationSaving = false; updateAddressControls(); }
     });
     DOM.form.addEventListener("submit", async event => {
         event.preventDefault();

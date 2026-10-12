@@ -16,6 +16,8 @@ Registration precedence: **Gateway environment override > saved Settings > serve
 
 A fresh Gateway with no real server owner must first establish an owner through local server setup or receive a trusted deployment registration. The zero-address default and arbitrary visitors cannot claim operator access.
 
+Wallet buttons beside operator and issuing addresses connect through Base Account, MetaMask, or Pera and fill that field only. They do not change the application's login wallet, save settings, sign transactions, or provision keys. Local wallet addresses can be pasted manually.
+
 ## Deployment Setup
 
 1. Apply the Gateway IAM policy change in Infra before using the bootstrap workflow. No additional service or Make target is required.
