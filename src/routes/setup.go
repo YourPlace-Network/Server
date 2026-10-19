@@ -35,15 +35,6 @@ func SetupRoutes(router *gin.Engine, database *db.Database, title string, favico
 			"pageName":               "setup",
 		})
 	})
-	router.GET("/setup/installed", func(c *gin.Context) {
-		isInstalled := IsInstalled(database)
-		if isInstalled {
-			c.JSON(http.StatusOK, gin.H{"status": "installed"})
-		} else {
-			c.JSON(http.StatusProcessing, gin.H{"status": "not installed"})
-		}
-	})
-
 	router.POST("/setup", func(c *gin.Context) {
 		type Payload struct {
 			Address         string `json:"address" binding:"required"`

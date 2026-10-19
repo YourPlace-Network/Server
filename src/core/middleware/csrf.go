@@ -179,8 +179,6 @@ func isCSRFExcluded(c *gin.Context) bool {
 		"/login/wallet/base",
 		"/rpc/base",
 		"/rpc/ethereum",
-		"/settings/database/exportSnapshot",
-		"/settings/database/importSnapshot",
 	}
 	for _, excludedPath := range excludedPaths {
 		if path == excludedPath {

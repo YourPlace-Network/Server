@@ -25,7 +25,6 @@ export default {
         settings: "./pages/settings.ts",
         setup: "./pages/setup.ts",
         spotifyCallback: "./pages/spotifyCallback.ts",
-        test: "./pages/test.ts",
         tinymce: "../scss/tinymce.scss",
         underground: "./pages/underground.ts",
     },

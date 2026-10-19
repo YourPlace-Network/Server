@@ -240,24 +240,6 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "avatarAddress": avatarAddress})
 	})
-	router.GET("/profile/banner/:blockchain/:address", func(c *gin.Context) {
-		blockchainParam := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
-			return
-		}
-		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
-			return
-		}
-		bannerAddress := database.ProfileGetBanner(address, blockchainParam)
-		if bannerAddress == "" {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "no banner found"})
-			return
-		}
-		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "bannerAddress": bannerAddress})
-	})
 	router.GET("/profile/description/:blockchain/:address", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")
 		if !security.IsValidBlockchain(blockchainParam) {
@@ -275,24 +257,6 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 			return
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"description": description})
-	})
-	router.GET("/profile/location/:blockchain/:address", func(c *gin.Context) {
-		blockchainParam := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchainParam) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
-			return
-		}
-		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchainParam) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
-			return
-		}
-		location := database.ProfileGetLocation(address, blockchainParam)
-		if location == "" {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "no location found"})
-			return
-		}
-		c.SecureJSON(http.StatusOK, gin.H{"location": location})
 	})
 	router.GET("/profile/bot/:blockchain/:address", func(c *gin.Context) {
 		blockchainParam := c.Param("blockchain")
@@ -322,74 +286,6 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		nsfw := database.ProfileGetNsfw(address, blockchainParam)
 		c.SecureJSON(http.StatusOK, gin.H{"nsfw": nsfw})
 	})
-	router.GET("/profile/vertical/:blockchain/:address", func(c *gin.Context) {
-		blockchainParam := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
-			return
-		}
-		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
-			return
-		}
-		vertical := database.ProfileGetVertical(address, blockchainParam)
-		if vertical == "" {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "no vertical found"})
-			return
-		}
-		c.SecureJSON(http.StatusOK, gin.H{"vertical": vertical})
-	})
-	router.GET("/profile/joinedDate/:blockchain/:address", func(c *gin.Context) {
-		blockchainParam := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
-			return
-		}
-		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
-			return
-		}
-		joinedDate := database.ProfileGetJoinedDate(address, blockchainParam)
-		if joinedDate == nil {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "no joined date found"})
-			return
-		}
-		c.SecureJSON(http.StatusOK, gin.H{"joinedDate": joinedDate})
-	})
-	router.GET("/profile/website/:blockchain/:address", func(c *gin.Context) {
-		blockchainParam := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
-			return
-		}
-		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
-			return
-		}
-		website := database.ProfileGetWebsite(address, blockchainParam)
-		if website == "" {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "no website found"})
-			return
-		}
-		c.SecureJSON(http.StatusOK, gin.H{"website": website})
-	})
-	router.GET("/profile/followerCount/:blockchain/:address", func(c *gin.Context) {
-		blockchainParam := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
-			return
-		}
-		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
-			return
-		}
-		followerCount := database.ProfileGetFollowerCount(address, blockchainParam)
-		c.SecureJSON(http.StatusOK, gin.H{"followerCount": followerCount})
-	})
 	router.GET("/profile/isFollower/:toBlockchain/:toAddress/:fromBlockchain/:fromAddress", func(c *gin.Context) {
 		toBlockchain := c.Param("toBlockchain")
 		if !security.IsValidBlockchain(toBlockchain) {
@@ -413,26 +309,5 @@ func ProfileRoutes(router *gin.Engine, title string, database *db.Database, _blo
 		}
 		isFollower := database.ProfileIsFollower(toAddress, toBlockchain, fromAddress, fromBlockchain)
 		c.SecureJSON(http.StatusOK, gin.H{"isFollower": isFollower})
-	})
-	router.GET("/profile/colors/:blockchain/:address", func(c *gin.Context) {
-		blockchainParam := c.Param("blockchain")
-		if !security.IsValidBlockchain(blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
-			return
-		}
-		address := c.Param("address")
-		if !security.IsValidAddress(address, blockchainParam) {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
-			return
-		}
-		colorsJSON := database.ProfileGetColors(address, blockchainParam)
-		var colors map[string]string
-		if colorsJSON != "" {
-			json.Unmarshal([]byte(colorsJSON), &colors)
-		}
-		if colors == nil {
-			colors = make(map[string]string)
-		}
-		c.SecureJSON(http.StatusOK, gin.H{"colors": colors})
 	})
 }

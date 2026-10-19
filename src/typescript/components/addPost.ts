@@ -6,13 +6,15 @@ import {CreateLocalPost, FinalizeFiles, UploadFile} from "../util/files";
 import {AddFileToIPFS, getIpfsAvatarUrl} from "../util/ipfs";
 import {HttpPostJson} from "../util/network";
 import {AIGetSpiciness, AIIsEnabled} from "../services/ai";
+import {setRedirect} from "../util/redirect";
 import {ShowToastWithDelay} from "./toast";
-import {ShowDialogModalHTML} from "./modalDialog";
+import {DisableDialogModalExit, DisableDialogModalOkBtn, ShowDialogModal, ShowDialogModalHTML} from "./modalDialog";
 import {CreateAttachmentPreview} from "../util/domFactory";
 import {OEmbedCard} from "./oEmbedCard";
 import {XcomCrossPost, XcomIsCrossPostEnabled} from "../services/xcom";
 import {XcomOEmbedCard} from "./xcomOEmbedCard";
 import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
+import {Sleep} from "../util/time";
 
 (function initialize() {
     if (document.readyState === "loading") {document.addEventListener("DOMContentLoaded", main);} else {main();}
@@ -132,6 +134,9 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
 
         function formatUrlDisplayText(url: string): string {
             return url.replace(/^https:\/\/(www\.)?/, "").replace(/[?#].*$/, "");
+        }
+        function getCurrentRelativePath(): string {
+            return window.location.pathname + window.location.search + window.location.hash;
         }
         function createImageEmbed(url: string): HTMLImageElement | null {
             const imageRegex = /^https:\/\/.*\.(jpg|jpeg|gif|webp|png|svg)$/i;
@@ -669,7 +674,7 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
             }
             const publicPost = shouldCreatePublicPost();
             if (publicPost && !await EnsureWalletConnected()) {
-                ShowToastWithDelay("Couldn't restore your wallet session. Your draft is still here.", 5000);
+                await redirectPostToLogin(payload);
                 return;
             }
             let csrfToken = DOM.csrfToken.value;
@@ -799,6 +804,35 @@ import {setupTinyMCEEmojiButton} from "../util/emojiPicker";
             if (typeof window.PostSubmitCallback === "function") {
                 window.PostSubmitCallback();
             }
+        }
+        async function redirectPostToLogin(payload: string) {
+            if (!setRedirect("post", {path: getCurrentRelativePath(), payload})) {
+                ShowToastWithDelay("Couldn't save your post for login. Your draft is still here.", 5000);
+                return;
+            }
+            hideModal();
+            DisableDialogModalExit();
+            DisableDialogModalOkBtn();
+            ShowDialogModal("Logging you in before posting");
+            const content = document.getElementById("modalDialogContent")!;
+            const countdown = document.createElement("span");
+            const countdownSpinner = document.createElement("div");
+            const message = document.createElement("div");
+            const spinner = document.createElement("span");
+            countdown.className = "postLoginCountdownNumber";
+            countdownSpinner.className = "postLoginCountdownSpinner";
+            countdownSpinner.setAttribute("aria-live", "polite");
+            message.textContent = "Logging you in before posting";
+            spinner.className = "spinner-border text-primary";
+            spinner.setAttribute("aria-hidden", "true");
+            countdownSpinner.append(spinner, countdown);
+            content.replaceChildren(message, countdownSpinner);
+            content.classList.add("postLoginRedirect");
+            for (let secondsRemaining = 3; secondsRemaining > 0; secondsRemaining--) {
+                countdown.textContent = secondsRemaining.toString();
+                await Sleep(1000);
+            }
+            window.location.href = "/login";
         }
         async function uploadFile() {
             let fileInput = DOM.fileInput;

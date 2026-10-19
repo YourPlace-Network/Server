@@ -10,7 +10,6 @@ import (
 
 func ReactionRoutes(router *gin.Engine, database *db.Database) {
 	router.GET("/reactions/:blockchain/:txHash", getReactions(database))
-	router.GET("/reactions/:blockchain/:txHash/user/:address", getUserReaction(database))
 }
 func getReactions(database *db.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -40,29 +39,5 @@ func getReactions(database *db.Database) gin.HandlerFunc {
 			reactions["userEmojiReaction"] = userReactions["emoji"]
 		}
 		c.JSON(http.StatusOK, reactions)
-	}
-}
-func getUserReaction(database *db.Database) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		blockchain := c.Param("blockchain")
-		txHash := c.Param("txHash")
-		address := c.Param("address")
-		if !security.IsValidBlockchain(blockchain) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid blockchain"})
-			return
-		}
-		if !security.IsValidTxHash(txHash, blockchain) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction hash"})
-			return
-		}
-		if !security.IsValidAddressAnyChain(address) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid address"})
-			return
-		}
-		userReactions := database.GetUserReactions(txHash, blockchain, address)
-		c.JSON(http.StatusOK, gin.H{
-			"reaction":      userReactions["likeDislike"],
-			"emojiReaction": userReactions["emoji"],
-		})
 	}
 }

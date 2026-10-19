@@ -18,8 +18,8 @@ import (
 
 // List of path/method pairs that do not require authentication. Everything else requires a yp_auth cookie created from /login
 var excludedTuplesAuth = [][]string{ // exact match on path and method
-	{"/", "GET"},                                                       // Home page
-	{"/setup", "GET"}, {"/setup/installed", "GET"}, {"/setup", "POST"}, // Setup pages
+	{"/", "GET"},                          // Home page
+	{"/setup", "GET"}, {"/setup", "POST"}, // Setup pages
 	{"/discover", "GET"}, {"/discover/random", "GET"}, // Discover API
 	{"/favicon.ico", "GET"},                                 // Favicon
 	{"/ping", "GET"},                                        // Health check endpoint
@@ -28,7 +28,6 @@ var excludedTuplesAuth = [][]string{ // exact match on path and method
 	{"/notification", "GET"},                         // Notification page
 	{"/robots.txt", "GET"},                           // Robots direction
 	{"/rpc/base", "POST"}, {"/rpc/ethereum", "POST"}, // Public RPC proxy endpoints
-	{"/settings/database/exportSnapshot", "POST"}, {"/settings/database/importSnapshot", "POST"}, // Database snapshot endpoints
 	{"/s", "GET"},   // Search endpoint
 	{"/404", "GET"}, // 404 not-found page
 }
@@ -60,6 +59,7 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database, gateway bool, vali
 				var err1, err2 error
 				address, err1 = security.GetCookieValue(authCookie, cryptoSeed, "address", database)
 				blockchain, err2 = security.GetCookieValue(authCookie, cryptoSeed, "blockchain", database)
+				authDataValid = (err1 == nil && err2 == nil)
 				if authDataValid {
 					authorizer, authorizerErr := security.GetCookieValue(authCookie, cryptoSeed, "authorizer", database)
 					if authorizerErr != nil || validateAuthority == nil {
@@ -88,7 +88,6 @@ func AuthMiddleware(cryptoSeed []byte, database *db.Database, gateway bool, vali
 						}
 					}
 				}
-				authDataValid = (err1 == nil && err2 == nil)
 
 				if authDataValid {
 					c.Set("accountAddress", address)

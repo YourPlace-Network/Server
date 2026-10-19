@@ -17,7 +17,6 @@ var exactPageRoutes = map[string]string{
 	"/mentalHealth": "mentalHealth",
 	"/settings":     "settings",
 	"/setup":        "setup",
-	"/test":         "test",
 }
 var prefixPageRoutes = []struct {
 	prefix   string

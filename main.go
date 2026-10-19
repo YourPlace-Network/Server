@@ -467,10 +467,6 @@ func StartWebServer(database *db.Database, _blockchain *blockchain2.Blockchain, 
 		routes.SearchRoutes(router, database, _blockchain)
 		routes.ServicesRoutes(router, title, database, _blockchain, gateway)
 		routes.NotificationRoutes(router, title, database, cryptoSeed, gateway)
-		routes.WalletRoutes(router, title, database, cryptoSeed, gateway)
-		//if debug {
-		//	routes.TestRoutes(router, title, gateway)
-		//}
 	}
 	// --- Start Web Server Loop --- //
 	http2Cleartext := &http2.Server{

@@ -63,3 +63,4 @@ test_build
 foundry.toml
 .deploy.sh.swp
 
+!/src/routes/mentalHealth.go

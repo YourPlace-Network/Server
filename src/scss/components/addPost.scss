@@ -5,6 +5,19 @@
 #addPostModal .modal-body {
   position: relative;
 }
+#modalDialogContent.postLoginRedirect {
+  flex-direction: column;
+  gap: 1rem;
+}
+.postLoginCountdownSpinner {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+.postLoginCountdownNumber {
+  position: absolute;
+}
 #addPostButton {
   width: 3.7em;
   height: 3.7em;

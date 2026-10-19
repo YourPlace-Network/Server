@@ -23,10 +23,8 @@ func LoopbackMiddleware(port int, gateway bool, gatewayMintEnabled bool) gin.Han
 		"/debug",      // Debug endpoints
 		"/ipfs",       // IPFS endpoints
 		"/health",     // Health check endpoints
-		"/test",       // Test endpoints
 		"/service/ai", // AI service endpoints
 		"/files",      // File management endpoints
-		"/wallet",     // Wallet management endpoints
 	}
 	return func(c *gin.Context) {
 		requestPath := c.Request.RequestURI

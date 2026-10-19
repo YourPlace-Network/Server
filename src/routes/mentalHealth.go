@@ -1169,4 +1169,6 @@ var mentalHealthTips = []string{
 	"Incompetent people like incompetent people. They don't like competent people because it brings them face to face with what they pretend to be, but aren't",
 	"Sometimes you have to perform a little socially just to avoid being rude or awkward",
 	"'Do not look back' is a common command in ancient mythology around the world",
+	"The degree to which a person can grow is directly proportional to the amount of truth they can accept about themselves without running away.",
+	"It's a good thing to want to be an intelligent person. But realize that it is possible to be so smart in one area, that you become functionally retarted in all others. People see that intellectual imbalance, and they will take opportunities away from you, thus reducing your overall potential. Some of the smartest men in the world died alone, hated and with nothing. And nobody really wants to end up like that",
 }

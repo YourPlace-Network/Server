@@ -5,6 +5,8 @@ import (
 	"YourPlace/src/core/middleware"
 	"YourPlace/src/core/security"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,4 +46,17 @@ func HomeRoutes(router *gin.Engine, title string, favicon []byte, installed bool
 			c.SecureJSON(http.StatusServiceUnavailable, gin.H{"status": "Not installed"})
 		}
 	})
+
+	// AI and Agent Instructions
+	serveAIFile := func(c *gin.Context) {
+		filePath := filepath.Join("AI.md")
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		c.Data(http.StatusOK, "text/markdown", content)
+	}
+	router.GET("/AI.md", serveAIFile)
+	router.GET("/agents.md", serveAIFile)
 }

@@ -12,7 +12,6 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -22,8 +21,8 @@ import (
 func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _blockchain *blockchain2.Blockchain, cryptoSeed []byte, gateway bool, ipfs *network.IPFS, debug bool) {
 	defaultUploadDirectory := host.GetDataDir() + "upload" + host.PathSeparator
 
-		c.Header("Cache-Control", "no-store")
 	router.GET("/settings", func(c *gin.Context) { // Settings View
+		c.Header("Cache-Control", "no-store")
 		token := middleware.GetCSRFToken(c)
 		ipfsGateway := getConfiguredIPFSGateway(database)
 		userAddress := c.GetString("accountAddress")
@@ -106,15 +105,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"uploadDirectory": uploadDirectory,
 		})
 	})
-	router.GET("/settings/ipfs/port", func(c *gin.Context) {
-		ipfsPort := database.SettingsGetValue("ipfsPort")
-		if ipfsPort == "" {
-			ipfsPort = "42423"
-		}
-		c.SecureJSON(http.StatusOK, gin.H{
-			"port": ipfsPort,
-		})
-	})
 	router.GET("/settings/base/url", func(c *gin.Context) {
 		if gateway {
 			c.SecureJSON(http.StatusOK, gin.H{
@@ -168,17 +158,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			"isDefault": isDefault,
 		})
 	})
-	router.GET("/settings/post/history", func(c *gin.Context) {
-		historyDays := database.SettingsGetValue("historyDays")
-		historyDaysInt, err := strconv.Atoi(historyDays)
-		if err != nil {
-			c.SecureJSON(http.StatusBadRequest, gin.H{"status": "Could not get post history days"})
-			return
-		}
-		c.SecureJSON(http.StatusOK, gin.H{
-			"days": historyDaysInt,
-		})
-	})
 	router.GET("/settings/ai/spiceometer", func(c *gin.Context) {
 		spiceometer := database.SettingsGetValue("spiceometer")
 		spiceometerInt, err := strconv.Atoi(spiceometer)
@@ -193,32 +172,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		c.SecureJSON(status, gin.H{
 			"enable": spiceometerInt,
 		})
-	})
-	router.GET("/settings/ai/ollama/enabled", func(c *gin.Context) {
-		client := &http.Client{
-			Timeout: 5 * time.Second,
-		}
-		resp, err := client.Get("http://localhost:11434/api/health")
-		if err != nil {
-			c.SecureJSON(http.StatusServiceUnavailable, gin.H{"status": "Ollama disabled"})
-			return
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode == http.StatusOK {
-			c.SecureJSON(http.StatusOK, gin.H{"status": "Ollama enabled"})
-			return
-		} else {
-			c.SecureJSON(http.StatusServiceUnavailable, gin.H{"status": "Ollama disabled"})
-			return
-		}
-	})
-	router.GET("/settings/database/importSnapshotStatus", func(c *gin.Context) {
-		status := database.MetaGetValue("importSnapshotStatus")
-		c.SecureJSON(http.StatusOK, gin.H{"status": status})
-	})
-	router.GET("/settings/database/exportSnapshotStatus", func(c *gin.Context) {
-		status := database.MetaGetValue("exportSnapshotStatus")
-		c.SecureJSON(http.StatusOK, gin.H{"status": status})
 	})
 	router.GET("/settings/indexer/status", func(c *gin.Context) {
 		baseUUID := database.IndexerGetJobUUID("base")
@@ -383,10 +336,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 			logPath = ""
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"logs": log, "logPath": logPath})
-	})
-	router.GET("/settings/database/snapshotDirectory", func(c *gin.Context) {
-		snapshotPath := host.GetDataDir() + "yourplace.db.snapshot"
-		c.SecureJSON(http.StatusOK, gin.H{"snapshotDirectory": snapshotPath})
 	})
 	router.GET("/settings/services/algorand", func(c *gin.Context) {
 		algodURL := database.SettingsGetValue("algoURL")
@@ -1019,22 +968,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
 	})
-	router.POST("/settings/post/history", func(c *gin.Context) {
-		type Payload struct {
-			Days int `json:"days" required:"true"`
-		}
-		var payload Payload
-		err := c.BindJSON(&payload)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid directory json"})
-			return
-		}
-		if !security.IsValidNumberRange(payload.Days, 1, 365) {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Invalid days range"})
-			return
-		}
-		database.SettingsUpdateValue("historyDays", strconv.Itoa(payload.Days))
-	})
 	router.POST("/settings/ai/spiceometer", func(c *gin.Context) {
 		type Payload struct {
 			Spiceometer int `json:"enable" required:"true"`
@@ -1133,66 +1066,6 @@ func SettingsRoutes(router *gin.Engine, title string, database *db.Database, _bl
 		}
 		blockchain2.BaseIndexerStop()
 		c.SecureJSON(http.StatusOK, gin.H{"status": "success"})
-	})
-	router.POST("/settings/database/exportSnapshot", func(c *gin.Context) {
-		exportDB := host.GetDataDir() + "yourplace.db.snapshot"
-		database.MetaUpdateValue("exportSnapshotStatus", "running")
-		go func() {
-			host.DeleteIfExists(exportDB)
-			err := database.ExportSnapshot(exportDB)
-			if err != nil {
-				core.LogDebug("Error sanitizing database: " + err.Error())
-				database.MetaUpdateValue("exportSnapshotStatus", "failed")
-				return
-			}
-			database.MetaUpdateValue("exportSnapshotStatus", "complete")
-		}()
-		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "exportPath": exportDB})
-	})
-	router.POST("/settings/database/importSnapshot", func(c *gin.Context) {
-		pattern := filepath.Join(host.GetDataDir(), "snapshotsyourplacelast*")
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Error searching for snapshot files"})
-			return
-		}
-		if len(matches) == 0 {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "No snapshot file found"})
-			return
-		}
-		// Use the first matching file (or most recent if multiple)
-		var importPath string
-		if len(matches) == 1 {
-			importPath = matches[0]
-		} else {
-			// If multiple matches, use the most recently modified
-			var latestTime time.Time
-			for _, match := range matches {
-				info, err := os.Stat(match)
-				if err == nil && info.ModTime().After(latestTime) {
-					latestTime = info.ModTime()
-					importPath = match
-				}
-			}
-		}
-		database.MetaUpdateValue("importSnapshotStatus", "running")
-		blockchain2.BaseIndexerStop()
-		go func() {
-			for i := 0; i < 100; i++ {
-				uuids := database.IndexerGetRunningJobsUUIDs()
-				if len(uuids) == 0 {
-					break
-				}
-				time.Sleep(5 * time.Second)
-			}
-			err := database.ImportSnapshot(importPath)
-			if err != nil {
-				database.MetaUpdateValue("importSnapshotStatus", "failed")
-				return
-			}
-			database.MetaUpdateValue("importSnapshotStatus", "complete")
-		}()
-		c.SecureJSON(http.StatusOK, gin.H{"status": "success", "importPath": importPath})
 	})
 	router.POST("/settings/content/ipfsPinning", func(c *gin.Context) {
 		type Payload struct {
