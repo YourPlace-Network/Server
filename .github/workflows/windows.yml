@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   release:
     types: [ published ]
-#  push:
-#    branches: [ chad ]
+  push:
+    branches: [ chad ]
 
 jobs:
   build:
